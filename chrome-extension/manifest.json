@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Deadbird",
+  "version": "1.0.0",
+  "description": "Tracks YouTube videos for Korean language learning with Deadbird",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/watch*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Deadbird",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}
