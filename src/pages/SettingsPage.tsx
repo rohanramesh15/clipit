@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Bell,
@@ -10,29 +10,59 @@ import {
   Check,
   ChevronRight,
   Crown,
-  Target } from
-'lucide-react';
+  Target,
+  CheckCircle2,
+  RefreshCw,
+  Puzzle,
+} from 'lucide-react';
+
+const API_BASE = 'http://localhost:8000/api';
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const DAILY_GOALS = [10, 15, 20, 30, 45, 60];
+
+type ExtStatus = 'checking' | 'active' | 'inactive';
+
 export function SettingsPage() {
   const [level, setLevel] = useState('B2');
   const [dailyGoal, setDailyGoal] = useState(20);
   const [notifications, setNotifications] = useState(true);
-  const [youtubeConnected, setYoutubeConnected] = useState(true);
   const [netflixConnected, setNetflixConnected] = useState(false);
+
+  // Extension status
+  const [extStatus, setExtStatus] = useState<ExtStatus>('checking');
+  const [trackedCount, setTrackedCount] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  async function checkExtensionStatus() {
+    try {
+      const res = await fetch(`${API_BASE}/videos/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setExtStatus('active');
+        setTrackedCount(data.total ?? 0);
+      } else {
+        setExtStatus('inactive');
+      }
+    } catch {
+      setExtStatus('inactive');
+    }
+  }
+
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    await checkExtensionStatus();
+    setIsRefreshing(false);
+  }
+
+  useEffect(() => {
+    checkExtensionStatus();
+  }, []);
+
   return (
     <motion.div
-      initial={{
-        opacity: 0,
-        y: 20
-      }}
-      animate={{
-        opacity: 1,
-        y: 0
-      }}
-      transition={{
-        duration: 0.4
-      }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
       className="min-h-screen pb-20 max-w-3xl mx-auto px-4 pt-8">
 
       {/* Header */}
@@ -60,9 +90,7 @@ export function SettingsPage() {
               <p className="text-sm text-secondary">john@example.com</p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <Crown className="w-3.5 h-3.5 text-accent" />
-                <span className="text-xs font-bold text-accent">
-                  Pro Member
-                </span>
+                <span className="text-xs font-bold text-accent">Pro Member</span>
               </div>
             </div>
             <button className="text-sm font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 shrink-0 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/5">
@@ -77,31 +105,31 @@ export function SettingsPage() {
             Learning
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6 space-y-6">
-            {/* Level */}
             <div>
               <label className="text-sm font-semibold text-primary mb-1 flex items-center gap-2">
                 <Target className="w-4 h-4 text-accent" /> Current Level
               </label>
               <p className="text-xs text-secondary mb-3">
-                Set your French proficiency level to calibrate content
-                difficulty.
+                Set your Korean proficiency level to calibrate content difficulty.
               </p>
               <div className="flex gap-2">
-                {LEVELS.map((l) =>
-                <button
-                  key={l}
-                  onClick={() => setLevel(l)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all border ${level === l ? 'bg-accent text-app border-accent shadow-md shadow-accent/20' : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'}`}>
-
+                {LEVELS.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setLevel(l)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                      level === l
+                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
+                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
+                    }`}>
                     {l}
                   </button>
-                )}
+                ))}
               </div>
             </div>
 
             <div className="border-t border-white/5" />
 
-            {/* Daily Goal */}
             <div>
               <label className="text-sm font-semibold text-primary mb-1 block">
                 Daily Goal
@@ -110,15 +138,18 @@ export function SettingsPage() {
                 How many minutes do you want to study each day?
               </p>
               <div className="flex gap-2 flex-wrap">
-                {DAILY_GOALS.map((g) =>
-                <button
-                  key={g}
-                  onClick={() => setDailyGoal(g)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${dailyGoal === g ? 'bg-accent text-app border-accent shadow-md shadow-accent/20' : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'}`}>
-
+                {DAILY_GOALS.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setDailyGoal(g)}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                      dailyGoal === g
+                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
+                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
+                    }`}>
                     {g}m
                   </button>
-                )}
+                ))}
               </div>
             </div>
           </div>
@@ -130,61 +161,114 @@ export function SettingsPage() {
             Integrations
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl divide-y divide-white/5">
-            {[
-            {
-              id: 'youtube',
-              label: 'YouTube',
-              desc: 'Sync your watch history to extract French vocabulary automatically.',
-              icon: Youtube,
-              color: 'text-red-500',
-              bg: 'bg-red-500/10',
-              connected: youtubeConnected,
-              toggle: () => setYoutubeConnected(!youtubeConnected)
-            },
-            {
-              id: 'netflix',
-              label: 'Netflix',
-              desc: 'Connect Netflix to track French shows and films you watch.',
-              icon: Tv,
-              color: 'text-red-700',
-              bg: 'bg-red-700/10',
-              connected: netflixConnected,
-              toggle: () => setNetflixConnected(!netflixConnected)
-            }].
-            map((integration) =>
-            <div
-              key={integration.id}
-              className="flex items-center justify-between p-5">
 
-                <div className="flex items-center gap-4">
-                  <div
-                  className={`w-10 h-10 rounded-xl ${integration.bg} ${integration.color} flex items-center justify-center shrink-0`}>
-
-                    <integration.icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-primary">
-                      {integration.label}
-                    </p>
-                    <p className="text-xs text-secondary mt-0.5">
-                      {integration.desc}
-                    </p>
-                  </div>
+            {/* YouTube — extension-based, live status */}
+            <div className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 mt-0.5">
+                  <Youtube className="w-5 h-5" />
                 </div>
-                <button
-                onClick={integration.toggle}
-                className={`ml-4 px-4 py-2 rounded-lg text-xs font-bold transition-all border shrink-0 ${integration.connected ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20' : 'bg-accent/10 text-accent border-accent/20 hover:bg-accent/20'}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-primary">YouTube</p>
+                    {extStatus === 'active' && (
+                      <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="text-secondary hover:text-primary transition-colors shrink-0">
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </button>
+                    )}
+                  </div>
 
-                  {integration.connected ?
-                <span className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5" /> Connected
-                    </span> :
+                  {/* Checking */}
+                  {extStatus === 'checking' && (
+                    <p className="text-xs text-secondary mt-1">Checking extension status…</p>
+                  )}
 
-                'Connect'
-                }
-                </button>
+                  {/* Active */}
+                  {extStatus === 'active' && (
+                    <div className="mt-1.5 space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                        <span className="text-xs text-green-400 font-medium">
+                          Extension active · {trackedCount} video{trackedCount !== 1 ? 's' : ''} tracked
+                        </span>
+                      </div>
+                      <p className="text-xs text-secondary">
+                        Watch Korean videos on YouTube — they're tracked automatically.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Inactive — show install instructions */}
+                  {extStatus === 'inactive' && (
+                    <div className="mt-2 space-y-3">
+                      <p className="text-xs text-secondary">
+                        Install the Deadbird Chrome extension to track your YouTube watch history automatically.
+                      </p>
+                      <div className="bg-app/60 border border-white/5 rounded-xl p-4 space-y-2">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Puzzle className="w-3.5 h-3.5 text-accent" />
+                          <span className="text-xs font-semibold text-accent uppercase tracking-wide">Install steps</span>
+                        </div>
+                        {[
+                          'Open Chrome and go to chrome://extensions',
+                          'Enable "Developer mode" (top-right toggle)',
+                          'Click "Load unpacked"',
+                          'Select the project-deadbird-extension folder',
+                          'Visit any Korean video on YouTube',
+                        ].map((step, i) => (
+                          <div key={i} className="flex items-start gap-2.5">
+                            <span className="w-4 h-4 rounded-full bg-white/8 text-muted text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                              {i + 1}
+                            </span>
+                            <span className="text-xs text-secondary">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="flex items-center gap-1.5 text-xs font-medium text-accent hover:opacity-80 transition-opacity">
+                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Check again
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Netflix — static */}
+            <div className="flex items-center justify-between p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-red-700/10 text-red-700 flex items-center justify-center shrink-0">
+                  <Tv className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-primary">Netflix</p>
+                  <p className="text-xs text-secondary mt-0.5">
+                    Connect Netflix to track Korean shows and films you watch.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setNetflixConnected(!netflixConnected)}
+                className={`ml-4 px-4 py-2 rounded-lg text-xs font-bold transition-all border shrink-0 ${
+                  netflixConnected
+                    ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20'
+                    : 'bg-accent/10 text-accent border-accent/20 hover:bg-accent/20'
+                }`}>
+                {netflixConnected ? (
+                  <span className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" /> Connected
+                  </span>
+                ) : (
+                  'Connect'
+                )}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -208,18 +292,10 @@ export function SettingsPage() {
             <button
               onClick={() => setNotifications(!notifications)}
               className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ${notifications ? 'bg-accent' : 'bg-white/10'}`}>
-
               <motion.div
-                animate={{
-                  x: notifications ? 22 : 2
-                }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 500,
-                  damping: 30
-                }}
+                animate={{ x: notifications ? 22 : 2 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm" />
-
             </button>
           </div>
         </section>
@@ -246,6 +322,6 @@ export function SettingsPage() {
           </div>
         </section>
       </div>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
