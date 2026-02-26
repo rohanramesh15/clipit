@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-from pathlib import Path
 from app.services.subtitle_service import load_cached_subtitles
 from app.services.korean_tokenizer import extract_korean_words_from_subtitles
 from app.services.vocab_service import load_frequency_map, filter_vocabulary, get_vocab_stats
@@ -18,9 +17,9 @@ def get_frequency_map() -> dict:
 
 
 @router.get("/vocabulary/{video_id}")
-async def get_vocabulary(video_id: str, level: str = "intermediate", limit: int = 20):
+async def get_vocabulary(video_id: str, limit: int = 20):
     """
-    Extract and filter Korean vocabulary from cached video subtitles.
+    Extract Korean vocabulary found in the frequency list from cached video subtitles.
     Subtitles must be fetched first via GET /api/subtitles/{video_id}.
     """
     subtitle_data = load_cached_subtitles(video_id)
@@ -33,21 +32,19 @@ async def get_vocabulary(video_id: str, level: str = "intermediate", limit: int 
     if not subtitle_data.get("has_korean"):
         return {
             "video_id": video_id,
-            "user_level": level,
             "total_words": 0,
             "vocabulary": [],
-            "stats": {"total": 0, "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0, "very_advanced": 0}}
+            "stats": {"total": 0}
         }
 
     korean_words = extract_korean_words_from_subtitles(subtitle_data["subtitles"])
     frequency_map = get_frequency_map()
-    filtered = filter_vocabulary(korean_words, frequency_map, user_level=level, language='ko')
+    filtered = filter_vocabulary(korean_words, frequency_map, language='ko')
     limited = filtered[:limit]
     stats = get_vocab_stats(limited)
 
     return {
         "video_id": video_id,
-        "user_level": level,
         "total_words": len(limited),
         "vocabulary": limited,
         "stats": stats
