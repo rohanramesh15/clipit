@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.api.routes import health, users
 from app.api.routes import health
 from app.api.routes.videos import router as videos_router
 from app.api.routes.subtitles import router as subtitles_router
 from app.api.routes.vocabulary import router as vocabulary_router
 from app.api.routes.flashcards import router as flashcards_router
 from app.api.routes.lookup import router as lookup_router
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -23,6 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api", tags=["health"])
+app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(videos_router, prefix="/api/videos", tags=["videos"])
 app.include_router(subtitles_router, prefix="/api", tags=["subtitles"])
 app.include_router(vocabulary_router, prefix="/api", tags=["vocabulary"])
