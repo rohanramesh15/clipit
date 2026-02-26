@@ -19,9 +19,8 @@ class Settings(BaseSettings):
         "http://localhost:8000",
     ]
 
-    # Database (example - uncomment and configure as needed)
-    # DATABASE_URL: str = "sqlite:///./app.db"
-    # DATABASE_URL: str = "postgresql://user:password@localhost/dbname"
+    # Database
+    DATABASE_URL: str
 
     # Security (example - uncomment and configure as needed)
     # SECRET_KEY: str = "your-secret-key-here"
