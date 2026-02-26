@@ -1,0 +1,156 @@
+import json
+from pathlib import Path
+from youtube_transcript_api import YouTubeTranscriptApi
+from app.core.config import settings
+
+
+def _cache_path(video_id: str) -> Path:
+    cache_dir = Path(settings.SUBTITLES_CACHE_DIR)
+    cache_dir.mkdir(exist_ok=True)
+    return cache_dir / f"subtitles_{video_id}.json"
+
+
+def _snippets_to_list(result) -> list:
+    return [{'text': s.text, 'start': s.start, 'duration': s.duration} for s in result.snippets]
+
+
+def merge_subtitles_by_timestamp(english_subs: list, korean_subs: list) -> list:
+    """Merge Korean (primary) with matching English. Only keeps entries with BOTH languages."""
+    merged = []
+    for ko_sub in korean_subs:
+        if not ko_sub['text'] or not ko_sub['text'].strip():
+            continue
+        ko_start = ko_sub['start']
+        matching_eng = None
+        for en_sub in english_subs:
+            if abs(ko_start - en_sub['start']) < 1.0:
+                matching_eng = en_sub
+                break
+        if matching_eng and matching_eng['text'].strip():
+            merged.append({
+                'start': ko_start,
+                'duration': ko_sub['duration'],
+                'end': ko_start + ko_sub['duration'],
+                'english': matching_eng['text'],
+                'korean': ko_sub['text'],
+            })
+    return merged
+
+
+def _fetch_english(transcript_list, ko_transcript) -> list:
+    """
+    Try every YouTube path to get English subtitles:
+      1. Direct English (manual or auto-generated)
+      2. Any auto-generated English
+      3. YouTube translation of Korean → English
+    Returns empty list if all paths fail — caller proceeds Korean-only.
+    """
+    # 1. Direct English transcript (manual or auto)
+    try:
+        return _snippets_to_list(transcript_list.find_transcript(['en']).fetch())
+    except Exception:
+        pass
+
+    # 2. Explicitly look for auto-generated English
+    try:
+        return _snippets_to_list(transcript_list.find_generated_transcript(['en']).fetch())
+    except Exception:
+        pass
+
+    # 3. YouTube translation of Korean → English (may be IP-blocked)
+    if ko_transcript is not None:
+        try:
+            return _snippets_to_list(ko_transcript.translate('en').fetch())
+        except Exception:
+            pass
+
+    return []
+
+
+def fetch_and_cache_subtitles(video_id: str) -> dict:
+    """Fetch Korean+English subtitles, merge, cache to disk, return data."""
+    cache_file = _cache_path(video_id)
+
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    api = YouTubeTranscriptApi()
+    transcript_list = api.list(video_id)
+
+    # ── Korean ────────────────────────────────────────────────────
+    korean_subs = []
+    ko_transcript = None
+    try:
+        ko_transcript = transcript_list.find_transcript(['ko'])
+        korean_subs = _snippets_to_list(ko_transcript.fetch())
+    except Exception:
+        pass
+
+    # ── English (best effort) ─────────────────────────────────────
+    english_subs = _fetch_english(transcript_list, ko_transcript)
+
+    if not korean_subs and not english_subs:
+        raise Exception(f"No subtitles available for {video_id}")
+
+    # ── Merge ─────────────────────────────────────────────────────
+    if korean_subs and english_subs:
+        merged = merge_subtitles_by_timestamp(english_subs, korean_subs)
+    elif korean_subs:
+        merged = [
+            {
+                'start': s['start'], 'duration': s['duration'],
+                'end': s['start'] + s['duration'],
+                'english': s['text'], 'korean': s['text'],
+            }
+            for s in korean_subs
+            if s['text'] and s['text'].strip()
+        ]
+    else:
+        merged = [
+            {
+                'start': s['start'], 'duration': s['duration'],
+                'end': s['start'] + s['duration'],
+                'english': s['text'], 'korean': s['text'],
+            }
+            for s in english_subs
+            if s['text'] and s['text'].strip()
+        ]
+
+    data = {
+        'video_id': video_id,
+        'total_subtitles': len(merged),
+        'has_korean': len(korean_subs) > 0,
+        'subtitles': merged,
+    }
+
+    with open(cache_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return data
+
+
+def check_korean_available(video_id: str) -> bool:
+    """Quick check if Korean subtitles exist (uses cache if available)."""
+    cache_file = _cache_path(video_id)
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data.get('has_korean', False)
+
+    try:
+        api = YouTubeTranscriptApi()
+        transcript_list = api.list(video_id)
+        transcript_list.find_transcript(['ko'])
+        return True
+    except Exception:
+        return False
+
+
+def load_cached_subtitles(video_id: str) -> dict | None:
+    """Load from cache only, no network call."""
+    cache_file = _cache_path(video_id)
+    if not cache_file.exists():
+        return None
+    with open(cache_file, 'r', encoding='utf-8') as f:
+        return json.load(f)
