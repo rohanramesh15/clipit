@@ -39,7 +39,7 @@ export function VideoPage() {
 
   async function fetchVideos() {
     try {
-      const res = await fetch(`${API_BASE}/videos/history`);
+      const res = await fetch(`${API_BASE}/videos/history/filtered`);
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
       const vids: TrackedVideo[] = data.videos || [];
