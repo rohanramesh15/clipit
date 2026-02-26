@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RotateCw,
@@ -21,6 +21,7 @@ interface FlashCard {
   sentence: string;
   sentence_translation: string;
   timestamp: number;
+  end_timestamp: number;
   video_id: string;
   rank?: number;
 }
@@ -43,6 +44,81 @@ export function FlashcardsPage() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showVideoPicker, setShowVideoPicker] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('Loading watch history…');
+  const playerRef = useRef<any>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const loopIntervalRef = useRef<number | null>(null);
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.body.appendChild(tag);
+    }
+  }, []);
+
+  // Create/update YouTube player when card changes
+  useEffect(() => {
+    const card = cards[currentIndex];
+    if (loadState !== 'loaded' || !card) return;
+
+    // Add 3 seconds buffer to end timestamp
+    const endTime = card.end_timestamp + 3;
+
+    const setupLooping = (player: any) => {
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current);
+      }
+      loopIntervalRef.current = window.setInterval(() => {
+        const currentTime = player.getCurrentTime();
+        if (currentTime >= endTime) {
+          player.seekTo(card.timestamp, true);
+        }
+      }, 100);
+    };
+
+    const initPlayer = () => {
+      // If player already exists, just load new video
+      if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
+        playerRef.current.loadVideoById({
+          videoId: card.video_id,
+          startSeconds: card.timestamp,
+        });
+        setupLooping(playerRef.current);
+        return;
+      }
+
+      // Create new player
+      if (!playerContainerRef.current) return;
+
+      playerRef.current = new (window as any).YT.Player(playerContainerRef.current, {
+        videoId: card.video_id,
+        playerVars: {
+          start: card.timestamp,
+          autoplay: 1,
+          rel: 0,
+          modestbranding: 1,
+        },
+        events: {
+          onReady: (event: any) => {
+            setupLooping(event.target);
+          },
+        },
+      });
+    };
+
+    if ((window as any).YT && (window as any).YT.Player) {
+      initPlayer();
+    } else {
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    return () => {
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current);
+      }
+    };
+  }, [currentIndex, loadState, cards]);
 
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
@@ -317,26 +393,12 @@ export function FlashcardsPage() {
       {/* Card area */}
       <div className="w-full">
         {/* YouTube clip */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`clip-${currentIndex}`}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.25 }}
-            className="w-full aspect-video rounded-t-2xl overflow-hidden ring-1 ring-white/10 bg-black">
-            {currentCard && (
-              <iframe
-                key={`iframe-${currentIndex}`}
-                src={`https://www.youtube.com/embed/${currentCard.video_id}?start=${currentCard.timestamp}&autoplay=1&rel=0&modestbranding=1`}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={`${currentCard.target_word} — context clip`}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <div className="w-full aspect-video rounded-t-2xl overflow-hidden ring-1 ring-white/10 bg-black">
+          <div
+            ref={playerContainerRef}
+            className="w-full h-full"
+          />
+        </div>
 
         {/* Sentence context strip */}
         {currentCard && (
