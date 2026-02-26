@@ -6,7 +6,7 @@ let state = {
   view: 'loading',   // loading | offline | empty | list | detail
   videos: [],
   selected: null,    // { video_id, title }
-  words: null,       // null | 'loading' | 'no-korean' | 'error' | []
+  words: null,       // null | 'loading' | 'no-words' | 'error' | []
 };
 
 // ─── Boot ─────────────────────────────────────────────
@@ -59,59 +59,59 @@ function handleAction(e) {
   }
 }
 
-// ─── Load words pipeline ─────────────────────────────
+// ─── Load words — checks cache first ─────────────────
 async function loadWords(videoId, title) {
   state.selected = { video_id: videoId, title };
-  state.words = 'loading';
   state.view = 'detail';
-  render();
 
-  try {
-    // Step 1: fetch/cache subtitles
-    const subRes = await fetch(`${API}/subtitles/${videoId}`);
-    if (!subRes.ok) throw new Error('subtitles');
+  // Check cache first for instant display
+  const cached = await chrome.storage.local.get(`vocab_${videoId}`);
+  const entry = cached[`vocab_${videoId}`];
 
-    // Step 2: vocabulary
-    const vocabRes = await fetch(`${API}/vocabulary/${videoId}?level=intermediate&limit=20`);
-    if (!vocabRes.ok) throw new Error('vocab');
-    const vocab = await vocabRes.json();
-
-    if (!vocab.total_words) {
-      state.words = 'no-korean';
-      render();
-      return;
-    }
-
-    // Step 3: flashcard data for English definitions + example sentences
-    const wordList = vocab.vocabulary.map(v => v.word);
-    const fcRes = await fetch(`${API}/flashcard-data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential' }),
-    });
-
-    if (fcRes.ok) {
-      const fc = await fcRes.json();
-      // Merge difficulty from vocab into flashcard data
-      state.words = fc.flashcards.map((card, i) => ({
-        ...card,
-        difficulty: vocab.vocabulary[i]?.difficulty || card.difficulty,
-      }));
-    } else {
-      // Fallback: show words without English
-      state.words = vocab.vocabulary.map(v => ({
-        target_word: v.word,
-        english: null,
-        sentence: null,
-        sentence_translation: null,
-        difficulty: v.difficulty,
-      }));
-    }
-  } catch {
-    state.words = 'error';
+  if (entry && !entry.loading && !entry.error) {
+    state.words = entry.words && entry.words.length ? entry.words : 'no-words';
+    render();
+    return;
   }
 
+  if (entry && entry.loading) {
+    // Pipeline still running in background — show spinner and poll
+    state.words = 'loading';
+    render();
+    pollForResult(videoId);
+    return;
+  }
+
+  // No cache yet — trigger pipeline and show spinner
+  state.words = 'loading';
   render();
+  chrome.runtime.sendMessage(
+    { type: 'TRACK_VIDEO', videoId, title },
+    () => pollForResult(videoId)
+  );
+}
+
+// Poll chrome.storage until pipeline result is ready
+function pollForResult(videoId, attempts = 0) {
+  if (attempts > 40) { // 20s timeout
+    state.words = 'error';
+    render();
+    return;
+  }
+  setTimeout(async () => {
+    const cached = await chrome.storage.local.get(`vocab_${videoId}`);
+    const entry = cached[`vocab_${videoId}`];
+    if (entry && !entry.loading) {
+      if (entry.error) {
+        state.words = 'error';
+      } else {
+        state.words = entry.words && entry.words.length ? entry.words : 'no-words';
+      }
+      render();
+    } else {
+      pollForResult(videoId, attempts + 1);
+    }
+  }, 500);
 }
 
 // ─── Templates ────────────────────────────────────────
@@ -196,12 +196,12 @@ function tmplDetail() {
         <p class="sub">Fetching subtitles & words...</p>
       </div>
     `;
-  } else if (words === 'no-korean') {
+  } else if (words === 'no-words') {
     body = `
       <div class="center-state">
         <div class="icon">🈚</div>
-        <p class="title">No Korean subtitles</p>
-        <p class="sub">This video doesn't have Korean captions available</p>
+        <p class="title">No common Korean words found</p>
+        <p class="sub">No words from this video matched the Korean frequency list</p>
       </div>
     `;
   } else if (words === 'error') {
@@ -212,25 +212,17 @@ function tmplDetail() {
         <p class="sub">Check that the backend is running at localhost:8000</p>
       </div>
     `;
-  } else if (Array.isArray(words) && !words.length) {
-    body = `
-      <div class="center-state">
-        <div class="icon">🔍</div>
-        <p class="title">No words matched</p>
-        <p class="sub">No intermediate-level Korean words found in this video</p>
-      </div>
-    `;
-  } else {
+  } else if (Array.isArray(words)) {
     const cards = words.map(w => {
       const eng = w.english && w.english !== 'definition not available'
         ? w.english
         : null;
       const hasSentence = w.sentence && w.sentence_translation;
       return `
-        <div class="word-card ${w.difficulty}">
+        <div class="word-card">
           <div class="word-row">
             <span class="word-korean">${esc(w.target_word)}</span>
-            <span class="word-badge">${w.difficulty.replace('_', ' ')}</span>
+            ${w.rank ? `<span class="word-rank">#${w.rank}</span>` : ''}
           </div>
           ${eng ? `<div class="word-english">${esc(eng)}</div>` : ''}
           ${hasSentence ? `
@@ -247,6 +239,8 @@ function tmplDetail() {
       <div class="words-header">${words.length} words found</div>
       <div class="words-list">${cards}</div>
     `;
+  } else {
+    body = `<div class="center-state"><div class="spinner"></div></div>`;
   }
 
   return `

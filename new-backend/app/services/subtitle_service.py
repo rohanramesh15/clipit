@@ -43,7 +43,7 @@ def _fetch_english(transcript_list, ko_transcript) -> list:
       1. Direct English (manual or auto-generated)
       2. Any auto-generated English
       3. YouTube translation of Korean → English
-    Returns empty list if all paths fail — caller proceeds Korean-only.
+    Returns empty list if all paths fail.
     """
     # 1. Direct English transcript (manual or auto)
     try:
@@ -57,12 +57,32 @@ def _fetch_english(transcript_list, ko_transcript) -> list:
     except Exception:
         pass
 
-    # 3. YouTube translation of Korean → English (may be IP-blocked)
+    # 3. YouTube translation of Korean → English
     if ko_transcript is not None:
         try:
             return _snippets_to_list(ko_transcript.translate('en').fetch())
         except Exception:
             pass
+
+    return []
+
+
+def _fetch_korean_translation(transcript_list) -> list:
+    """
+    Try to get Korean via YouTube's auto-translation of English.
+    Used as fallback when no native Korean transcript exists.
+    """
+    try:
+        en_transcript = transcript_list.find_transcript(['en'])
+        return _snippets_to_list(en_transcript.translate('ko').fetch())
+    except Exception:
+        pass
+
+    try:
+        en_transcript = transcript_list.find_generated_transcript(['en'])
+        return _snippets_to_list(en_transcript.translate('ko').fetch())
+    except Exception:
+        pass
 
     return []
 
@@ -78,7 +98,7 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
     api = YouTubeTranscriptApi()
     transcript_list = api.list(video_id)
 
-    # ── Korean ────────────────────────────────────────────────────
+    # ── Korean (native first, then translation fallback) ───────────
     korean_subs = []
     ko_transcript = None
     try:
@@ -87,16 +107,20 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
     except Exception:
         pass
 
-    # ── English (best effort) ─────────────────────────────────────
+    if not korean_subs:
+        korean_subs = _fetch_korean_translation(transcript_list)
+
+    # ── English (best effort) ──────────────────────────────────────
     english_subs = _fetch_english(transcript_list, ko_transcript)
 
     if not korean_subs and not english_subs:
         raise Exception(f"No subtitles available for {video_id}")
 
-    # ── Merge ─────────────────────────────────────────────────────
+    # ── Merge ──────────────────────────────────────────────────────
     if korean_subs and english_subs:
         merged = merge_subtitles_by_timestamp(english_subs, korean_subs)
     elif korean_subs:
+        # Korean only — no English available
         merged = [
             {
                 'start': s['start'], 'duration': s['duration'],
@@ -107,11 +131,12 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
             if s['text'] and s['text'].strip()
         ]
     else:
+        # English only — no Korean at all (native or translated)
         merged = [
             {
                 'start': s['start'], 'duration': s['duration'],
                 'end': s['start'] + s['duration'],
-                'english': s['text'], 'korean': s['text'],
+                'english': s['text'], 'korean': '',
             }
             for s in english_subs
             if s['text'] and s['text'].strip()

@@ -15,6 +15,10 @@ class TrackVideoRequest(BaseModel):
     caption_languages: list[str] = []
 
 
+class StatusUpdate(BaseModel):
+    has_korean: bool
+
+
 @router.post("/track")
 async def track_video(req: TrackVideoRequest):
     """Receive a video ID from the Chrome extension and store it."""
@@ -50,3 +54,10 @@ async def get_filtered_history(lang: str = "ko"):
 
     videos = get_filtered_videos()
     return {"total": len(videos), "lang": lang, "videos": videos}
+
+
+@router.put("/{video_id}/status")
+async def update_video_status(video_id: str, body: StatusUpdate):
+    """Update the has_korean status for a video (called by the extension after vocab check)."""
+    update_korean_status(video_id, body.has_korean)
+    return {"status": "ok", "video_id": video_id, "has_korean": body.has_korean}
