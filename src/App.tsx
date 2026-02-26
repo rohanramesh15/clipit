@@ -20,7 +20,7 @@ type Page =
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app';
 export function App() {
-  const [appView, setAppView] = useState<AppView>('landing');
+  const [appView, setAppView] = useState<AppView>('app');
   const [activePage, setActivePage] = useState<Page>('video');
   const [isDark, setIsDark] = useState(true);
   // Apply theme class to <html> so it cascades to everything including fixed elements and body
