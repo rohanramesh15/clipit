@@ -81,20 +81,25 @@ export function FlashcardsPage() {
   useEffect(() => {
     const card = dueCards[currentIndex];
     if (loadState !== 'loaded' || !card) return;
+    if (!playerContainerRef.current) return;
 
     // Add 3 seconds buffer to end timestamp
-    const endTime = card.end_timestamp + 3;
+    const endTime = (card.end_timestamp || card.timestamp + 5) + 3;
 
     const setupLooping = (player: any) => {
       if (loopIntervalRef.current) {
         clearInterval(loopIntervalRef.current);
       }
       loopIntervalRef.current = window.setInterval(() => {
-        const currentTime = player.getCurrentTime();
-        if (currentTime >= endTime) {
-          player.seekTo(card.timestamp, true);
+        try {
+          const currentTime = player.getCurrentTime();
+          if (currentTime >= endTime) {
+            player.seekTo(card.timestamp, true);
+          }
+        } catch (e) {
+          // Player not ready yet
         }
-      }, 100);
+      }, 200);
     };
 
     const initPlayer = () => {
@@ -127,11 +132,16 @@ export function FlashcardsPage() {
       });
     };
 
-    if ((window as any).YT && (window as any).YT.Player) {
-      initPlayer();
-    } else {
-      (window as any).onYouTubeIframeAPIReady = initPlayer;
-    }
+    // Wait for YT API to be ready
+    const waitForYT = () => {
+      if ((window as any).YT && (window as any).YT.Player) {
+        initPlayer();
+      } else {
+        setTimeout(waitForYT, 100);
+      }
+    };
+
+    waitForYT();
 
     return () => {
       if (loopIntervalRef.current) {
