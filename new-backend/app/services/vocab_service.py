@@ -80,3 +80,16 @@ def filter_vocabulary(
 
 def get_vocab_stats(filtered_vocab: List[Dict]) -> Dict:
     return {'total': len(filtered_vocab)}
+
+
+def get_difficulty(rank: int, language: str = 'ko') -> str:
+    if rank <= 500:
+        return 'beginner'
+    elif rank <= 2000:
+        return 'elementary'
+    elif rank <= 5000:
+        return 'intermediate'
+    elif rank <= 10000:
+        return 'advanced'
+    else:
+        return 'expert'

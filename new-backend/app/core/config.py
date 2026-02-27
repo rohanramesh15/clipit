@@ -24,10 +24,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
 
-    # Security (example - uncomment and configure as needed)
-    # SECRET_KEY: str = "your-secret-key-here"
-    # ALGORITHM: str = "HS256"
-    # ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # Security
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+
     # SQLite + subtitle cache
     SQLITE_DB_PATH: str = "deadbird.db"
     SUBTITLES_CACHE_DIR: str = "subtitles_cache"
