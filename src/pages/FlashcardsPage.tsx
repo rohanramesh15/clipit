@@ -10,7 +10,10 @@ import {
   Tv,
   ChevronDown,
   Layers,
+  Clock,
+  Trophy,
 } from 'lucide-react';
+import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 
 const API = 'http://localhost:8000/api';
 
@@ -32,18 +35,35 @@ interface TrackedVideo {
   tracked_at: number;
 }
 
-type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-korean';
+type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-korean' | 'session-complete';
+
+// Format next review time
+function formatNextReview(date: Date): string {
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffMins = Math.round(diffMs / 60000);
+  const diffHours = Math.round(diffMs / 3600000);
+  const diffDays = Math.round(diffMs / 86400000);
+
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  return `${diffDays}d`;
+}
 
 export function FlashcardsPage() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [cards, setCards] = useState<FlashCard[]>([]);
+  const [dueCards, setDueCards] = useState<FlashCard[]>([]);
   const [videos, setVideos] = useState<TrackedVideo[]>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
   const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showVideoPicker, setShowVideoPicker] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('Loading watch history…');
+  const [loadingMsg, setLoadingMsg] = useState('Loading watch history...');
+  const [lastRatingInfo, setLastRatingInfo] = useState<{ word: string; nextDue: string } | null>(null);
+  const [sessionStats, setSessionStats] = useState({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -59,7 +79,7 @@ export function FlashcardsPage() {
 
   // Create/update YouTube player when card changes
   useEffect(() => {
-    const card = cards[currentIndex];
+    const card = dueCards[currentIndex];
     if (loadState !== 'loaded' || !card) return;
 
     // Add 3 seconds buffer to end timestamp
@@ -118,7 +138,7 @@ export function FlashcardsPage() {
         clearInterval(loopIntervalRef.current);
       }
     };
-  }, [currentIndex, loadState, cards]);
+  }, [currentIndex, loadState, dueCards]);
 
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
@@ -151,19 +171,53 @@ export function FlashcardsPage() {
     }
   }, []);
 
-  // Load cards for "All Videos" mode — aggregates across all videos, skipping failures.
+  // Sort cards by FSRS priority and filter to due cards
+  const prepareCardsForReview = useCallback((allCards: FlashCard[]) => {
+    // Deduplicate by dictionary_form (keep first occurrence)
+    const seen = new Set<string>();
+    const uniqueCards = allCards.filter(c => {
+      const key = c.dictionary_form || c.target_word;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const words = uniqueCards.map(c => c.target_word);
+    const sortedWords = sortByPriority(words);
+    const dueWords = getDueCards(words);
+
+    // Reorder cards by sorted priority
+    const cardMap = new Map(uniqueCards.map(c => [c.target_word, c]));
+    const sortedCards = sortedWords.map(w => cardMap.get(w)!).filter(Boolean);
+    const dueCardsFiltered = sortedCards.filter(c => dueWords.includes(c.target_word));
+
+    setCards(sortedCards);
+    setDueCards(dueCardsFiltered);
+    setSessionStats({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
+
+    if (dueCardsFiltered.length === 0 && sortedCards.length > 0) {
+      // No cards due - show completion screen
+      setLoadState('session-complete');
+    } else {
+      setLoadState('loaded');
+    }
+  }, []);
+
+  // Load cards for "All Videos" mode
   const loadAllVideos = useCallback(async (videoList: TrackedVideo[]) => {
     setLoadState('loading');
-    setLoadingMsg('Loading flashcards from all videos…');
+    setLoadingMsg('Loading flashcards from all videos...');
     setCards([]);
+    setDueCards([]);
     setCurrentIndex(0);
     setIsFlipped(false);
     setSelectedVideoId('all');
     setSelectedVideoTitle('All Videos');
+    setLastRatingInfo(null);
 
     const allCards: FlashCard[] = [];
     for (const video of videoList) {
-      setLoadingMsg(`Loading: ${video.title.slice(0, 40)}…`);
+      setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
       const videoCards = await fetchCardsForVideo(video.video_id);
       allCards.push(...videoCards);
     }
@@ -172,30 +226,30 @@ export function FlashcardsPage() {
       setLoadState('no-korean');
       return;
     }
-    setCards(allCards);
-    setLoadState('loaded');
-  }, [fetchCardsForVideo]);
+    prepareCardsForReview(allCards);
+  }, [fetchCardsForVideo, prepareCardsForReview]);
 
   // Load cards for a single video.
   const loadFlashcards = useCallback(async (videoId: string, videoTitle: string) => {
     setLoadState('loading');
-    setLoadingMsg('Fetching subtitles…');
+    setLoadingMsg('Fetching subtitles...');
     setCards([]);
+    setDueCards([]);
     setCurrentIndex(0);
     setIsFlipped(false);
     setSelectedVideoId(videoId);
     setSelectedVideoTitle(videoTitle);
+    setLastRatingInfo(null);
 
-    setLoadingMsg('Extracting vocabulary…');
+    setLoadingMsg('Extracting vocabulary...');
     const videoCards = await fetchCardsForVideo(videoId);
 
     if (!videoCards.length) {
       setLoadState('no-korean');
       return;
     }
-    setCards(videoCards);
-    setLoadState('loaded');
-  }, [fetchCardsForVideo]);
+    prepareCardsForReview(videoCards);
+  }, [fetchCardsForVideo, prepareCardsForReview]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -219,15 +273,46 @@ export function FlashcardsPage() {
     bootstrap();
   }, [loadAllVideos]);
 
-  const currentCard = cards[currentIndex];
-  const progress = cards.length ? ((currentIndex + 1) / cards.length) * 100 : 0;
+  const currentCard = dueCards[currentIndex];
+  const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;
 
-  function handleNext() {
+  // Handle rating a card
+  function handleRating(rating: Rating) {
+    if (!currentCard) return;
+
+    const { nextDue } = rateCard(currentCard.target_word, rating);
+    const nextDueStr = formatNextReview(nextDue);
+
+    // Update session stats
+    const ratingKey = rating === Rating.Again ? 'again'
+      : rating === Rating.Hard ? 'hard'
+      : rating === Rating.Good ? 'good'
+      : 'easy';
+    setSessionStats(prev => ({
+      ...prev,
+      reviewed: prev.reviewed + 1,
+      [ratingKey]: prev[ratingKey] + 1,
+    }));
+
+    setLastRatingInfo({ word: currentCard.target_word, nextDue: nextDueStr });
     setIsFlipped(false);
+
     setTimeout(() => {
-      setCurrentIndex(prev => (prev < cards.length - 1 ? prev + 1 : 0));
-    }, 250);
+      if (currentIndex < dueCards.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+      } else {
+        // Session complete
+        setLoadState('session-complete');
+      }
+      setLastRatingInfo(null);
+    }, 300);
   }
+
+  // Get stats for current card
+  const currentStats = currentCard ? getCardStats(currentCard.target_word) : null;
+
+  // Get preview times for rating buttons
+  const previewTimes = currentCard ? previewNextReviews(currentCard.target_word) : null;
 
   // ── Loading ──────────────────────────────────────────────────
   if (loadState === 'loading') {
@@ -323,6 +408,52 @@ export function FlashcardsPage() {
     );
   }
 
+  // ── Session Complete ─────────────────────────────────────────
+  if (loadState === 'session-complete') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
+          <Trophy className="w-8 h-8 text-green-500" />
+        </div>
+        <h2 className="text-xl font-heading font-bold text-primary">Session Complete!</h2>
+        {sessionStats.reviewed > 0 ? (
+          <div className="text-center">
+            <p className="text-secondary text-sm mb-3">
+              You reviewed <span className="text-accent font-semibold">{sessionStats.reviewed}</span> cards
+            </p>
+            <div className="flex gap-4 justify-center text-xs">
+              <span className="text-red-400">Again: {sessionStats.again}</span>
+              <span className="text-orange-400">Hard: {sessionStats.hard}</span>
+              <span className="text-accent">Good: {sessionStats.good}</span>
+              <span className="text-green-400">Easy: {sessionStats.easy}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-secondary text-sm text-center max-w-sm">
+            No cards are due for review right now. Come back later!
+          </p>
+        )}
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={() => {
+              setCurrentIndex(0);
+              setDueCards(cards);
+              setSessionStats({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
+              setLoadState('loaded');
+            }}
+            className="px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
+            Review All Cards
+          </button>
+          <button
+            onClick={() => loadAllVideos(videos)}
+            className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Loaded ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col items-center max-w-md mx-auto px-4 py-8 md:py-10">
@@ -344,7 +475,7 @@ export function FlashcardsPage() {
         <div className="text-right shrink-0">
           <div className="text-2xl font-bold text-accent">
             {currentIndex + 1}
-            <span className="text-muted text-lg"> / {cards.length}</span>
+            <span className="text-muted text-lg"> / {dueCards.length}</span>
           </div>
           <div className="w-28 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
             <motion.div
@@ -403,10 +534,20 @@ export function FlashcardsPage() {
         {/* Sentence context strip */}
         {currentCard && (
           <div className="w-full bg-surface-hover border-x border-white/8 px-4 py-2.5 text-center">
-            <p className="text-sm text-accent font-medium leading-snug">
-              {currentCard.sentence || currentCard.target_word}
+            <p className="text-sm text-secondary font-medium leading-snug">
+              {currentCard.sentence ? (
+                currentCard.sentence.split(new RegExp(`(${currentCard.target_word})`, 'g')).map((part, i) =>
+                  part === currentCard.target_word ? (
+                    <span key={i} className="text-accent font-bold">{part}</span>
+                  ) : (
+                    <span key={i}>{part}</span>
+                  )
+                )
+              ) : (
+                <span className="text-accent">{currentCard.target_word}</span>
+              )}
             </p>
-            {currentCard.sentence_translation && currentCard.sentence_translation !== 'No translation available' && (
+            {isFlipped && currentCard.sentence_translation && currentCard.sentence_translation !== 'No translation available' && (
               <p className="text-xs text-muted mt-0.5 leading-snug">
                 {currentCard.sentence_translation}
               </p>
@@ -433,15 +574,28 @@ export function FlashcardsPage() {
                 transition={{ type: 'spring', stiffness: 280, damping: 22 }}
                 style={{ transformStyle: 'preserve-3d' }}>
 
-                {/* Front — Korean word */}
+                {/* Front - Korean word */}
                 <div
                   className="absolute inset-0 bg-surface border border-white/10 border-t-0 rounded-b-2xl shadow-2xl flex flex-col items-center justify-center p-8"
                   style={{ backfaceVisibility: 'hidden' }}>
-                  {currentCard?.rank && (
-                    <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border border-white/10 text-muted mb-5">
-                      #{currentCard.rank}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 mb-5">
+                    {currentCard?.rank && (
+                      <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border border-white/10 text-muted">
+                        #{currentCard.rank}
+                      </span>
+                    )}
+                    {currentStats && !currentStats.isNew && (
+                      <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border border-accent/20 text-accent flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {currentStats.repetitions}x
+                      </span>
+                    )}
+                    {currentStats?.isNew && (
+                      <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent">
+                        NEW
+                      </span>
+                    )}
+                  </div>
                   <h2 className="text-5xl md:text-6xl font-heading font-bold text-primary text-center mb-3 tracking-tight">
                     {currentCard?.target_word}
                   </h2>
@@ -453,7 +607,7 @@ export function FlashcardsPage() {
                   </div>
                 </div>
 
-                {/* Back — English definition */}
+                {/* Back - English definition */}
                 <div
                   className="absolute inset-0 bg-surface-hover border border-accent/20 border-t-0 rounded-b-2xl shadow-2xl flex flex-col items-center justify-center p-8"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
@@ -463,7 +617,7 @@ export function FlashcardsPage() {
                   <h2 className="text-4xl font-heading font-bold text-primary text-center mb-4">
                     {currentCard?.english && currentCard.english !== 'definition not available'
                       ? currentCard.english
-                      : '—'}
+                      : '-'}
                   </h2>
                   <div className="w-full border-t border-white/5 pt-4 mt-1 text-center">
                     <p className="text-sm text-muted italic">
@@ -477,6 +631,20 @@ export function FlashcardsPage() {
         </div>
       </div>
 
+      {/* Last rating feedback */}
+      <AnimatePresence>
+        {lastRatingInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-4 px-4 py-2 rounded-lg bg-surface border border-white/10 text-xs text-secondary flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-accent" />
+            Next review for "{lastRatingInfo.word}" in {lastRatingInfo.nextDue}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Controls */}
       <motion.div
         className="grid grid-cols-4 gap-3 mt-8 w-full"
@@ -485,8 +653,11 @@ export function FlashcardsPage() {
         transition={{ delay: 0.15 }}>
 
         <button
-          onClick={handleNext}
-          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-red-500/10 border border-transparent hover:border-red-500/40 group transition-all">
+          onClick={() => handleRating(Rating.Again)}
+          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-red-500/10 border border-transparent hover:border-red-500/40 group transition-all">
+          {previewTimes && (
+            <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.again)}</span>
+          )}
           <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </div>
@@ -494,8 +665,11 @@ export function FlashcardsPage() {
         </button>
 
         <button
-          onClick={handleNext}
-          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-orange-500/10 border border-transparent hover:border-orange-500/40 group transition-all">
+          onClick={() => handleRating(Rating.Hard)}
+          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-orange-500/10 border border-transparent hover:border-orange-500/40 group transition-all">
+          {previewTimes && (
+            <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.hard)}</span>
+          )}
           <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
             <ThumbsDown className="w-5 h-5" />
           </div>
@@ -503,8 +677,11 @@ export function FlashcardsPage() {
         </button>
 
         <button
-          onClick={handleNext}
-          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
+          onClick={() => handleRating(Rating.Good)}
+          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
+          {previewTimes && (
+            <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.good)}</span>
+          )}
           <div className="w-10 h-10 rounded-full bg-accent/20 text-accent flex items-center justify-center group-hover:bg-accent group-hover:text-app transition-colors">
             <ThumbsUp className="w-5 h-5" />
           </div>
@@ -512,8 +689,11 @@ export function FlashcardsPage() {
         </button>
 
         <button
-          onClick={handleNext}
-          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-green-500/10 border border-transparent hover:border-green-500/40 group transition-all">
+          onClick={() => handleRating(Rating.Easy)}
+          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-green-500/10 border border-transparent hover:border-green-500/40 group transition-all">
+          {previewTimes && (
+            <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.easy)}</span>
+          )}
           <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
             <Check className="w-5 h-5" />
           </div>
