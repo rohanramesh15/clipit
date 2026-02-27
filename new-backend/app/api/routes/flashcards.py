@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List
 from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles
-from app.services.vocab_service import load_frequency_map, get_difficulty
+from app.services.vocab_service import load_frequency_map
 from app.api.routes.vocabulary import get_frequency_map
 
 router = APIRouter()
@@ -111,7 +111,6 @@ async def get_flashcard_data(request: dict = Body(...)):
             'sentence_translation': sentence_data['translation'],
             'timestamp': sentence_data['timestamp'],
             'video_id': video_id,
-            'difficulty': get_difficulty(rank, 'ko'),
             'rank': rank,
             'language': 'ko'
         })

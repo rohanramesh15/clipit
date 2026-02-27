@@ -1,6 +1,5 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, Body
-from app.services.vocab_service import get_difficulty
 from app.api.routes.vocabulary import get_frequency_map
 from app.api.routes.flashcards import strip_korean_particles
 
@@ -34,14 +33,14 @@ async def lookup_words(word_list: List[str] = Body(...)):
             results.append({
                 'word': word,
                 'rank': rank,
-                'difficulty': get_difficulty(rank, 'ko'),
+                'difficulty': '',
                 'language': 'ko'
             })
         else:
             results.append({
                 'word': word,
                 'rank': 10001,
-                'difficulty': 'very_advanced',
+                'difficulty': '',
                 'language': 'ko'
             })
 

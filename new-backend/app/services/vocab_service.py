@@ -28,6 +28,27 @@ def load_frequency_map(language: str = 'ko', custom_path: Optional[str] = None) 
     return frequency_map
 
 
+def get_difficulty(rank: int, language: str = 'ko') -> str:
+    """
+    Get difficulty level based on frequency rank.
+
+    Args:
+        rank: Frequency rank (lower = more common)
+        language: Language code
+
+    Returns:
+        Difficulty level string
+    """
+    if rank <= 1000:
+        return 'beginner'
+    elif rank <= 3000:
+        return 'intermediate'
+    elif rank <= 10000:
+        return 'advanced'
+    else:
+        return 'very_advanced'
+
+
 def is_common_particle(word: str, rank: int, language: str = 'ko') -> bool:
     if rank <= 100:
         return True

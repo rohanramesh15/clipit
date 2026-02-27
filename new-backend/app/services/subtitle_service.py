@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from youtube_transcript_api import YouTubeTranscriptApi
 from app.core.config import settings
+from app.services.video_store import save_subtitles, get_subtitles
 
 
 def _cache_path(video_id: str) -> Path:
@@ -88,12 +89,19 @@ def _fetch_korean_translation(transcript_list) -> list:
 
 
 def fetch_and_cache_subtitles(video_id: str) -> dict:
-    """Fetch Korean+English subtitles, merge, cache to disk, return data."""
+    """Fetch Korean+English subtitles, merge, cache to disk + Neon, return data."""
     cache_file = _cache_path(video_id)
 
     if cache_file.exists():
         with open(cache_file, 'r', encoding='utf-8') as f:
             return json.load(f)
+
+    # Check Neon before hitting YouTube
+    neon_data = get_subtitles(video_id)
+    if neon_data:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(neon_data, f, ensure_ascii=False, indent=2)
+        return neon_data
 
     api = YouTubeTranscriptApi()
     transcript_list = api.list(video_id)
@@ -152,6 +160,12 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
     with open(cache_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+    # Also persist to Neon (best-effort)
+    try:
+        save_subtitles(video_id, data)
+    except Exception:
+        pass
+
     return data
 
 
@@ -173,9 +187,10 @@ def check_korean_available(video_id: str) -> bool:
 
 
 def load_cached_subtitles(video_id: str) -> dict | None:
-    """Load from cache only, no network call."""
+    """Load from local file cache, then Neon, no network call."""
     cache_file = _cache_path(video_id)
-    if not cache_file.exists():
-        return None
-    with open(cache_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    # Fallback: check Neon
+    return get_subtitles(video_id)

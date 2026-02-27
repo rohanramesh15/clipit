@@ -4,7 +4,6 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.models.user import User  # noqa: F401 — registers model with Base
 from app.api.routes import health, users
-from app.api.routes import health
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
 from app.api.routes.subtitles import router as subtitles_router
