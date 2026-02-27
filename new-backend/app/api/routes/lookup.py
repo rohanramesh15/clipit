@@ -1,7 +1,8 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, Body
 from app.api.routes.vocabulary import get_frequency_map
-from app.api.routes.flashcards import strip_korean_particles
+from app.api.routes.flashcards import strip_korean_particles, load_definitions
+from app.services.deepl_service import translate
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ async def lookup_words(word_list: List[str] = Body(...)):
         raise HTTPException(status_code=400, detail="word_list cannot be empty")
 
     frequency_map = get_frequency_map()
+    definitions = load_definitions()
     results = []
 
     for word in word_list:
@@ -29,19 +31,16 @@ async def lookup_words(word_list: List[str] = Body(...)):
                     found_form = form
                     break
 
-        if rank:
-            results.append({
-                'word': word,
-                'rank': rank,
-                'difficulty': '',
-                'language': 'ko'
-            })
-        else:
-            results.append({
-                'word': word,
-                'rank': 10001,
-                'difficulty': '',
-                'language': 'ko'
-            })
+        definition = definitions.get(found_form) or definitions.get(word)
+        if not definition:
+            definition = translate(found_form) or translate(word) or "definition not available"
+
+        results.append({
+            'word': word,
+            'dictionary_form': found_form,
+            'definition': definition,
+            'rank': rank or 10001,
+            'language': 'ko',
+        })
 
     return {"words": results}

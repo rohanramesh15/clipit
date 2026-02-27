@@ -4,6 +4,7 @@ from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles
 from app.services.vocab_service import load_frequency_map
+from app.services.deepl_service import translate
 from app.api.routes.vocabulary import get_frequency_map
 
 router = APIRouter()
@@ -222,14 +223,22 @@ async def get_flashcard_data(request: dict = Body(...)):
             dictionary_form = possible_forms[-1] if possible_forms else word
             rank = 10001
 
-        definition = definitions.get(dictionary_form, definitions.get(word, "definition not available"))
+        # definitions.json first, DeepL as fallback
+        definition = definitions.get(dictionary_form) or definitions.get(word)
+        if not definition:
+            definition = translate(dictionary_form) or translate(word) or "definition not available"
+
+        # Use DeepL for sentence translation when no English subtitle is available
+        sentence_translation = sentence_data['translation']
+        if (not sentence_translation or sentence_translation == 'No translation available') and sentence_data['sentence']:
+            sentence_translation = translate(sentence_data['sentence']) or 'No translation available'
 
         flashcards.append({
             'target_word': word,
             'dictionary_form': dictionary_form,
             'english': definition,
             'sentence': sentence_data['sentence'],
-            'sentence_translation': sentence_data['translation'],
+            'sentence_translation': sentence_translation,
             'timestamp': sentence_data['timestamp'],
             'end_timestamp': sentence_data['end_timestamp'],
             'video_id': video_id,
