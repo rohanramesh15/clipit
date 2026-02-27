@@ -12,6 +12,7 @@ import {
   Layers,
   Clock,
   Trophy,
+  RefreshCw,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 
@@ -318,6 +319,38 @@ export function FlashcardsPage() {
     }, 300);
   }
 
+  // Handle skipping/regenerating a flashcard
+  async function handleSkipCard() {
+    if (!currentCard) return;
+
+    try {
+      // Call API to skip this sentence for this word
+      await fetch(`${API}/flashcard-skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word: currentCard.dictionary_form || currentCard.target_word,
+          sentence: currentCard.sentence,
+        }),
+      });
+
+      // Remove this card from the current session
+      const newDueCards = dueCards.filter((_, i) => i !== currentIndex);
+      setDueCards(newDueCards);
+
+      // Adjust index if needed
+      if (currentIndex >= newDueCards.length && newDueCards.length > 0) {
+        setCurrentIndex(newDueCards.length - 1);
+      } else if (newDueCards.length === 0) {
+        setLoadState('session-complete');
+      }
+
+      setIsFlipped(false);
+    } catch (error) {
+      console.error('Failed to skip card:', error);
+    }
+  }
+
   // Get stats for current card
   const currentStats = currentCard ? getCardStats(currentCard.target_word) : null;
 
@@ -534,11 +567,19 @@ export function FlashcardsPage() {
       {/* Card area */}
       <div className="w-full">
         {/* YouTube clip */}
-        <div className="w-full aspect-video rounded-t-2xl overflow-hidden ring-1 ring-white/10 bg-black">
+        <div className="relative w-full aspect-video rounded-t-2xl overflow-hidden ring-1 ring-white/10 bg-black">
           <div
             ref={playerContainerRef}
             className="w-full h-full"
           />
+          {/* Regenerate button */}
+          <button
+            onClick={handleSkipCard}
+            className="absolute top-2 right-2 p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white/70 hover:text-white transition-colors group"
+            title="Get a different clip for this word"
+          >
+            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+          </button>
         </div>
 
         {/* Sentence context strip */}
