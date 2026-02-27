@@ -194,3 +194,143 @@ def load_cached_subtitles(video_id: str) -> dict | None:
             return json.load(f)
     # Fallback: check Neon
     return get_subtitles(video_id)
+
+
+# ── Ukrainian support ─────────────────────────────────────────────────────────
+
+def _cache_path_uk(video_id: str) -> Path:
+    cache_dir = Path(settings.SUBTITLES_CACHE_DIR)
+    cache_dir.mkdir(exist_ok=True)
+    return cache_dir / f"subtitles_uk_{video_id}.json"
+
+
+def merge_subtitles_ukrainian(english_subs: list, ukrainian_subs: list) -> list:
+    """Merge Ukrainian (primary) with matching English."""
+    merged = []
+    for uk_sub in ukrainian_subs:
+        if not uk_sub['text'] or not uk_sub['text'].strip():
+            continue
+        uk_start = uk_sub['start']
+        matching_eng = None
+        for en_sub in english_subs:
+            if abs(uk_start - en_sub['start']) < 1.0:
+                matching_eng = en_sub
+                break
+        if matching_eng and matching_eng['text'].strip():
+            merged.append({
+                'start': uk_start,
+                'duration': uk_sub['duration'],
+                'end': uk_start + uk_sub['duration'],
+                'english': matching_eng['text'],
+                'ukrainian': uk_sub['text'],
+            })
+    return merged
+
+
+def _fetch_ukrainian_translation(transcript_list) -> list:
+    """Try to get Ukrainian via YouTube's auto-translation of English."""
+    try:
+        en_transcript = transcript_list.find_transcript(['en'])
+        return _snippets_to_list(en_transcript.translate('uk').fetch())
+    except Exception:
+        pass
+
+    try:
+        en_transcript = transcript_list.find_generated_transcript(['en'])
+        return _snippets_to_list(en_transcript.translate('uk').fetch())
+    except Exception:
+        pass
+
+    return []
+
+
+def fetch_and_cache_subtitles_ukrainian(video_id: str) -> dict:
+    """Fetch Ukrainian+English subtitles, merge, cache to disk, return data."""
+    cache_file = _cache_path_uk(video_id)
+
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    api = YouTubeTranscriptApi()
+    transcript_list = api.list(video_id)
+
+    # ── Ukrainian (native first, then translation fallback) ─────────
+    ukrainian_subs = []
+    uk_transcript = None
+    try:
+        uk_transcript = transcript_list.find_transcript(['uk'])
+        ukrainian_subs = _snippets_to_list(uk_transcript.fetch())
+    except Exception:
+        pass
+
+    if not ukrainian_subs:
+        ukrainian_subs = _fetch_ukrainian_translation(transcript_list)
+
+    # ── English (best effort) ────────────────────────────────────────
+    english_subs = _fetch_english(transcript_list, uk_transcript)
+
+    if not ukrainian_subs and not english_subs:
+        raise Exception(f"No subtitles available for {video_id}")
+
+    # ── Merge ────────────────────────────────────────────────────────
+    if ukrainian_subs and english_subs:
+        merged = merge_subtitles_ukrainian(english_subs, ukrainian_subs)
+    elif ukrainian_subs:
+        merged = [
+            {
+                'start': s['start'], 'duration': s['duration'],
+                'end': s['start'] + s['duration'],
+                'english': s['text'], 'ukrainian': s['text'],
+            }
+            for s in ukrainian_subs
+            if s['text'] and s['text'].strip()
+        ]
+    else:
+        merged = [
+            {
+                'start': s['start'], 'duration': s['duration'],
+                'end': s['start'] + s['duration'],
+                'english': s['text'], 'ukrainian': '',
+            }
+            for s in english_subs
+            if s['text'] and s['text'].strip()
+        ]
+
+    data = {
+        'video_id': video_id,
+        'total_subtitles': len(merged),
+        'has_ukrainian': len(ukrainian_subs) > 0,
+        'subtitles': merged,
+    }
+
+    with open(cache_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return data
+
+
+def check_ukrainian_available(video_id: str) -> bool:
+    """Quick check if Ukrainian subtitles exist (uses cache if available)."""
+    cache_file = _cache_path_uk(video_id)
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data.get('has_ukrainian', False)
+
+    try:
+        api = YouTubeTranscriptApi()
+        transcript_list = api.list(video_id)
+        transcript_list.find_transcript(['uk'])
+        return True
+    except Exception:
+        return False
+
+
+def load_cached_subtitles_ukrainian(video_id: str) -> dict | None:
+    """Load Ukrainian subtitle cache from disk, no network call."""
+    cache_file = _cache_path_uk(video_id)
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None

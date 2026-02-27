@@ -38,6 +38,7 @@ def get_all_videos() -> list[dict]:
                 "youtube_url": r.youtube_url,
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
+                "has_ukrainian": r.has_ukrainian,
             }
             for r in rows
         ]
@@ -97,6 +98,7 @@ def get_filtered_videos() -> list[dict]:
                 "youtube_url": r.youtube_url,
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
+                "has_ukrainian": r.has_ukrainian,
             }
             for r in rows
         ]
@@ -111,6 +113,57 @@ def get_unchecked_videos() -> list[dict]:
         rows = (
             db.query(TrackedVideo)
             .filter(TrackedVideo.has_korean == None)
+            .order_by(TrackedVideo.tracked_at.desc())
+            .all()
+        )
+        return [{"video_id": r.video_id, "title": r.title, "tracked_at": r.tracked_at} for r in rows]
+    finally:
+        db.close()
+
+
+def update_ukrainian_status(video_id: str, has_ukrainian: bool) -> None:
+    db = _db()
+    try:
+        db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).update(
+            {"has_ukrainian": has_ukrainian}
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def get_ukrainian_filtered_videos() -> list[dict]:
+    """Return only videos confirmed to have Ukrainian vocabulary."""
+    db = _db()
+    try:
+        rows = (
+            db.query(TrackedVideo)
+            .filter(TrackedVideo.has_ukrainian == True)
+            .order_by(TrackedVideo.tracked_at.desc())
+            .all()
+        )
+        return [
+            {
+                "video_id": r.video_id,
+                "title": r.title,
+                "youtube_url": r.youtube_url,
+                "tracked_at": r.tracked_at,
+                "has_korean": r.has_korean,
+                "has_ukrainian": r.has_ukrainian,
+            }
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def get_unchecked_ukrainian_videos() -> list[dict]:
+    """Return videos where Ukrainian subtitle availability hasn't been checked yet."""
+    db = _db()
+    try:
+        rows = (
+            db.query(TrackedVideo)
+            .filter(TrackedVideo.has_ukrainian == None)
             .order_by(TrackedVideo.tracked_at.desc())
             .all()
         )

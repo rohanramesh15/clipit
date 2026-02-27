@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 LANGUAGE_PARTICLES = {
-    'ko': ['이', '가', '을', '를', '에', '에서', '와', '과', '의', '로', '으로', '도', '만', '은', '는']
+    'ko': ['이', '가', '을', '를', '에', '에서', '와', '과', '의', '로', '으로', '도', '만', '은', '는'],
+    'uk': ['і', 'й', 'та', 'що', 'як', 'але', 'або', 'це', 'не', 'на', 'в', 'у', 'з', 'до', 'за'],
 }
 
 # Path relative to the new-backend root (where main.py lives)
@@ -11,7 +12,8 @@ _DATA_DIR = Path(__file__).parent.parent.parent / 'data'
 
 def load_frequency_map(language: str = 'ko', custom_path: Optional[str] = None) -> Dict[str, int]:
     default_paths = {
-        'ko': _DATA_DIR / 'frequency_lists' / 'korean_freq_topik.txt'
+        'ko': _DATA_DIR / 'frequency_lists' / 'korean_freq_topik.txt',
+        'uk': _DATA_DIR / 'frequency_lists' / 'ukrainian_freq.txt',
     }
     full_path = Path(custom_path) if custom_path else default_paths.get(language)
     if not full_path:
@@ -26,27 +28,6 @@ def load_frequency_map(language: str = 'ko', custom_path: Optional[str] = None) 
                 if word and rank:
                     frequency_map[word] = int(rank)
     return frequency_map
-
-
-def get_difficulty(rank: int, language: str = 'ko') -> str:
-    """
-    Get difficulty level based on frequency rank.
-
-    Args:
-        rank: Frequency rank (lower = more common)
-        language: Language code
-
-    Returns:
-        Difficulty level string
-    """
-    if rank <= 1000:
-        return 'beginner'
-    elif rank <= 3000:
-        return 'intermediate'
-    elif rank <= 10000:
-        return 'advanced'
-    else:
-        return 'very_advanced'
 
 
 def is_common_particle(word: str, rank: int, language: str = 'ko') -> bool:
