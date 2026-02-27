@@ -78,6 +78,22 @@ export function FlashcardsPage() {
     }
   }, []);
 
+  // Destroy player when deck changes to force recreation
+  useEffect(() => {
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy();
+      } catch (e) {
+        // Player might already be destroyed
+      }
+      playerRef.current = null;
+    }
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
+  }, [selectedVideoId]);
+
   // Create/update YouTube player when card changes
   useEffect(() => {
     const card = dueCards[currentIndex];

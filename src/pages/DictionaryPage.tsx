@@ -1,143 +1,118 @@
-import React, { useState } from 'react';
-import { Search, Filter, Volume2, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Volume2, Loader2, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
-interface Word {
-  id: number;
-  term: string;
-  pronunciation: string;
-  definition: string;
-  level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-  mastery: number;
-  lastReviewed: string;
-}
-const mockDictionary: Word[] = [
-{
-  id: 1,
-  term: 'Abondance',
-  pronunciation: '/a.bɔ̃.dɑ̃s/',
-  definition: 'Large quantity of something',
-  level: 'B2',
-  mastery: 85,
-  lastReviewed: '2 days ago'
-},
-{
-  id: 2,
-  term: 'Bienveillance',
-  pronunciation: '/bjɛ̃.vɛ.jɑ̃s/',
-  definition: 'Kindness, goodwill',
-  level: 'C1',
-  mastery: 45,
-  lastReviewed: '1 week ago'
-},
-{
-  id: 3,
-  term: 'Chat',
-  pronunciation: '/ʃa/',
-  definition: 'A small domesticated carnivorous mammal',
-  level: 'A1',
-  mastery: 100,
-  lastReviewed: '1 month ago'
-},
-{
-  id: 4,
-  term: 'Dépaysement',
-  pronunciation: '/de.pe.iz.mɑ̃/',
-  definition: 'Feeling of being in a foreign country',
-  level: 'C2',
-  mastery: 20,
-  lastReviewed: 'Yesterday'
-},
-{
-  id: 5,
-  term: 'Éphémère',
-  pronunciation: '/e.fe.mɛʁ/',
-  definition: 'Lasting for a very short time',
-  level: 'B1',
-  mastery: 60,
-  lastReviewed: '3 days ago'
-},
-{
-  id: 6,
-  term: 'Flâner',
-  pronunciation: '/flɑ.ne/',
-  definition: 'To stroll aimlessly',
-  level: 'B2',
-  mastery: 75,
-  lastReviewed: '5 days ago'
-},
-{
-  id: 7,
-  term: 'Gourmandise',
-  pronunciation: '/ɡuʁ.mɑ̃.diz/',
-  definition: 'Love of good food',
-  level: 'B1',
-  mastery: 90,
-  lastReviewed: '2 weeks ago'
-},
-{
-  id: 8,
-  term: 'Hiver',
-  pronunciation: '/i.vɛʁ/',
-  definition: 'The coldest season of the year',
-  level: 'A1',
-  mastery: 95,
-  lastReviewed: '3 weeks ago'
-},
-{
-  id: 9,
-  term: 'Inoubliable',
-  pronunciation: '/i.nu.bli.jabl/',
-  definition: 'Impossible to forget',
-  level: 'A2',
-  mastery: 50,
-  lastReviewed: '4 days ago'
-},
-{
-  id: 10,
-  term: 'Jardin',
-  pronunciation: '/ʒaʁ.dɛ̃/',
-  definition: 'A piece of ground for growing flowers',
-  level: 'A1',
-  mastery: 100,
-  lastReviewed: '1 month ago'
-},
-{
-  id: 11,
-  term: 'Kiosque',
-  pronunciation: '/kjɔsk/',
-  definition: 'A small open-fronted hut',
-  level: 'A2',
-  mastery: 80,
-  lastReviewed: '1 week ago'
-},
-{
-  id: 12,
-  term: 'Lumière',
-  pronunciation: '/ly.mjɛʁ/',
-  definition: 'Natural agent that stimulates sight',
-  level: 'A1',
-  mastery: 92,
-  lastReviewed: '2 days ago'
-}];
+import { getCardStats } from '../services/fsrs';
 
-const levelColors = {
-  A1: 'bg-green-500/20 text-green-400 border-green-500/30',
-  A2: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  B1: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  B2: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  C1: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  C2: 'bg-pink-500/20 text-pink-400 border-pink-500/30'
+const API = 'http://localhost:8000/api';
+
+interface DictionaryEntry {
+  korean: string;
+  english: string;
+  rank: number;
+  pos: 'noun' | 'verb' | 'adjective' | 'adverb';
+}
+
+const POS_LABELS: Record<string, string> = {
+  noun: 'Noun',
+  verb: 'Verb',
+  adjective: 'Adj',
+  adverb: 'Adv',
 };
+
+// Calculate mastery percentage from FSRS stability (0-90 days = 0-100%)
+function getMasteryPercent(word: string): number {
+  const stats = getCardStats(word);
+  if (!stats || stats.isNew) return 0;
+  // Cap at 90 days stability = 100% mastery
+  return Math.min(100, Math.round((stats.stability / 90) * 100));
+}
+
+// Play Korean pronunciation using Web Speech API
+function playAudio(word: string) {
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = 'ko-KR';
+  utterance.rate = 0.9;
+
+  // Try to find a Korean voice (preferably Google)
+  const voices = window.speechSynthesis.getVoices();
+  const koreanVoice = voices.find(v => v.lang.startsWith('ko') && v.name.includes('Google'))
+    || voices.find(v => v.lang.startsWith('ko'));
+
+  if (koreanVoice) {
+    utterance.voice = koreanVoice;
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
 export function DictionaryPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterLevel, setFilterLevel] = useState<string | null>(null);
-  const filteredWords = mockDictionary.filter((word) => {
-    const matchesSearch = word.term.
-    toLowerCase().
-    includes(searchTerm.toLowerCase());
-    const matchesFilter = filterLevel ? word.level === filterLevel : true;
-    return matchesSearch && matchesFilter;
+  const [entries, setEntries] = useState<DictionaryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [posFilter, setPosFilter] = useState<string | null>(null);
+
+  // Preload speech synthesis voices
+  useEffect(() => {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }, []);
+
+  useEffect(() => {
+    async function fetchDictionary() {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API}/dictionary`);
+        if (!res.ok) throw new Error('Failed to fetch dictionary');
+        const data = await res.json();
+        setEntries(data.entries);
+        setError(null);
+      } catch (err) {
+        setError('Could not load dictionary');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDictionary();
+  }, []);
+
+  // Filter entries by search term and part of speech
+  const filteredEntries = entries.filter((entry) => {
+    // Filter by part of speech
+    if (posFilter && entry.pos !== posFilter) return false;
+
+    // Filter by search term
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      entry.korean.toLowerCase().includes(term) ||
+      entry.english.toLowerCase().includes(term)
+    );
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-8 h-8 text-accent animate-spin" />
+        <p className="text-secondary">Loading dictionary...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <p className="text-red-400">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-20 max-w-5xl mx-auto px-4 pt-8">
       {/* Header & Search */}
@@ -148,7 +123,7 @@ export function DictionaryPage() {
           </h1>
           <div className="flex items-center gap-2">
             <span className="text-sm text-secondary">
-              {filteredWords.length} words found
+              {filteredEntries.length} words found
             </span>
           </div>
         </div>
@@ -158,109 +133,84 @@ export function DictionaryPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
             <input
               type="text"
-              placeholder="Search for a word..."
+              placeholder="Search Korean or English..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-surface border border-white/10 rounded-xl pl-12 pr-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all" />
-
+              className="w-full bg-surface border border-white/10 rounded-xl pl-12 pr-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
+            />
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-            <Filter className="w-5 h-5 text-secondary shrink-0 mr-2" />
-            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((level) =>
-            <button
-              key={level}
-              onClick={() =>
-              setFilterLevel(filterLevel === level ? null : level)
-              }
-              className={`
+            <Filter className="w-5 h-5 text-secondary shrink-0" />
+            {['noun', 'verb', 'adjective', 'adverb'].map((pos) => (
+              <button
+                key={pos}
+                onClick={() => setPosFilter(posFilter === pos ? null : pos)}
+                className={`
                   px-3 py-1.5 rounded-lg text-sm font-medium border transition-all shrink-0
-                  ${filterLevel === level ? 'bg-accent text-app border-accent' : 'bg-surface border-white/10 text-secondary hover:border-white/30'}
-                `}>
-
-                {level}
+                  ${posFilter === pos
+                    ? 'bg-accent text-app border-accent'
+                    : 'bg-surface border-white/10 text-secondary hover:border-white/30'}
+                `}
+              >
+                {POS_LABELS[pos]}
               </button>
-            )}
+            ))}
           </div>
         </div>
       </div>
 
       {/* Word List */}
       <div className="space-y-3">
-        {filteredWords.map((word, index) =>
-        <motion.div
-          key={word.id}
-          initial={{
-            opacity: 0,
-            y: 10
-          }}
-          animate={{
-            opacity: 1,
-            y: 0
-          }}
-          transition={{
-            delay: index * 0.05
-          }}
-          className="group bg-surface hover:bg-surface-hover border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all cursor-pointer">
-
+        {filteredEntries.map((entry, index) => (
+          <motion.div
+            key={entry.korean}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: Math.min(index * 0.02, 0.5) }}
+            className="group bg-surface hover:bg-surface-hover border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-4">
-                <button className="mt-1 w-8 h-8 rounded-full bg-white/5 hover:bg-accent hover:text-app flex items-center justify-center transition-colors text-secondary">
+                <button
+                  onClick={() => playAudio(entry.korean)}
+                  className="mt-1 w-8 h-8 rounded-full bg-white/5 hover:bg-accent hover:text-app flex items-center justify-center transition-colors text-secondary"
+                >
                   <Volume2 className="w-4 h-4" />
                 </button>
 
-                <div>
-                  <div className="flex items-baseline gap-3">
-                    <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
-                      {word.term}
-                    </h3>
-                    <span className="text-sm font-mono text-secondary">
-                      {word.pronunciation}
-                    </span>
-                    <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded border ${levelColors[word.level]}`}>
-
-                      {word.level}
-                    </span>
-                  </div>
-                  <p className="text-secondary mt-1">{word.definition}</p>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
+                    {entry.korean}
+                  </h3>
+                  <p className="text-secondary mt-1">{entry.english}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-6 md:gap-12">
-                <div className="hidden md:block text-right">
-                  <div className="text-xs text-muted mb-1">Mastery</div>
-                  <div className="w-24 h-1.5 bg-black/40 rounded-full overflow-hidden">
-                    <div
-                    className="h-full bg-accent"
-                    style={{
-                      width: `${word.mastery}%`
-                    }} />
-
-                  </div>
+              {/* Mastery progress bar */}
+              <div className="hidden md:block text-right min-w-[100px]">
+                <div className="text-xs text-muted mb-1">
+                  {getMasteryPercent(entry.korean) === 0 ? 'New' : `${getMasteryPercent(entry.korean)}%`}
                 </div>
-
-                <div className="hidden md:block text-right">
-                  <div className="text-xs text-muted mb-1">Last seen</div>
-                  <div className="text-sm text-secondary">
-                    {word.lastReviewed}
-                  </div>
+                <div className="w-24 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent transition-all"
+                    style={{ width: `${getMasteryPercent(entry.korean)}%` }}
+                  />
                 </div>
-
-                <ChevronRight className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
               </div>
             </div>
           </motion.div>
-        )}
+        ))}
 
-        {filteredWords.length === 0 &&
-        <div className="text-center py-20">
+        {filteredEntries.length === 0 && (
+          <div className="text-center py-20">
             <p className="text-muted text-lg">
-              No words found matching your criteria.
+              No words found matching "{searchTerm}"
             </p>
           </div>
-        }
+        )}
       </div>
-    </div>);
-
+    </div>
+  );
 }
