@@ -10,6 +10,7 @@ import {
   Tv,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_BASE = 'http://localhost:8000/api';
 
@@ -18,6 +19,7 @@ interface TrackedVideo {
   title: string;
   tracked_at: number;
   has_korean: number | null;
+  has_ukrainian: number | null;
 }
 
 type LoadState = 'loading' | 'loaded' | 'error' | 'empty';
@@ -33,13 +35,14 @@ function formatTrackedAt(ts: number): string {
 }
 
 export function VideoPage() {
+  const { language, languageName } = useLanguage();
   const [videos, setVideos] = useState<TrackedVideo[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   async function fetchVideos() {
     try {
-      const res = await fetch(`${API_BASE}/videos/history/filtered`);
+      const res = await fetch(`${API_BASE}/videos/history/filtered?lang=${language}`);
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
       const vids: TrackedVideo[] = data.videos || [];
@@ -52,7 +55,7 @@ export function VideoPage() {
 
   useEffect(() => {
     fetchVideos();
-  }, []);
+  }, [language]);
 
   async function handleRefresh() {
     setIsRefreshing(true);
@@ -69,7 +72,7 @@ export function VideoPage() {
             Watch History
           </h1>
           <p className="text-secondary max-w-2xl">
-            Korean YouTube videos tracked by the Deadbird extension — vocabulary extracted automatically.
+            {languageName} YouTube videos tracked by the Deadbird extension — vocabulary extracted automatically.
           </p>
         </div>
         <button
@@ -102,10 +105,12 @@ export function VideoPage() {
           </div>
           <div>
             <div className="text-2xl font-bold text-primary">
-              {loadState === 'loading' ? '—' : videos.filter(v => v.has_korean === 1).length}
+              {loadState === 'loading' ? '—' : videos.filter(v =>
+              (language === 'uk' ? v.has_ukrainian : v.has_korean) === 1
+            ).length}
             </div>
             <div className="text-xs text-secondary uppercase tracking-wider">
-              With Korean Subs
+              With {languageName} Subs
             </div>
           </div>
         </div>
@@ -168,7 +173,7 @@ export function VideoPage() {
             </div>
             <p className="text-primary font-semibold">No videos tracked yet</p>
             <p className="text-secondary text-sm text-center max-w-sm">
-              Watch any Korean YouTube video with subtitles — the Deadbird extension will track it automatically.
+              Watch any {languageName} YouTube video with subtitles — the Deadbird extension will track it automatically.
             </p>
           </motion.div>
         )}
@@ -203,10 +208,10 @@ export function VideoPage() {
                     <Youtube className="w-3 h-3 fill-current" />
                     YouTube
                   </div>
-                  {/* Korean badge */}
-                  {video.has_korean === 1 && (
+                  {/* Language badge */}
+                  {(language === 'uk' ? video.has_ukrainian : video.has_korean) === 1 && (
                     <div className="absolute top-2 right-2 bg-accent/90 px-1.5 py-0.5 rounded text-[10px] font-bold text-app">
-                      KO + EN
+                      {language === 'uk' ? 'UK' : 'KO'} + EN
                     </div>
                   )}
                   {/* Hover play link */}
@@ -245,15 +250,15 @@ export function VideoPage() {
                       <Clock className="w-3.5 h-3.5" />
                       {formatTrackedAt(video.tracked_at)}
                     </div>
-                    {video.has_korean === 1 && (
+                    {(language === 'uk' ? video.has_ukrainian : video.has_korean) === 1 && (
                       <div className="flex items-center gap-1.5 text-xs text-accent/80 bg-accent/5 px-2 py-0.5 rounded border border-accent/10">
                         <BookOpen className="w-3 h-3" />
-                        Korean subtitles
+                        {languageName} subtitles
                       </div>
                     )}
-                    {video.has_korean === 0 && (
+                    {(language === 'uk' ? video.has_ukrainian : video.has_korean) === 0 && (
                       <div className="text-xs text-muted/60 bg-white/3 px-2 py-0.5 rounded border border-white/5">
-                        No Korean subs
+                        No {languageName} subs
                       </div>
                     )}
                   </div>

@@ -12,6 +12,7 @@ import {
 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 type Page =
 'video' |
 'converse' |
@@ -32,6 +33,7 @@ export function Sidebar({
   onToggleTheme,
 }: SidebarProps) {
   const { user } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const navItems = [
@@ -121,6 +123,30 @@ export function Sidebar({
 
       {/* Theme Toggle + User Profile */}
       <div className="p-4 border-t border-white/5 space-y-3">
+        {/* Language Toggle */}
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-white/3">
+          <button
+            onClick={() => setLanguage('ko')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-bold transition-all ${
+              language === 'ko'
+                ? 'bg-accent text-app'
+                : 'text-secondary hover:text-primary hover:bg-white/5'
+            }`}>
+            <span>🇰🇷</span>
+            <span className="hidden md:inline">KO</span>
+          </button>
+          <button
+            onClick={() => setLanguage('uk')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-bold transition-all ${
+              language === 'uk'
+                ? 'bg-accent text-app'
+                : 'text-secondary hover:text-primary hover:bg-white/5'
+            }`}>
+            <span>🇺🇦</span>
+            <span className="hidden md:inline">UK</span>
+          </button>
+        </div>
+
         {/* Theme Toggle */}
         <button
           onClick={onToggleTheme}
