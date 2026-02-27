@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles
 from app.services.vocab_service import load_frequency_map
@@ -10,7 +10,37 @@ router = APIRouter()
 
 # Definitions loaded once at first request
 _DEFINITIONS: dict | None = None
+_SKIPPED_SENTENCES: dict | None = None
 _DATA_DIR = Path(__file__).parent.parent.parent.parent / 'data'
+
+
+def load_skipped_sentences() -> dict:
+    """Load skipped sentences from file. Format: {word: [sentence1, sentence2, ...]}"""
+    global _SKIPPED_SENTENCES
+    if _SKIPPED_SENTENCES is None:
+        skipped_file = _DATA_DIR / 'skipped_sentences.json'
+        if skipped_file.exists():
+            with open(skipped_file, 'r', encoding='utf-8') as f:
+                _SKIPPED_SENTENCES = json.load(f)
+        else:
+            _SKIPPED_SENTENCES = {}
+    return _SKIPPED_SENTENCES
+
+
+def save_skipped_sentences(data: dict) -> None:
+    """Save skipped sentences to file."""
+    global _SKIPPED_SENTENCES
+    _SKIPPED_SENTENCES = data
+    skipped_file = _DATA_DIR / 'skipped_sentences.json'
+    skipped_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(skipped_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def get_skipped_for_word(word: str) -> Set[str]:
+    """Get set of skipped sentences for a word."""
+    skipped = load_skipped_sentences()
+    return set(skipped.get(word, []))
 
 
 def load_definitions() -> dict:
@@ -56,7 +86,10 @@ def get_verb_stem(word: str) -> str | None:
     return None
 
 
-def find_sentence_for_word(word: str, subtitles: list) -> dict:
+def find_sentence_for_word(word: str, subtitles: list, skipped_sentences: Set[str] = None) -> dict:
+    if skipped_sentences is None:
+        skipped_sentences = set()
+
     # Common Korean particles that can follow a noun
     particles = ['이', '가', '을', '를', '은', '는', '의', '에', '도', '만', '와', '과', '로', '으로', '에서', '에게', '부터', '까지', '요', '야', ' ', ',', '.', '?', '!']
 
@@ -76,6 +109,8 @@ def find_sentence_for_word(word: str, subtitles: list) -> dict:
     for sub in subtitles:
         korean = sub.get('korean', '')
         if not korean or word not in korean:
+            continue
+        if korean in skipped_sentences:
             continue
 
         idx = korean.find(word)
@@ -100,6 +135,8 @@ def find_sentence_for_word(word: str, subtitles: list) -> dict:
         for sub in subtitles:
             korean = sub.get('korean', '')
             if not korean or stem not in korean:
+                continue
+            if korean in skipped_sentences:
                 continue
 
             idx = korean.find(stem)
@@ -129,7 +166,7 @@ def find_sentence_for_word(word: str, subtitles: list) -> dict:
     # Third pass: fall back to any substring match
     for sub in subtitles:
         korean = sub.get('korean', '')
-        if korean and word in korean:
+        if korean and word in korean and korean not in skipped_sentences:
             start = sub.get('start', 0)
             end = sub.get('end', start + 5)
             return {
@@ -166,7 +203,9 @@ async def get_flashcard_data(request: dict = Body(...)):
 
     flashcards = []
     for word in words:
-        sentence_data = find_sentence_for_word(word, subtitles)
+        # Get skipped sentences for this word
+        skipped = get_skipped_for_word(word)
+        sentence_data = find_sentence_for_word(word, subtitles, skipped)
 
         possible_forms = strip_korean_particles(word)
         dictionary_form = word
@@ -204,3 +243,26 @@ async def get_flashcard_data(request: dict = Body(...)):
         'total_cards': len(flashcards),
         'flashcards': flashcards
     }
+
+
+@router.post("/flashcard-skip")
+async def skip_flashcard_sentence(request: dict = Body(...)):
+    """
+    Skip a sentence for a word so it won't be used in future flashcards.
+    Body: { word, sentence }
+    """
+    word = request.get('word')
+    sentence = request.get('sentence')
+
+    if not word or not sentence:
+        raise HTTPException(status_code=400, detail="word and sentence are required")
+
+    skipped = load_skipped_sentences()
+    if word not in skipped:
+        skipped[word] = []
+
+    if sentence not in skipped[word]:
+        skipped[word].append(sentence)
+        save_skipped_sentences(skipped)
+
+    return {"status": "ok", "word": word, "skipped_count": len(skipped[word])}
