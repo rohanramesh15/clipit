@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bird, ArrowLeft, Mail, Lock, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 interface LoginPageProps {
   onNavigate: (view: 'landing' | 'signup' | 'app') => void;
 }
 export function LoginPage({ onNavigate }: LoginPageProps) {
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState('');
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    setError('');
+    try {
+      await login(email, password);
       onNavigate('app');
-    }, 1500);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
   return (
     <div className="min-h-screen bg-app flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -57,6 +66,11 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl px-4 py-3">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2">
                 Email Address
@@ -66,9 +80,10 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 <input
                   type="email"
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-app border border-white/10 rounded-xl py-3 pl-12 pr-4 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
                   required />
-
               </div>
             </div>
 
@@ -80,7 +95,6 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 <a
                   href="#"
                   className="text-xs text-accent hover:text-accent-hover font-medium">
-
                   Forgot password?
                 </a>
               </div>
@@ -89,9 +103,10 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 <input
                   type="password"
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-app border border-white/10 rounded-xl py-3 pl-12 pr-4 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
                   required />
-
               </div>
             </div>
 

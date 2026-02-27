@@ -11,6 +11,7 @@ import { SignupPage } from './pages/SignupPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AnimatePresence, motion } from 'framer-motion';
+import { AuthProvider, useAuth } from './context/AuthContext';
 type Page =
 'video' |
 'converse' |
@@ -19,10 +20,22 @@ type Page =
 'analytics' |
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app';
-export function App() {
-  const [appView, setAppView] = useState<AppView>('app');
+
+function AppInner() {
+  const { user, isLoading } = useAuth();
+  const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
   const [isDark, setIsDark] = useState(true);
+
+  // Sync appView with auth state
+  useEffect(() => {
+    if (isLoading) return;
+    if (user) {
+      setAppView((v) => (v === 'landing' || v === 'login' || v === 'signup' ? 'app' : v));
+    } else {
+      setAppView('landing');
+    }
+  }, [isLoading, user]);
   // Apply theme class to <html> so it cascades to everything including fixed elements and body
   useEffect(() => {
     if (isDark) {
@@ -62,6 +75,11 @@ export function App() {
   if (appView === 'onboarding') {
     return <OnboardingPage onComplete={() => setAppView('app')} />;
   }
+  // Show nothing while checking stored token
+  if (isLoading) {
+    return <div className="min-h-screen bg-app" />;
+  }
+
   // Main App View
   return (
     <div className="flex min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app">
@@ -100,4 +118,12 @@ export function App() {
       </main>
     </div>);
 
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  );
 }
