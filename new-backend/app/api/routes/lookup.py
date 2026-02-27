@@ -33,12 +33,14 @@ async def lookup_words(word_list: List[str] = Body(...)):
             results.append({
                 'word': word,
                 'rank': rank,
+                'difficulty': '',
                 'language': 'ko'
             })
         else:
             results.append({
                 'word': word,
                 'rank': 10001,
+                'difficulty': '',
                 'language': 'ko'
             })
 

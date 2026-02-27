@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import health, users
-from app.api.routes import health
 from app.api.routes.videos import router as videos_router
 from app.api.routes.subtitles import router as subtitles_router
 from app.api.routes.vocabulary import router as vocabulary_router
