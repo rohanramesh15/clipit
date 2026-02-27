@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 import {
   Bell,
   Shield,
@@ -23,6 +24,8 @@ const DAILY_GOALS = [10, 15, 20, 30, 45, 60];
 type ExtStatus = 'checking' | 'active' | 'inactive';
 
 export function SettingsPage() {
+  const { user, logout } = useAuth();
+  const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [level, setLevel] = useState('B2');
   const [dailyGoal, setDailyGoal] = useState(20);
   const [notifications, setNotifications] = useState(true);
@@ -83,14 +86,14 @@ export function SettingsPage() {
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6 flex items-center gap-5">
             <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-accent to-orange-500 flex items-center justify-center text-xl font-bold text-app shrink-0">
-              JD
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-primary text-lg">John Doe</p>
-              <p className="text-sm text-secondary">john@example.com</p>
+              <p className="font-bold text-primary text-lg">{user?.username ?? 'User'}</p>
+              <p className="text-sm text-secondary">{user?.email ?? ''}</p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <Crown className="w-3.5 h-3.5 text-accent" />
-                <span className="text-xs font-bold text-accent">Pro Member</span>
+                <span className="text-xs font-bold text-accent">Member</span>
               </div>
             </div>
             <button className="text-sm font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 shrink-0 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/5">
@@ -311,7 +314,9 @@ export function SettingsPage() {
               Privacy & Security
               <ChevronRight className="w-4 h-4 ml-auto" />
             </button>
-            <button className="w-full flex items-center gap-4 p-5 text-secondary hover:text-orange-400 hover:bg-orange-500/5 transition-all text-sm font-medium text-left">
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-orange-400 hover:bg-orange-500/5 transition-all text-sm font-medium text-left">
               <LogOut className="w-5 h-5 shrink-0" />
               Log Out
             </button>

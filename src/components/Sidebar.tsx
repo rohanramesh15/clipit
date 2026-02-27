@@ -11,6 +11,7 @@ import {
   Moon } from
 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 type Page =
 'video' |
 'converse' |
@@ -28,8 +29,10 @@ export function Sidebar({
   activePage,
   onNavigate,
   isDark,
-  onToggleTheme
+  onToggleTheme,
 }: SidebarProps) {
+  const { user } = useAuth();
+  const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const navItems = [
   {
@@ -162,13 +165,13 @@ export function Sidebar({
           className={`w-full flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${activePage === 'settings' ? 'bg-white/5' : 'hover:bg-white/5'}`}>
 
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-orange-500 flex items-center justify-center text-xs font-bold text-app shrink-0">
-            JD
+            {initials}
           </div>
           <div className="hidden md:block overflow-hidden text-left">
             <p className="text-sm font-medium text-primary truncate">
-              John Doe
+              {user?.username ?? 'User'}
             </p>
-            <p className="text-xs text-secondary truncate">Pro Member</p>
+            <p className="text-xs text-secondary truncate">{user?.email ?? ''}</p>
           </div>
         </button>
       </div>

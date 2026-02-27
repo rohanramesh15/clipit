@@ -1,0 +1,98 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+const API_BASE = 'http://localhost:8000/api';
+const TOKEN_KEY = 'deadbird_token';
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  username: string;
+  is_active: boolean;
+}
+
+interface AuthContextValue {
+  user: AuthUser | null;
+  token: string | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [isLoading, setIsLoading] = useState(!!localStorage.getItem(TOKEN_KEY));
+
+  const fetchMe = useCallback(async (accessToken: string): Promise<AuthUser> => {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) throw new Error('Token invalid');
+    return res.json();
+  }, []);
+
+  // On mount, validate any stored token
+  useEffect(() => {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) { setIsLoading(false); return; }
+    fetchMe(stored)
+      .then((me) => { setUser(me); setToken(stored); })
+      .catch(() => { localStorage.removeItem(TOKEN_KEY); setToken(null); })
+      .finally(() => setIsLoading(false));
+  }, [fetchMe]);
+
+  const login = async (email: string, password: string) => {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Login failed');
+    }
+    const { access_token } = await res.json();
+    localStorage.setItem(TOKEN_KEY, access_token);
+    setToken(access_token);
+    const me = await fetchMe(access_token);
+    setUser(me);
+  };
+
+  const register = async (username: string, email: string, password: string) => {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Registration failed');
+    }
+    const { access_token } = await res.json();
+    localStorage.setItem(TOKEN_KEY, access_token);
+    setToken(access_token);
+    const me = await fetchMe(access_token);
+    setUser(me);
+  };
+
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
+}
