@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.security import hash_password
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
@@ -23,11 +24,10 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
             detail="User with this email or username already exists"
         )
 
-    # Create new user (Note: In production, you should hash the password!)
     db_user = User(
         email=user.email,
         username=user.username,
-        hashed_password=user.password,  # TODO: Hash this in production!
+        hashed_password=hash_password(user.password),
     )
 
     db.add(db_user)
