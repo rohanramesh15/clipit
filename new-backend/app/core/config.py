@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
 
+    # DeepL
+    DEEPL_API_KEY: str = ""
+
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
