@@ -61,7 +61,8 @@ export function getOrCreateCard(word: string): FSRSCardData {
 // Rate a card and get the next review schedule
 export function rateCard(
   word: string,
-  rating: Rating
+  rating: Rating,
+  clipDuration?: number
 ): { cardData: FSRSCardData; nextDue: Date } {
   const cardData = getOrCreateCard(word);
   const now = new Date();
@@ -78,6 +79,9 @@ export function rateCard(
   const allCards = loadCardData();
   allCards[word] = updatedCardData;
   saveCardData(allCards);
+
+  // Track in review history for analytics (includes watch time)
+  addToReviewHistory(word, rating, clipDuration);
 
   return {
     cardData: updatedCardData,
@@ -165,6 +169,119 @@ export function previewNextReviews(word: string): {
     good: results[Rating.Good].card.due,
     easy: results[Rating.Easy].card.due,
   };
+}
+
+// ─── Analytics Functions ───────────────────────────────
+
+// Storage key for review history
+const HISTORY_KEY = 'deadbird_review_history';
+
+interface ReviewHistoryEntry {
+  word: string;
+  rating: Rating;
+  timestamp: number; // Unix timestamp
+  clipDuration?: number; // Duration of video clip watched in seconds
+}
+
+// Load review history
+export function loadReviewHistory(): ReviewHistoryEntry[] {
+  try {
+    const stored = localStorage.getItem(HISTORY_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save review to history (called internally by rateCard)
+function addToReviewHistory(word: string, rating: Rating, clipDuration?: number): void {
+  const history = loadReviewHistory();
+  history.push({
+    word,
+    rating,
+    timestamp: Date.now(),
+    clipDuration,
+  });
+  // Keep last 1000 reviews to avoid localStorage bloat
+  const trimmed = history.slice(-1000);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+}
+
+// Get analytics summary
+export function getAnalyticsSummary(): {
+  wordsLearned: number;
+  totalReviews: number;
+  streak: number;
+  reviewsByDate: Record<string, { count: number; correct: number }>;
+} {
+  const allCards = loadCardData();
+  const history = loadReviewHistory();
+
+  // Words learned = cards reviewed at least once
+  const wordsLearned = Object.values(allCards).filter(c => c.card.reps > 0).length;
+
+  // Total reviews
+  const totalReviews = history.length;
+
+  // Group reviews by date for heatmap
+  const reviewsByDate: Record<string, { count: number; correct: number }> = {};
+  history.forEach(h => {
+    const date = new Date(h.timestamp).toISOString().split('T')[0]; // YYYY-MM-DD
+    if (!reviewsByDate[date]) {
+      reviewsByDate[date] = { count: 0, correct: 0 };
+    }
+    reviewsByDate[date].count++;
+    if (h.rating === Rating.Good || h.rating === Rating.Easy) {
+      reviewsByDate[date].correct++;
+    }
+  });
+
+  // Calculate streak (consecutive days with reviews)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let streak = 0;
+  let checkDate = new Date(today);
+
+  while (true) {
+    const dateStr = checkDate.toISOString().split('T')[0];
+    if (reviewsByDate[dateStr]) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return {
+    wordsLearned,
+    totalReviews,
+    streak,
+    reviewsByDate,
+  };
+}
+
+// Get activity data for heatmap (last N days)
+export function getActivityHeatmap(days: number): { date: string; intensity: number }[] {
+  const { reviewsByDate } = getAnalyticsSummary();
+  const result: { date: string; intensity: number }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Find max reviews in a day for normalization
+  const maxReviews = Math.max(1, ...Object.values(reviewsByDate).map(d => d.count));
+
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayData = reviewsByDate[dateStr];
+
+    // Normalize to 0-4 intensity
+    const intensity = dayData ? Math.min(4, Math.ceil((dayData.count / maxReviews) * 4)) : 0;
+    result.push({ date: dateStr, intensity });
+  }
+
+  return result;
 }
 
 export { Rating };
