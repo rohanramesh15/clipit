@@ -43,6 +43,9 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# Runtime cache
+subtitles_cache/
+
 # Logs
 *.log
 logs/

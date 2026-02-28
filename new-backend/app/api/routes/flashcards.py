@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
-from app.services.subtitle_service import load_cached_subtitles
+from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
 from app.services.vocab_service import load_frequency_map
 from app.services.deepl_service import translate
 from app.api.routes.vocabulary import get_frequency_map
@@ -181,34 +181,94 @@ def find_sentence_for_word(word: str, subtitles: list, skipped_sentences: Set[st
     return {'sentence': word, 'translation': 'No translation available', 'timestamp': 0, 'end_timestamp': 5, 'matched_form': word}
 
 
+def find_sentence_for_word_ukrainian(word: str, subtitles: list, skipped_sentences: Set[str] = None) -> dict:
+    """Find a subtitle sentence containing the Ukrainian word."""
+    if skipped_sentences is None:
+        skipped_sentences = set()
+
+    boundary_chars = [' ', ',', '.', '?', '!', ':', ';', '—', '-', '(', ')']
+
+    for sub in subtitles:
+        ukrainian = sub.get('ukrainian', '')
+        if not ukrainian or word not in ukrainian:
+            continue
+        if ukrainian in skipped_sentences:
+            continue
+
+        idx = ukrainian.find(word)
+        while idx != -1:
+            end_idx = idx + len(word)
+            after = ukrainian[end_idx:] if end_idx < len(ukrainian) else ''
+            before_ok = idx == 0 or ukrainian[idx - 1] in boundary_chars
+            after_ok = not after or after[0] in boundary_chars
+            if before_ok and after_ok:
+                start = sub.get('start', 0)
+                end = sub.get('end', start + 5)
+                return {
+                    'sentence': ukrainian,
+                    'translation': sub.get('english', 'No translation available'),
+                    'timestamp': int(start),
+                    'end_timestamp': int(end) + 1,
+                    'matched_form': word,
+                }
+            idx = ukrainian.find(word, end_idx)
+
+    # Fallback: any substring match
+    for sub in subtitles:
+        ukrainian = sub.get('ukrainian', '')
+        if ukrainian and word in ukrainian and ukrainian not in skipped_sentences:
+            start = sub.get('start', 0)
+            end = sub.get('end', start + 5)
+            return {
+                'sentence': ukrainian,
+                'translation': sub.get('english', 'No translation available'),
+                'timestamp': int(start),
+                'end_timestamp': int(end) + 1,
+                'matched_form': word,
+            }
+
+    return {'sentence': word, 'translation': 'No translation available', 'timestamp': 0, 'end_timestamp': 5, 'matched_form': word}
+
+
 @router.post("/flashcard-data")
 async def get_flashcard_data(request: dict = Body(...)):
     """
-    Generate flashcard data for a list of Korean words from a video.
-    Body: { video_id, words: [...], word_source: "essential"|"selected" }
+    Generate flashcard data for a list of words from a video.
+    Body: { video_id, words: [...], word_source: "essential"|"selected", language: "ko"|"uk" }
     """
     video_id = request.get('video_id')
     words = request.get('words', [])
     word_source = request.get('word_source', 'essential')
+    language = request.get('language', 'ko')
 
     if not video_id or not words:
         raise HTTPException(status_code=400, detail="video_id and words are required")
 
-    subtitle_data = load_cached_subtitles(video_id)
+    if language == 'uk':
+        subtitle_data = load_cached_subtitles_ukrainian(video_id)
+    else:
+        subtitle_data = load_cached_subtitles(video_id)
+
     if not subtitle_data:
         raise HTTPException(status_code=404, detail=f"Subtitles not found for {video_id}")
 
     subtitles = subtitle_data['subtitles']
-    frequency_map = get_frequency_map()
+    frequency_map = get_frequency_map(language)
     definitions = load_definitions()
+
+    deepl_source_lang = 'UK' if language == 'uk' else 'KO'
 
     flashcards = []
     for word in words:
-        # Get skipped sentences for this word
         skipped = get_skipped_for_word(word)
-        sentence_data = find_sentence_for_word(word, subtitles, skipped)
 
-        possible_forms = strip_korean_particles(word)
+        if language == 'uk':
+            sentence_data = find_sentence_for_word_ukrainian(word, subtitles, skipped)
+            possible_forms = [word]
+        else:
+            sentence_data = find_sentence_for_word(word, subtitles, skipped)
+            possible_forms = strip_korean_particles(word)
+
         dictionary_form = word
         rank = frequency_map.get(word)
 
@@ -226,12 +286,15 @@ async def get_flashcard_data(request: dict = Body(...)):
         # definitions.json first, DeepL as fallback
         definition = definitions.get(dictionary_form) or definitions.get(word)
         if not definition:
-            definition = translate(dictionary_form) or translate(word) or "definition not available"
+            definition = (
+                translate(dictionary_form, source_lang=deepl_source_lang)
+                or translate(word, source_lang=deepl_source_lang)
+                or "definition not available"
+            )
 
-        # Use DeepL for sentence translation when no English subtitle is available
         sentence_translation = sentence_data['translation']
         if (not sentence_translation or sentence_translation == 'No translation available') and sentence_data['sentence']:
-            sentence_translation = translate(sentence_data['sentence']) or 'No translation available'
+            sentence_translation = translate(sentence_data['sentence'], source_lang=deepl_source_lang) or 'No translation available'
 
         flashcards.append({
             'target_word': word,
@@ -243,7 +306,7 @@ async def get_flashcard_data(request: dict = Body(...)):
             'end_timestamp': sentence_data['end_timestamp'],
             'video_id': video_id,
             'rank': rank,
-            'language': 'ko'
+            'language': language,
         })
 
     return {

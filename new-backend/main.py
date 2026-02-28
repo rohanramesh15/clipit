@@ -14,6 +14,15 @@ from app.api.routes.lookup import router as lookup_router
 
 Base.metadata.create_all(bind=engine)
 
+# SQLite migration: add has_ukrainian column if it doesn't exist yet
+if settings.DATABASE_URL.startswith("sqlite"):
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(tracked_videos)")).fetchall()]
+        if "has_ukrainian" not in cols:
+            conn.execute(text("ALTER TABLE tracked_videos ADD COLUMN has_ukrainian BOOLEAN"))
+            conn.commit()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
