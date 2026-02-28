@@ -170,3 +170,38 @@ def get_unchecked_ukrainian_videos() -> list[dict]:
         return [{"video_id": r.video_id, "title": r.title, "tracked_at": r.tracked_at} for r in rows]
     finally:
         db.close()
+
+
+def update_video_duration(video_id: str, duration_seconds: int) -> None:
+    """Update the duration of a video in seconds."""
+    db = _db()
+    try:
+        db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).update(
+            {"duration_seconds": duration_seconds}
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def get_total_watch_time(lang: str = "ko") -> dict:
+    """Get total watch time stats for videos in the target language."""
+    db = _db()
+    try:
+        if lang == "uk":
+            rows = db.query(TrackedVideo).filter(TrackedVideo.has_ukrainian == True).all()
+        else:
+            rows = db.query(TrackedVideo).filter(TrackedVideo.has_korean == True).all()
+
+        total_seconds = sum(r.duration_seconds or 0 for r in rows)
+        video_count = len(rows)
+        videos_with_duration = sum(1 for r in rows if r.duration_seconds)
+
+        return {
+            "total_seconds": total_seconds,
+            "total_hours": round(total_seconds / 3600, 1),
+            "video_count": video_count,
+            "videos_with_duration": videos_with_duration,
+        }
+    finally:
+        db.close()

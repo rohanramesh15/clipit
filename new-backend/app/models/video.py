@@ -1,5 +1,5 @@
 import time
-from sqlalchemy import Column, String, Float, Boolean, JSON
+from sqlalchemy import Column, String, Float, Boolean, JSON, Integer
 from .base import BaseModel
 
 
@@ -14,3 +14,4 @@ class TrackedVideo(BaseModel):
     tracked_at = Column(Float, default=time.time, nullable=False)
     has_korean = Column(Boolean, nullable=True)    # None = unchecked, True/False = confirmed
     has_ukrainian = Column(Boolean, nullable=True)  # None = unchecked, True/False = confirmed
+    duration_seconds = Column(Integer, nullable=True)  # Video duration in seconds (from subtitles)
