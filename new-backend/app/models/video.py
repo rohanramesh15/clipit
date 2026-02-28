@@ -12,4 +12,5 @@ class TrackedVideo(BaseModel):
     youtube_url = Column(String)
     subtitles = Column(JSON, nullable=True)   # Full subtitle list, stored as JSON
     tracked_at = Column(Float, default=time.time, nullable=False)
-    has_korean = Column(Boolean, nullable=True)  # None = unchecked, True/False = confirmed
+    has_korean = Column(Boolean, nullable=True)    # None = unchecked, True/False = confirmed
+    has_ukrainian = Column(Boolean, nullable=True)  # None = unchecked, True/False = confirmed

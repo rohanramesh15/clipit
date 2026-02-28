@@ -1,4 +1,5 @@
 const API = 'http://localhost:8000/api';
+const APP_URL = 'http://localhost:5176';
 const root = document.getElementById('root');
 
 // ─── State ────────────────────────────────────────────
@@ -45,7 +46,7 @@ function handleAction(e) {
   const action = el.dataset.action;
 
   if (action === 'open-app') {
-    chrome.tabs.create({ url: 'http://localhost:5173' });
+    chrome.tabs.create({ url: APP_URL });
   }
   if (action === 'back') {
     state.view = 'list';
