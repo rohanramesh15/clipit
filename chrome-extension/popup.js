@@ -13,7 +13,8 @@ let state = {
 // ─── Boot ─────────────────────────────────────────────
 (async function init() {
   try {
-    const res = await fetch(`${API}/videos/history`, { signal: AbortSignal.timeout(3000) });
+    // Use filtered endpoint to only show target language videos
+    const res = await fetch(`${API}/videos/history/filtered`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) throw new Error();
     const data = await res.json();
     state.videos = data.videos || [];
