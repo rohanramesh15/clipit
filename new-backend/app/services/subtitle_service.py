@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from youtube_transcript_api import YouTubeTranscriptApi
 from app.core.config import settings
-from app.services.video_store import save_subtitles, get_subtitles
+from app.services.video_store import save_subtitles, get_subtitles, update_video_duration
 
 
 def _cache_path(video_id: str) -> Path:
@@ -166,6 +166,15 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
     except Exception:
         pass
 
+    # Calculate and save video duration from last subtitle
+    if merged:
+        last_sub = merged[-1]
+        duration_seconds = int(last_sub.get('end', last_sub['start'] + last_sub['duration']))
+        try:
+            update_video_duration(video_id, duration_seconds)
+        except Exception:
+            pass
+
     return data
 
 
@@ -306,6 +315,15 @@ def fetch_and_cache_subtitles_ukrainian(video_id: str) -> dict:
 
     with open(cache_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # Calculate and save video duration from last subtitle
+    if merged:
+        last_sub = merged[-1]
+        duration_seconds = int(last_sub.get('end', last_sub['start'] + last_sub['duration']))
+        try:
+            update_video_duration(video_id, duration_seconds)
+        except Exception:
+            pass
 
     return data
 
