@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = 'http://localhost:8000/api';
 
@@ -36,7 +37,7 @@ interface TrackedVideo {
   tracked_at: number;
 }
 
-type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-korean' | 'session-complete';
+type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-vocab' | 'session-complete';
 
 // Format next review time
 function formatNextReview(date: Date): string {
@@ -53,6 +54,7 @@ function formatNextReview(date: Date): string {
 }
 
 export function FlashcardsPage() {
+  const { language, languageName } = useLanguage();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [dueCards, setDueCards] = useState<FlashCard[]>([]);
@@ -154,9 +156,9 @@ export function FlashcardsPage() {
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
     try {
-      await fetch(`${API}/subtitles/${videoId}`);
+      await fetch(`${API}/subtitles/${videoId}?lang=${language}`);
 
-      const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20`);
+      const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20&lang=${language}`);
       if (!vocabRes.ok) return [];
       const vocab = await vocabRes.json();
       if (!vocab.total_words) return [];
@@ -165,7 +167,7 @@ export function FlashcardsPage() {
       const fcRes = await fetch(`${API}/flashcard-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential' }),
+        body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
       });
       if (!fcRes.ok) return [];
       const fc = await fcRes.json();
@@ -180,7 +182,7 @@ export function FlashcardsPage() {
     } catch {
       return [];
     }
-  }, []);
+  }, [language]);
 
   // Sort cards by FSRS priority and filter to due cards
   const prepareCardsForReview = useCallback((allCards: FlashCard[]) => {
@@ -234,7 +236,7 @@ export function FlashcardsPage() {
     }
 
     if (!allCards.length) {
-      setLoadState('no-korean');
+      setLoadState('no-vocab');
       return;
     }
     prepareCardsForReview(allCards);
@@ -256,7 +258,7 @@ export function FlashcardsPage() {
     const videoCards = await fetchCardsForVideo(videoId);
 
     if (!videoCards.length) {
-      setLoadState('no-korean');
+      setLoadState('no-vocab');
       return;
     }
     prepareCardsForReview(videoCards);
@@ -265,7 +267,9 @@ export function FlashcardsPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const res = await fetch(`${API}/videos/history/filtered`);
+        setLoadState('loading');
+        setLoadingMsg('Loading watch history...');
+        const res = await fetch(`${API}/videos/history/filtered?lang=${language}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         const vids: TrackedVideo[] = data.videos || [];
@@ -282,7 +286,7 @@ export function FlashcardsPage() {
       }
     }
     bootstrap();
-  }, [loadAllVideos]);
+  }, [language, loadAllVideos]);
 
   const currentCard = dueCards[currentIndex];
   const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;
@@ -396,24 +400,24 @@ export function FlashcardsPage() {
         </div>
         <p className="text-primary font-semibold">No videos tracked yet</p>
         <p className="text-secondary text-sm text-center max-w-sm">
-          Watch a Korean YouTube video with the Deadbird extension to start building flashcards.
+          Watch a {languageName} YouTube video with the Deadbird extension to start building flashcards.
         </p>
       </div>
     );
   }
 
-  // ── No Korean ────────────────────────────────────────────────
-  if (loadState === 'no-korean') {
+  // ── No vocab ─────────────────────────────────────────────────
+  if (loadState === 'no-vocab') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center text-3xl">
-          🈚
+          {language === 'uk' ? '🇺🇦' : '🈚'}
         </div>
-        <p className="text-primary font-semibold">No common Korean words found</p>
+        <p className="text-primary font-semibold">No common {languageName} words found</p>
         <p className="text-secondary text-sm text-center max-w-sm">
           {selectedVideoId === 'all'
-            ? 'None of the tracked videos had Korean words matching the frequency list.'
-            : 'No Korean words from the frequency list were found in this video.'}
+            ? `None of the tracked videos had ${languageName} words matching the frequency list.`
+            : `No ${languageName} words from the frequency list were found in this video.`}
         </p>
         {videos.length > 1 && selectedVideoId !== 'all' && (
           <button
