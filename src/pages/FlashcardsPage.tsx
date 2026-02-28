@@ -311,7 +311,9 @@ export function FlashcardsPage() {
   function handleRating(rating: Rating) {
     if (!currentCard) return;
 
-    const { nextDue } = rateCard(currentCard.target_word, rating);
+    // Calculate clip duration (with 3 second buffer that's added during playback)
+    const clipDuration = (currentCard.end_timestamp || currentCard.timestamp + 5) - currentCard.timestamp + 3;
+    const { nextDue } = rateCard(currentCard.target_word, rating, clipDuration);
     const nextDueStr = formatNextReview(nextDue);
 
     // Update session stats
