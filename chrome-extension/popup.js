@@ -17,8 +17,12 @@ let state = {
   const stored = await chrome.storage.local.get('language');
   state.lang = stored.language === 'uk' ? 'uk' : 'ko';
 
+  await fetchVideos();
+})();
+
+async function fetchVideos() {
   try {
-    const res = await fetch(`${API}/videos/history`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${API}/videos/history/filtered?lang=${state.lang}`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) throw new Error();
     const data = await res.json();
     state.videos = data.videos || [];
@@ -27,7 +31,7 @@ let state = {
     state.view = 'offline';
   }
   render();
-})();
+}
 
 // ─── Render ───────────────────────────────────────────
 function render() {
@@ -67,9 +71,10 @@ function handleAction(e) {
     state.lang = el.dataset.lang;
     state.selected = null;
     state.words = null;
-    state.view = state.videos.length ? 'list' : 'empty';
+    state.view = 'loading';
     chrome.storage.local.set({ language: state.lang }); // fire and forget
     render();
+    fetchVideos();
   }
 }
 

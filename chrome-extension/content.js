@@ -37,7 +37,7 @@ function sendTrack(videoId) {
         type: 'TRACK_VIDEO',
         videoId,
         title: (title && title !== 'Unknown') ? title : 'Unknown',
-      });
+      }, () => void chrome.runtime.lastError); // suppress "receiving end does not exist" if SW is asleep
     }
   }, 500);
 }
