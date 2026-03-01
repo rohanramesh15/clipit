@@ -13,11 +13,128 @@ import {
   Clock,
   Trophy,
   RefreshCw,
+  Play,
+  ExternalLink,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 
 const API = 'http://localhost:8000/api';
+
+// Netflix video placeholder component with screenshot and audio support
+function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; timestamp: number }) {
+  const [hasScreenshot, setHasScreenshot] = React.useState<boolean | null>(null);
+  const [hasAudio, setHasAudio] = React.useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = React.useState<boolean>(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const roundedTimestamp = Math.floor(timestamp);
+  const netflixId = videoId.replace('netflix_', '');
+  const timeStr = `${Math.floor(timestamp / 60)}:${String(Math.floor(timestamp % 60)).padStart(2, '0')}`;
+
+  // Check if screenshot and audio exist
+  React.useEffect(() => {
+    fetch(`${API}/netflix/screenshot/${videoId}/${roundedTimestamp}`, { method: 'HEAD' })
+      .then(res => setHasScreenshot(res.ok))
+      .catch(() => setHasScreenshot(false));
+
+    fetch(`${API}/netflix/audio/${videoId}/${roundedTimestamp}`, { method: 'HEAD' })
+      .then(res => setHasAudio(res.ok))
+      .catch(() => setHasAudio(false));
+  }, [videoId, roundedTimestamp]);
+
+  // Auto-play audio when component mounts (if available)
+  React.useEffect(() => {
+    if (hasAudio && audioRef.current) {
+      audioRef.current.play().catch(() => {
+        // Auto-play blocked, user needs to click
+      });
+    }
+  }, [hasAudio]);
+
+  const toggleAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    } else {
+      audioRef.current.play();
+    }
+  };
+
+  return (
+    <div className="w-full h-full relative bg-gradient-to-br from-[#1a1a2e] to-[#2d1f3d]">
+      {/* Audio element (hidden) */}
+      {hasAudio && (
+        <audio
+          ref={audioRef}
+          src={`${API}/netflix/audio/${videoId}/${roundedTimestamp}`}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
+
+      {hasScreenshot ? (
+        <>
+          <img
+            src={`${API}/netflix/screenshot/${videoId}/${roundedTimestamp}`}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={() => setHasScreenshot(false)}
+          />
+          {/* Audio control button overlay */}
+          {hasAudio && (
+            <button
+              onClick={toggleAudio}
+              className="absolute bottom-3 right-3 p-2.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
+              title={isPlaying ? 'Stop audio' : 'Play audio'}
+            >
+              {isPlaying ? (
+                <VolumeX className="w-5 h-5" />
+              ) : (
+                <Volume2 className="w-5 h-5" />
+              )}
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-[#e50914] flex items-center justify-center mb-2">
+            <span className="text-white font-bold text-xl">N</span>
+          </div>
+          <a
+            href={`https://www.netflix.com/watch/${netflixId}?t=${roundedTimestamp}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#e50914] hover:bg-[#f6121d] text-white text-sm font-medium transition-colors shadow-lg"
+          >
+            <Play className="w-4 h-4" />
+            Watch on Netflix
+            <ExternalLink className="w-3 h-3 opacity-60" />
+          </a>
+          <p className="text-white/50 text-xs mt-2">{timeStr}</p>
+          {/* Audio button when no screenshot */}
+          {hasAudio && (
+            <button
+              onClick={toggleAudio}
+              className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs transition-colors"
+            >
+              {isPlaying ? (
+                <><VolumeX className="w-4 h-4" /> Stop</>
+              ) : (
+                <><Volume2 className="w-4 h-4" /> Play Audio</>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface FlashCard {
   target_word: string;
@@ -96,11 +213,26 @@ export function FlashcardsPage() {
     }
   }, [selectedVideoId]);
 
-  // Create/update YouTube player when card changes
+  // Check if a video is from Netflix
+  const isNetflixVideo = (videoId: string) => videoId.startsWith('netflix_');
+
+  // Create/update YouTube player when card changes (skip for Netflix)
   useEffect(() => {
     const card = dueCards[currentIndex];
     if (loadState !== 'loaded' || !card) return;
     if (!playerContainerRef.current) return;
+
+    // Skip YouTube player for Netflix videos
+    if (isNetflixVideo(card.video_id)) {
+      // Destroy any existing YouTube player
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy();
+        } catch (e) {}
+        playerRef.current = null;
+      }
+      return;
+    }
 
     // Add 3 seconds buffer to end timestamp
     const endTime = (card.end_timestamp || card.timestamp + 5) + 3;
@@ -169,6 +301,16 @@ export function FlashcardsPage() {
     };
   }, [currentIndex, loadState, dueCards]);
 
+  // Check if a Netflix screenshot exists for a given video/timestamp
+  const checkScreenshotExists = async (videoId: string, timestamp: number): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API}/netflix/screenshot/${videoId}/${Math.floor(timestamp)}`, { method: 'HEAD' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
     try {
@@ -191,10 +333,26 @@ export function FlashcardsPage() {
       // Attach rank from vocab to each card
       const rankMap: Record<string, number> = {};
       vocab.vocabulary.forEach((v: { word: string; rank: number }) => { rankMap[v.word] = v.rank; });
-      return (fc.flashcards || []).map((card: FlashCard) => ({
+      let cards = (fc.flashcards || []).map((card: FlashCard) => ({
         ...card,
         rank: rankMap[card.target_word],
       }));
+
+      // For Netflix videos, prefer cards with screenshots but show all if none have screenshots
+      if (videoId.startsWith('netflix_') && cards.length > 0) {
+        const screenshotChecks = await Promise.all(
+          cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp))
+        );
+        const cardsWithScreenshots = cards.filter((_: FlashCard, i: number) => screenshotChecks[i]);
+        console.log(`[Deadbird] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
+
+        // If we have cards with screenshots, only show those; otherwise show all
+        if (cardsWithScreenshots.length > 0) {
+          cards = cardsWithScreenshots;
+        }
+      }
+
+      return cards;
     } catch {
       return [];
     }
@@ -588,12 +746,20 @@ export function FlashcardsPage() {
 
       {/* Card area */}
       <div className="w-full">
-        {/* YouTube clip */}
+        {/* Video clip (YouTube) or Netflix placeholder */}
         <div className="relative w-full aspect-video rounded-t-2xl overflow-hidden ring-1 ring-white/10 bg-black">
-          <div
-            ref={playerContainerRef}
-            className="w-full h-full"
-          />
+          {currentCard && isNetflixVideo(currentCard.video_id) ? (
+            // Netflix screenshot or placeholder with deep link button
+            <NetflixVideoPlaceholder
+              videoId={currentCard.video_id}
+              timestamp={currentCard.timestamp}
+            />
+          ) : (
+            <div
+              ref={playerContainerRef}
+              className="w-full h-full"
+            />
+          )}
           {/* Regenerate button */}
           <button
             onClick={handleSkipCard}
