@@ -10,6 +10,7 @@ from app.api.routes.subtitles import router as subtitles_router
 from app.api.routes.vocabulary import router as vocabulary_router
 from app.api.routes.flashcards import router as flashcards_router
 from app.api.routes.lookup import router as lookup_router
+from app.api.routes.netflix import router as netflix_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -45,6 +46,7 @@ app.include_router(subtitles_router, prefix="/api", tags=["subtitles"])
 app.include_router(vocabulary_router, prefix="/api", tags=["vocabulary"])
 app.include_router(flashcards_router, prefix="/api", tags=["flashcards"])
 app.include_router(lookup_router, prefix="/api", tags=["lookup"])
+app.include_router(netflix_router, prefix="/api/netflix", tags=["netflix"])
 
 
 @app.get("/")

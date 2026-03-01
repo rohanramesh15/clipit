@@ -2,12 +2,39 @@
  * Deadbird — background service worker
  * Tracks videos and pre-fetches the full vocab pipeline in the background.
  * Results cached in chrome.storage.local so the popup loads instantly.
+ * Supports YouTube and Netflix.
  */
 
 const API = 'http://localhost:8000/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+// Netflix subtitle state
+let currentNetflixVideoId = null;
+let netflixSubtitles = {}; // { videoId: { ko: [...], en: [...], uk: [...] } }
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Netflix interceptor injection
+  if (msg.type === 'INJECT_NETFLIX_INTERCEPTOR' && sender.tab) {
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id },
+      world: 'MAIN',
+      files: ['inject.js']
+    }).catch(e => console.error('[Deadbird] Failed to inject:', e));
+    return;
+  }
+
+  // Screenshot capture for Netflix
+  if (msg.type === 'CAPTURE_SCREENSHOT' && sender.tab) {
+    captureScreenshot(sender.tab.id, sender.tab.windowId)
+      .then(dataUrl => sendResponse({ success: true, dataUrl }))
+      .catch(e => {
+        console.error('[Deadbird] Screenshot failed:', e);
+        sendResponse({ success: false, error: e.message });
+      });
+    return true; // async response
+  }
+
+  // YouTube tracking
   if (msg.type === 'TRACK_VIDEO') {
     trackAndPrefetch(msg.videoId, msg.title).then(sendResponse);
     return true;
@@ -16,7 +43,205 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     getCachedVocab(msg.videoId).then(sendResponse);
     return true;
   }
+
+  // Netflix tracking
+  if (msg.type === 'TRACK_NETFLIX') {
+    currentNetflixVideoId = msg.videoId;
+    netflixSubtitles[msg.videoId] = netflixSubtitles[msg.videoId] || {};
+    trackNetflix(msg.videoId, msg.title).then(sendResponse);
+    return true;
+  }
+  if (msg.type === 'NETFLIX_SUBTITLES') {
+    // Received subtitles from content script
+    console.log(`[Deadbird] Received ${msg.subtitles.length} subtitles for Netflix ${msg.videoId}`);
+    processNetflixSubtitles(msg.videoId, msg.subtitles, msg.language);
+    sendResponse({ success: true });
+    return true;
+  }
+  if (msg.type === 'GET_NETFLIX_SUBTITLES') {
+    sendResponse(netflixSubtitles[msg.videoId] || {});
+    return true;
+  }
+
+  // Get keyword timestamps for targeted screenshot capture
+  if (msg.type === 'GET_KEYWORD_TIMESTAMPS') {
+    const key = `keyword_timestamps_${msg.videoId}`;
+    chrome.storage.local.get(key).then(result => {
+      sendResponse(result[key] || []);
+    });
+    return true;
+  }
+
+  // Save screenshot to backend
+  if (msg.type === 'SAVE_NETFLIX_SCREENSHOT') {
+    saveScreenshotToBackend(msg.videoId, msg.timestamp, msg.dataUrl);
+    return;
+  }
 });
+
+// ─── Netflix subtitle processing (received from content script) ──────────────
+
+function detectSubtitleLanguage(url, content) {
+  // Try to detect from URL parameters or content
+  const urlLower = url.toLowerCase();
+
+  // Common Netflix URL patterns for language
+  if (urlLower.includes('ko') || urlLower.includes('korean')) return 'ko';
+  if (urlLower.includes('uk') || urlLower.includes('ukrainian')) return 'uk';
+  if (urlLower.includes('en') || urlLower.includes('english')) return 'en';
+
+  // Try to detect from content
+  const contentSample = content.slice(0, 2000).toLowerCase();
+
+  // Check for Korean characters (Hangul)
+  if (/[\uAC00-\uD7AF]/.test(contentSample)) return 'ko';
+
+  // Check for Ukrainian characters (Cyrillic with Ukrainian-specific letters)
+  if (/[\u0400-\u04FF]/.test(contentSample) && /[іїєґ]/i.test(contentSample)) return 'uk';
+
+  // Check for mostly ASCII (likely English)
+  if (/^[\x00-\x7F\s]+$/.test(contentSample.replace(/<[^>]*>/g, ''))) return 'en';
+
+  return null;
+}
+
+function parseTTML(xml) {
+  const subtitles = [];
+  // Match <p> elements with timing
+  const pRegex = /<p[^>]*begin="([^"]+)"[^>]*end="([^"]+)"[^>]*>([\s\S]*?)<\/p>/gi;
+  let match;
+
+  while ((match = pRegex.exec(xml)) !== null) {
+    const begin = parseTimeToSeconds(match[1]);
+    const end = parseTimeToSeconds(match[2]);
+    const text = match[3]
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (text) {
+      subtitles.push({
+        start: begin,
+        end: end,
+        duration: end - begin,
+        text: text,
+      });
+    }
+  }
+
+  return subtitles;
+}
+
+function parseWebVTT(vtt) {
+  const subtitles = [];
+  const lines = vtt.split('\n');
+  let i = 0;
+
+  while (i < lines.length) {
+    // Look for timestamp line (00:00:00.000 --> 00:00:00.000)
+    const timeLine = lines[i];
+    const timeMatch = timeLine.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/);
+
+    if (timeMatch) {
+      const start = parseTimeToSeconds(timeMatch[1]);
+      const end = parseTimeToSeconds(timeMatch[2]);
+
+      // Collect text lines until empty line
+      i++;
+      let textLines = [];
+      while (i < lines.length && lines[i].trim() !== '') {
+        textLines.push(lines[i].trim());
+        i++;
+      }
+
+      const text = textLines.join(' ')
+        .replace(/<[^>]*>/g, '')
+        .trim();
+
+      if (text) {
+        subtitles.push({
+          start: start,
+          end: end,
+          duration: end - start,
+          text: text,
+        });
+      }
+    }
+    i++;
+  }
+
+  return subtitles;
+}
+
+function parseTimeToSeconds(timeStr) {
+  // Handle formats: "00:00:00.000", "00:00.000", "00:00:00,000"
+  const normalized = timeStr.replace(',', '.');
+  const parts = normalized.split(':');
+
+  if (parts.length === 3) {
+    const [h, m, s] = parts;
+    return parseInt(h) * 3600 + parseInt(m) * 60 + parseFloat(s);
+  } else if (parts.length === 2) {
+    const [m, s] = parts;
+    return parseInt(m) * 60 + parseFloat(s);
+  }
+  return parseFloat(normalized);
+}
+
+async function trackNetflix(videoId, title, subtitleLang) {
+  try {
+    // Track the video with platform indicator
+    const res = await fetch(`${API}/videos/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: `netflix_${videoId}`,
+        title: title,
+        platform: 'netflix',
+      }),
+    });
+    const data = await res.json();
+    return { success: true, is_new: data.is_new };
+  } catch (e) {
+    console.error('[Deadbird] Error tracking Netflix:', e);
+    return { success: false };
+  }
+}
+
+async function processNetflixSubtitles(videoId, subtitles, lang) {
+  // Subtitles are already merged by content script
+  const netflixVideoId = `netflix_${videoId}`;
+  try {
+    const res = await fetch(`${API}/netflix/subtitles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: netflixVideoId,
+        language: lang,
+        subtitles: subtitles,
+      }),
+    });
+
+    const data = await res.json();
+
+    // Store keyword timestamps for targeted screenshot capture
+    if (data.keyword_timestamps && data.keyword_timestamps.length > 0) {
+      const key = `keyword_timestamps_${videoId}`;
+      await chrome.storage.local.set({ [key]: data.keyword_timestamps });
+      console.log(`[Deadbird] Stored ${data.keyword_timestamps.length} keyword timestamps for ${videoId}`);
+    }
+
+    // Run vocab pipeline
+    runVocabPipeline(netflixVideoId, lang);
+  } catch (e) {
+    console.error('[Deadbird] Error sending Netflix subtitles:', e);
+  }
+}
 
 async function trackAndPrefetch(videoId, title) {
   try {
@@ -37,7 +262,7 @@ async function trackAndPrefetch(videoId, title) {
   }
 }
 
-async function runVocabPipeline(videoId) {
+async function runVocabPipeline(videoId, lang = 'ko') {
   const cacheKey = `vocab_${videoId}`;
 
   // Check if we have a recent cache
@@ -51,21 +276,29 @@ async function runVocabPipeline(videoId) {
   await chrome.storage.local.set({ [cacheKey]: { loading: true, cachedAt: Date.now() } });
 
   try {
-    // Step 1: fetch/cache subtitles
-    const subRes = await fetch(`${API}/subtitles/${videoId}`);
-    if (!subRes.ok) throw new Error('subtitles');
+    // Step 1: fetch/cache subtitles (skip for Netflix - already captured)
+    if (!videoId.startsWith('netflix_')) {
+      const subRes = await fetch(`${API}/subtitles/${videoId}?lang=${lang}`);
+      if (!subRes.ok) throw new Error('subtitles');
+    }
 
     // Step 2: vocabulary (all words in freq list, no level filter)
-    const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20`);
+    const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20&lang=${lang}`);
     if (!vocabRes.ok) throw new Error('vocab');
     const vocab = await vocabRes.json();
 
     if (!vocab.total_words) {
-      // No Korean vocab found — update status and cache empty result
-      await fetch(`${API}/videos/${videoId}/status`, {
+      // No target language vocab found — update status and cache empty result
+      const statusEndpoint = lang === 'uk'
+        ? `${API}/videos/${videoId}/status/ukrainian`
+        : `${API}/videos/${videoId}/status`;
+      const statusBody = lang === 'uk'
+        ? { has_ukrainian: false }
+        : { has_korean: false };
+      await fetch(statusEndpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_korean: false }),
+        body: JSON.stringify(statusBody),
       }).catch(() => {});
       await chrome.storage.local.set({
         [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
@@ -78,7 +311,7 @@ async function runVocabPipeline(videoId) {
     const fcRes = await fetch(`${API}/flashcard-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential' }),
+      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language: lang }),
     });
 
     let words;
@@ -91,6 +324,7 @@ async function runVocabPipeline(videoId) {
         ...card,
         rank: rankMap[card.target_word] || 0,
       }));
+
     } else {
       // Fallback: vocab words without flashcard enrichment
       words = vocab.vocabulary.map(v => ({
@@ -103,11 +337,17 @@ async function runVocabPipeline(videoId) {
       }));
     }
 
-    // Update has_korean status to true
-    await fetch(`${API}/videos/${videoId}/status`, {
+    // Update language status to true
+    const statusEndpoint = lang === 'uk'
+      ? `${API}/videos/${videoId}/status/ukrainian`
+      : `${API}/videos/${videoId}/status`;
+    const statusBody = lang === 'uk'
+      ? { has_ukrainian: true }
+      : { has_korean: true };
+    await fetch(statusEndpoint, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ has_korean: true }),
+      body: JSON.stringify(statusBody),
     }).catch(() => {});
 
     await chrome.storage.local.set({
@@ -124,4 +364,34 @@ async function getCachedVocab(videoId) {
   const cacheKey = `vocab_${videoId}`;
   const result = await chrome.storage.local.get(cacheKey);
   return result[cacheKey] || { loading: true };
+}
+
+// ─── Screenshot capture ──────────────────────────────────────────────────────
+
+async function captureScreenshot(tabId, windowId) {
+  try {
+    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+      format: 'jpeg',
+      quality: 85
+    });
+    return dataUrl;
+  } catch (e) {
+    console.error('[Deadbird] captureVisibleTab failed:', e);
+    throw e;
+  }
+}
+
+async function saveScreenshotToBackend(videoId, timestamp, dataUrl) {
+  try {
+    const res = await fetch(`${API}/netflix/screenshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_id: videoId, timestamp, data_url: dataUrl }),
+    });
+    if (res.ok) {
+      console.log(`[Deadbird] Screenshot saved to backend: ${videoId} @ ${timestamp}s`);
+    }
+  } catch (e) {
+    console.error('[Deadbird] Failed to save screenshot:', e);
+  }
 }

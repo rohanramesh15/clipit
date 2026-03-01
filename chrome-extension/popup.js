@@ -87,8 +87,9 @@ async function loadWords(videoId, title) {
   // No cache yet — trigger pipeline and show spinner
   state.words = 'loading';
   render();
+  const isNetflix = videoId.startsWith('netflix_');
   chrome.runtime.sendMessage(
-    { type: 'TRACK_VIDEO', videoId, title },
+    { type: isNetflix ? 'TRACK_NETFLIX' : 'TRACK_VIDEO', videoId, title },
     () => pollForResult(videoId)
   );
 }
@@ -149,7 +150,7 @@ function tmplEmpty() {
       <div class="center-state">
         <div class="icon">📺</div>
         <p class="title">No videos tracked yet</p>
-        <p class="sub">Watch any Korean video on YouTube — it'll appear here automatically</p>
+        <p class="sub">Watch any video on YouTube or Netflix with subtitles — it'll appear here automatically</p>
       </div>
     </div>
     ${footer()}
@@ -158,25 +159,41 @@ function tmplEmpty() {
 
 function tmplList() {
   const { videos } = state;
-  const cards = videos.map(v => `
-    <div class="video-card">
-      <img class="video-thumb"
-        src="https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg"
-        alt=""
-        onerror="this.style.background='#1a1a2a';this.style.border='1px solid rgba(255,255,255,0.06)'"
-      >
-      <div class="video-meta">
-        <div class="video-title-text">${esc(v.title)}</div>
-        <div class="video-id-text">${v.video_id}</div>
+  const cards = videos.map(v => {
+    const isNetflix = v.video_id.startsWith('netflix_');
+    const thumbUrl = isNetflix
+      ? '' // Netflix doesn't have public thumbnails
+      : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`;
+    const platformBadge = isNetflix
+      ? '<span class="platform-badge netflix">N</span>'
+      : '<span class="platform-badge youtube">▶</span>';
+    const displayId = isNetflix
+      ? v.video_id.replace('netflix_', '')
+      : v.video_id;
+
+    return `
+      <div class="video-card">
+        ${isNetflix
+          ? `<div class="video-thumb netflix-thumb">${platformBadge}</div>`
+          : `<img class="video-thumb"
+              src="${thumbUrl}"
+              alt=""
+              onerror="this.style.background='#1a1a2a';this.style.border='1px solid rgba(255,255,255,0.06)'"
+            >${platformBadge}`
+        }
+        <div class="video-meta">
+          <div class="video-title-text">${esc(v.title)}</div>
+          <div class="video-id-text">${displayId}</div>
+        </div>
+        <button class="words-btn"
+          data-action="get-words"
+          data-id="${v.video_id}"
+          data-title="${esc(v.title)}">
+          Words →
+        </button>
       </div>
-      <button class="words-btn"
-        data-action="get-words"
-        data-id="${v.video_id}"
-        data-title="${esc(v.title)}">
-        Words →
-      </button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   return `
     ${header({ dot: 'green', right: `<span class="count-badge">${videos.length} tracked</span>` })}

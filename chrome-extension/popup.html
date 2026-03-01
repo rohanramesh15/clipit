@@ -107,6 +107,28 @@
     .video-thumb {
       width: 88px; height: 50px; border-radius: 7px;
       object-fit: cover; background: #1a1a2a; flex-shrink: 0;
+      position: relative;
+    }
+    .video-thumb.netflix-thumb {
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #1a1a2a 0%, #2a1a1a 100%);
+      border: 1px solid rgba(229, 9, 20, 0.2);
+    }
+    .platform-badge {
+      position: absolute; top: 4px; left: 4px;
+      width: 16px; height: 16px; border-radius: 4px;
+      font-size: 9px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .platform-badge.youtube {
+      background: #ff0000; color: white;
+    }
+    .platform-badge.netflix {
+      background: #e50914; color: white;
+    }
+    .netflix-thumb .platform-badge {
+      position: static; width: 28px; height: 28px;
+      font-size: 14px; border-radius: 6px;
     }
 
     .video-meta { flex: 1; min-width: 0; }
