@@ -38,7 +38,7 @@ function sendTrack(videoId) {
           type: 'TRACK_VIDEO',
           videoId,
           title: (title && title !== 'Unknown') ? title : 'Unknown',
-        }, () => void chrome.runtime.lastError);
+        }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
       }
     } catch (_) {
       // Extension context invalidated (extension reloaded while tab was open) — stop silently
