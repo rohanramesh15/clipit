@@ -9,16 +9,16 @@ const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'TRACK_VIDEO') {
-    trackAndPrefetch(msg.videoId, msg.title).then(sendResponse);
+    trackAndPrefetch(msg.videoId, msg.title, msg.lang || 'ko').then(sendResponse);
     return true;
   }
   if (msg.type === 'GET_VOCAB') {
-    getCachedVocab(msg.videoId).then(sendResponse);
+    getCachedVocab(msg.videoId, msg.lang || 'ko').then(sendResponse);
     return true;
   }
 });
 
-async function trackAndPrefetch(videoId, title) {
+async function trackAndPrefetch(videoId, title, lang = 'ko') {
   try {
     // 1. Track the video
     const res = await fetch(`${API}/videos/track`, {
@@ -29,7 +29,7 @@ async function trackAndPrefetch(videoId, title) {
     const data = await res.json();
 
     // 2. Run the full vocab pipeline in background (don't await — fire and forget)
-    runVocabPipeline(videoId);
+    runVocabPipeline(videoId, lang);
 
     return { success: true, is_new: data.is_new };
   } catch {
@@ -37,8 +37,8 @@ async function trackAndPrefetch(videoId, title) {
   }
 }
 
-async function runVocabPipeline(videoId) {
-  const cacheKey = `vocab_${videoId}`;
+async function runVocabPipeline(videoId, lang = 'ko') {
+  const cacheKey = `vocab_${lang}_${videoId}`;
 
   // Check if we have a recent cache
   const existing = await chrome.storage.local.get(cacheKey);
@@ -52,21 +52,17 @@ async function runVocabPipeline(videoId) {
 
   try {
     // Step 1: fetch/cache subtitles
-    const subRes = await fetch(`${API}/subtitles/${videoId}`);
+    const subRes = await fetch(`${API}/subtitles/${videoId}?lang=${lang}`);
     if (!subRes.ok) throw new Error('subtitles');
 
     // Step 2: vocabulary (all words in freq list, no level filter)
-    const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20`);
+    const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20&lang=${lang}`);
     if (!vocabRes.ok) throw new Error('vocab');
     const vocab = await vocabRes.json();
 
     if (!vocab.total_words) {
-      // No Korean vocab found — update status and cache empty result
-      await fetch(`${API}/videos/${videoId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_korean: false }),
-      }).catch(() => {});
+      // No vocab found — update status and cache empty result
+      await updateStatus(videoId, lang, false);
       await chrome.storage.local.set({
         [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
       });
@@ -78,7 +74,7 @@ async function runVocabPipeline(videoId) {
     const fcRes = await fetch(`${API}/flashcard-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential' }),
+      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language: lang }),
     });
 
     let words;
@@ -103,12 +99,8 @@ async function runVocabPipeline(videoId) {
       }));
     }
 
-    // Update has_korean status to true
-    await fetch(`${API}/videos/${videoId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ has_korean: true }),
-    }).catch(() => {});
+    // Update language status to true
+    await updateStatus(videoId, lang, true);
 
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, words, total: words.length, cachedAt: Date.now() }
@@ -120,8 +112,24 @@ async function runVocabPipeline(videoId) {
   }
 }
 
-async function getCachedVocab(videoId) {
-  const cacheKey = `vocab_${videoId}`;
+async function updateStatus(videoId, lang, value) {
+  if (lang === 'uk') {
+    await fetch(`${API}/videos/${videoId}/status/ukrainian`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ has_ukrainian: value }),
+    }).catch(() => {});
+  } else {
+    await fetch(`${API}/videos/${videoId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ has_korean: value }),
+    }).catch(() => {});
+  }
+}
+
+async function getCachedVocab(videoId, lang = 'ko') {
+  const cacheKey = `vocab_${lang}_${videoId}`;
   const result = await chrome.storage.local.get(cacheKey);
   return result[cacheKey] || { loading: true };
 }

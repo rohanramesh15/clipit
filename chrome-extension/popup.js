@@ -8,13 +8,26 @@ let state = {
   videos: [],
   selected: null,    // { video_id, title }
   words: null,       // null | 'loading' | 'no-words' | 'error' | []
+  lang: 'ko',        // 'ko' | 'uk'
 };
 
 // ─── Boot ─────────────────────────────────────────────
 (async function init() {
+  // Load persisted language preference
+  const stored = await chrome.storage.local.get('language');
+  state.lang = stored.language === 'uk' ? 'uk' : 'ko';
+
+  await fetchVideos();
+
+  // Auto-refresh once after 4s to pick up videos tracked just before popup opened
+  setTimeout(() => {
+    if (state.view === 'list' || state.view === 'empty') fetchVideos();
+  }, 4000);
+})();
+
+async function fetchVideos() {
   try {
-    // Use filtered endpoint to only show target language videos
-    const res = await fetch(`${API}/videos/history/filtered`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${API}/videos/history/filtered?lang=${state.lang}`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) throw new Error();
     const data = await res.json();
     state.videos = data.videos || [];
@@ -23,7 +36,7 @@ let state = {
     state.view = 'offline';
   }
   render();
-})();
+}
 
 // ─── Render ───────────────────────────────────────────
 function render() {
@@ -59,16 +72,27 @@ function handleAction(e) {
     const { id, title } = el.dataset;
     loadWords(id, title);
   }
+  if (action === 'set-lang') {
+    state.lang = el.dataset.lang;
+    state.selected = null;
+    state.words = null;
+    state.view = 'loading';
+    chrome.storage.local.set({ language: state.lang }); // fire and forget
+    render();
+    fetchVideos();
+  }
 }
 
 // ─── Load words — checks cache first ─────────────────
 async function loadWords(videoId, title) {
+  const lang = state.lang;
   state.selected = { video_id: videoId, title };
   state.view = 'detail';
 
   // Check cache first for instant display
-  const cached = await chrome.storage.local.get(`vocab_${videoId}`);
-  const entry = cached[`vocab_${videoId}`];
+  const cacheKey = `vocab_${lang}_${videoId}`;
+  const cached = await chrome.storage.local.get(cacheKey);
+  const entry = cached[cacheKey];
 
   if (entry && !entry.loading && !entry.error) {
     state.words = entry.words && entry.words.length ? entry.words : 'no-words';
@@ -80,7 +104,7 @@ async function loadWords(videoId, title) {
     // Pipeline still running in background — show spinner and poll
     state.words = 'loading';
     render();
-    pollForResult(videoId);
+    pollForResult(videoId, lang);
     return;
   }
 
@@ -88,21 +112,22 @@ async function loadWords(videoId, title) {
   state.words = 'loading';
   render();
   chrome.runtime.sendMessage(
-    { type: 'TRACK_VIDEO', videoId, title },
-    () => pollForResult(videoId)
+    { type: 'TRACK_VIDEO', videoId, title, lang },
+    () => pollForResult(videoId, lang)
   );
 }
 
 // Poll chrome.storage until pipeline result is ready
-function pollForResult(videoId, attempts = 0) {
+function pollForResult(videoId, lang, attempts = 0) {
   if (attempts > 40) { // 20s timeout
     state.words = 'error';
     render();
     return;
   }
   setTimeout(async () => {
-    const cached = await chrome.storage.local.get(`vocab_${videoId}`);
-    const entry = cached[`vocab_${videoId}`];
+    const cacheKey = `vocab_${lang}_${videoId}`;
+    const cached = await chrome.storage.local.get(cacheKey);
+    const entry = cached[cacheKey];
     if (entry && !entry.loading) {
       if (entry.error) {
         state.words = 'error';
@@ -111,7 +136,7 @@ function pollForResult(videoId, attempts = 0) {
       }
       render();
     } else {
-      pollForResult(videoId, attempts + 1);
+      pollForResult(videoId, lang, attempts + 1);
     }
   }, 500);
 }
@@ -143,13 +168,14 @@ function tmplOffline() {
 }
 
 function tmplEmpty() {
+  const langName = state.lang === 'uk' ? 'Ukrainian' : 'Korean';
   return `
     ${header({ dot: 'green', right: '<span class="count-badge">0 videos</span>' })}
     <div class="body">
       <div class="center-state">
         <div class="icon">📺</div>
         <p class="title">No videos tracked yet</p>
-        <p class="sub">Watch any Korean video on YouTube — it'll appear here automatically</p>
+        <p class="sub">Watch any ${langName} video on YouTube — it'll appear here automatically</p>
       </div>
     </div>
     ${footer()}
@@ -199,11 +225,12 @@ function tmplDetail() {
       </div>
     `;
   } else if (words === 'no-words') {
+    const langName = state.lang === 'uk' ? 'Ukrainian' : 'Korean';
     body = `
       <div class="center-state">
         <div class="icon">🈚</div>
-        <p class="title">No common Korean words found</p>
-        <p class="sub">No words from this video matched the Korean frequency list</p>
+        <p class="title">No common ${langName} words found</p>
+        <p class="sub">No words from this video matched the ${langName} frequency list</p>
       </div>
     `;
   } else if (words === 'error') {
@@ -263,6 +290,10 @@ function header({ dot, right }) {
       <span class="header-logo">🐦</span>
       <span class="header-title">Deadbird</span>
       <div class="header-right">
+        <div class="lang-toggle">
+          <button class="lang-btn ${state.lang === 'ko' ? 'active' : ''}" data-action="set-lang" data-lang="ko">KO</button>
+          <button class="lang-btn ${state.lang === 'uk' ? 'active' : ''}" data-action="set-lang" data-lang="uk">UK</button>
+        </div>
         ${right}
         ${dotHtml}
       </div>
