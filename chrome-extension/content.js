@@ -6,10 +6,6 @@
 
 let lastTrackedId = null;
 
-function isContextValid() {
-  try { return !!chrome.runtime?.id; } catch { return false; }
-}
-
 function getVideoId() {
   return new URLSearchParams(location.search).get('v');
 }
@@ -33,43 +29,48 @@ function sendTrack(videoId) {
   // Retry up to 5 times (2.5s) waiting for title to render
   let attempts = 0;
   const interval = setInterval(() => {
-    if (!isContextValid()) { clearInterval(interval); return; }
-    const title = getTitle();
-    attempts++;
-    if ((title && title !== 'Unknown') || attempts >= 5) {
-      clearInterval(interval);
-      try {
+    try {
+      const title = getTitle();
+      attempts++;
+      if ((title && title !== 'Unknown') || attempts >= 5) {
+        clearInterval(interval);
         chrome.runtime.sendMessage({
           type: 'TRACK_VIDEO',
           videoId,
           title: (title && title !== 'Unknown') ? title : 'Unknown',
         }, () => void chrome.runtime.lastError);
-      } catch (_) {
-        // Context invalidated or SW inactive — drop silently
       }
+    } catch (_) {
+      // Extension context invalidated (extension reloaded while tab was open) — stop silently
+      clearInterval(interval);
     }
   }, 500);
 }
 
 let lastHref = location.href;
 
-function checkNavigation() {
-  if (!isContextValid()) return;
-  if (location.href === lastHref) return;
-  lastHref = location.href;
+const navInterval = setInterval(() => {
+  try {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    const videoId = getVideoId();
+    if (videoId && videoId !== lastTrackedId) {
+      lastTrackedId = videoId;
+      sendTrack(videoId);
+    }
+  } catch (_) {
+    // Extension context invalidated — stop polling
+    clearInterval(navInterval);
+  }
+}, 1000);
+
+// Track on initial page load
+try {
   const videoId = getVideoId();
-  if (videoId && videoId !== lastTrackedId) {
+  if (videoId) {
     lastTrackedId = videoId;
     sendTrack(videoId);
   }
-}
-
-// Poll for SPA navigation
-setInterval(checkNavigation, 1000);
-
-// Track on initial page load
-const videoId = getVideoId();
-if (videoId) {
-  lastTrackedId = videoId;
-  sendTrack(videoId);
+} catch (_) {
+  // Context already invalid on load — nothing to do
 }

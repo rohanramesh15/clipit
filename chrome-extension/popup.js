@@ -18,6 +18,11 @@ let state = {
   state.lang = stored.language === 'uk' ? 'uk' : 'ko';
 
   await fetchVideos();
+
+  // Auto-refresh once after 4s to pick up videos tracked just before popup opened
+  setTimeout(() => {
+    if (state.view === 'list' || state.view === 'empty') fetchVideos();
+  }, 4000);
 })();
 
 async function fetchVideos() {
