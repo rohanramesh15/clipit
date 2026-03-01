@@ -340,7 +340,7 @@ export function FlashcardsPage() {
         rank: rankMap[card.target_word],
       }));
 
-      // For Netflix videos, prefer cards with screenshots but show all if none have screenshots
+      // For Netflix videos, only show cards that have screenshots
       if (videoId.startsWith('netflix_') && cards.length > 0) {
         const screenshotChecks = await Promise.all(
           cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp))
@@ -348,10 +348,8 @@ export function FlashcardsPage() {
         const cardsWithScreenshots = cards.filter((_: FlashCard, i: number) => screenshotChecks[i]);
         console.log(`[Deadbird] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
 
-        // If we have cards with screenshots, only show those; otherwise show all
-        if (cardsWithScreenshots.length > 0) {
-          cards = cardsWithScreenshots;
-        }
+        // Only show Netflix cards that have screenshots
+        cards = cardsWithScreenshots;
       }
 
       return cards;
