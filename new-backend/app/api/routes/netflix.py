@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
 from app.core.config import settings
-from app.services.video_store import update_video_duration
+from app.services.video_store import update_video_duration, update_korean_status, update_ukrainian_status
 from app.services.vocab_service import load_frequency_map, is_common_particle
 from app.services.korean_tokenizer import extract_korean_words
 from app.services.ukrainian_tokenizer import extract_ukrainian_words
@@ -33,6 +33,20 @@ def get_frequency_map_cached(lang: str = 'ko') -> dict:
         return _FREQUENCY_MAP_KO
 
 
+def normalize_timestamp(ts) -> float:
+    """
+    Convert Netflix tick format to seconds if needed.
+    Netflix uses 10,000,000 ticks per second.
+    """
+    if ts is None:
+        return 0.0
+    ts = float(ts)
+    # If timestamp is larger than ~28 hours in seconds, it's probably in ticks
+    if ts > 100000:
+        return ts / 10000000
+    return ts
+
+
 def extract_keyword_timestamps(subtitles: List[dict], language: str) -> List[int]:
     """
     Identify which subtitle timestamps contain vocabulary words.
@@ -53,8 +67,9 @@ def extract_keyword_timestamps(subtitles: List[dict], language: str) -> List[int
         for word in words:
             rank = frequency_map.get(word)
             if rank is not None and not is_common_particle(word, rank, language):
-                # This subtitle contains a keyword
-                timestamp = int(sub.get('start', 0))
+                # This subtitle contains a keyword - normalize timestamp to seconds
+                raw_ts = sub.get('start', 0)
+                timestamp = int(normalize_timestamp(raw_ts))
                 keyword_timestamps.append(timestamp)
                 break  # Only need one keyword per subtitle
 
@@ -88,10 +103,20 @@ async def save_netflix_subtitles(request: dict = Body(...)):
         raise HTTPException(status_code=400, detail="video_id and subtitles are required")
 
     # Extract and save screenshots, remove from subtitle data
+    # Also normalize timestamps from Netflix tick format to seconds
     screenshots_saved = 0
     clean_subtitles = []
     for sub in subtitles:
         screenshot = sub.pop("screenshot", None)
+
+        # Normalize timestamps to seconds (Netflix may send ticks)
+        if "start" in sub:
+            sub["start"] = normalize_timestamp(sub["start"])
+        if "end" in sub:
+            sub["end"] = normalize_timestamp(sub["end"])
+        if "duration" in sub:
+            sub["duration"] = normalize_timestamp(sub["duration"])
+
         if screenshot and screenshot.startswith("data:image"):
             # Save screenshot to file
             timestamp = int(sub.get("start", 0))
@@ -124,6 +149,16 @@ async def save_netflix_subtitles(request: dict = Body(...)):
             update_video_duration(video_id, duration_seconds)
         except Exception:
             pass
+
+    # Mark video as having Korean/Ukrainian subtitles so it appears in watch history
+    try:
+        if language == "ko":
+            update_korean_status(video_id, True)
+        elif language == "uk":
+            update_ukrainian_status(video_id, True)
+        print(f"[Netflix] Marked {video_id} as having {language} subtitles")
+    except Exception as e:
+        print(f"[Netflix] Failed to update language status: {e}")
 
     # Identify keyword timestamps for targeted screenshot capture
     keyword_timestamps = extract_keyword_timestamps(clean_subtitles, language)
@@ -367,5 +402,17 @@ def load_cached_netflix_subtitles(video_id: str, lang: str = "ko") -> dict | Non
     cache_file = get_netflix_cache_path(video_id, lang)
     if cache_file.exists():
         with open(cache_file, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+
+        # Normalize timestamps in case they're in Netflix tick format
+        if data and "subtitles" in data:
+            for sub in data["subtitles"]:
+                if "start" in sub:
+                    sub["start"] = normalize_timestamp(sub["start"])
+                if "end" in sub:
+                    sub["end"] = normalize_timestamp(sub["end"])
+                if "duration" in sub:
+                    sub["duration"] = normalize_timestamp(sub["duration"])
+
+        return data
     return None
