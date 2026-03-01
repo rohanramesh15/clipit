@@ -30,8 +30,15 @@
 
   XMLHttpRequest.prototype.send = function(...args) {
     this.addEventListener('load', function() {
-      if (this._deadbirdUrl && this.responseText) {
-        processText(this._deadbirdUrl, this.responseText, 'xhr');
+      // Only access responseText if responseType allows it ('' or 'text')
+      if (this._deadbirdUrl && (this.responseType === '' || this.responseType === 'text')) {
+        try {
+          if (this.responseText) {
+            processText(this._deadbirdUrl, this.responseText, 'xhr');
+          }
+        } catch (e) {
+          // Ignore - responseText not available for this request type
+        }
       }
     });
     return originalXHRSend.apply(this, args);
@@ -65,15 +72,31 @@
   let lastSubtitleText = '';
   let lastScreenshotRequest = 0;
   const SCREENSHOT_THROTTLE = 3000;
+  let debugLogged = false;
 
   function checkSubtitleElements() {
-    const subtitleContainer = document.querySelector('.player-timedtext');
-    if (!subtitleContainer) return;
+    // Try multiple selectors for Netflix subtitle container
+    const selectors = ['.player-timedtext', '.player-timedtext-text-container', '[data-uia="player-timedtext"]'];
+    let subtitleContainer = null;
+
+    for (const sel of selectors) {
+      subtitleContainer = document.querySelector(sel);
+      if (subtitleContainer) break;
+    }
+
+    if (!subtitleContainer) {
+      if (!debugLogged) {
+        console.log('[Deadbird] ⚠️ No subtitle container found. Looking for:', selectors.join(', '));
+        debugLogged = true;
+      }
+      return;
+    }
 
     const textContent = subtitleContainer.textContent?.trim();
     if (!textContent || textContent === lastSubtitleText) return;
 
     lastSubtitleText = textContent;
+    console.log('[Deadbird] 📝 Subtitle changed:', textContent.substring(0, 50));
 
     // Request screenshot capture (throttled)
     const now = Date.now();
@@ -83,6 +106,8 @@
       // Get current video time
       const video = document.querySelector('video');
       const currentTime = video ? Math.floor(video.currentTime) : 0;
+
+      console.log('[Deadbird] 🎯 Requesting screenshot at timestamp:', currentTime);
 
       // Tell content script to capture screenshot
       window.postMessage({

@@ -25,8 +25,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Screenshot capture for Netflix
   if (msg.type === 'CAPTURE_SCREENSHOT' && sender.tab) {
+    console.log('[Deadbird] 📷 Capture request received, tabId:', sender.tab.id, 'windowId:', sender.tab.windowId);
     captureScreenshot(sender.tab.id, sender.tab.windowId)
-      .then(dataUrl => sendResponse({ success: true, dataUrl }))
+      .then(dataUrl => {
+        console.log('[Deadbird] 📷 Capture successful, size:', dataUrl?.length);
+        sendResponse({ success: true, dataUrl });
+      })
       .catch(e => {
         console.error('[Deadbird] Screenshot failed:', e);
         sendResponse({ success: false, error: e.message });

@@ -105,7 +105,25 @@ function parseWebVTT(vtt) {
 
 function parseTime(timeStr) {
   const normalized = timeStr.replace(',', '.');
+
+  // Handle Netflix tick format (e.g., "660242916t" or just large numbers)
+  // Netflix uses 10,000,000 ticks per second
+  if (normalized.endsWith('t')) {
+    return parseInt(normalized.slice(0, -1)) / 10000000;
+  }
+
+  // If it's a large number without colons, assume tick format
   const parts = normalized.split(':');
+  if (parts.length === 1) {
+    const num = parseFloat(normalized);
+    // If the number is larger than a reasonable timestamp (e.g., > 100000 seconds = ~28 hours),
+    // it's probably in tick format
+    if (num > 100000) {
+      return num / 10000000;
+    }
+    return num;
+  }
+
   if (parts.length === 3) {
     return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
   } else if (parts.length === 2) {
@@ -190,25 +208,34 @@ function isKeywordTimestamp(timestamp) {
 // Capture screenshot only at keyword timestamps
 async function captureScreenshotForTimestamp(timestamp) {
   const videoId = getVideoId();
-  if (!videoId) return null;
+  if (!videoId) {
+    console.log('[Deadbird] ❌ No video ID found');
+    return null;
+  }
 
   const roundedTimestamp = Math.floor(timestamp);
 
   // Skip if we already captured this timestamp
   if (screenshotCache[roundedTimestamp]) {
+    console.log('[Deadbird] ⏭️ Already captured timestamp:', roundedTimestamp);
     return null;
   }
 
   // Only capture at keyword timestamps
   if (!isKeywordTimestamp(timestamp)) {
+    console.log('[Deadbird] ⏭️ Not a keyword timestamp:', roundedTimestamp, '(keywords:', keywordTimestamps.slice(0, 5).join(', '), '...)');
     return null;
   }
 
+  console.log('[Deadbird] ✅ Capturing screenshot at keyword timestamp:', roundedTimestamp);
+
   try {
     const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+    console.log('[Deadbird] 📷 Capture response:', response);
+
     if (response?.success && response.dataUrl) {
       screenshotCache[roundedTimestamp] = true; // Mark as captured
-      console.log(`[Deadbird] 📸 Screenshot captured at ${roundedTimestamp}s (keyword)`);
+      console.log(`[Deadbird] 📸 Screenshot captured at ${roundedTimestamp}s (keyword), size: ${response.dataUrl.length}`);
 
       // Send to backend immediately
       chrome.runtime.sendMessage({
@@ -219,6 +246,8 @@ async function captureScreenshotForTimestamp(timestamp) {
       });
 
       return response.dataUrl;
+    } else {
+      console.log('[Deadbird] ❌ Capture failed - success:', response?.success, 'hasDataUrl:', !!response?.dataUrl, 'error:', response?.error);
     }
   } catch (e) {
     console.error('[Deadbird] Screenshot capture failed:', e);
@@ -235,6 +264,9 @@ window.addEventListener('message', (event) => {
   }
 
   if (event.data?.type === 'DEADBIRD_CAPTURE_SCREENSHOT') {
+    console.log('[Deadbird] 📨 Received screenshot request for timestamp:', event.data.timestamp);
+    console.log('[Deadbird] 📊 Keyword timestamps loaded:', keywordTimestamps.length, 'timestamps');
+    console.log('[Deadbird] 🔍 Is keyword timestamp?', isKeywordTimestamp(event.data.timestamp));
     captureScreenshotForTimestamp(event.data.timestamp);
   }
 });
