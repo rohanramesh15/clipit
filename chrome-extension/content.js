@@ -33,11 +33,15 @@ function sendTrack(videoId) {
     attempts++;
     if ((title && title !== 'Unknown') || attempts >= 5) {
       clearInterval(interval);
-      chrome.runtime.sendMessage({
-        type: 'TRACK_VIDEO',
-        videoId,
-        title: (title && title !== 'Unknown') ? title : 'Unknown',
-      }, () => void chrome.runtime.lastError); // suppress "receiving end does not exist" if SW is asleep
+      try {
+        chrome.runtime.sendMessage({
+          type: 'TRACK_VIDEO',
+          videoId,
+          title: (title && title !== 'Unknown') ? title : 'Unknown',
+        }, () => void chrome.runtime.lastError);
+      } catch (_) {
+        // Service worker inactive — message dropped, popup will trigger on next open
+      }
     }
   }, 500);
 }
