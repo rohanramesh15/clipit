@@ -12,7 +12,105 @@ const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 let currentNetflixVideoId = null;
 let netflixSubtitles = {}; // { videoId: { ko: [...], en: [...], uk: [...] } }
 
+// Offscreen document state
+let offscreenDocumentCreated = false;
+
+// Track tabs where audio capture is activated (user clicked extension icon)
+let audioActivatedTabs = new Set();
+
+// Clean up when tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  audioActivatedTabs.delete(tabId);
+});
+
+// ─── Offscreen document management ───────────────────────────────────────────
+
+async function ensureOffscreenDocument() {
+  if (offscreenDocumentCreated) return;
+
+  // Check if already exists
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('offscreen.html')]
+  });
+
+  if (existingContexts.length > 0) {
+    offscreenDocumentCreated = true;
+    return;
+  }
+
+  // Create offscreen document
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['USER_MEDIA'],
+    justification: 'Recording audio from tab for language learning flashcards'
+  });
+  offscreenDocumentCreated = true;
+  console.log('[Deadbird] Offscreen document created');
+}
+
+async function captureAudio(tabId, duration = 3000) {
+  console.log('[Deadbird] 🎤 Starting audio capture, tabId:', tabId, 'duration:', duration);
+
+  // Check if audio capture is enabled for this tab
+  if (!audioActivatedTabs.has(tabId)) {
+    console.log('[Deadbird] 🎤 Audio not enabled for tab. User needs to click "Enable Audio" in popup.');
+    throw new Error('Audio capture not enabled. Click the Deadbird extension icon and enable audio.');
+  }
+
+  try {
+    // Ensure offscreen document exists
+    await ensureOffscreenDocument();
+
+    // Get stream ID for the tab
+    const streamId = await new Promise((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(streamId);
+        }
+      });
+    });
+
+    console.log('[Deadbird] 🎤 Got stream ID:', streamId);
+
+    // Send to offscreen document for recording
+    const response = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_START_RECORDING',
+      streamId: streamId,
+      duration: duration
+    });
+
+    if (!response.success) {
+      throw new Error(response.error || 'Recording failed');
+    }
+
+    console.log('[Deadbird] 🎤 Audio captured, size:', response.audioData?.size);
+    return response.audioData;
+  } catch (e) {
+    console.error('[Deadbird] Audio capture failed:', e);
+    throw e;
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Enable audio capture for a tab (from popup)
+  if (msg.type === 'ENABLE_AUDIO_CAPTURE') {
+    audioActivatedTabs.add(msg.tabId);
+    console.log('[Deadbird] Audio capture enabled for tab:', msg.tabId);
+    chrome.action.setBadgeText({ text: '🎤', tabId: msg.tabId });
+    chrome.action.setBadgeBackgroundColor({ color: '#22c55e', tabId: msg.tabId });
+    sendResponse({ success: true });
+    return;
+  }
+
+  // Check if audio is enabled for a tab
+  if (msg.type === 'CHECK_AUDIO_ENABLED') {
+    sendResponse({ enabled: audioActivatedTabs.has(msg.tabId) });
+    return;
+  }
+
   // Netflix interceptor injection
   if (msg.type === 'INJECT_NETFLIX_INTERCEPTOR' && sender.tab) {
     chrome.scripting.executeScript({
@@ -33,6 +131,39 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })
       .catch(e => {
         console.error('[Deadbird] Screenshot failed:', e);
+        sendResponse({ success: false, error: e.message });
+      });
+    return true; // async response
+  }
+
+  // Audio capture for Netflix
+  if (msg.type === 'CAPTURE_AUDIO' && sender.tab) {
+    console.log('[Deadbird] 🎤 Audio capture request, tabId:', sender.tab.id, 'duration:', msg.duration);
+    captureAudio(sender.tab.id, msg.duration || 3000)
+      .then(audioData => {
+        console.log('[Deadbird] 🎤 Audio capture successful');
+        sendResponse({ success: true, audioData });
+      })
+      .catch(e => {
+        console.error('[Deadbird] Audio capture failed:', e);
+        sendResponse({ success: false, error: e.message });
+      });
+    return true; // async response
+  }
+
+  // Combined screenshot + audio capture for Netflix
+  if (msg.type === 'CAPTURE_SCREENSHOT_AND_AUDIO' && sender.tab) {
+    console.log('[Deadbird] 📷🎤 Combined capture request, tabId:', sender.tab.id);
+    Promise.all([
+      captureScreenshot(sender.tab.id, sender.tab.windowId),
+      captureAudio(sender.tab.id, msg.duration || 3000)
+    ])
+      .then(([screenshotDataUrl, audioData]) => {
+        console.log('[Deadbird] 📷🎤 Combined capture successful');
+        sendResponse({ success: true, screenshotDataUrl, audioData });
+      })
+      .catch(e => {
+        console.error('[Deadbird] Combined capture failed:', e);
         sendResponse({ success: false, error: e.message });
       });
     return true; // async response
@@ -79,6 +210,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Save screenshot to backend
   if (msg.type === 'SAVE_NETFLIX_SCREENSHOT') {
     saveScreenshotToBackend(msg.videoId, msg.timestamp, msg.dataUrl);
+    return;
+  }
+
+  // Save audio to backend
+  if (msg.type === 'SAVE_NETFLIX_AUDIO') {
+    saveAudioToBackend(msg.videoId, msg.timestamp, msg.audioData);
+    return;
+  }
+
+  // Save both screenshot and audio to backend
+  if (msg.type === 'SAVE_NETFLIX_MEDIA') {
+    if (msg.screenshotDataUrl) {
+      saveScreenshotToBackend(msg.videoId, msg.timestamp, msg.screenshotDataUrl);
+    }
+    if (msg.audioData) {
+      saveAudioToBackend(msg.videoId, msg.timestamp, msg.audioData);
+    }
     return;
   }
 });
@@ -397,5 +545,25 @@ async function saveScreenshotToBackend(videoId, timestamp, dataUrl) {
     }
   } catch (e) {
     console.error('[Deadbird] Failed to save screenshot:', e);
+  }
+}
+
+async function saveAudioToBackend(videoId, timestamp, audioData) {
+  try {
+    const res = await fetch(`${API}/netflix/audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: videoId,
+        timestamp: timestamp,
+        audio_data: audioData.base64,
+        mime_type: audioData.mimeType,
+      }),
+    });
+    if (res.ok) {
+      console.log(`[Deadbird] Audio saved to backend: ${videoId} @ ${timestamp}s`);
+    }
+  } catch (e) {
+    console.error('[Deadbird] Failed to save audio:', e);
   }
 }

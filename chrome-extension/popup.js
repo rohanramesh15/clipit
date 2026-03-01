@@ -8,11 +8,23 @@ let state = {
   videos: [],
   selected: null,    // { video_id, title }
   words: null,       // null | 'loading' | 'no-words' | 'error' | []
+  isNetflixTab: false,
+  audioEnabled: false,
 };
 
 // ─── Boot ─────────────────────────────────────────────
 (async function init() {
   try {
+    // Check if we're on a Netflix tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    state.isNetflixTab = tab?.url?.includes('netflix.com/watch') || false;
+
+    // Check if audio is enabled for this tab
+    if (state.isNetflixTab && tab?.id) {
+      const result = await chrome.runtime.sendMessage({ type: 'CHECK_AUDIO_ENABLED', tabId: tab.id });
+      state.audioEnabled = result?.enabled || false;
+    }
+
     // Use filtered endpoint to only show target language videos
     const res = await fetch(`${API}/videos/history/filtered`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) throw new Error();
@@ -42,7 +54,7 @@ function bindEvents() {
   });
 }
 
-function handleAction(e) {
+async function handleAction(e) {
   const el = e.currentTarget;
   const action = el.dataset.action;
 
@@ -58,6 +70,14 @@ function handleAction(e) {
   if (action === 'get-words') {
     const { id, title } = el.dataset;
     loadWords(id, title);
+  }
+  if (action === 'enable-audio') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      await chrome.runtime.sendMessage({ type: 'ENABLE_AUDIO_CAPTURE', tabId: tab.id });
+      state.audioEnabled = true;
+      render();
+    }
   }
 }
 
@@ -275,11 +295,17 @@ function tmplDetail() {
 // ─── Helpers ──────────────────────────────────────────
 function header({ dot, right }) {
   const dotHtml = dot ? `<span class="status-dot ${dot}"></span>` : '';
+  const audioBtn = state.isNetflixTab ? (
+    state.audioEnabled
+      ? '<span class="audio-badge enabled" title="Audio capture enabled">🎤</span>'
+      : '<button class="audio-btn" data-action="enable-audio" title="Enable audio capture">🎤 Enable Audio</button>'
+  ) : '';
   return `
     <div class="header">
       <span class="header-logo">🐦</span>
       <span class="header-title">Deadbird</span>
       <div class="header-right">
+        ${audioBtn}
         ${right}
         ${dotHtml}
       </div>

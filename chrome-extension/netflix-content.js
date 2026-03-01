@@ -205,8 +205,8 @@ function isKeywordTimestamp(timestamp) {
   return keywordTimestamps.some(kt => Math.abs(kt - rounded) <= 1);
 }
 
-// Capture screenshot only at keyword timestamps
-async function captureScreenshotForTimestamp(timestamp) {
+// Capture screenshot and audio at keyword timestamps
+async function captureMediaForTimestamp(timestamp) {
   const videoId = getVideoId();
   if (!videoId) {
     console.log('[Deadbird] ❌ No video ID found');
@@ -227,33 +227,71 @@ async function captureScreenshotForTimestamp(timestamp) {
     return null;
   }
 
-  console.log('[Deadbird] ✅ Capturing screenshot at keyword timestamp:', roundedTimestamp);
+  console.log('[Deadbird] ✅ Capturing screenshot + audio at keyword timestamp:', roundedTimestamp);
 
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
-    console.log('[Deadbird] 📷 Capture response:', response);
+    // Capture screenshot immediately
+    const screenshotResponse = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+    console.log('[Deadbird] 📷 Screenshot response:', screenshotResponse?.success);
 
-    if (response?.success && response.dataUrl) {
+    if (screenshotResponse?.success && screenshotResponse.dataUrl) {
       screenshotCache[roundedTimestamp] = true; // Mark as captured
-      console.log(`[Deadbird] 📸 Screenshot captured at ${roundedTimestamp}s (keyword), size: ${response.dataUrl.length}`);
+      console.log(`[Deadbird] 📸 Screenshot captured at ${roundedTimestamp}s, size: ${screenshotResponse.dataUrl.length}`);
 
-      // Send to backend immediately
+      // Send screenshot to backend
       chrome.runtime.sendMessage({
         type: 'SAVE_NETFLIX_SCREENSHOT',
         videoId: `netflix_${videoId}`,
         timestamp: roundedTimestamp,
-        dataUrl: response.dataUrl,
+        dataUrl: screenshotResponse.dataUrl,
+      });
+    } else {
+      console.log('[Deadbird] ❌ Screenshot failed:', screenshotResponse?.error);
+    }
+
+    // Capture 3 seconds of audio (starts from current playback position)
+    try {
+      const audioResponse = await chrome.runtime.sendMessage({
+        type: 'CAPTURE_AUDIO',
+        duration: 3000, // 3 seconds
       });
 
-      return response.dataUrl;
-    } else {
-      console.log('[Deadbird] ❌ Capture failed - success:', response?.success, 'hasDataUrl:', !!response?.dataUrl, 'error:', response?.error);
+      if (audioResponse?.success && audioResponse.audioData) {
+        console.log(`[Deadbird] 🎵 Audio captured at ${roundedTimestamp}s, size: ${audioResponse.audioData.size}`);
+
+        // Send audio to backend
+        chrome.runtime.sendMessage({
+          type: 'SAVE_NETFLIX_AUDIO',
+          videoId: `netflix_${videoId}`,
+          timestamp: roundedTimestamp,
+          audioData: audioResponse.audioData,
+        });
+      } else if (audioResponse?.error?.includes('not enabled')) {
+        // Only log once per session to avoid spam
+        if (!window._deadbirdAudioWarningShown) {
+          console.log('[Deadbird] 💡 Tip: Click the Deadbird extension icon and enable audio to capture sentence audio');
+          window._deadbirdAudioWarningShown = true;
+        }
+      } else {
+        console.log('[Deadbird] ⚠️ Audio capture unavailable:', audioResponse?.error);
+      }
+    } catch (audioErr) {
+      // Audio capture is optional - don't fail the whole operation
+      if (!window._deadbirdAudioWarningShown) {
+        console.log('[Deadbird] 💡 Tip: Click the Deadbird extension icon and enable audio to capture sentence audio');
+        window._deadbirdAudioWarningShown = true;
+      }
     }
+
+    return screenshotResponse?.dataUrl;
   } catch (e) {
-    console.error('[Deadbird] Screenshot capture failed:', e);
+    console.error('[Deadbird] Media capture failed:', e);
   }
   return null;
 }
+
+// Alias for backwards compatibility
+const captureScreenshotForTimestamp = captureMediaForTimestamp;
 
 // Listen for intercepted subtitles and screenshot requests
 window.addEventListener('message', (event) => {

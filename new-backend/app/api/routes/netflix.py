@@ -64,6 +64,7 @@ def extract_keyword_timestamps(subtitles: List[dict], language: str) -> List[int
 # Cache directory for Netflix subtitles
 NETFLIX_CACHE_DIR = Path(settings.SUBTITLES_CACHE_DIR) / "netflix"
 SCREENSHOTS_DIR = NETFLIX_CACHE_DIR / "screenshots"
+AUDIO_DIR = NETFLIX_CACHE_DIR / "audio"
 
 
 def get_netflix_cache_path(video_id: str, lang: str) -> Path:
@@ -216,6 +217,89 @@ async def get_netflix_screenshot(video_id: str, timestamp: int):
                     return FileResponse(filepath, media_type=f"image/{ext}")
 
     raise HTTPException(status_code=404, detail="Screenshot not found")
+
+
+def save_audio_file(video_id: str, timestamp: int, audio_data: str, mime_type: str) -> str | None:
+    """Save audio from base64 data URL to file, return the relative path."""
+    try:
+        AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Extract base64 data from data URL
+        # Format: data:audio/webm;base64,GkXfo6NChh...
+        if "," in audio_data:
+            _, b64_data = audio_data.split(",", 1)
+        else:
+            b64_data = audio_data
+
+        # Determine file extension from mime type
+        if "webm" in mime_type:
+            ext = "webm"
+        elif "ogg" in mime_type:
+            ext = "ogg"
+        elif "mp4" in mime_type:
+            ext = "m4a"
+        else:
+            ext = "webm"  # Default
+
+        # Create filename
+        filename = f"{video_id}_{timestamp}.{ext}"
+        filepath = AUDIO_DIR / filename
+
+        # Decode and save
+        with open(filepath, "wb") as f:
+            f.write(base64.b64decode(b64_data))
+
+        print(f"[Deadbird] Audio saved: {filepath} ({filepath.stat().st_size} bytes)")
+        return f"audio/{filename}"
+    except Exception as e:
+        print(f"[Deadbird] Failed to save audio: {e}")
+        return None
+
+
+@router.post("/audio")
+async def save_audio(request: dict = Body(...)):
+    """
+    Save an audio clip from the extension.
+    Body: { video_id, timestamp, audio_data (base64), mime_type }
+    """
+    video_id = request.get("video_id")
+    timestamp = request.get("timestamp")
+    audio_data = request.get("audio_data")
+    mime_type = request.get("mime_type", "audio/webm")
+
+    if not video_id or timestamp is None or not audio_data:
+        raise HTTPException(status_code=400, detail="video_id, timestamp, and audio_data required")
+
+    path = save_audio_file(video_id, int(timestamp), audio_data, mime_type)
+    return {"status": "ok", "path": path}
+
+
+@router.api_route("/audio/{video_id}/{timestamp}", methods=["GET", "HEAD"])
+async def get_netflix_audio(video_id: str, timestamp: int):
+    """
+    Get an audio clip for a specific video and timestamp.
+    Also checks nearby timestamps (within 3 seconds) for a match.
+    """
+    from fastapi.responses import FileResponse
+
+    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Check exact timestamp and nearby (within 3 seconds)
+    for offset in range(0, 4):
+        for t in [timestamp + offset, timestamp - offset]:
+            if t < 0:
+                continue
+            for ext in ["webm", "ogg", "m4a"]:
+                filepath = AUDIO_DIR / f"{video_id}_{t}.{ext}"
+                if filepath.exists():
+                    media_type = {
+                        "webm": "audio/webm",
+                        "ogg": "audio/ogg",
+                        "m4a": "audio/mp4"
+                    }.get(ext, "audio/webm")
+                    return FileResponse(filepath, media_type=media_type)
+
+    raise HTTPException(status_code=404, detail="Audio not found")
 
 
 def load_cached_netflix_subtitles(video_id: str, lang: str = "ko") -> dict | None:
