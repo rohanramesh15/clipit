@@ -1,12 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Deadbird",
-  "version": "1.0.0",
-  "description": "Tracks YouTube videos for Korean language learning with Deadbird",
-  "permissions": ["storage"],
+  "version": "1.1.0",
+  "description": "Tracks YouTube and Netflix videos for language learning with Deadbird",
+  "permissions": ["storage", "scripting", "tabCapture", "offscreen", "activeTab"],
   "host_permissions": [
-    "*://*.youtube.com/*",
-    "http://localhost:8000/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
@@ -15,6 +14,11 @@
     {
       "matches": ["*://www.youtube.com/watch*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.netflix.com/watch/*"],
+      "js": ["netflix-content.js"],
       "run_at": "document_idle"
     }
   ],
@@ -31,5 +35,11 @@
     "16": "icons/16.png",
     "48": "icons/48.png",
     "128": "icons/128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["*://*.netflix.com/*"]
+    }
+  ]
 }

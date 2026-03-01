@@ -8,6 +8,8 @@ let state = {
   videos: [],
   selected: null,    // { video_id, title }
   words: null,       // null | 'loading' | 'no-words' | 'error' | []
+  isNetflixTab: false,
+  audioEnabled: false,
   lang: 'ko',        // 'ko' | 'uk'
 };
 
@@ -27,6 +29,16 @@ let state = {
 
 async function fetchVideos() {
   try {
+    // Check if we're on a Netflix tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    state.isNetflixTab = tab?.url?.includes('netflix.com/watch') || false;
+
+    // Check if audio is enabled for this tab
+    if (state.isNetflixTab && tab?.id) {
+      const result = await chrome.runtime.sendMessage({ type: 'CHECK_AUDIO_ENABLED', tabId: tab.id });
+      state.audioEnabled = result?.enabled || false;
+    }
+
     const res = await fetch(`${API}/videos/history/filtered?lang=${state.lang}`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) throw new Error();
     const data = await res.json();
@@ -55,7 +67,7 @@ function bindEvents() {
   });
 }
 
-function handleAction(e) {
+async function handleAction(e) {
   const el = e.currentTarget;
   const action = el.dataset.action;
 
@@ -71,6 +83,14 @@ function handleAction(e) {
   if (action === 'get-words') {
     const { id, title } = el.dataset;
     loadWords(id, title);
+  }
+  if (action === 'enable-audio') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      await chrome.runtime.sendMessage({ type: 'ENABLE_AUDIO_CAPTURE', tabId: tab.id });
+      state.audioEnabled = true;
+      render();
+    }
   }
   if (action === 'set-lang') {
     state.lang = el.dataset.lang;
@@ -111,8 +131,9 @@ async function loadWords(videoId, title) {
   // No cache yet — trigger pipeline and show spinner
   state.words = 'loading';
   render();
+  const isNetflix = videoId.startsWith('netflix_');
   chrome.runtime.sendMessage(
-    { type: 'TRACK_VIDEO', videoId, title, lang },
+    { type: isNetflix ? 'TRACK_NETFLIX' : 'TRACK_VIDEO', videoId, title, lang },
     () => pollForResult(videoId, lang)
   );
 }
@@ -175,7 +196,7 @@ function tmplEmpty() {
       <div class="center-state">
         <div class="icon">📺</div>
         <p class="title">No videos tracked yet</p>
-        <p class="sub">Watch any ${langName} video on YouTube — it'll appear here automatically</p>
+        <p class="sub">Watch any ${langName} video on YouTube or Netflix with subtitles — it'll appear here automatically</p>
       </div>
     </div>
     ${footer()}
@@ -184,25 +205,41 @@ function tmplEmpty() {
 
 function tmplList() {
   const { videos } = state;
-  const cards = videos.map(v => `
-    <div class="video-card">
-      <img class="video-thumb"
-        src="https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg"
-        alt=""
-        onerror="this.style.background='#1a1a2a';this.style.border='1px solid rgba(255,255,255,0.06)'"
-      >
-      <div class="video-meta">
-        <div class="video-title-text">${esc(v.title)}</div>
-        <div class="video-id-text">${v.video_id}</div>
+  const cards = videos.map(v => {
+    const isNetflix = v.video_id.startsWith('netflix_');
+    const thumbUrl = isNetflix
+      ? '' // Netflix doesn't have public thumbnails
+      : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`;
+    const platformBadge = isNetflix
+      ? '<span class="platform-badge netflix">N</span>'
+      : '<span class="platform-badge youtube">▶</span>';
+    const displayId = isNetflix
+      ? v.video_id.replace('netflix_', '')
+      : v.video_id;
+
+    return `
+      <div class="video-card">
+        ${isNetflix
+          ? `<div class="video-thumb netflix-thumb">${platformBadge}</div>`
+          : `<img class="video-thumb"
+              src="${thumbUrl}"
+              alt=""
+              onerror="this.style.background='#1a1a2a';this.style.border='1px solid rgba(255,255,255,0.06)'"
+            >${platformBadge}`
+        }
+        <div class="video-meta">
+          <div class="video-title-text">${esc(v.title)}</div>
+          <div class="video-id-text">${displayId}</div>
+        </div>
+        <button class="words-btn"
+          data-action="get-words"
+          data-id="${v.video_id}"
+          data-title="${esc(v.title)}">
+          Words →
+        </button>
       </div>
-      <button class="words-btn"
-        data-action="get-words"
-        data-id="${v.video_id}"
-        data-title="${esc(v.title)}">
-        Words →
-      </button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   return `
     ${header({ dot: 'green', right: `<span class="count-badge">${videos.length} tracked</span>` })}
@@ -285,11 +322,17 @@ function tmplDetail() {
 // ─── Helpers ──────────────────────────────────────────
 function header({ dot, right }) {
   const dotHtml = dot ? `<span class="status-dot ${dot}"></span>` : '';
+  const audioBtn = state.isNetflixTab ? (
+    state.audioEnabled
+      ? '<span class="audio-badge enabled" title="Audio capture enabled">🎤</span>'
+      : '<button class="audio-btn" data-action="enable-audio" title="Enable audio capture">🎤 Enable Audio</button>'
+  ) : '';
   return `
     <div class="header">
       <span class="header-logo">🐦</span>
       <span class="header-title">Deadbird</span>
       <div class="header-right">
+        ${audioBtn}
         <div class="lang-toggle">
           <button class="lang-btn ${state.lang === 'ko' ? 'active' : ''}" data-action="set-lang" data-lang="ko">KO</button>
           <button class="lang-btn ${state.lang === 'uk' ? 'active' : ''}" data-action="set-lang" data-lang="uk">UK</button>

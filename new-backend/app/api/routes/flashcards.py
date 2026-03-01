@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
+from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.services.vocab_service import load_frequency_map
 from app.services.deepl_service import translate
 from app.api.routes.vocabulary import get_frequency_map
@@ -244,7 +245,10 @@ async def get_flashcard_data(request: dict = Body(...)):
     if not video_id or not words:
         raise HTTPException(status_code=400, detail="video_id and words are required")
 
-    if language == 'uk':
+    # Handle Netflix videos (prefixed with netflix_)
+    if video_id.startswith('netflix_'):
+        subtitle_data = load_cached_netflix_subtitles(video_id, language)
+    elif language == 'uk':
         subtitle_data = load_cached_subtitles_ukrainian(video_id)
     else:
         subtitle_data = load_cached_subtitles(video_id)

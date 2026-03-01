@@ -7,18 +7,29 @@ def _db():
     return SessionLocal()
 
 
-def add_video(video_id: str, title: str) -> bool:
+def add_video(video_id: str, title: str, season: int = None, episode: int = None, episode_title: str = None) -> bool:
     """Insert video if not already tracked. Returns True if newly added."""
     db = _db()
     try:
         existing = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
         if existing:
+            # Update episode info if provided and not already set
+            if season and not existing.season:
+                existing.season = season
+            if episode and not existing.episode:
+                existing.episode = episode
+            if episode_title and not existing.episode_title:
+                existing.episode_title = episode_title
+            db.commit()
             return False
         video = TrackedVideo(
             video_id=video_id,
             title=title,
             youtube_url=f"https://www.youtube.com/watch?v={video_id}",
             tracked_at=time.time(),
+            season=season,
+            episode=episode,
+            episode_title=episode_title,
         )
         db.add(video)
         db.commit()
@@ -39,6 +50,9 @@ def get_all_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
+                "season": r.season,
+                "episode": r.episode,
+                "episode_title": r.episode_title,
             }
             for r in rows
         ]
@@ -53,6 +67,24 @@ def update_korean_status(video_id: str, has_korean: bool) -> None:
             {"has_korean": has_korean}
         )
         db.commit()
+    finally:
+        db.close()
+
+
+def update_video_title(video_id: str, title: str) -> bool:
+    """Update the title for a video. Only updates if current title is generic."""
+    db = _db()
+    try:
+        video = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
+        if not video:
+            return False
+        # Only update if current title is generic/unknown
+        generic_titles = ['Unknown', 'Netflix Video', 'Netflix', '']
+        if video.title in generic_titles or video.title is None:
+            video.title = title
+            db.commit()
+            return True
+        return False
     finally:
         db.close()
 
@@ -99,6 +131,9 @@ def get_filtered_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
+                "season": r.season,
+                "episode": r.episode,
+                "episode_title": r.episode_title,
             }
             for r in rows
         ]
@@ -150,6 +185,9 @@ def get_ukrainian_filtered_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
+                "season": r.season,
+                "episode": r.episode,
+                "episode_title": r.episode_title,
             }
             for r in rows
         ]

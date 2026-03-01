@@ -3,6 +3,7 @@ from app.services.subtitle_service import load_cached_subtitles, load_cached_sub
 from app.services.korean_tokenizer import extract_korean_words_from_subtitles
 from app.services.ukrainian_tokenizer import extract_ukrainian_words_from_subtitles
 from app.services.vocab_service import load_frequency_map, filter_vocabulary, get_vocab_stats
+from app.api.routes.netflix import load_cached_netflix_subtitles
 
 router = APIRouter()
 
@@ -28,8 +29,14 @@ async def get_vocabulary(video_id: str, limit: int = 20, lang: str = Query('ko')
     """
     Extract vocabulary found in the frequency list from cached video subtitles.
     lang: 'ko' (Korean) or 'uk' (Ukrainian). Subtitles must be fetched first.
+    Supports both YouTube and Netflix videos (Netflix videos have netflix_ prefix).
     """
-    if lang == 'uk':
+    # Handle Netflix videos
+    if video_id.startswith('netflix_'):
+        subtitle_data = load_cached_netflix_subtitles(video_id, lang)
+        lang_key = 'has_ukrainian' if lang == 'uk' else 'has_korean'
+        extract_fn = extract_ukrainian_words_from_subtitles if lang == 'uk' else extract_korean_words_from_subtitles
+    elif lang == 'uk':
         subtitle_data = load_cached_subtitles_ukrainian(video_id)
         lang_key = 'has_ukrainian'
         extract_fn = extract_ukrainian_words_from_subtitles
