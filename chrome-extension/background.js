@@ -183,8 +183,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'TRACK_NETFLIX') {
     currentNetflixVideoId = msg.videoId;
     netflixSubtitles[msg.videoId] = netflixSubtitles[msg.videoId] || {};
-    trackNetflix(msg.videoId, msg.title).then(sendResponse);
+    trackNetflix(msg.videoId, msg.title, msg.audioLang, msg.episodeInfo).then(sendResponse);
     return true;
+  }
+  // Update Netflix title (when we get a better title later)
+  if (msg.type === 'UPDATE_NETFLIX_TITLE') {
+    updateNetflixTitle(msg.videoId, msg.title);
+    return;
+  }
+  // Netflix audio language detected/changed
+  if (msg.type === 'NETFLIX_AUDIO_LANGUAGE') {
+    updateNetflixAudioLanguage(msg.videoId, msg.audioLang);
+    return;
   }
   if (msg.type === 'NETFLIX_SUBTITLES') {
     // Received subtitles from content script
@@ -210,6 +220,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Save screenshot to backend
   if (msg.type === 'SAVE_NETFLIX_SCREENSHOT') {
     saveScreenshotToBackend(msg.videoId, msg.timestamp, msg.dataUrl);
+    return;
+  }
+
+  // Save thumbnail for Netflix video
+  if (msg.type === 'SAVE_NETFLIX_THUMBNAIL') {
+    saveThumbnailToBackend(msg.videoId, msg.dataUrl);
     return;
   }
 
@@ -345,7 +361,7 @@ function parseTimeToSeconds(timeStr) {
   return parseFloat(normalized);
 }
 
-async function trackNetflix(videoId, title, subtitleLang) {
+async function trackNetflix(videoId, title, audioLang, episodeInfo) {
   try {
     // Track the video with platform indicator
     const res = await fetch(`${API}/videos/track`, {
@@ -355,13 +371,73 @@ async function trackNetflix(videoId, title, subtitleLang) {
         video_id: `netflix_${videoId}`,
         title: title,
         platform: 'netflix',
+        audio_lang: audioLang,
+        season: episodeInfo?.season || null,
+        episode: episodeInfo?.episode || null,
+        episode_title: episodeInfo?.episodeTitle || null,
       }),
     });
     const data = await res.json();
+
+    // If Korean audio is selected, mark as having Korean
+    if (audioLang === 'ko') {
+      await fetch(`${API}/videos/netflix_${videoId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ has_korean: true }),
+      });
+      console.log('[Deadbird] Marked video as having Korean (audio detected)');
+    } else if (audioLang === 'uk') {
+      await fetch(`${API}/videos/netflix_${videoId}/status/ukrainian`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ has_ukrainian: true }),
+      });
+      console.log('[Deadbird] Marked video as having Ukrainian (audio detected)');
+    }
+
     return { success: true, is_new: data.is_new };
   } catch (e) {
     console.error('[Deadbird] Error tracking Netflix:', e);
     return { success: false };
+  }
+}
+
+async function updateNetflixTitle(videoId, title) {
+  try {
+    const res = await fetch(`${API}/videos/netflix_${videoId}/title`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    if (res.ok) {
+      console.log(`[Deadbird] Updated Netflix title: ${title}`);
+    }
+  } catch (e) {
+    // Silently fail - title update is optional
+  }
+}
+
+async function updateNetflixAudioLanguage(videoId, audioLang) {
+  try {
+    // Update language status based on audio selection
+    if (audioLang === 'ko') {
+      await fetch(`${API}/videos/netflix_${videoId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ has_korean: true }),
+      });
+      console.log('[Deadbird] Updated: Korean audio detected');
+    } else if (audioLang === 'uk') {
+      await fetch(`${API}/videos/netflix_${videoId}/status/ukrainian`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ has_ukrainian: true }),
+      });
+      console.log('[Deadbird] Updated: Ukrainian audio detected');
+    }
+  } catch (e) {
+    // Silently fail
   }
 }
 
@@ -565,5 +641,23 @@ async function saveAudioToBackend(videoId, timestamp, audioData) {
     }
   } catch (e) {
     console.error('[Deadbird] Failed to save audio:', e);
+  }
+}
+
+async function saveThumbnailToBackend(videoId, dataUrl) {
+  try {
+    const res = await fetch(`${API}/netflix/thumbnail`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: videoId,
+        data_url: dataUrl,
+      }),
+    });
+    if (res.ok) {
+      console.log(`[Deadbird] Thumbnail saved for: ${videoId}`);
+    }
+  } catch (e) {
+    console.error('[Deadbird] Failed to save thumbnail:', e);
   }
 }

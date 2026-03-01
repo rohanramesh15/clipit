@@ -4,7 +4,7 @@ from app.services.video_store import (
     add_video, get_all_videos, get_filtered_videos,
     get_unchecked_videos, update_korean_status,
     get_ukrainian_filtered_videos, get_unchecked_ukrainian_videos,
-    update_ukrainian_status, get_total_watch_time,
+    update_ukrainian_status, get_total_watch_time, update_video_title,
 )
 from app.services.subtitle_service import check_korean_available, check_ukrainian_available
 
@@ -15,6 +15,9 @@ class TrackVideoRequest(BaseModel):
     video_id: str
     title: str = "Unknown"
     caption_languages: list[str] = []
+    season: int | None = None
+    episode: int | None = None
+    episode_title: str | None = None
 
 
 class StatusUpdate(BaseModel):
@@ -25,12 +28,16 @@ class UkrainianStatusUpdate(BaseModel):
     has_ukrainian: bool
 
 
+class TitleUpdate(BaseModel):
+    title: str
+
+
 @router.post("/track")
 async def track_video(req: TrackVideoRequest):
     """Receive a video ID from the Chrome extension and store it."""
     if not req.video_id:
         raise HTTPException(status_code=400, detail="video_id is required")
-    is_new = add_video(req.video_id, req.title)
+    is_new = add_video(req.video_id, req.title, req.season, req.episode, req.episode_title)
     if req.caption_languages:
         has_ko = any(l == 'ko' or l.startswith('ko-') for l in req.caption_languages)
         has_uk = any(l == 'uk' or l.startswith('uk-') for l in req.caption_languages)
@@ -81,6 +88,13 @@ async def update_video_ukrainian_status(video_id: str, body: UkrainianStatusUpda
     """Update the has_ukrainian status for a video."""
     update_ukrainian_status(video_id, body.has_ukrainian)
     return {"status": "ok", "video_id": video_id, "has_ukrainian": body.has_ukrainian}
+
+
+@router.put("/{video_id}/title")
+async def update_title(video_id: str, body: TitleUpdate):
+    """Update the title for a video (only if current title is generic)."""
+    updated = update_video_title(video_id, body.title)
+    return {"status": "ok", "video_id": video_id, "updated": updated}
 
 
 @router.get("/stats/watch-time")

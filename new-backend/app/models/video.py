@@ -4,7 +4,7 @@ from .base import BaseModel
 
 
 class TrackedVideo(BaseModel):
-    """A YouTube video tracked by the Chrome extension."""
+    """A YouTube or Netflix video tracked by the Chrome extension."""
     __tablename__ = "tracked_videos"
 
     video_id = Column(String, unique=True, index=True, nullable=False)
@@ -15,3 +15,7 @@ class TrackedVideo(BaseModel):
     has_korean = Column(Boolean, nullable=True)    # None = unchecked, True/False = confirmed
     has_ukrainian = Column(Boolean, nullable=True)  # None = unchecked, True/False = confirmed
     duration_seconds = Column(Integer, nullable=True)  # Video duration in seconds (from subtitles)
+    # Netflix episode info
+    season = Column(Integer, nullable=True)
+    episode = Column(Integer, nullable=True)
+    episode_title = Column(String, nullable=True)

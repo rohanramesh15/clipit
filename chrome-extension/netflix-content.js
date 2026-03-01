@@ -8,6 +8,7 @@ let titleCheckInterval = null;
 let screenshotCache = {}; // { timestamp: true } - tracks what we've already captured
 let keywordTimestamps = []; // Timestamps where keywords appear (from backend)
 let keywordTimestampsFetched = false;
+let detectedAudioLang = null; // Track the detected audio language
 
 // Extract Netflix video ID from URL (e.g., /watch/81234567)
 function getVideoId() {
@@ -19,24 +20,211 @@ function getVideoId() {
   }
 }
 
+// Detect selected audio language from Netflix
+function getAudioLanguage() {
+  try {
+    // Check URL parameter (Netflix uses ?al=ko for Korean audio)
+    const urlParams = new URLSearchParams(location.search);
+    const audioLang = urlParams.get('al');
+    if (audioLang) {
+      console.log('[Deadbird] Audio language from URL:', audioLang);
+      return audioLang;
+    }
+
+    // Check the audio selector in Netflix player UI
+    const audioSelectors = [
+      // Selected audio track indicator
+      '[data-uia="audio-tracks-item-selected"]',
+      '.track-list-audio .selected',
+      '[data-uia="track-list-audio"] .track-item-selected',
+    ];
+
+    for (const selector of audioSelectors) {
+      const el = document.querySelector(selector);
+      if (el) {
+        const text = el.textContent?.toLowerCase() || '';
+        if (text.includes('korean') || text.includes('한국어')) return 'ko';
+        if (text.includes('ukrainian') || text.includes('українська')) return 'uk';
+        if (text.includes('english')) return 'en';
+      }
+    }
+
+    // Check for language indicators in the player
+    const langIndicators = document.querySelectorAll('[class*="audio"], [class*="language"]');
+    for (const el of langIndicators) {
+      const text = el.textContent?.toLowerCase() || '';
+      if (text.includes('korean') || text.includes('한국어')) return 'ko';
+      if (text.includes('ukrainian') || text.includes('українська')) return 'uk';
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Monitor for audio language changes
+function startAudioLanguageMonitor(videoId) {
+  // Check immediately
+  const checkAudio = () => {
+    const lang = getAudioLanguage();
+    if (lang && lang !== detectedAudioLang) {
+      detectedAudioLang = lang;
+      console.log('[Deadbird] Detected audio language:', lang);
+
+      // Notify backend about audio language
+      chrome.runtime.sendMessage({
+        type: 'NETFLIX_AUDIO_LANGUAGE',
+        videoId,
+        audioLang: lang,
+      });
+    }
+  };
+
+  checkAudio();
+
+  // Also check periodically (user might change audio)
+  const interval = setInterval(checkAudio, 3000);
+
+  // Clean up after 60 seconds (most language changes happen early)
+  setTimeout(() => clearInterval(interval), 60000);
+}
+
+// Extract season/episode info from Netflix player UI
+function getEpisodeInfo() {
+  try {
+    // Netflix shows episode info in various places
+    const selectors = [
+      // Episode title/number in player
+      '[data-uia="video-title"] span',
+      '[data-uia="video-title-episode"]',
+      '.ellipsize-text[data-uia*="episode"]',
+      // Season/episode indicators
+      '.video-title span:not(:first-child)',
+      '[class*="episode"]',
+      '[class*="season"]',
+    ];
+
+    let season = null;
+    let episode = null;
+    let episodeTitle = null;
+
+    // Try to find season/episode from UI elements
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent?.trim() || '';
+
+        // Match patterns like "S1:E5", "Season 1 Episode 5", "시즌 1 에피소드 5"
+        const seMatch = text.match(/S(\d+)\s*[:\s]\s*E(\d+)/i) ||
+                        text.match(/Season\s*(\d+).*Episode\s*(\d+)/i) ||
+                        text.match(/시즌\s*(\d+).*에피소드\s*(\d+)/i);
+        if (seMatch) {
+          season = parseInt(seMatch[1]);
+          episode = parseInt(seMatch[2]);
+        }
+
+        // Match just episode like "E5" or "Episode 5"
+        const eMatch = text.match(/^E(\d+)$/i) || text.match(/Episode\s*(\d+)/i);
+        if (eMatch && !episode) {
+          episode = parseInt(eMatch[1]);
+        }
+
+        // Match just season
+        const sMatch = text.match(/^S(\d+)$/i) || text.match(/Season\s*(\d+)/i);
+        if (sMatch && !season) {
+          season = parseInt(sMatch[1]);
+        }
+      }
+    }
+
+    // Try to get episode title (usually after the S1:E1 part)
+    const titleEl = document.querySelector('[data-uia="video-title"]');
+    if (titleEl) {
+      const spans = titleEl.querySelectorAll('span');
+      if (spans.length > 1) {
+        // Usually format is: "Show Name" "S1:E1" "Episode Title"
+        const lastSpan = spans[spans.length - 1];
+        const text = lastSpan.textContent?.trim();
+        if (text && !text.match(/^S\d+/i) && !text.match(/^E\d+/i)) {
+          episodeTitle = text;
+        }
+      }
+    }
+
+    // Also check document title for episode info
+    const docTitle = document.title;
+    if (!season || !episode) {
+      const docMatch = docTitle.match(/S(\d+)\s*[:\s]\s*E(\d+)/i) ||
+                       docTitle.match(/Season\s*(\d+).*Episode\s*(\d+)/i);
+      if (docMatch) {
+        season = season || parseInt(docMatch[1]);
+        episode = episode || parseInt(docMatch[2]);
+      }
+    }
+
+    if (season || episode) {
+      console.log('[Deadbird] Episode info:', { season, episode, episodeTitle });
+      return { season, episode, episodeTitle };
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Extract title from Netflix player UI
 function getTitle() {
   try {
+    // Try various Netflix UI selectors (Netflix changes these frequently)
     const selectors = [
+      // Standard player title selectors
       '[data-uia="video-title"] h4',
       '[data-uia="video-title"]',
+      '[data-uia="player-title"]',
       '.video-title h4',
       '.video-title',
+      // Mini player / preview title
+      '.previewModal--player-titleTreatment-logo',
+      '.title-card-title-text',
+      // Watch page title elements
+      '.watch-video--evidence-overlay-title',
+      '.ellipsize-text',
+      // Fallback: any element with title-like classes
+      '[class*="title-treatment"]',
+      '[class*="videoTitle"]',
     ];
 
     for (const s of selectors) {
       const el = document.querySelector(s);
-      if (el?.textContent?.trim()) {
-        return el.textContent.trim();
+      const text = el?.textContent?.trim() || el?.getAttribute('alt')?.trim();
+      if (text && text.length > 1 && text.toLowerCase() !== 'netflix') {
+        return text;
       }
     }
 
-    return document.title.replace(' | Netflix', '').replace(' - Netflix', '').trim() || 'Unknown';
+    // Try document.title - Netflix usually sets it to "Show Name | Netflix"
+    const docTitle = document.title;
+    if (docTitle && docTitle !== 'Netflix') {
+      // Remove common Netflix suffixes
+      const cleaned = docTitle
+        .replace(/\s*[\|\-]\s*Netflix.*$/i, '')
+        .replace(/^Netflix\s*[\|\-]\s*/i, '')
+        .replace(/\s*-\s*Watch.*$/i, '')
+        .trim();
+      if (cleaned && cleaned.length > 1 && cleaned.toLowerCase() !== 'netflix') {
+        return cleaned;
+      }
+    }
+
+    // Try to get from meta tags
+    const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
+    if (ogTitle && ogTitle.toLowerCase() !== 'netflix') {
+      return ogTitle.replace(/\s*[\|\-]\s*Netflix.*$/i, '').trim();
+    }
+
+    return 'Unknown';
   } catch (e) {
     return 'Unknown';
   }
@@ -152,6 +340,16 @@ function processSubtitle(text, url) {
   if (!lang) return;
 
   console.log(`[Deadbird] Captured ${subtitles.length} ${lang} subtitles`);
+
+  // Try to update the title now that page is fully loaded
+  const title = getTitle();
+  if (title && title !== 'Unknown') {
+    chrome.runtime.sendMessage({
+      type: 'UPDATE_NETFLIX_TITLE',
+      videoId,
+      title,
+    });
+  }
 
   // Only process Korean or Ukrainian (skip English-only)
   if (lang !== 'ko' && lang !== 'uk') {
@@ -314,30 +512,72 @@ function sendTrack(videoId) {
   screenshotCache = {}; // Reset screenshot cache for new video
   keywordTimestamps = []; // Reset keyword timestamps
   keywordTimestampsFetched = false;
+  detectedAudioLang = null; // Reset audio language
 
   let attempts = 0;
+  let lastTitle = null;
+  let thumbnailCaptured = false;
   titleCheckInterval = setInterval(() => {
     try {
       const title = getTitle();
+      const audioLang = getAudioLanguage();
+      const episodeInfo = getEpisodeInfo();
       attempts++;
 
-      if ((title && title !== 'Unknown') || attempts >= 10) {
+      // Keep trying if we only have "Unknown" - Netflix may take time to load
+      // But track immediately if we get a real title
+      const hasRealTitle = title && title !== 'Unknown';
+
+      if (hasRealTitle || attempts >= 20) {
         clearInterval(titleCheckInterval);
         titleCheckInterval = null;
 
-        console.log('[Deadbird] Tracking Netflix video:', videoId, title);
+        const finalTitle = hasRealTitle ? title : (lastTitle || 'Netflix Video');
+        console.log('[Deadbird] Tracking Netflix video:', videoId, finalTitle, 'audio:', audioLang, 'episode:', episodeInfo);
         chrome.runtime.sendMessage({
           type: 'TRACK_NETFLIX',
           videoId,
-          title: (title && title !== 'Unknown') ? title : 'Unknown',
+          title: finalTitle,
           platform: 'netflix',
+          audioLang: audioLang,
+          episodeInfo: episodeInfo,
         });
+
+        // Capture thumbnail after a short delay (let video load)
+        if (!thumbnailCaptured) {
+          setTimeout(() => captureThumbnail(videoId), 2000);
+          thumbnailCaptured = true;
+        }
+
+        // Start monitoring for audio language changes
+        startAudioLanguageMonitor(videoId);
 
         // Start polling for keyword timestamps (set after subtitles processed)
         startKeywordTimestampPolling(videoId);
+      } else if (title && title !== 'Unknown') {
+        lastTitle = title;
       }
     } catch (e) {}
   }, 500);
+}
+
+// Capture a thumbnail for the video
+async function captureThumbnail(videoId) {
+  try {
+    console.log('[Deadbird] Capturing thumbnail for video:', videoId);
+    const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+
+    if (response?.success && response.dataUrl) {
+      console.log('[Deadbird] Thumbnail captured, saving...');
+      chrome.runtime.sendMessage({
+        type: 'SAVE_NETFLIX_THUMBNAIL',
+        videoId: `netflix_${videoId}`,
+        dataUrl: response.dataUrl,
+      });
+    }
+  } catch (e) {
+    console.log('[Deadbird] Thumbnail capture failed:', e.message);
+  }
 }
 
 // Poll for keyword timestamps until we get them (subtitles may take time to process)

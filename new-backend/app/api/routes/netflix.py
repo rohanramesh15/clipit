@@ -65,6 +65,7 @@ def extract_keyword_timestamps(subtitles: List[dict], language: str) -> List[int
 NETFLIX_CACHE_DIR = Path(settings.SUBTITLES_CACHE_DIR) / "netflix"
 SCREENSHOTS_DIR = NETFLIX_CACHE_DIR / "screenshots"
 AUDIO_DIR = NETFLIX_CACHE_DIR / "audio"
+THUMBNAILS_DIR = NETFLIX_CACHE_DIR / "thumbnails"
 
 
 def get_netflix_cache_path(video_id: str, lang: str) -> Path:
@@ -300,6 +301,65 @@ async def get_netflix_audio(video_id: str, timestamp: int):
                     return FileResponse(filepath, media_type=media_type)
 
     raise HTTPException(status_code=404, detail="Audio not found")
+
+
+def save_thumbnail_file(video_id: str, data_url: str) -> str | None:
+    """Save a thumbnail from data URL to file, return the relative path."""
+    try:
+        THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Extract base64 data from data URL
+        if "," not in data_url:
+            return None
+        header, b64_data = data_url.split(",", 1)
+
+        # Determine file extension
+        ext = "jpg" if "jpeg" in header else "png"
+
+        # Create filename (just video_id, no timestamp)
+        filename = f"{video_id}.{ext}"
+        filepath = THUMBNAILS_DIR / filename
+
+        # Decode and save
+        with open(filepath, "wb") as f:
+            f.write(base64.b64decode(b64_data))
+
+        print(f"[Deadbird] Thumbnail saved: {filepath}")
+        return f"thumbnails/{filename}"
+    except Exception as e:
+        print(f"[Deadbird] Failed to save thumbnail: {e}")
+        return None
+
+
+@router.post("/thumbnail")
+async def save_thumbnail(request: dict = Body(...)):
+    """
+    Save a thumbnail for a Netflix video.
+    Body: { video_id, data_url }
+    """
+    video_id = request.get("video_id")
+    data_url = request.get("data_url")
+
+    if not video_id or not data_url:
+        raise HTTPException(status_code=400, detail="video_id and data_url required")
+
+    path = save_thumbnail_file(video_id, data_url)
+    return {"status": "ok", "path": path}
+
+
+@router.api_route("/thumbnail/{video_id}", methods=["GET", "HEAD"])
+async def get_netflix_thumbnail(video_id: str):
+    """Get the thumbnail for a Netflix video."""
+    from fastapi.responses import FileResponse
+
+    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+
+    for ext in ["jpg", "png"]:
+        filepath = THUMBNAILS_DIR / f"{video_id}.{ext}"
+        if filepath.exists():
+            return FileResponse(filepath, media_type=f"image/{ext}")
+
+    raise HTTPException(status_code=404, detail="Thumbnail not found")
 
 
 def load_cached_netflix_subtitles(video_id: str, lang: str = "ko") -> dict | None:
