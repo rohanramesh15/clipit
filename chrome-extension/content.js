@@ -6,6 +6,10 @@
 
 let lastTrackedId = null;
 
+function isContextValid() {
+  try { return !!chrome.runtime?.id; } catch { return false; }
+}
+
 function getVideoId() {
   return new URLSearchParams(location.search).get('v');
 }
@@ -29,6 +33,7 @@ function sendTrack(videoId) {
   // Retry up to 5 times (2.5s) waiting for title to render
   let attempts = 0;
   const interval = setInterval(() => {
+    if (!isContextValid()) { clearInterval(interval); return; }
     const title = getTitle();
     attempts++;
     if ((title && title !== 'Unknown') || attempts >= 5) {
@@ -40,7 +45,7 @@ function sendTrack(videoId) {
           title: (title && title !== 'Unknown') ? title : 'Unknown',
         }, () => void chrome.runtime.lastError);
       } catch (_) {
-        // Service worker inactive — message dropped, popup will trigger on next open
+        // Context invalidated or SW inactive — drop silently
       }
     }
   }, 500);
@@ -49,6 +54,7 @@ function sendTrack(videoId) {
 let lastHref = location.href;
 
 function checkNavigation() {
+  if (!isContextValid()) return;
   if (location.href === lastHref) return;
   lastHref = location.href;
   const videoId = getVideoId();
