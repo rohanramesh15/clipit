@@ -38,6 +38,17 @@
     .count-badge {
       font-size: 11px; font-weight: 600; color: #888;
     }
+    .lang-toggle {
+      display: flex; align-items: center; gap: 2px;
+      background: rgba(255,255,255,0.05); border-radius: 7px; padding: 2px;
+    }
+    .lang-btn {
+      padding: 3px 7px; border-radius: 5px; border: none; cursor: pointer;
+      font-size: 10px; font-weight: 700; color: #555; background: transparent;
+      transition: all 0.15s;
+    }
+    .lang-btn.active { background: #e8a838; color: #0a0a0f; }
+    .lang-btn:not(.active):hover { color: #aaa; }
     .back-btn {
       background: none; border: none; cursor: pointer;
       color: #e8a838; font-size: 13px; font-weight: 600;

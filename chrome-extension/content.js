@@ -29,37 +29,48 @@ function sendTrack(videoId) {
   // Retry up to 5 times (2.5s) waiting for title to render
   let attempts = 0;
   const interval = setInterval(() => {
-    const title = getTitle();
-    attempts++;
-    if ((title && title !== 'Unknown') || attempts >= 5) {
+    try {
+      const title = getTitle();
+      attempts++;
+      if ((title && title !== 'Unknown') || attempts >= 5) {
+        clearInterval(interval);
+        chrome.runtime.sendMessage({
+          type: 'TRACK_VIDEO',
+          videoId,
+          title: (title && title !== 'Unknown') ? title : 'Unknown',
+        }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+      }
+    } catch (_) {
+      // Extension context invalidated (extension reloaded while tab was open) — stop silently
       clearInterval(interval);
-      chrome.runtime.sendMessage({
-        type: 'TRACK_VIDEO',
-        videoId,
-        title: (title && title !== 'Unknown') ? title : 'Unknown',
-      });
     }
   }, 500);
 }
 
 let lastHref = location.href;
 
-function checkNavigation() {
-  if (location.href === lastHref) return;
-  lastHref = location.href;
+const navInterval = setInterval(() => {
+  try {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    const videoId = getVideoId();
+    if (videoId && videoId !== lastTrackedId) {
+      lastTrackedId = videoId;
+      sendTrack(videoId);
+    }
+  } catch (_) {
+    // Extension context invalidated — stop polling
+    clearInterval(navInterval);
+  }
+}, 1000);
+
+// Track on initial page load
+try {
   const videoId = getVideoId();
-  if (videoId && videoId !== lastTrackedId) {
+  if (videoId) {
     lastTrackedId = videoId;
     sendTrack(videoId);
   }
-}
-
-// Poll for SPA navigation
-setInterval(checkNavigation, 1000);
-
-// Track on initial page load
-const videoId = getVideoId();
-if (videoId) {
-  lastTrackedId = videoId;
-  sendTrack(videoId);
+} catch (_) {
+  // Context already invalid on load — nothing to do
 }

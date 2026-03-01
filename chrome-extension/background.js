@@ -171,11 +171,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // YouTube tracking
   if (msg.type === 'TRACK_VIDEO') {
-    trackAndPrefetch(msg.videoId, msg.title).then(sendResponse);
+    trackAndPrefetch(msg.videoId, msg.title, msg.lang || 'ko').then(sendResponse);
     return true;
   }
   if (msg.type === 'GET_VOCAB') {
-    getCachedVocab(msg.videoId).then(sendResponse);
+    getCachedVocab(msg.videoId, msg.lang || 'ko').then(sendResponse);
     return true;
   }
 
@@ -379,21 +379,10 @@ async function trackNetflix(videoId, title, audioLang, episodeInfo) {
     });
     const data = await res.json();
 
-    // If Korean audio is selected, mark as having Korean
-    if (audioLang === 'ko') {
-      await fetch(`${API}/videos/netflix_${videoId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_korean: true }),
-      });
-      console.log('[Deadbird] Marked video as having Korean (audio detected)');
-    } else if (audioLang === 'uk') {
-      await fetch(`${API}/videos/netflix_${videoId}/status/ukrainian`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_ukrainian: true }),
-      });
-      console.log('[Deadbird] Marked video as having Ukrainian (audio detected)');
+    // Use shared updateStatus helper for language marking
+    if (audioLang === 'ko' || audioLang === 'uk') {
+      await updateStatus(`netflix_${videoId}`, audioLang, true);
+      console.log(`[Deadbird] Marked video as having ${audioLang} (audio detected)`);
     }
 
     return { success: true, is_new: data.is_new };
@@ -419,25 +408,9 @@ async function updateNetflixTitle(videoId, title) {
 }
 
 async function updateNetflixAudioLanguage(videoId, audioLang) {
-  try {
-    // Update language status based on audio selection
-    if (audioLang === 'ko') {
-      await fetch(`${API}/videos/netflix_${videoId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_korean: true }),
-      });
-      console.log('[Deadbird] Updated: Korean audio detected');
-    } else if (audioLang === 'uk') {
-      await fetch(`${API}/videos/netflix_${videoId}/status/ukrainian`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_ukrainian: true }),
-      });
-      console.log('[Deadbird] Updated: Ukrainian audio detected');
-    }
-  } catch (e) {
-    // Silently fail
+  if (audioLang === 'ko' || audioLang === 'uk') {
+    await updateStatus(`netflix_${videoId}`, audioLang, true);
+    console.log(`[Deadbird] Updated: ${audioLang} audio detected`);
   }
 }
 
@@ -471,7 +444,7 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
   }
 }
 
-async function trackAndPrefetch(videoId, title) {
+async function trackAndPrefetch(videoId, title, lang = 'ko') {
   try {
     // 1. Track the video
     const res = await fetch(`${API}/videos/track`, {
@@ -482,7 +455,7 @@ async function trackAndPrefetch(videoId, title) {
     const data = await res.json();
 
     // 2. Run the full vocab pipeline in background (don't await — fire and forget)
-    runVocabPipeline(videoId);
+    runVocabPipeline(videoId, lang);
 
     return { success: true, is_new: data.is_new };
   } catch {
@@ -491,7 +464,7 @@ async function trackAndPrefetch(videoId, title) {
 }
 
 async function runVocabPipeline(videoId, lang = 'ko') {
-  const cacheKey = `vocab_${videoId}`;
+  const cacheKey = `vocab_${lang}_${videoId}`;
 
   // Check if we have a recent cache
   const existing = await chrome.storage.local.get(cacheKey);
@@ -517,17 +490,7 @@ async function runVocabPipeline(videoId, lang = 'ko') {
 
     if (!vocab.total_words) {
       // No target language vocab found — update status and cache empty result
-      const statusEndpoint = lang === 'uk'
-        ? `${API}/videos/${videoId}/status/ukrainian`
-        : `${API}/videos/${videoId}/status`;
-      const statusBody = lang === 'uk'
-        ? { has_ukrainian: false }
-        : { has_korean: false };
-      await fetch(statusEndpoint, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(statusBody),
-      }).catch(() => {});
+      await updateStatus(videoId, lang, false);
       await chrome.storage.local.set({
         [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
       });
@@ -566,17 +529,7 @@ async function runVocabPipeline(videoId, lang = 'ko') {
     }
 
     // Update language status to true
-    const statusEndpoint = lang === 'uk'
-      ? `${API}/videos/${videoId}/status/ukrainian`
-      : `${API}/videos/${videoId}/status`;
-    const statusBody = lang === 'uk'
-      ? { has_ukrainian: true }
-      : { has_korean: true };
-    await fetch(statusEndpoint, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(statusBody),
-    }).catch(() => {});
+    await updateStatus(videoId, lang, true);
 
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, words, total: words.length, cachedAt: Date.now() }
@@ -588,8 +541,24 @@ async function runVocabPipeline(videoId, lang = 'ko') {
   }
 }
 
-async function getCachedVocab(videoId) {
-  const cacheKey = `vocab_${videoId}`;
+async function updateStatus(videoId, lang, value) {
+  if (lang === 'uk') {
+    await fetch(`${API}/videos/${videoId}/status/ukrainian`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ has_ukrainian: value }),
+    }).catch(() => {});
+  } else {
+    await fetch(`${API}/videos/${videoId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ has_korean: value }),
+    }).catch(() => {});
+  }
+}
+
+async function getCachedVocab(videoId, lang = 'ko') {
+  const cacheKey = `vocab_${lang}_${videoId}`;
   const result = await chrome.storage.local.get(cacheKey);
   return result[cacheKey] || { loading: true };
 }
