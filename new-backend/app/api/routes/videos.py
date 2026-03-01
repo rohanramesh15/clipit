@@ -4,7 +4,7 @@ from app.services.video_store import (
     add_video, get_all_videos, get_filtered_videos,
     get_unchecked_videos, update_korean_status,
     get_ukrainian_filtered_videos, get_unchecked_ukrainian_videos,
-    update_ukrainian_status,
+    update_ukrainian_status, get_total_watch_time,
 )
 from app.services.subtitle_service import check_korean_available, check_ukrainian_available
 
@@ -81,3 +81,10 @@ async def update_video_ukrainian_status(video_id: str, body: UkrainianStatusUpda
     """Update the has_ukrainian status for a video."""
     update_ukrainian_status(video_id, body.has_ukrainian)
     return {"status": "ok", "video_id": video_id, "has_ukrainian": body.has_ukrainian}
+
+
+@router.get("/stats/watch-time")
+async def get_watch_time_stats(lang: str = "ko"):
+    """Get total watch time statistics for videos in the target language."""
+    stats = get_total_watch_time(lang)
+    return stats
