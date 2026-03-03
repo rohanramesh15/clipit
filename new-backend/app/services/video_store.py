@@ -1,6 +1,8 @@
 import time
+from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.video import TrackedVideo
+from app.models.user_video_watch import UserVideoWatch
 
 
 def _db():
@@ -220,6 +222,90 @@ def update_video_duration(video_id: str, duration_seconds: int) -> None:
         db.commit()
     finally:
         db.close()
+
+
+def add_user_watch(db: Session, user_id: int, video_id: str, watched_at: float) -> None:
+    """Record that a user has watched a video. Ignores if already tracked (unique constraint)."""
+    existing = db.query(UserVideoWatch).filter(
+        UserVideoWatch.user_id == user_id,
+        UserVideoWatch.video_id == video_id,
+    ).first()
+    if not existing:
+        watch = UserVideoWatch(user_id=user_id, video_id=video_id, watched_at=watched_at)
+        db.add(watch)
+        db.commit()
+
+
+def get_user_videos(db: Session, user_id: int) -> list[dict]:
+    """Return all videos the user has tracked, joined with tracked_videos metadata."""
+    watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
+    if not watches:
+        return []
+    video_ids = [w.video_id for w in watches]
+    watch_times = {w.video_id: w.watched_at for w in watches}
+    rows = (
+        db.query(TrackedVideo)
+        .filter(TrackedVideo.video_id.in_(video_ids))
+        .all()
+    )
+    return [
+        {
+            "video_id": r.video_id,
+            "title": r.title,
+            "youtube_url": r.youtube_url,
+            "tracked_at": watch_times.get(r.video_id, r.tracked_at),
+            "has_korean": r.has_korean,
+            "has_ukrainian": r.has_ukrainian,
+            "season": r.season,
+            "episode": r.episode,
+            "episode_title": r.episode_title,
+        }
+        for r in sorted(rows, key=lambda r: watch_times.get(r.video_id, 0), reverse=True)
+    ]
+
+
+def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> list[dict]:
+    """Return a user's videos that have subtitles in the target language."""
+    watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
+    if not watches:
+        return []
+    video_ids = [w.video_id for w in watches]
+    watch_times = {w.video_id: w.watched_at for w in watches}
+    query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
+    if lang == "uk":
+        query = query.filter(TrackedVideo.has_ukrainian == True)
+    else:
+        query = query.filter(TrackedVideo.has_korean == True)
+    rows = query.all()
+    return [
+        {
+            "video_id": r.video_id,
+            "title": r.title,
+            "youtube_url": r.youtube_url,
+            "tracked_at": watch_times.get(r.video_id, r.tracked_at),
+            "has_korean": r.has_korean,
+            "has_ukrainian": r.has_ukrainian,
+            "season": r.season,
+            "episode": r.episode,
+            "episode_title": r.episode_title,
+        }
+        for r in sorted(rows, key=lambda r: watch_times.get(r.video_id, 0), reverse=True)
+    ]
+
+
+def get_user_unchecked_videos(db: Session, user_id: int, lang: str = "ko") -> list[dict]:
+    """Return user's videos where subtitle availability for the given lang hasn't been checked."""
+    watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
+    if not watches:
+        return []
+    video_ids = [w.video_id for w in watches]
+    query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
+    if lang == "uk":
+        query = query.filter(TrackedVideo.has_ukrainian == None)
+    else:
+        query = query.filter(TrackedVideo.has_korean == None)
+    rows = query.all()
+    return [{"video_id": r.video_id, "title": r.title, "tracked_at": r.tracked_at} for r in rows]
 
 
 def get_total_watch_time(lang: str = "ko") -> dict:

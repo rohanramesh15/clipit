@@ -47,30 +47,32 @@ function sendTrack(videoId) {
   }, 500);
 }
 
+function checkForNewVideo() {
+  try {
+    const videoId = getVideoId();
+    if (videoId && videoId !== lastTrackedId) {
+      lastTrackedId = videoId;
+      lastHref = location.href;
+      sendTrack(videoId);
+    }
+  } catch (_) {}
+}
+
 let lastHref = location.href;
 
+// YouTube fires this event on every SPA navigation — most reliable trigger
+window.addEventListener('yt-navigate-finish', checkForNewVideo);
+
+// Fallback interval for cases where the event doesn't fire
 const navInterval = setInterval(() => {
   try {
     if (location.href === lastHref) return;
     lastHref = location.href;
-    const videoId = getVideoId();
-    if (videoId && videoId !== lastTrackedId) {
-      lastTrackedId = videoId;
-      sendTrack(videoId);
-    }
+    checkForNewVideo();
   } catch (_) {
-    // Extension context invalidated — stop polling
     clearInterval(navInterval);
   }
 }, 1000);
 
-// Track on initial page load
-try {
-  const videoId = getVideoId();
-  if (videoId) {
-    lastTrackedId = videoId;
-    sendTrack(videoId);
-  }
-} catch (_) {
-  // Context already invalid on load — nothing to do
-}
+// Track on initial page load (e.g. direct link to a watch URL)
+checkForNewVideo();

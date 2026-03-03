@@ -4,7 +4,7 @@ const root = document.getElementById('root');
 
 // ─── State ────────────────────────────────────────────
 let state = {
-  view: 'loading',   // loading | offline | empty | list | detail
+  view: 'loading',   // loading | offline | not-logged-in | empty | list | detail
   videos: [],
   selected: null,    // { video_id, title }
   words: null,       // null | 'loading' | 'no-words' | 'error' | []
@@ -21,10 +21,10 @@ let state = {
 
   await fetchVideos();
 
-  // Auto-refresh once after 4s to pick up videos tracked just before popup opened
-  setTimeout(() => {
-    if (state.view === 'list' || state.view === 'empty') fetchVideos();
-  }, 4000);
+  // Refresh every 5s so newly tracked videos appear without closing the popup
+  setInterval(() => {
+    if (['list', 'empty', 'not-logged-in'].includes(state.view)) fetchVideos();
+  }, 5000);
 })();
 
 async function fetchVideos() {
@@ -39,7 +39,17 @@ async function fetchVideos() {
       state.audioEnabled = result?.enabled || false;
     }
 
-    const res = await fetch(`${API}/videos/history/filtered?lang=${state.lang}`, { signal: AbortSignal.timeout(3000) });
+    const { deadbird_token: token } = await chrome.storage.local.get('deadbird_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch(`${API}/videos/history/filtered?lang=${state.lang}`, {
+      signal: AbortSignal.timeout(3000),
+      headers,
+    });
+    if (res.status === 401 || res.status === 403) {
+      state.view = 'not-logged-in';
+      render();
+      return;
+    }
     if (!res.ok) throw new Error();
     const data = await res.json();
     state.videos = data.videos || [];
@@ -53,11 +63,12 @@ async function fetchVideos() {
 // ─── Render ───────────────────────────────────────────
 function render() {
   const { view } = state;
-  if      (view === 'loading') root.innerHTML = tmplLoading();
-  else if (view === 'offline') root.innerHTML = tmplOffline();
-  else if (view === 'empty')   root.innerHTML = tmplEmpty();
-  else if (view === 'list')    root.innerHTML = tmplList();
-  else if (view === 'detail')  root.innerHTML = tmplDetail();
+  if      (view === 'loading')      root.innerHTML = tmplLoading();
+  else if (view === 'offline')      root.innerHTML = tmplOffline();
+  else if (view === 'not-logged-in') root.innerHTML = tmplNotLoggedIn();
+  else if (view === 'empty')        root.innerHTML = tmplEmpty();
+  else if (view === 'list')         root.innerHTML = tmplList();
+  else if (view === 'detail')       root.innerHTML = tmplDetail();
   bindEvents();
 }
 
@@ -185,6 +196,20 @@ function tmplOffline() {
         <p class="sub">Start the Deadbird server<br>from project-deadbird-backend/new-backend</p>
       </div>
     </div>
+  `;
+}
+
+function tmplNotLoggedIn() {
+  return `
+    ${header({ dot: 'red', right: '<span class="count-badge">Not signed in</span>' })}
+    <div class="body">
+      <div class="center-state">
+        <div class="icon">🔒</div>
+        <p class="title">Sign in required</p>
+        <p class="sub">Open the Deadbird app and log in — the extension will pick up your session automatically.</p>
+      </div>
+    </div>
+    ${footer()}
   `;
 }
 

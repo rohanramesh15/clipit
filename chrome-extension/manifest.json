@@ -12,13 +12,18 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://www.youtube.com/watch*"],
+      "matches": ["*://www.youtube.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["*://www.netflix.com/watch/*"],
       "js": ["netflix-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:5176/*"],
+      "js": ["token-bridge.js"],
       "run_at": "document_idle"
     }
   ],

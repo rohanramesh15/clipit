@@ -8,6 +8,17 @@
 const API = 'http://localhost:8000/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
+async function getAuthToken() {
+  const result = await chrome.storage.local.get('deadbird_token');
+  return result.deadbird_token || null;
+}
+
+function authHeaders(token, extra = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extra };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 // Netflix subtitle state
 let currentNetflixVideoId = null;
 let netflixSubtitles = {}; // { videoId: { ko: [...], en: [...], uk: [...] } }
@@ -21,6 +32,33 @@ let audioActivatedTabs = new Set();
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   audioActivatedTabs.delete(tabId);
+});
+
+// ─── YouTube auto-tracking via tab URL change ────────────────────────────────
+// Deduplication: don't re-track the same video within 60 seconds
+const recentlyTracked = new Map(); // videoId → timestamp
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Only care about URL changes on YouTube watch pages
+  const url = changeInfo.url;
+  if (!url || !url.includes('youtube.com/watch')) return;
+
+  let videoId;
+  try {
+    videoId = new URL(url).searchParams.get('v');
+  } catch { return; }
+  if (!videoId) return;
+
+  // Skip if we tracked this video recently (content script may also fire)
+  const lastTime = recentlyTracked.get(videoId);
+  if (lastTime && Date.now() - lastTime < 60000) return;
+  recentlyTracked.set(videoId, Date.now());
+
+  // Title from tab may still be stale — use it now, update later via content script
+  const rawTitle = (tab.title || '').replace(/ - YouTube$/, '').trim();
+  const title = rawTitle || 'Unknown';
+  console.log(`[Deadbird] YouTube tab navigation: ${videoId} — "${title}"`);
+  await trackAndPrefetch(videoId, title);
 });
 
 // ─── Offscreen document management ───────────────────────────────────────────
@@ -169,9 +207,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // async response
   }
 
-  // YouTube tracking
+  // YouTube tracking (from content script — also checks dedup)
   if (msg.type === 'TRACK_VIDEO') {
-    trackAndPrefetch(msg.videoId, msg.title, msg.lang || 'ko').then(sendResponse);
+    const lastTime = recentlyTracked.get(msg.videoId);
+    if (lastTime && Date.now() - lastTime < 60000) {
+      // Already tracked recently by tabs.onUpdated — just update title if better
+      if (msg.title && msg.title !== 'Unknown') {
+        fetch(`${API}/videos/${msg.videoId}/title`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: msg.title }),
+        }).catch(() => {});
+      }
+      sendResponse({ success: true, is_new: false });
+    } else {
+      recentlyTracked.set(msg.videoId, Date.now());
+      trackAndPrefetch(msg.videoId, msg.title, msg.lang || 'ko').then(sendResponse);
+    }
     return true;
   }
   if (msg.type === 'GET_VOCAB') {
@@ -363,10 +415,11 @@ function parseTimeToSeconds(timeStr) {
 
 async function trackNetflix(videoId, title, audioLang, episodeInfo) {
   try {
+    const token = await getAuthToken();
     // Track the video with platform indicator
     const res = await fetch(`${API}/videos/track`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(token),
       body: JSON.stringify({
         video_id: `netflix_${videoId}`,
         title: title,
@@ -445,20 +498,36 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
 }
 
 async function trackAndPrefetch(videoId, title, lang = 'ko') {
+  const token = await getAuthToken();
+  if (!token) {
+    console.warn('[Deadbird] No auth token — open the Deadbird app and log in first.');
+    return { success: false, reason: 'no_token' };
+  }
+
   try {
     // 1. Track the video
     const res = await fetch(`${API}/videos/track`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(token),
       body: JSON.stringify({ video_id: videoId, title }),
     });
-    const data = await res.json();
 
-    // 2. Run the full vocab pipeline in background (don't await — fire and forget)
-    runVocabPipeline(videoId, lang);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('[Deadbird] Track failed:', res.status, err.detail || '');
+      return { success: false, reason: res.status };
+    }
+
+    const data = await res.json();
+    console.log(`[Deadbird] Tracked: ${videoId} — ${title} (new: ${data.is_new})`);
+
+    // 2. Run vocab pipeline for BOTH languages (fire and forget)
+    runVocabPipeline(videoId, 'ko');
+    runVocabPipeline(videoId, 'uk');
 
     return { success: true, is_new: data.is_new };
-  } catch {
+  } catch (e) {
+    console.error('[Deadbird] trackAndPrefetch error:', e);
     return { success: false };
   }
 }

@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.models.user import User  # noqa: F401 — registers model with Base
+from app.models.video import TrackedVideo  # noqa: F401
+from app.models.user_video_watch import UserVideoWatch  # noqa: F401
+from app.models.user_flashcard_progress import UserFlashcardProgress  # noqa: F401
+from app.models.user_review_history import UserReviewHistory  # noqa: F401
 from app.api.routes import health, users
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
@@ -11,18 +15,29 @@ from app.api.routes.vocabulary import router as vocabulary_router
 from app.api.routes.flashcards import router as flashcards_router
 from app.api.routes.lookup import router as lookup_router
 from app.api.routes.netflix import router as netflix_router
+from app.api.routes.fsrs import router as fsrs_router
 
 
 Base.metadata.create_all(bind=engine)
 
-# SQLite migration: add has_ukrainian column if it doesn't exist yet
+# SQLite migration: add new columns if they don't exist yet
 if settings.DATABASE_URL.startswith("sqlite"):
     from sqlalchemy import text
     with engine.connect() as conn:
         cols = [row[1] for row in conn.execute(text("PRAGMA table_info(tracked_videos)")).fetchall()]
-        if "has_ukrainian" not in cols:
-            conn.execute(text("ALTER TABLE tracked_videos ADD COLUMN has_ukrainian BOOLEAN"))
-            conn.commit()
+        migrations = [
+            ("has_ukrainian",    "BOOLEAN"),
+            ("has_serbian",      "BOOLEAN"),
+            ("has_bulgarian",    "BOOLEAN"),
+            ("duration_seconds", "FLOAT"),
+            ("season",           "INTEGER"),
+            ("episode",          "INTEGER"),
+            ("episode_title",    "TEXT"),
+        ]
+        for col, coltype in migrations:
+            if col not in cols:
+                conn.execute(text(f"ALTER TABLE tracked_videos ADD COLUMN {col} {coltype}"))
+        conn.commit()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -47,6 +62,7 @@ app.include_router(vocabulary_router, prefix="/api", tags=["vocabulary"])
 app.include_router(flashcards_router, prefix="/api", tags=["flashcards"])
 app.include_router(lookup_router, prefix="/api", tags=["lookup"])
 app.include_router(netflix_router, prefix="/api/netflix", tags=["netflix"])
+app.include_router(fsrs_router, prefix="/api/fsrs", tags=["fsrs"])
 
 
 @app.get("/")
