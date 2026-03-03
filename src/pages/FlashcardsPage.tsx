@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 const API = 'http://localhost:8000/api';
 
@@ -172,6 +173,7 @@ function formatNextReview(date: Date): string {
 
 export function FlashcardsPage() {
   const { language, languageName } = useLanguage();
+  const { token } = useAuth();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [dueCards, setDueCards] = useState<FlashCard[]>([]);
@@ -443,7 +445,9 @@ export function FlashcardsPage() {
       try {
         setLoadState('loading');
         setLoadingMsg('Loading watch history...');
-        const res = await fetch(`${API}/videos/history/filtered?lang=${language}`);
+        const res = await fetch(`${API}/videos/history/filtered?lang=${language}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!res.ok) throw new Error();
         const data = await res.json();
         const vids: TrackedVideo[] = data.videos || [];
@@ -460,7 +464,7 @@ export function FlashcardsPage() {
       }
     }
     bootstrap();
-  }, [language, loadAllVideos]);
+  }, [language, token, loadAllVideos]);
 
   const currentCard = dueCards[currentIndex];
   const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;

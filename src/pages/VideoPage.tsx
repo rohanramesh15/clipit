@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = 'http://localhost:8000/api';
 
@@ -72,6 +73,7 @@ function formatTrackedAt(ts: number): string {
 
 export function VideoPage() {
   const { language, languageName } = useLanguage();
+  const { token } = useAuth();
   const [videos, setVideos] = useState<TrackedVideo[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -93,7 +95,9 @@ export function VideoPage() {
 
   async function fetchVideos() {
     try {
-      const res = await fetch(`${API_BASE}/videos/history/filtered?lang=${language}`);
+      const res = await fetch(`${API_BASE}/videos/history/filtered?lang=${language}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
       const vids: TrackedVideo[] = data.videos || [];
