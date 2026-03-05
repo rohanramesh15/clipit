@@ -21,8 +21,7 @@ import {
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-
-const API = 'http://localhost:8000/api';
+import { API_BASE_URL } from '../config';
 
 // Netflix video placeholder component with screenshot and audio support
 function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; timestamp: number }) {
@@ -316,15 +315,15 @@ export function FlashcardsPage() {
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
     try {
-      await fetch(`${API}/subtitles/${videoId}?lang=${language}`);
+      await fetch(`${API}/subtitles/${videoId}`);
 
-      const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20&lang=${language}`);
+      const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20`);
       if (!vocabRes.ok) return [];
       const vocab = await vocabRes.json();
       if (!vocab.total_words) return [];
 
       const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
-      const fcRes = await fetch(`${API}/flashcard-data`, {
+      const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
@@ -443,11 +442,7 @@ export function FlashcardsPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        setLoadState('loading');
-        setLoadingMsg('Loading watch history...');
-        const res = await fetch(`${API}/videos/history/filtered?lang=${language}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await fetch(`${API}/videos/history/filtered`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         const vids: TrackedVideo[] = data.videos || [];
@@ -560,7 +555,7 @@ export function FlashcardsPage() {
         </div>
         <p className="text-primary font-semibold">Couldn't load flashcards</p>
         <p className="text-secondary text-sm text-center max-w-sm">
-          Make sure the Deadbird backend is running at localhost:8000
+          Make sure the Deadbird server is running and accessible.
         </p>
         <button
           onClick={() => window.location.reload()}
