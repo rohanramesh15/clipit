@@ -35,11 +35,11 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
 
   // Check if screenshot and audio exist
   React.useEffect(() => {
-    fetch(`${API}/netflix/screenshot/${videoId}/${roundedTimestamp}`, { method: 'HEAD' })
+    fetch(`${API_BASE_URL}/netflix/screenshot/${videoId}/${roundedTimestamp}`, { method: 'HEAD' })
       .then(res => setHasScreenshot(res.ok))
       .catch(() => setHasScreenshot(false));
 
-    fetch(`${API}/netflix/audio/${videoId}/${roundedTimestamp}`, { method: 'HEAD' })
+    fetch(`${API_BASE_URL}/netflix/audio/${videoId}/${roundedTimestamp}`, { method: 'HEAD' })
       .then(res => setHasAudio(res.ok))
       .catch(() => setHasAudio(false));
   }, [videoId, roundedTimestamp]);
@@ -71,7 +71,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
       {hasAudio && (
         <audio
           ref={audioRef}
-          src={`${API}/netflix/audio/${videoId}/${roundedTimestamp}`}
+          src={`${API_BASE_URL}/netflix/audio/${videoId}/${roundedTimestamp}`}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
@@ -81,7 +81,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
       {hasScreenshot ? (
         <>
           <img
-            src={`${API}/netflix/screenshot/${videoId}/${roundedTimestamp}`}
+            src={`${API_BASE_URL}/netflix/screenshot/${videoId}/${roundedTimestamp}`}
             alt=""
             className="w-full h-full object-cover"
             onError={() => setHasScreenshot(false)}
@@ -305,7 +305,7 @@ export function FlashcardsPage() {
   // Check if a Netflix screenshot exists for a given video/timestamp
   const checkScreenshotExists = async (videoId: string, timestamp: number): Promise<boolean> => {
     try {
-      const res = await fetch(`${API}/netflix/screenshot/${videoId}/${Math.floor(timestamp)}`, { method: 'HEAD' });
+      const res = await fetch(`${API_BASE_URL}/netflix/screenshot/${videoId}/${Math.floor(timestamp)}`, { method: 'HEAD' });
       return res.ok;
     } catch {
       return false;
@@ -315,9 +315,9 @@ export function FlashcardsPage() {
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
     try {
-      await fetch(`${API}/subtitles/${videoId}`);
+      await fetch(`${API_BASE_URL}/subtitles/${videoId}`);
 
-      const vocabRes = await fetch(`${API}/vocabulary/${videoId}?limit=20`);
+      const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
       if (!vocabRes.ok) return [];
       const vocab = await vocabRes.json();
       if (!vocab.total_words) return [];
@@ -442,7 +442,9 @@ export function FlashcardsPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const res = await fetch(`${API}/videos/history/filtered`);
+        const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!res.ok) throw new Error();
         const data = await res.json();
         const vids: TrackedVideo[] = data.videos || [];
@@ -504,7 +506,7 @@ export function FlashcardsPage() {
 
     try {
       // Call API to skip this sentence for this word
-      await fetch(`${API}/flashcard-skip`, {
+      await fetch(`${API_BASE_URL}/flashcard-skip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
