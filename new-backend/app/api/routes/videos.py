@@ -12,6 +12,7 @@ from app.services.video_store import (
     get_ukrainian_filtered_videos, get_unchecked_ukrainian_videos,
     update_ukrainian_status, get_total_watch_time, update_video_title,
     add_user_watch, get_user_videos, get_user_filtered_videos, get_user_unchecked_videos,
+    delete_user_video,
 )
 from app.services.subtitle_service import check_korean_available, check_ukrainian_available
 
@@ -127,3 +128,19 @@ async def get_watch_time_stats(lang: str = "ko"):
     """Get total watch time statistics for videos in the target language."""
     stats = get_total_watch_time(lang)
     return stats
+
+
+@router.delete("/{video_id}")
+async def delete_video(
+    video_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Remove a video from the current user's watch history.
+    Note: Flashcards are shared across videos and are not deleted.
+    """
+    deleted = delete_user_video(db, current_user.id, video_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Video not found in your history")
+    return {"status": "ok", "video_id": video_id}
