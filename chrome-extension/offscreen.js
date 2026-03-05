@@ -2,11 +2,17 @@
  * Deadbird — Offscreen Audio Recorder
  * Records audio from a tab using MediaRecorder API.
  * This runs in an offscreen document context (Manifest V3).
+ *
+ * Audio Loopback: The captured audio is played back through the speakers
+ * so the user can hear Netflix while we record. This prevents the muting
+ * issue that occurs with tab capture.
  */
 
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingStream = null;
+let audioContext = null;
+let sourceNode = null;
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'OFFSCREEN_START_RECORDING') {
@@ -44,6 +50,18 @@ async function startRecording(streamId, duration) {
   recordingStream = stream;
   audioChunks = [];
 
+  // Set up audio loopback so user can still hear the audio while we record
+  // This prevents the muting issue that occurs with tab capture
+  try {
+    audioContext = new AudioContext();
+    sourceNode = audioContext.createMediaStreamSource(stream);
+    sourceNode.connect(audioContext.destination);
+    console.log('[Deadbird Offscreen] Audio loopback enabled - user will hear audio');
+  } catch (loopbackErr) {
+    console.warn('[Deadbird Offscreen] Audio loopback failed (audio may be muted):', loopbackErr);
+    // Continue without loopback - recording will still work
+  }
+
   // Determine supported MIME type
   const mimeTypes = [
     'audio/webm;codecs=opus',
@@ -72,6 +90,16 @@ async function startRecording(streamId, duration) {
 
     mediaRecorder.onstop = async () => {
       console.log('[Deadbird Offscreen] Recording stopped, chunks:', audioChunks.length);
+
+      // Clean up audio loopback
+      if (sourceNode) {
+        sourceNode.disconnect();
+        sourceNode = null;
+      }
+      if (audioContext) {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
 
       // Stop all tracks
       if (recordingStream) {
@@ -122,6 +150,16 @@ async function stopRecording() {
   return new Promise((resolve) => {
     const originalOnStop = mediaRecorder.onstop;
     mediaRecorder.onstop = async (event) => {
+      // Clean up audio loopback
+      if (sourceNode) {
+        sourceNode.disconnect();
+        sourceNode = null;
+      }
+      if (audioContext) {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
+
       if (recordingStream) {
         recordingStream.getTracks().forEach(track => track.stop());
         recordingStream = null;
