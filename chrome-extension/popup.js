@@ -238,10 +238,6 @@ function tmplList() {
     const platformBadge = isNetflix
       ? '<span class="platform-badge netflix">N</span>'
       : '<span class="platform-badge youtube">▶</span>';
-    const displayId = isNetflix
-      ? v.video_id.replace('netflix_', '')
-      : v.video_id;
-
     return `
       <div class="video-card">
         ${isNetflix
@@ -254,7 +250,6 @@ function tmplList() {
         }
         <div class="video-meta">
           <div class="video-title-text">${esc(v.title)}</div>
-          <div class="video-id-text">${displayId}</div>
         </div>
         <button class="words-btn"
           data-action="get-words"
