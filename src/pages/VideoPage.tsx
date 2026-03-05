@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Tv,
   Film,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
@@ -78,6 +80,8 @@ export function VideoPage() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ video: TrackedVideo } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter videos by platform
   const filteredVideos = useMemo(() => {
@@ -116,6 +120,24 @@ export function VideoPage() {
     setIsRefreshing(true);
     await fetchVideos();
     setIsRefreshing(false);
+  }
+
+  async function handleDeleteVideo(videoId: string) {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/videos/${encodeURIComponent(videoId)}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        setVideos(prev => prev.filter(v => v.video_id !== videoId));
+      }
+    } catch (error) {
+      console.error('Failed to delete video:', error);
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirm(null);
+    }
   }
 
   return (
@@ -386,14 +408,24 @@ export function VideoPage() {
                             </p>
                           )}
                         </div>
-                        <a
-                          href={videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5"
-                          onClick={e => e.stopPropagation()}>
-                          <ExternalLink className="w-4 h-4 text-muted" />
-                        </a>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm({ video });
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
+                            title="Remove from history">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}>
+                            <ExternalLink className="w-4 h-4 text-muted hover:text-accent transition-colors" />
+                          </a>
+                        </div>
                       </div>
 
                       <p className="text-xs text-muted font-mono mb-3">
@@ -422,6 +454,70 @@ export function VideoPage() {
                 );
               })
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => !isDeleting && setDeleteConfirm(null)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={isDeleting}
+                  className="p-1.5 rounded-lg hover:bg-white/5 text-muted hover:text-primary transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <h3 className="text-lg font-bold text-primary mb-2">
+                Remove from History?
+              </h3>
+              <p className="text-secondary text-sm mb-1">
+                <span className="font-medium text-primary">{deleteConfirm.video.title}</span>
+              </p>
+              <p className="text-muted text-sm mb-6">
+                This will remove the video from your watch history. Flashcards you've created are shared across videos and won't be deleted.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-primary hover:bg-white/10 transition-colors font-medium text-sm">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteVideo(deleteConfirm.video.video_id)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2">
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Remove
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

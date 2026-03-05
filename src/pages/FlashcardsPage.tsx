@@ -17,6 +17,8 @@ import {
   ExternalLink,
   Volume2,
   VolumeX,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
@@ -171,6 +173,16 @@ function formatNextReview(date: Date): string {
   return `${diffDays}d`;
 }
 
+// Get responsive font size based on word/definition length
+function getWordFontSize(text: string): string {
+  const len = text.length;
+  if (len > 20) return 'text-xl md:text-2xl';
+  if (len > 15) return 'text-2xl md:text-3xl';
+  if (len > 12) return 'text-3xl md:text-4xl';
+  if (len > 8) return 'text-4xl md:text-5xl';
+  return 'text-5xl md:text-6xl';
+}
+
 export function FlashcardsPage() {
   const { language, languageName } = useLanguage();
   const { token } = useAuth();
@@ -186,6 +198,8 @@ export function FlashcardsPage() {
   const [loadingMsg, setLoadingMsg] = useState('Loading watch history...');
   const [lastRatingInfo, setLastRatingInfo] = useState<{ word: string; nextDue: string } | null>(null);
   const [sessionStats, setSessionStats] = useState({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
+  const [isEditingDefinition, setIsEditingDefinition] = useState(false);
+  const [editedDefinition, setEditedDefinition] = useState('');
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -533,6 +547,88 @@ export function FlashcardsPage() {
     }
   }
 
+  // Handle permanently deleting a flashcard
+  async function handleDeleteCard() {
+    if (!currentCard) return;
+
+    const word = currentCard.dictionary_form || currentCard.target_word;
+
+    try {
+      // Call API to delete the card from FSRS progress
+      const res = await fetch(`${API}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (res.ok) {
+        // Remove this card from all local state
+        const newDueCards = dueCards.filter((_, i) => i !== currentIndex);
+        const newCards = cards.filter(c => (c.dictionary_form || c.target_word) !== word);
+        setCards(newCards);
+        setDueCards(newDueCards);
+
+        // Adjust index if needed
+        if (currentIndex >= newDueCards.length && newDueCards.length > 0) {
+          setCurrentIndex(newDueCards.length - 1);
+        } else if (newDueCards.length === 0) {
+          setLoadState('session-complete');
+        }
+
+        setIsFlipped(false);
+      }
+    } catch (error) {
+      console.error('Failed to delete card:', error);
+    }
+  }
+
+  // Start editing definition
+  function handleStartEditDefinition() {
+    if (!currentCard) return;
+    setEditedDefinition(currentCard.english || '');
+    setIsEditingDefinition(true);
+  }
+
+  // Save edited definition
+  async function handleSaveDefinition() {
+    if (!currentCard || !editedDefinition.trim()) {
+      setIsEditingDefinition(false);
+      return;
+    }
+
+    const word = currentCard.dictionary_form || currentCard.target_word;
+
+    try {
+      const res = await fetch(`${API}/flashcard-definition`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          word,
+          definition: editedDefinition.trim(),
+          language,
+        }),
+      });
+
+      if (res.ok) {
+        // Update the card in local state
+        const updateCardDefinition = (card: FlashCard) => {
+          if ((card.dictionary_form || card.target_word) === word) {
+            return { ...card, english: editedDefinition.trim() };
+          }
+          return card;
+        };
+        setCards(prev => prev.map(updateCardDefinition));
+        setDueCards(prev => prev.map(updateCardDefinition));
+      }
+    } catch (error) {
+      console.error('Failed to save definition:', error);
+    } finally {
+      setIsEditingDefinition(false);
+    }
+  }
+
   // Get stats for current card
   const currentStats = currentCard ? getCardStats(currentCard.target_word) : null;
 
@@ -762,14 +858,23 @@ export function FlashcardsPage() {
               className="w-full h-full"
             />
           )}
-          {/* Regenerate button */}
-          <button
-            onClick={handleSkipCard}
-            className="absolute top-2 right-2 p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white/70 hover:text-white transition-colors group"
-            title="Get a different clip for this word"
-          >
-            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
-          </button>
+          {/* Action buttons */}
+          <div className="absolute top-2 right-2 flex items-center gap-1.5">
+            <button
+              onClick={handleSkipCard}
+              className="p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white/70 hover:text-white transition-colors group"
+              title="Get a different clip for this word"
+            >
+              <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+            </button>
+            <button
+              onClick={handleDeleteCard}
+              className="p-2 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/70 hover:text-white transition-colors"
+              title="Delete this card permanently"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Sentence context strip */}
@@ -837,7 +942,7 @@ export function FlashcardsPage() {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-5xl md:text-6xl font-heading font-bold text-primary text-center mb-3 tracking-tight">
+                  <h2 className={`${getWordFontSize(currentCard?.target_word || '')} font-heading font-bold text-primary text-center mb-3 tracking-tight`}>
                     {currentCard?.target_word}
                   </h2>
                   {currentCard?.dictionary_form && currentCard.dictionary_form !== currentCard.target_word && (
@@ -852,14 +957,58 @@ export function FlashcardsPage() {
                 <div
                   className="absolute inset-0 bg-surface-hover border border-accent/20 border-t-0 rounded-b-2xl shadow-2xl flex flex-col items-center justify-center p-8"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                  <span className="text-xs font-bold tracking-widest text-secondary uppercase mb-5">
-                    English
-                  </span>
-                  <h2 className="text-4xl font-heading font-bold text-primary text-center mb-4">
-                    {currentCard?.english && currentCard.english !== 'definition not available'
-                      ? currentCard.english
-                      : '-'}
-                  </h2>
+                  <div className="flex items-center gap-2 mb-5">
+                    <span className="text-xs font-bold tracking-widest text-secondary uppercase">
+                      English
+                    </span>
+                    {!isEditingDefinition && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditDefinition();
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-muted hover:text-accent transition-colors"
+                        title="Edit definition"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {isEditingDefinition ? (
+                    <div className="w-full max-w-xs" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={editedDefinition}
+                        onChange={(e) => setEditedDefinition(e.target.value)}
+                        className="w-full bg-surface border border-white/20 rounded-lg px-4 py-3 text-primary text-center text-lg focus:outline-none focus:ring-2 focus:ring-accent/50"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveDefinition();
+                          if (e.key === 'Escape') setIsEditingDefinition(false);
+                        }}
+                      />
+                      <div className="flex gap-2 mt-3 justify-center">
+                        <button
+                          onClick={() => setIsEditingDefinition(false)}
+                          className="px-4 py-1.5 rounded-lg bg-white/5 border border-white/10 text-secondary text-sm font-medium hover:bg-white/10 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveDefinition}
+                          className="px-4 py-1.5 rounded-lg bg-accent text-app text-sm font-medium hover:bg-accent/90 transition-colors"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <h2 className={`${getWordFontSize(currentCard?.english || '-')} font-heading font-bold text-primary text-center mb-4`}>
+                      {currentCard?.english && currentCard.english !== 'definition not available'
+                        ? currentCard.english
+                        : '-'}
+                    </h2>
+                  )}
                   <div className="w-full border-t border-white/5 pt-4 mt-1 text-center">
                     <p className="text-sm text-muted italic">
                       {currentCard?.target_word}
