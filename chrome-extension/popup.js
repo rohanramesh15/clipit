@@ -11,6 +11,8 @@ let state = {
   isNetflixTab: false,
   audioEnabled: false,
   lang: 'ko',        // 'ko' | 'uk'
+  deleteConfirm: null, // { video_id, title } | null
+  isDeleting: false,
 };
 
 // ─── Boot ─────────────────────────────────────────────
@@ -111,6 +113,46 @@ async function handleAction(e) {
     chrome.storage.local.set({ language: state.lang }); // fire and forget
     render();
     fetchVideos();
+  }
+  if (action === 'show-delete-confirm') {
+    const { id, title } = el.dataset;
+    state.deleteConfirm = { video_id: id, title };
+    render();
+  }
+  if (action === 'cancel-delete') {
+    state.deleteConfirm = null;
+    render();
+  }
+  if (action === 'confirm-delete') {
+    await deleteVideo();
+  }
+}
+
+async function deleteVideo() {
+  if (!state.deleteConfirm || state.isDeleting) return;
+
+  state.isDeleting = true;
+  render();
+
+  try {
+    const { deadbird_token: token } = await chrome.storage.local.get('deadbird_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch(`${API}/videos/${encodeURIComponent(state.deleteConfirm.video_id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (res.ok) {
+      state.videos = state.videos.filter(v => v.video_id !== state.deleteConfirm.video_id);
+      if (state.videos.length === 0) {
+        state.view = 'empty';
+      }
+    }
+  } catch (error) {
+    console.error('Failed to delete video:', error);
+  } finally {
+    state.deleteConfirm = null;
+    state.isDeleting = false;
+    render();
   }
 }
 
@@ -262,9 +304,41 @@ function tmplList() {
           data-title="${esc(v.title)}">
           Words →
         </button>
+        <button class="delete-btn"
+          data-action="show-delete-confirm"
+          data-id="${v.video_id}"
+          data-title="${esc(v.title)}"
+          title="Remove from history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+          </svg>
+        </button>
       </div>
     `;
   }).join('');
+
+  const deleteDialog = state.deleteConfirm ? `
+    <div class="dialog-overlay" data-action="cancel-delete">
+      <div class="dialog" onclick="event.stopPropagation()">
+        <div class="dialog-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+          </svg>
+        </div>
+        <div class="dialog-title">Remove from History?</div>
+        <div class="dialog-text">
+          <span class="dialog-video-title">${esc(state.deleteConfirm.title)}</span><br><br>
+          This will remove the video from your watch history. Flashcards are shared across videos and won't be deleted.
+        </div>
+        <div class="dialog-actions">
+          <button class="dialog-btn cancel" data-action="cancel-delete" ${state.isDeleting ? 'disabled' : ''}>Cancel</button>
+          <button class="dialog-btn delete" data-action="confirm-delete" ${state.isDeleting ? 'disabled' : ''}>
+            ${state.isDeleting ? 'Removing...' : 'Remove'}
+          </button>
+        </div>
+      </div>
+    </div>
+  ` : '';
 
   return `
     ${header({ dot: 'green', right: `<span class="count-badge">${videos.length} tracked</span>` })}
@@ -272,6 +346,7 @@ function tmplList() {
       <div class="video-list">${cards}</div>
     </div>
     ${footer()}
+    ${deleteDialog}
   `;
 }
 

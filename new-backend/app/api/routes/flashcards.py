@@ -1,14 +1,66 @@
 import json
+import re
 from pathlib import Path
 from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
 from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.services.vocab_service import load_frequency_map
-from app.services.deepl_service import translate
+from app.services.deepl_service import translate, translate_word_in_context
 from app.api.routes.vocabulary import get_frequency_map
 
 router = APIRouter()
+
+# Patterns for sentences that should be skipped (music placeholders, etc.)
+SKIP_SENTENCE_PATTERNS = [
+    re.compile(r'^\s*\[.*music.*\]\s*$', re.IGNORECASE),  # [music], [Music playing], etc.
+    re.compile(r'^\s*\[.*음악.*\]\s*$'),  # [음악] Korean for music
+    re.compile(r'^\s*♪.*♪\s*$'),  # ♪...♪ music notes
+    re.compile(r'^\s*\[singing\]\s*$', re.IGNORECASE),  # [singing]
+    re.compile(r'^\s*\[.*sings.*\]\s*$', re.IGNORECASE),  # [person sings]
+    re.compile(r'^\s*\[instrumental\]\s*$', re.IGNORECASE),  # [instrumental]
+    re.compile(r'^\s*\[.*музика.*\]\s*$', re.IGNORECASE),  # [музика] Ukrainian for music
+]
+
+
+def is_music_placeholder(sentence: str) -> bool:
+    """Check if a sentence is a music/singing placeholder that should be skipped."""
+    if not sentence:
+        return False
+    for pattern in SKIP_SENTENCE_PATTERNS:
+        if pattern.match(sentence):
+            return True
+    return False
+
+
+def definitions_are_similar(def1: str, def2: str, threshold: float = 0.8) -> bool:
+    """
+    Check if two definitions are similar enough to be considered duplicates.
+    Uses simple word overlap comparison.
+    """
+    if not def1 or not def2:
+        return False
+
+    # Normalize
+    words1 = set(def1.lower().split())
+    words2 = set(def2.lower().split())
+
+    if not words1 or not words2:
+        return def1.lower() == def2.lower()
+
+    # Calculate Jaccard similarity
+    intersection = len(words1 & words2)
+    union = len(words1 | words2)
+    similarity = intersection / union if union > 0 else 0
+
+    return similarity >= threshold
+
+
+def get_definition_hash(definition: str) -> str:
+    """Create a short hash of a definition for deduplication."""
+    import hashlib
+    normalized = definition.lower().strip()[:50]
+    return hashlib.md5(normalized.encode()).hexdigest()[:8]
 
 # Definitions loaded once at first request
 _DEFINITIONS: dict | None = None
@@ -114,6 +166,8 @@ def find_sentence_for_word(word: str, subtitles: list, skipped_sentences: Set[st
             continue
         if korean in skipped_sentences:
             continue
+        if is_music_placeholder(korean):
+            continue
 
         idx = korean.find(word)
         while idx != -1:
@@ -139,6 +193,8 @@ def find_sentence_for_word(word: str, subtitles: list, skipped_sentences: Set[st
             if not korean or stem not in korean:
                 continue
             if korean in skipped_sentences:
+                continue
+            if is_music_placeholder(korean):
                 continue
 
             idx = korean.find(stem)
@@ -168,7 +224,7 @@ def find_sentence_for_word(word: str, subtitles: list, skipped_sentences: Set[st
     # Third pass: fall back to any substring match
     for sub in subtitles:
         korean = sub.get('korean', '')
-        if korean and word in korean and korean not in skipped_sentences:
+        if korean and word in korean and korean not in skipped_sentences and not is_music_placeholder(korean):
             start = sub.get('start', 0)
             end = sub.get('end', start + 5)
             return {
@@ -195,6 +251,8 @@ def find_sentence_for_word_ukrainian(word: str, subtitles: list, skipped_sentenc
             continue
         if ukrainian in skipped_sentences:
             continue
+        if is_music_placeholder(ukrainian):
+            continue
 
         idx = ukrainian.find(word)
         while idx != -1:
@@ -217,7 +275,7 @@ def find_sentence_for_word_ukrainian(word: str, subtitles: list, skipped_sentenc
     # Fallback: any substring match
     for sub in subtitles:
         ukrainian = sub.get('ukrainian', '')
-        if ukrainian and word in ukrainian and ukrainian not in skipped_sentences:
+        if ukrainian and word in ukrainian and ukrainian not in skipped_sentences and not is_music_placeholder(ukrainian):
             start = sub.get('start', 0)
             end = sub.get('end', start + 5)
             return {
@@ -259,6 +317,7 @@ async def get_flashcard_data(request: dict = Body(...)):
     subtitles = subtitle_data['subtitles']
     frequency_map = get_frequency_map(language)
     definitions = load_definitions()
+    user_definitions = load_user_definitions()
 
     deepl_source_lang = 'UK' if language == 'uk' else 'KO'
 
@@ -287,11 +346,22 @@ async def get_flashcard_data(request: dict = Body(...)):
             dictionary_form = possible_forms[-1] if possible_forms else word
             rank = 10001
 
-        # definitions.json first, DeepL as fallback
-        definition = definitions.get(dictionary_form) or definitions.get(word)
+        # User definitions first, then definitions.json, then context-aware DeepL as fallback
+        user_key = f"{language}:{dictionary_form}"
+        user_key_alt = f"{language}:{word}"
+        definition = (
+            user_definitions.get(user_key)
+            or user_definitions.get(user_key_alt)
+            or definitions.get(dictionary_form)
+            or definitions.get(word)
+        )
         if not definition:
+            # Use context-aware translation for better accuracy with polysemous words
+            context = sentence_data.get('sentence', '')
             definition = (
-                translate(dictionary_form, source_lang=deepl_source_lang)
+                translate_word_in_context(dictionary_form, context, source_lang=deepl_source_lang)
+                or translate_word_in_context(word, context, source_lang=deepl_source_lang)
+                or translate(dictionary_form, source_lang=deepl_source_lang)
                 or translate(word, source_lang=deepl_source_lang)
                 or "definition not available"
             )
@@ -304,6 +374,7 @@ async def get_flashcard_data(request: dict = Body(...)):
             'target_word': word,
             'dictionary_form': dictionary_form,
             'english': definition,
+            'definition_hash': get_definition_hash(definition),
             'sentence': sentence_data['sentence'],
             'sentence_translation': sentence_translation,
             'timestamp': sentence_data['timestamp'],
@@ -342,3 +413,52 @@ async def skip_flashcard_sentence(request: dict = Body(...)):
         save_skipped_sentences(skipped)
 
     return {"status": "ok", "word": word, "skipped_count": len(skipped[word])}
+
+
+# User definition overrides storage
+_USER_DEFINITIONS: dict | None = None
+
+
+def load_user_definitions() -> dict:
+    """Load user definition overrides. Format: {word: definition}"""
+    global _USER_DEFINITIONS
+    if _USER_DEFINITIONS is None:
+        user_defs_file = _DATA_DIR / 'user_definitions.json'
+        if user_defs_file.exists():
+            with open(user_defs_file, 'r', encoding='utf-8') as f:
+                _USER_DEFINITIONS = json.load(f)
+        else:
+            _USER_DEFINITIONS = {}
+    return _USER_DEFINITIONS
+
+
+def save_user_definitions(data: dict) -> None:
+    """Save user definition overrides."""
+    global _USER_DEFINITIONS
+    _USER_DEFINITIONS = data
+    user_defs_file = _DATA_DIR / 'user_definitions.json'
+    user_defs_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(user_defs_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+@router.put("/flashcard-definition")
+async def update_flashcard_definition(request: dict = Body(...)):
+    """
+    Update the English definition for a word.
+    Body: { word, definition, language }
+    """
+    word = request.get('word')
+    definition = request.get('definition')
+    language = request.get('language', 'ko')
+
+    if not word or not definition:
+        raise HTTPException(status_code=400, detail="word and definition are required")
+
+    # Store with language prefix to support multiple languages
+    key = f"{language}:{word}"
+    user_defs = load_user_definitions()
+    user_defs[key] = definition
+    save_user_definitions(user_defs)
+
+    return {"status": "ok", "word": word, "definition": definition, "language": language}

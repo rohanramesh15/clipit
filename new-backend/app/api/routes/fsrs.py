@@ -215,3 +215,37 @@ def get_reviews(
             for r in rows
         ],
     }
+
+
+@router.delete("/cards/{word}")
+def delete_card(
+    word: str,
+    language: str = "ko",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a flashcard from the user's progress. Also removes review history."""
+    # Delete the card progress
+    deleted = (
+        db.query(UserFlashcardProgress)
+        .filter(
+            UserFlashcardProgress.user_id == current_user.id,
+            UserFlashcardProgress.word == word,
+            UserFlashcardProgress.language == language,
+        )
+        .delete()
+    )
+
+    # Also delete review history for this word
+    db.query(UserReviewHistory).filter(
+        UserReviewHistory.user_id == current_user.id,
+        UserReviewHistory.word == word,
+        UserReviewHistory.language == language,
+    ).delete()
+
+    db.commit()
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    return {"status": "ok", "word": word, "language": language}

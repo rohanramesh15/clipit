@@ -32,31 +32,54 @@ def get_part_of_speech(korean: str, english: str) -> str:
 
 
 @router.get("/dictionary")
-async def get_dictionary(search: Optional[str] = Query(None), pos: Optional[str] = Query(None)):
+async def get_dictionary(
+    search: Optional[str] = Query(None),
+    pos: Optional[str] = Query(None),
+    lang: str = Query('ko')
+):
     """
     Get all dictionary entries with optional search and part of speech filter.
-    Search matches Korean words or English definitions.
+    Search matches words or English definitions.
     pos can be: noun, verb, adjective, adverb
+    lang can be: 'ko' (Korean) or 'uk' (Ukrainian)
     """
-    definitions = load_definitions()
-    frequency_map = get_frequency_map()
+    frequency_map = get_frequency_map(lang)
+    deepl_source_lang = 'UK' if lang == 'uk' else 'KO'
 
-    entries = []
-    for korean, english in definitions.items():
-        rank = frequency_map.get(korean, 10001)
-        part_of_speech = get_part_of_speech(korean, english)
-        entries.append({
-            'korean': korean,
-            'english': english,
-            'rank': rank,
-            'pos': part_of_speech,
-        })
+    # For Korean, use the local definitions.json
+    # For Ukrainian, generate definitions from frequency list using DeepL
+    if lang == 'ko':
+        definitions = load_definitions()
+        entries = []
+        for word, english in definitions.items():
+            rank = frequency_map.get(word, 10001)
+            part_of_speech = get_part_of_speech(word, english)
+            entries.append({
+                'word': word,
+                'english': english,
+                'rank': rank,
+                'pos': part_of_speech,
+                'language': lang,
+            })
+    else:
+        # For Ukrainian, use the frequency list and translate top words
+        entries = []
+        sorted_words = sorted(frequency_map.items(), key=lambda x: x[1])[:500]  # Top 500 words
+        for word, rank in sorted_words:
+            english = translate(word, source_lang=deepl_source_lang) or "definition not available"
+            entries.append({
+                'word': word,
+                'english': english,
+                'rank': rank,
+                'pos': 'noun',  # Default for Ukrainian (no morphology analysis yet)
+                'language': lang,
+            })
 
     # Sort by frequency rank (most common first)
     entries.sort(key=lambda x: x['rank'])
 
-    # Filter by part of speech if provided
-    if pos:
+    # Filter by part of speech if provided (only effective for Korean)
+    if pos and lang == 'ko':
         entries = [e for e in entries if e['pos'] == pos.lower()]
 
     # Filter by search term if provided
@@ -64,12 +87,13 @@ async def get_dictionary(search: Optional[str] = Query(None), pos: Optional[str]
         search_lower = search.lower()
         entries = [
             e for e in entries
-            if search_lower in e['korean'].lower() or search_lower in e['english'].lower()
+            if search_lower in e['word'].lower() or search_lower in e['english'].lower()
         ]
 
     return {
         'total': len(entries),
-        'entries': entries
+        'entries': entries,
+        'language': lang
     }
 
 

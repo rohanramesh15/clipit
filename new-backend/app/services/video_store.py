@@ -329,3 +329,14 @@ def get_total_watch_time(lang: str = "ko") -> dict:
         }
     finally:
         db.close()
+
+
+def delete_user_video(db: Session, user_id: int, video_id: str) -> bool:
+    """Remove a video from a user's watch history. Returns True if deleted."""
+    deleted = (
+        db.query(UserVideoWatch)
+        .filter(UserVideoWatch.user_id == user_id, UserVideoWatch.video_id == video_id)
+        .delete()
+    )
+    db.commit()
+    return deleted > 0
