@@ -32,9 +32,23 @@ let audioActivatedTabs = new Set();
 // Track tabs with active persistent loopback
 let loopbackActiveTabs = new Set();
 
+// Restore audioActivatedTabs from session storage (survives service worker restarts)
+chrome.storage.session.get('audioActivatedTabs').then(result => {
+  if (result.audioActivatedTabs) {
+    audioActivatedTabs = new Set(result.audioActivatedTabs);
+    console.log('[Deadbird] Restored audioActivatedTabs:', [...audioActivatedTabs]);
+  }
+}).catch(() => {});
+
+// Helper to persist audioActivatedTabs
+function persistAudioTabs() {
+  chrome.storage.session.set({ audioActivatedTabs: [...audioActivatedTabs] }).catch(() => {});
+}
+
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   audioActivatedTabs.delete(tabId);
+  persistAudioTabs();
   // Stop loopback for this tab
   if (loopbackActiveTabs.has(tabId)) {
     loopbackActiveTabs.delete(tabId);
@@ -147,24 +161,48 @@ async function captureAudio(tabId, duration = 3000) {
     // Ensure offscreen document exists
     await ensureOffscreenDocument();
 
-    // If persistent loopback is active, use it (seamless, no glitch)
-    if (loopbackActiveTabs.has(tabId)) {
-      console.log('[Deadbird] 🎤 Using persistent loopback for seamless capture');
+    // Always try persistent loopback first (the offscreen document knows if it's active)
+    // This handles service worker restarts where loopbackActiveTabs gets cleared
+    console.log('[Deadbird] 🎤 Trying persistent loopback for seamless capture');
+    try {
       const response = await chrome.runtime.sendMessage({
         type: 'OFFSCREEN_RECORD_CLIP',
         duration: duration
       });
 
-      if (!response.success) {
-        throw new Error(response.error || 'Recording failed');
+      if (response.success) {
+        console.log('[Deadbird] 🎤 Audio captured (seamless), size:', response.audioData?.size);
+        // Re-add to loopbackActiveTabs in case service worker restarted
+        loopbackActiveTabs.add(tabId);
+        return response.audioData;
       }
 
-      console.log('[Deadbird] 🎤 Audio captured (seamless), size:', response.audioData?.size);
-      return response.audioData;
+      // If loopback not active, the error will be "Loopback not active"
+      console.log('[Deadbird] 🎤 Persistent loopback not ready:', response.error);
+    } catch (loopbackErr) {
+      console.log('[Deadbird] 🎤 Loopback attempt failed:', loopbackErr.message);
     }
 
-    // Fallback: Get new stream ID (may cause brief audio glitch)
-    console.log('[Deadbird] 🎤 Fallback: getting new stream ID');
+    // Fallback: Start fresh loopback (this will fail if stream already active)
+    // Try to start persistent loopback first
+    console.log('[Deadbird] 🎤 Attempting to start fresh loopback');
+    try {
+      await startPersistentLoopback(tabId);
+      // Now try recording again
+      const response = await chrome.runtime.sendMessage({
+        type: 'OFFSCREEN_RECORD_CLIP',
+        duration: duration
+      });
+      if (response.success) {
+        console.log('[Deadbird] 🎤 Audio captured after loopback restart, size:', response.audioData?.size);
+        return response.audioData;
+      }
+    } catch (restartErr) {
+      console.log('[Deadbird] 🎤 Could not restart loopback:', restartErr.message);
+    }
+
+    // Final fallback: Legacy mode (will likely fail if stream is active)
+    console.log('[Deadbird] 🎤 Final fallback: legacy recording');
     const streamId = await new Promise((resolve, reject) => {
       chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
         if (chrome.runtime.lastError) {
@@ -175,9 +213,6 @@ async function captureAudio(tabId, duration = 3000) {
       });
     });
 
-    console.log('[Deadbird] 🎤 Got stream ID:', streamId);
-
-    // Send to offscreen document for recording
     const response = await chrome.runtime.sendMessage({
       type: 'OFFSCREEN_START_RECORDING',
       streamId: streamId,
@@ -188,7 +223,7 @@ async function captureAudio(tabId, duration = 3000) {
       throw new Error(response.error || 'Recording failed');
     }
 
-    console.log('[Deadbird] 🎤 Audio captured, size:', response.audioData?.size);
+    console.log('[Deadbird] 🎤 Audio captured (legacy), size:', response.audioData?.size);
     return response.audioData;
   } catch (e) {
     console.error('[Deadbird] Audio capture failed:', e);
@@ -200,6 +235,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Enable audio capture for a tab (from popup)
   if (msg.type === 'ENABLE_AUDIO_CAPTURE') {
     audioActivatedTabs.add(msg.tabId);
+    persistAudioTabs();
     console.log('[Deadbird] Audio capture enabled for tab:', msg.tabId);
     chrome.action.setBadgeText({ text: '🎤', tabId: msg.tabId });
     chrome.action.setBadgeBackgroundColor({ color: '#22c55e', tabId: msg.tabId });
