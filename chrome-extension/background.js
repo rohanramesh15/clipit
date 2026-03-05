@@ -54,10 +54,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (lastTime && Date.now() - lastTime < 60000) return;
   recentlyTracked.set(videoId, Date.now());
 
-  // Title from tab may still be stale — use it now, update later via content script
-  const rawTitle = (tab.title || '').replace(/ - YouTube$/, '').trim();
-  const title = rawTitle || 'Unknown';
-  console.log(`[Deadbird] YouTube tab navigation: ${videoId} — "${title}"`);
+  // Don't use tab.title — it's often stale (shows previous video's title during navigation)
+  // Let the content script provide the real title via TRACK_VIDEO message
+  const title = 'Unknown';
+  console.log(`[Deadbird] YouTube tab navigation: ${videoId} — awaiting title from content script`);
   await trackAndPrefetch(videoId, title);
 });
 
