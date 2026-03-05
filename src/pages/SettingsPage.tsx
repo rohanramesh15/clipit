@@ -24,7 +24,7 @@ const DAILY_GOALS = [10, 15, 20, 30, 45, 60];
 type ExtStatus = 'checking' | 'active' | 'inactive';
 
 export function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [level, setLevel] = useState('B2');
   const [dailyGoal, setDailyGoal] = useState(20);
@@ -38,7 +38,9 @@ export function SettingsPage() {
 
   async function checkExtensionStatus() {
     try {
-      const res = await fetch(`${API_BASE_URL}/videos/history`);
+      const res = await fetch(`${API_BASE_URL}/videos/history`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setExtStatus('active');

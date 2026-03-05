@@ -12,6 +12,33 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../config';
+import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+
+function NetflixThumbnail({ videoId }: { videoId: string }) {
+  const [hasThumbnail, setHasThumbnail] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    fetch(`${API_BASE_URL}/netflix/thumbnail/${videoId}`, { method: 'HEAD' })
+      .then(res => setHasThumbnail(res.ok))
+      .catch(() => setHasThumbnail(false));
+  }, [videoId]);
+
+  if (hasThumbnail) {
+    return (
+      <img
+        src={`${API_BASE_URL}/netflix/thumbnail/${videoId}`}
+        alt=""
+        className="w-full h-full object-cover"
+      />
+    );
+  }
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-[#e50914]/10">
+      <span className="text-[#e50914] font-bold text-xl">N</span>
+    </div>
+  );
+}
 
 interface TrackedVideo {
   video_id: string;
@@ -61,7 +88,9 @@ export function VideoPage() {
 
   async function fetchVideos() {
     try {
-      const res = await fetch(`${API_BASE}/videos/history/filtered`);
+      const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
       const vids: TrackedVideo[] = data.videos || [];
@@ -74,7 +103,7 @@ export function VideoPage() {
 
   useEffect(() => {
     fetchVideos();
-  }, [language]);
+  }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleRefresh() {
     setIsRefreshing(true);
