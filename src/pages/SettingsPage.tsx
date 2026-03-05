@@ -16,8 +16,8 @@ import {
   RefreshCw,
   Puzzle,
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
-const API_BASE = 'http://localhost:8000/api';
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const DAILY_GOALS = [10, 15, 20, 30, 45, 60];
 
@@ -38,7 +38,7 @@ export function SettingsPage() {
 
   async function checkExtensionStatus() {
     try {
-      const res = await fetch(`${API_BASE}/videos/history`);
+      const res = await fetch(`${API_BASE_URL}/videos/history`);
       if (res.ok) {
         const data = await res.json();
         setExtStatus('active');

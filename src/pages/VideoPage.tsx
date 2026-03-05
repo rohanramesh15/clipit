@@ -11,41 +11,7 @@ import {
   Film,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLanguage } from '../context/LanguageContext';
-import { useAuth } from '../context/AuthContext';
-
-const API_BASE = 'http://localhost:8000/api';
-
-// Netflix thumbnail component with fallback
-function NetflixThumbnail({ videoId }: { videoId: string }) {
-  const [hasThumbnail, setHasThumbnail] = React.useState<boolean | null>(null);
-
-  React.useEffect(() => {
-    fetch(`${API_BASE}/netflix/thumbnail/${videoId}`, { method: 'HEAD' })
-      .then(res => setHasThumbnail(res.ok))
-      .catch(() => setHasThumbnail(false));
-  }, [videoId]);
-
-  if (hasThumbnail) {
-    return (
-      <img
-        src={`${API_BASE}/netflix/thumbnail/${videoId}`}
-        alt=""
-        className="w-full h-full object-cover"
-        onError={() => setHasThumbnail(false)}
-      />
-    );
-  }
-
-  // Fallback Netflix placeholder
-  return (
-    <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#2d1f3d] flex items-center justify-center">
-      <div className="w-12 h-12 rounded-xl bg-[#e50914] flex items-center justify-center">
-        <span className="text-white font-bold text-xl">N</span>
-      </div>
-    </div>
-  );
-}
+import { API_BASE_URL } from '../config';
 
 interface TrackedVideo {
   video_id: string;
@@ -95,9 +61,7 @@ export function VideoPage() {
 
   async function fetchVideos() {
     try {
-      const res = await fetch(`${API_BASE}/videos/history/filtered?lang=${language}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetch(`${API_BASE}/videos/history/filtered`);
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
       const vids: TrackedVideo[] = data.videos || [];
@@ -254,7 +218,7 @@ export function VideoPage() {
               <AlertCircle className="w-7 h-7 text-red-500" />
             </div>
             <p className="text-primary font-semibold">Backend not reachable</p>
-            <p className="text-secondary text-sm">Make sure the Deadbird server is running at localhost:8000</p>
+            <p className="text-secondary text-sm">Make sure the Deadbird server is running and accessible.</p>
             <button
               onClick={handleRefresh}
               className="mt-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
