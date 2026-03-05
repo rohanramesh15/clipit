@@ -29,9 +29,17 @@ let offscreenDocumentCreated = false;
 // Track tabs where audio capture is activated (user clicked extension icon)
 let audioActivatedTabs = new Set();
 
+// Track tabs with active persistent loopback
+let loopbackActiveTabs = new Set();
+
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   audioActivatedTabs.delete(tabId);
+  // Stop loopback for this tab
+  if (loopbackActiveTabs.has(tabId)) {
+    loopbackActiveTabs.delete(tabId);
+    chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP_LOOPBACK' }).catch(() => {});
+  }
 });
 
 // ─── YouTube auto-tracking via tab URL change ────────────────────────────────
@@ -87,6 +95,45 @@ async function ensureOffscreenDocument() {
   console.log('[Deadbird] Offscreen document created');
 }
 
+/**
+ * Start persistent audio loopback for a tab.
+ * This allows seamless audio capture without glitches.
+ */
+async function startPersistentLoopback(tabId) {
+  try {
+    await ensureOffscreenDocument();
+
+    // Get stream ID for the tab
+    const streamId = await new Promise((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(streamId);
+        }
+      });
+    });
+
+    console.log('[Deadbird] 🔊 Starting persistent loopback with stream ID:', streamId);
+
+    // Tell offscreen document to start persistent loopback
+    const response = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_START_LOOPBACK',
+      streamId: streamId,
+    });
+
+    if (response.success) {
+      loopbackActiveTabs.add(tabId);
+      console.log('[Deadbird] 🔊 Persistent loopback active for tab:', tabId);
+    } else {
+      throw new Error(response.error || 'Failed to start loopback');
+    }
+  } catch (e) {
+    console.error('[Deadbird] Failed to start persistent loopback:', e);
+    throw e;
+  }
+}
+
 async function captureAudio(tabId, duration = 3000) {
   console.log('[Deadbird] 🎤 Starting audio capture, tabId:', tabId, 'duration:', duration);
 
@@ -100,7 +147,24 @@ async function captureAudio(tabId, duration = 3000) {
     // Ensure offscreen document exists
     await ensureOffscreenDocument();
 
-    // Get stream ID for the tab
+    // If persistent loopback is active, use it (seamless, no glitch)
+    if (loopbackActiveTabs.has(tabId)) {
+      console.log('[Deadbird] 🎤 Using persistent loopback for seamless capture');
+      const response = await chrome.runtime.sendMessage({
+        type: 'OFFSCREEN_RECORD_CLIP',
+        duration: duration
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Recording failed');
+      }
+
+      console.log('[Deadbird] 🎤 Audio captured (seamless), size:', response.audioData?.size);
+      return response.audioData;
+    }
+
+    // Fallback: Get new stream ID (may cause brief audio glitch)
+    console.log('[Deadbird] 🎤 Fallback: getting new stream ID');
     const streamId = await new Promise((resolve, reject) => {
       chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
         if (chrome.runtime.lastError) {
@@ -139,8 +203,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     console.log('[Deadbird] Audio capture enabled for tab:', msg.tabId);
     chrome.action.setBadgeText({ text: '🎤', tabId: msg.tabId });
     chrome.action.setBadgeBackgroundColor({ color: '#22c55e', tabId: msg.tabId });
-    sendResponse({ success: true });
-    return;
+
+    // Start persistent loopback for seamless audio
+    startPersistentLoopback(msg.tabId)
+      .then(() => {
+        console.log('[Deadbird] Persistent loopback started for tab:', msg.tabId);
+        sendResponse({ success: true });
+      })
+      .catch(e => {
+        console.error('[Deadbird] Failed to start loopback:', e);
+        sendResponse({ success: true }); // Still mark as enabled, will use legacy mode
+      });
+    return true; // async response
   }
 
   // Check if audio is enabled for a tab
