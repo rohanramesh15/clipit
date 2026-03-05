@@ -122,10 +122,16 @@ export function VideoPage() {
     setIsRefreshing(false);
   }
 
-  async function handleDeleteVideo(videoId: string) {
+  async function handleDeleteVideo(videoId: string, deleteFlashcards: boolean = false) {
     setIsDeleting(true);
     try {
-      const res = await fetch(`${API_BASE}/videos/${encodeURIComponent(videoId)}`, {
+      const params = new URLSearchParams();
+      if (deleteFlashcards) {
+        params.set('delete_flashcards', 'true');
+        params.set('lang', language);
+      }
+      const url = `${API_BASE}/videos/${encodeURIComponent(videoId)}${params.toString() ? '?' + params.toString() : ''}`;
+      const res = await fetch(url, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -491,19 +497,29 @@ export function VideoPage() {
                 <span className="font-medium text-primary">{deleteConfirm.video.title}</span>
               </p>
               <p className="text-muted text-sm mb-6">
-                This will remove the video from your watch history. Flashcards you've created are shared across videos and won't be deleted.
+                Choose whether to also delete flashcards for words found in this video.
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => setDeleteConfirm(null)}
+                  onClick={() => handleDeleteVideo(deleteConfirm.video.video_id, false)}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-primary hover:bg-white/10 transition-colors font-medium text-sm">
-                  Cancel
+                  className="w-full px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-colors font-medium text-sm flex items-center justify-center gap-2">
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-orange-400/30 border-t-orange-400 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Remove Video Only
+                    </>
+                  )}
                 </button>
                 <button
-                  onClick={() => handleDeleteVideo(deleteConfirm.video.video_id)}
+                  onClick={() => handleDeleteVideo(deleteConfirm.video.video_id, true)}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2">
+                  className="w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2">
                   {isDeleting ? (
                     <>
                       <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -512,9 +528,15 @@ export function VideoPage() {
                   ) : (
                     <>
                       <Trash2 className="w-4 h-4" />
-                      Remove
+                      Remove Video & Flashcards
                     </>
                   )}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={isDeleting}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-primary hover:bg-white/10 transition-colors font-medium text-sm">
+                  Cancel
                 </button>
               </div>
             </motion.div>
