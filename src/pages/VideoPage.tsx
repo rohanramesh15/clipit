@@ -396,10 +396,6 @@ export function VideoPage() {
                         </a>
                       </div>
 
-                      <p className="text-xs text-muted font-mono mb-3">
-                        {isNetflix ? netflixId : video.video_id}
-                      </p>
-
                       <div className="flex flex-wrap items-center gap-3 mt-auto">
                         <div className="flex items-center gap-1.5 text-xs text-muted">
                           <Clock className="w-3.5 h-3.5" />
