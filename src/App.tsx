@@ -4,7 +4,6 @@ import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { DictionaryPage } from './pages/DictionaryPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
-import { ConversePage } from './pages/ConversePage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -15,7 +14,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 type Page =
 'video' |
-'converse' |
 'flashcards' |
 'dictionary' |
 'analytics' |
@@ -49,8 +47,6 @@ function AppInner() {
     switch (activePage) {
       case 'video':
         return <VideoPage />;
-      case 'converse':
-        return <ConversePage />;
       case 'flashcards':
         return <FlashcardsPage />;
       case 'dictionary':

@@ -243,7 +243,9 @@ export function FlashcardsPage() {
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
-        } catch (e) {}
+        } catch (e) {
+          // Ignore destruction errors
+        }
         playerRef.current = null;
       }
       return;

@@ -54,7 +54,9 @@ interface TrackedVideo {
 }
 
 type LoadState = 'loading' | 'loaded' | 'error' | 'empty';
-type PlatformFilter = 'all' | 'youtube' | 'netflix';
+type PlatformFilter = 'all' | 'youtube'
+
+| 'netflix';
 
 function formatTrackedAt(ts: number): string {
   const now = Date.now() / 1000;
