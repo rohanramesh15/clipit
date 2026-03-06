@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Search, Volume2, Loader2, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
+import { useLanguage } from '../context/LanguageContext';
 
 const API = 'http://localhost:8000/api';
 
 interface DictionaryEntry {
-  korean: string;
+  word: string;
   english: string;
   rank: number;
   pos: 'noun' | 'verb' | 'adjective' | 'adverb';
+  language: string;
 }
 
 const POS_LABELS: Record<string, string> = {
@@ -27,28 +29,30 @@ function getMasteryPercent(word: string): number {
   return Math.min(100, Math.round((stats.stability / 90) * 100));
 }
 
-// Play Korean pronunciation using Web Speech API
-function playAudio(word: string) {
+// Play pronunciation using Web Speech API
+function playAudio(word: string, lang: string) {
   // Cancel any ongoing speech
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = 'ko-KR';
+  utterance.lang = lang === 'uk' ? 'uk-UA' : 'ko-KR';
   utterance.rate = 0.9;
 
-  // Try to find a Korean voice (preferably Google)
+  // Try to find a voice for the language (preferably Google)
   const voices = window.speechSynthesis.getVoices();
-  const koreanVoice = voices.find(v => v.lang.startsWith('ko') && v.name.includes('Google'))
-    || voices.find(v => v.lang.startsWith('ko'));
+  const langPrefix = lang === 'uk' ? 'uk' : 'ko';
+  const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
+    || voices.find(v => v.lang.startsWith(langPrefix));
 
-  if (koreanVoice) {
-    utterance.voice = koreanVoice;
+  if (targetVoice) {
+    utterance.voice = targetVoice;
   }
 
   window.speechSynthesis.speak(utterance);
 }
 
 export function DictionaryPage() {
+  const { language, languageName } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +71,7 @@ export function DictionaryPage() {
     async function fetchDictionary() {
       try {
         setLoading(true);
-        const res = await fetch(`${API}/dictionary`);
+        const res = await fetch(`${API}/dictionary?lang=${language}`);
         if (!res.ok) throw new Error('Failed to fetch dictionary');
         const data = await res.json();
         setEntries(data.entries);
@@ -80,7 +84,7 @@ export function DictionaryPage() {
       }
     }
     fetchDictionary();
-  }, []);
+  }, [language]);
 
   // Filter entries by search term and part of speech
   const filteredEntries = entries.filter((entry) => {
@@ -91,7 +95,7 @@ export function DictionaryPage() {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
-      entry.korean.toLowerCase().includes(term) ||
+      entry.word.toLowerCase().includes(term) ||
       entry.english.toLowerCase().includes(term)
     );
   });
@@ -119,7 +123,7 @@ export function DictionaryPage() {
       <div className="sticky top-0 bg-app/95 backdrop-blur-md z-10 pb-6 border-b border-white/5 mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <h1 className="text-3xl font-heading font-bold text-primary">
-            Dictionary
+            {languageName} Dictionary
           </h1>
           <div className="flex items-center gap-2">
             <span className="text-sm text-secondary">
@@ -133,30 +137,32 @@ export function DictionaryPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
             <input
               type="text"
-              placeholder="Search Korean or English..."
+              placeholder={`Search ${languageName} or English...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-surface border border-white/10 rounded-xl pl-12 pr-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-            <Filter className="w-5 h-5 text-secondary shrink-0" />
-            {['noun', 'verb', 'adjective', 'adverb'].map((pos) => (
-              <button
-                key={pos}
-                onClick={() => setPosFilter(posFilter === pos ? null : pos)}
-                className={`
-                  px-3 py-1.5 rounded-lg text-sm font-medium border transition-all shrink-0
-                  ${posFilter === pos
-                    ? 'bg-accent text-app border-accent'
-                    : 'bg-surface border-white/10 text-secondary hover:border-white/30'}
-                `}
-              >
-                {POS_LABELS[pos]}
-              </button>
-            ))}
-          </div>
+          {language === 'ko' && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+              <Filter className="w-5 h-5 text-secondary shrink-0" />
+              {['noun', 'verb', 'adjective', 'adverb'].map((pos) => (
+                <button
+                  key={pos}
+                  onClick={() => setPosFilter(posFilter === pos ? null : pos)}
+                  className={`
+                    px-3 py-1.5 rounded-lg text-sm font-medium border transition-all shrink-0
+                    ${posFilter === pos
+                      ? 'bg-accent text-app border-accent'
+                      : 'bg-surface border-white/10 text-secondary hover:border-white/30'}
+                  `}
+                >
+                  {POS_LABELS[pos]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -164,7 +170,7 @@ export function DictionaryPage() {
       <div className="space-y-3">
         {filteredEntries.map((entry, index) => (
           <motion.div
-            key={entry.korean}
+            key={entry.word}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(index * 0.02, 0.5) }}
@@ -173,7 +179,7 @@ export function DictionaryPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-4">
                 <button
-                  onClick={() => playAudio(entry.korean)}
+                  onClick={() => playAudio(entry.word, language)}
                   className="mt-1 w-8 h-8 rounded-full bg-white/5 hover:bg-accent hover:text-app flex items-center justify-center transition-colors text-secondary"
                 >
                   <Volume2 className="w-4 h-4" />
@@ -181,7 +187,7 @@ export function DictionaryPage() {
 
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
-                    {entry.korean}
+                    {entry.word}
                   </h3>
                   <p className="text-secondary mt-1">{entry.english}</p>
                 </div>
@@ -190,12 +196,12 @@ export function DictionaryPage() {
               {/* Mastery progress bar */}
               <div className="hidden md:block text-right min-w-[100px]">
                 <div className="text-xs text-muted mb-1">
-                  {getMasteryPercent(entry.korean) === 0 ? 'New' : `${getMasteryPercent(entry.korean)}%`}
+                  {getMasteryPercent(entry.word) === 0 ? 'New' : `${getMasteryPercent(entry.word)}%`}
                 </div>
                 <div className="w-24 h-1.5 bg-black/40 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-accent transition-all"
-                    style={{ width: `${getMasteryPercent(entry.korean)}%` }}
+                    style={{ width: `${getMasteryPercent(entry.word)}%` }}
                   />
                 </div>
               </div>
