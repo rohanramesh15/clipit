@@ -243,7 +243,9 @@ export function FlashcardsPage() {
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
-        } catch (e) {}
+        } catch (e) {
+          // Ignore destruction errors
+        }
         playerRef.current = null;
       }
       return;
@@ -382,14 +384,14 @@ export function FlashcardsPage() {
       return true;
     });
 
-    const words = uniqueCards.map(c => c.target_word);
+    const words = uniqueCards.map(c => c.dictionary_form || c.target_word);
     const sortedWords = sortByPriority(words);
     const dueWords = getDueCards(words);
 
     // Reorder cards by sorted priority
-    const cardMap = new Map(uniqueCards.map(c => [c.target_word, c]));
+    const cardMap = new Map(uniqueCards.map(c => [c.dictionary_form || c.target_word, c]));
     const sortedCards = sortedWords.map(w => cardMap.get(w)!).filter(Boolean);
-    const dueCardsFiltered = sortedCards.filter(c => dueWords.includes(c.target_word));
+    const dueCardsFiltered = sortedCards.filter(c => dueWords.includes(c.dictionary_form || c.target_word));
 
     setCards(sortedCards);
     setDueCards(dueCardsFiltered);
@@ -484,7 +486,7 @@ export function FlashcardsPage() {
 
     // Calculate clip duration (with 3 second buffer that's added during playback)
     const clipDuration = (currentCard.end_timestamp || currentCard.timestamp + 5) - currentCard.timestamp + 3;
-    const { nextDue } = rateCard(currentCard.target_word, rating, clipDuration);
+    const { nextDue } = rateCard(currentCard.dictionary_form || currentCard.target_word, rating, clipDuration);
     const nextDueStr = formatNextReview(nextDue);
 
     // Update session stats
@@ -498,7 +500,7 @@ export function FlashcardsPage() {
       [ratingKey]: prev[ratingKey] + 1,
     }));
 
-    setLastRatingInfo({ word: currentCard.target_word, nextDue: nextDueStr });
+    setLastRatingInfo({ word: currentCard.dictionary_form || currentCard.target_word, nextDue: nextDueStr });
     setIsFlipped(false);
 
     setTimeout(() => {
@@ -552,7 +554,7 @@ export function FlashcardsPage() {
 
     try {
       // Call API to delete the card from FSRS progress
-      const res = await fetch(`${API}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
+      const res = await fetch(`${API_BASE_URL}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -595,7 +597,7 @@ export function FlashcardsPage() {
     const word = currentCard.dictionary_form || currentCard.target_word;
 
     try {
-      const res = await fetch(`${API}/flashcard-definition`, {
+      const res = await fetch(`${API_BASE_URL}/flashcard-definition`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -627,10 +629,10 @@ export function FlashcardsPage() {
   }
 
   // Get stats for current card
-  const currentStats = currentCard ? getCardStats(currentCard.target_word) : null;
+  const currentStats = currentCard ? getCardStats(currentCard.dictionary_form || currentCard.target_word) : null;
 
   // Get preview times for rating buttons
-  const previewTimes = currentCard ? previewNextReviews(currentCard.target_word) : null;
+  const previewTimes = currentCard ? previewNextReviews(currentCard.dictionary_form || currentCard.target_word) : null;
 
   // ── Loading ──────────────────────────────────────────────────
   if (loadState === 'loading') {

@@ -18,7 +18,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 type Page =
 'video' |
-'converse' |
 'flashcards' |
 'dictionary' |
 'analytics' |

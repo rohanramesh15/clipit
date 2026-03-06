@@ -100,11 +100,9 @@ export function getDueCards(words: string[]): string[] {
     return cardData.card.due <= now;
   });
 }
-
 // Sort words by priority: due cards first, then by due date
 export function sortByPriority(words: string[]): string[] {
   const allCards = loadCardData();
-  const now = new Date();
 
   return [...words].sort((a, b) => {
     const cardA = allCards[a];
