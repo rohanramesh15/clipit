@@ -237,10 +237,18 @@ export function getAnalyticsSummary(): {
   });
 
   // Calculate streak (consecutive days with reviews)
+  // If no reviews today, start from yesterday to keep streak alive (user can still review today)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+
   let streak = 0;
   let checkDate = new Date(today);
+
+  // If no reviews today, check if there were reviews yesterday to keep streak alive
+  if (!reviewsByDate[todayStr]) {
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
 
   while (true) {
     const dateStr = checkDate.toISOString().split('T')[0];
@@ -279,6 +287,38 @@ export function getActivityHeatmap(days: number): { date: string; intensity: num
     // Normalize to 0-4 intensity
     const intensity = dayData ? Math.min(4, Math.ceil((dayData.count / maxReviews) * 4)) : 0;
     result.push({ date: dateStr, intensity });
+  }
+
+  return result;
+}
+
+// Get activity data for current calendar year (Jan 1 to Dec 31)
+export function getActivityHeatmapCurrentYear(): { date: string; intensity: number; isFuture: boolean }[] {
+  const { reviewsByDate } = getAnalyticsSummary();
+  const result: { date: string; intensity: number; isFuture: boolean }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Start from January 1st of current year
+  const year = today.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const endOfYear = new Date(year, 11, 31);
+
+  // Find max reviews in a day for normalization
+  const maxReviews = Math.max(1, ...Object.values(reviewsByDate).map(d => d.count));
+
+  // Iterate from Jan 1 to Dec 31
+  const currentDate = new Date(startOfYear);
+  while (currentDate <= endOfYear) {
+    const dateStr = currentDate.toISOString().split('T')[0];
+    const dayData = reviewsByDate[dateStr];
+    const isFuture = currentDate > today;
+
+    // Normalize to 0-4 intensity (future days get 0)
+    const intensity = isFuture ? 0 : (dayData ? Math.min(4, Math.ceil((dayData.count / maxReviews) * 4)) : 0);
+    result.push({ date: dateStr, intensity, isFuture });
+
+    currentDate.setDate(currentDate.getDate() + 1);
   }
 
   return result;

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Love+Ya+Like+A+Sister&display=swap');
 
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -9,7 +9,7 @@
   --bg-app: #0a0a0f;
   --bg-surface: #14141f;
   --bg-surface-hover: #1c1c2a;
-  --accent: #e8a838;
+  --accent: #C4625A;
   --accent-hover: #d4952e;
   --text-primary: #f0f0f0;
   --text-secondary: #6b6b7b;
@@ -19,10 +19,10 @@
 }
 /* Light theme */
 .light {
-  --bg-app: #f4f4f6;
+  --bg-app: #F5F0E8;
   --bg-surface: #ffffff;
   --bg-surface-hover: #eeeef1;
-  --accent: #c8872a;
+  --accent: #C4625A;
   --accent-hover: #b5771f;
   --text-primary: #1a1a2e;
   --text-secondary: #64648a;

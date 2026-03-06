@@ -32,9 +32,9 @@ interface Slide {
 const slides: Slide[] = [
 {
   id: 0,
-  eyebrow: 'Welcome to Deadbird',
+  eyebrow: 'Welcome to lipIt',
   headline: "You're about to learn French the right way",
-  body: "Most language apps waste your time with gamified nonsense. Deadbird is built on decades of linguistics research — the same methods used by the world's fastest language learners.",
+  body: "Most language apps waste your time with gamified nonsense. lipIt is built on decades of linguistics research — the same methods used by the world's fastest language learners.",
   icon: Bird,
   iconBg: 'bg-accent/20',
   iconColor: 'text-accent'
@@ -97,7 +97,7 @@ const slides: Slide[] = [
   id: 5,
   eyebrow: 'All set!',
   headline: 'Your French journey starts now',
-  body: 'Deadbird will analyze your watch history, build flashcards from your content, and track your progress — all automatically.',
+  body: 'lipIt will analyze your watch history, build flashcards from your content, and track your progress — all automatically.',
   icon: CheckCircle2,
   iconBg: 'bg-accent/20',
   iconColor: 'text-accent',

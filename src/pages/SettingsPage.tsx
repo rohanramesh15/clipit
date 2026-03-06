@@ -210,7 +210,7 @@ export function SettingsPage() {
                   {extStatus === 'inactive' && (
                     <div className="mt-2 space-y-3">
                       <p className="text-xs text-secondary">
-                        Install the Deadbird Chrome extension to track your YouTube watch history automatically.
+                        Install the lipIt Chrome extension to track your YouTube watch history automatically.
                       </p>
                       <div className="bg-app/60 border border-white/5 rounded-xl p-4 space-y-2">
                         <div className="flex items-center gap-2 mb-3">
@@ -221,7 +221,7 @@ export function SettingsPage() {
                           'Open Chrome and go to chrome://extensions',
                           'Enable "Developer mode" (top-right toggle)',
                           'Click "Load unpacked"',
-                          'Select the project-deadbird-extension folder',
+                          'Select the lipIt extension folder',
                           'Visit any Korean video on YouTube',
                         ].map((step, i) => (
                           <div key={i} className="flex items-start gap-2.5">
