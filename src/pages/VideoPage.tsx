@@ -123,7 +123,7 @@ export function VideoPage() {
         params.set('delete_flashcards', 'true');
         params.set('lang', language);
       }
-      const url = `${API_BASE}/videos/${encodeURIComponent(videoId)}${params.toString() ? '?' + params.toString() : ''}`;
+      const url = `${API_BASE_URL}/videos/${encodeURIComponent(videoId)}${params.toString() ? '?' + params.toString() : ''}`;
       const res = await fetch(url, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
