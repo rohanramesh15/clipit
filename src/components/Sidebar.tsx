@@ -4,7 +4,6 @@ import {
   Layers,
   BookOpen,
   BarChart3,
-  MessageCircle,
   History,
   Sun,
   Moon,
@@ -74,11 +73,6 @@ export function Sidebar({
     id: 'video',
     icon: History,
     label: 'History'
-  },
-  {
-    id: 'converse',
-    icon: MessageCircle,
-    label: 'Converse'
   },
   {
     id: 'flashcards',

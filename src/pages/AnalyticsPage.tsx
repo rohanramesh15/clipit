@@ -1,27 +1,14 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Flame, Book, TrendingUp, RotateCw, Play } from 'lucide-react';
-import { getAnalyticsSummary, getActivityHeatmap, getActivityHeatmapCurrentYear } from '../services/fsrs';
+import { getAnalyticsSummary, getActivityHeatmapCurrentYear } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 
 const API = 'http://localhost:8000/api';
 
-type TimeRange = '7d' | '30d' | '1y';
-
-const TIME_RANGES: {
-  id: TimeRange;
-  label: string;
-  days: number;
-  description: string;
-}[] = [
-  { id: '7d', label: '7 Days', days: 7, description: 'Last 7 Days' },
-  { id: '30d', label: '30 Days', days: 30, description: 'Last 30 Days' },
-  { id: '1y', label: 'Year', days: 365, description: new Date().getFullYear().toString() },
-];
 
 export function AnalyticsPage() {
   const { language } = useLanguage();
-  const [activeRange, setActiveRange] = useState<TimeRange>('30d');
   const [analytics, setAnalytics] = useState({
     wordsLearned: 0,
     totalReviews: 0,
@@ -90,16 +77,10 @@ export function AnalyticsPage() {
     },
   ];
 
-  const currentRange = TIME_RANGES.find((r) => r.id === activeRange)!;
-
-  // Get real heatmap data from review history
+  // Get real heatmap data from review history - current calendar year
   const heatmapData = useMemo(() => {
-    // Use current calendar year for year view, otherwise use last N days
-    if (activeRange === '1y') {
-      return getActivityHeatmapCurrentYear();
-    }
-    return getActivityHeatmap(currentRange.days);
-  }, [activeRange, currentRange.days]);
+    return getActivityHeatmapCurrentYear();
+  }, []);
 
   const getIntensityColor = (level: number) => {
     switch (level) {
@@ -118,8 +99,7 @@ export function AnalyticsPage() {
     }
   };
 
-  // For 1y, use a horizontal GitHub-style layout (7 rows x N columns)
-  const isCompactView = activeRange === '1y';
+  // GitHub-style layout (7 rows x N columns)
   const weeksCount = Math.ceil(heatmapData.length / 7);
 
   return (
@@ -161,129 +141,69 @@ export function AnalyticsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="bg-surface border border-white/5 rounded-2xl p-6"
+          className="bg-surface border border-white/5 rounded-2xl p-6 h-[280px] flex flex-col"
         >
-            {/* Header with Toggle */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-accent" />
-                <h3 className="font-bold text-primary">Activity Log</h3>
-              </div>
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-5">
+              <TrendingUp className="w-5 h-5 text-accent" />
+              <h3 className="font-bold text-primary">Activity Log</h3>
+            </div>
 
-              {/* Time Range Toggle */}
-              <div className="flex items-center bg-app/50 rounded-lg p-1 border border-white/5">
-                {TIME_RANGES.map((range) => (
-                  <button
-                    key={range.id}
-                    onClick={() => setActiveRange(range.id)}
-                    className={`
-                      relative px-3 py-1.5 rounded-md text-xs font-medium transition-colors
-                      ${activeRange === range.id ? 'text-primary' : 'text-muted hover:text-secondary'}
-                    `}
+            {/* Heatmap Grid - GitHub-style: 7 rows (days) x N columns (weeks) */}
+            <div className="flex-1 flex gap-[2px]">
+              {/* Day labels */}
+              <div className="flex flex-col gap-[2px] shrink-0 pr-1 justify-between py-[2px]">
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                  <div
+                    key={i}
+                    className="text-[8px] text-muted font-medium flex items-center"
                   >
-                    {activeRange === range.id && (
-                      <motion.div
-                        layoutId="heatmap-range"
-                        className="absolute inset-0 bg-white/10 rounded-md"
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
-                      />
-                    )}
-                    <span className="relative z-10">{range.label}</span>
-                  </button>
+                    {i % 2 === 0 ? day : ''}
+                  </div>
+                ))}
+              </div>
+              {/* Weeks as columns - flex to fill space */}
+              <div className="flex-1 flex gap-[2px]">
+                {Array.from({ length: weeksCount }).map((_, weekIdx) => (
+                  <div key={weekIdx} className="flex-1 flex flex-col gap-[2px]">
+                    {Array.from({ length: 7 }).map((_, dayIdx) => {
+                      const dataIdx = weekIdx * 7 + dayIdx;
+                      if (dataIdx >= heatmapData.length) {
+                        return <div key={dayIdx} className="flex-1 min-h-0" />;
+                      }
+                      const dayData = heatmapData[dataIdx];
+                      return (
+                        <motion.div
+                          key={dayIdx}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: Math.min(weekIdx * 0.005, 0.3) }}
+                          className={`flex-1 min-h-0 rounded-sm ${getIntensityColor(dayData.intensity)} hover:ring-1 ring-accent/50 transition-all cursor-pointer`}
+                          title={`${dayData.date}: ${dayData.intensity > 0 ? 'Active' : 'No activity'}`}
+                        />
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
             </div>
 
-            {/* Heatmap Grid */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeRange}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {isCompactView ? (
-                  /* GitHub-style: 7 rows (days) x N columns (weeks) - fits without scrolling */
-                  <div className="flex gap-[2px]">
-                    {/* Day labels */}
-                    <div className="flex flex-col gap-[2px] shrink-0 pr-1">
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                        <div
-                          key={i}
-                          className="text-[8px] text-muted font-medium w-[14px] h-[14px] flex items-center"
-                        >
-                          {i % 2 === 0 ? day : ''}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Weeks as columns */}
-                    {Array.from({ length: weeksCount }).map((_, weekIdx) => (
-                      <div key={weekIdx} className="flex flex-col gap-[2px]">
-                        {Array.from({ length: 7 }).map((_, dayIdx) => {
-                          const dataIdx = weekIdx * 7 + dayIdx;
-                          if (dataIdx >= heatmapData.length) {
-                            return <div key={dayIdx} className="w-[14px] h-[14px]" />;
-                          }
-                          const dayData = heatmapData[dataIdx];
-                          return (
-                            <motion.div
-                              key={dayIdx}
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ delay: Math.min(weekIdx * 0.005, 0.3) }}
-                              className={`w-[14px] h-[14px] rounded-sm ${getIntensityColor(dayData.intensity)} hover:ring-1 ring-accent/50 transition-all cursor-pointer`}
-                              title={`${dayData.date}: ${dayData.intensity > 0 ? 'Active' : 'No activity'}`}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* Standard grid: 7 columns with smaller blocks */
-                  <div className="flex justify-center">
-                    <div className="grid grid-cols-7 gap-2">
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                        <div
-                          key={i}
-                          className="text-center text-xs text-muted font-medium mb-1 w-10 h-5"
-                        >
-                          {day}
-                        </div>
-                      ))}
-                      {heatmapData.map((day, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: Math.min(0.1 + i * 0.02, 0.8) }}
-                          className={`w-10 h-10 rounded-md ${getIntensityColor(day.intensity)} hover:ring-2 ring-accent/50 transition-all cursor-pointer`}
-                          title={`${day.date}: ${day.intensity > 0 ? 'Active' : 'No activity'}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Legend */}
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-[10px] text-muted">
-                    {currentRange.description}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-muted mr-1">Less</span>
-                    {[0, 1, 2, 3, 4].map((level) => (
-                      <div
-                        key={level}
-                        className={`w-3 h-3 rounded-sm ${getIntensityColor(level)}`}
-                      />
-                    ))}
-                    <span className="text-[10px] text-muted ml-1">More</span>
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
+            {/* Legend */}
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-[10px] text-muted">
+                {new Date().getFullYear()}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted mr-1">Less</span>
+                {[0, 1, 2, 3, 4].map((level) => (
+                  <div
+                    key={level}
+                    className={`w-3 h-3 rounded-sm ${getIntensityColor(level)}`}
+                  />
+                ))}
+                <span className="text-[10px] text-muted ml-1">More</span>
+              </div>
+            </div>
         </motion.div>
       </div>
     </div>
