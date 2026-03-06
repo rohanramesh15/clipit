@@ -554,7 +554,7 @@ export function FlashcardsPage() {
 
     try {
       // Call API to delete the card from FSRS progress
-      const res = await fetch(`${API}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
+      const res = await fetch(`${API_BASE_URL}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -597,7 +597,7 @@ export function FlashcardsPage() {
     const word = currentCard.dictionary_form || currentCard.target_word;
 
     try {
-      const res = await fetch(`${API}/flashcard-definition`, {
+      const res = await fetch(`${API_BASE_URL}/flashcard-definition`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
