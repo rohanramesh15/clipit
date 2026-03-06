@@ -36,8 +36,8 @@ function NetflixThumbnail({ videoId }: { videoId: string }) {
     );
   }
   return (
-    <div className="w-full h-full flex items-center justify-center bg-[#e50914]/10">
-      <span className="text-[#e50914] font-bold text-xl">N</span>
+    <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
+      <span className="text-[#B20710] font-bold text-xl">N</span>
     </div>
   );
 }
@@ -150,7 +150,7 @@ export function VideoPage() {
             Watch History
           </h1>
           <p className="text-secondary max-w-2xl">
-            {languageName} videos tracked by the Deadbird extension — vocabulary extracted automatically.
+            {languageName} videos tracked by extension.
           </p>
         </div>
         <button
@@ -181,26 +181,26 @@ export function VideoPage() {
           onClick={() => setPlatformFilter('youtube')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             platformFilter === 'youtube'
-              ? 'bg-red-600 text-white'
+              ? 'bg-accent text-app'
               : 'bg-surface border border-white/5 text-secondary hover:text-primary hover:border-white/10'
           }`}>
           <Youtube className="w-4 h-4" />
           YouTube
           <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-            platformFilter === 'youtube' ? 'bg-white/20' : 'bg-white/5'
+            platformFilter === 'youtube' ? 'bg-app/20' : 'bg-white/5'
           }`}>{counts.youtube}</span>
         </button>
         <button
           onClick={() => setPlatformFilter('netflix')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             platformFilter === 'netflix'
-              ? 'bg-[#e50914] text-white'
+              ? 'bg-accent text-app'
               : 'bg-surface border border-white/5 text-secondary hover:text-primary hover:border-white/10'
           }`}>
           <Film className="w-4 h-4" />
           Netflix
           <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-            platformFilter === 'netflix' ? 'bg-white/20' : 'bg-white/5'
+            platformFilter === 'netflix' ? 'bg-app/20' : 'bg-white/5'
           }`}>{counts.netflix}</span>
         </button>
       </div>
@@ -222,31 +222,27 @@ export function VideoPage() {
         </div>
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
-            <BookOpen className="w-5 h-5" />
+            <Clock className="w-5 h-5" />
           </div>
           <div>
             <div className="text-2xl font-bold text-primary">
-              {loadState === 'loading' ? '—' : filteredVideos.filter(v =>
-              (language === 'uk' ? v.has_ukrainian : v.has_korean) === 1
-            ).length}
+              {loadState === 'loading' ? '—' : '0'}
             </div>
             <div className="text-xs text-secondary uppercase tracking-wider">
-              With {languageName} Subs
+              Hours Watched
             </div>
           </div>
         </div>
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            platformFilter === 'netflix' ? 'bg-[#e50914]/10 text-[#e50914]' : 'bg-red-500/10 text-red-500'
-          }`}>
-            {platformFilter === 'netflix' ? <Film className="w-5 h-5" /> : <Youtube className="w-5 h-5" />}
+          <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
+            <BookOpen className="w-5 h-5" />
           </div>
           <div>
             <div className="text-2xl font-bold text-primary">
-              {platformFilter === 'all' ? 'All' : platformFilter === 'netflix' ? 'Netflix' : 'YouTube'}
+              {loadState === 'loading' ? '—' : '0'}
             </div>
             <div className="text-xs text-secondary uppercase tracking-wider">
-              Platform
+              Words Extracted
             </div>
           </div>
         </div>
@@ -277,7 +273,7 @@ export function VideoPage() {
               <AlertCircle className="w-7 h-7 text-red-500" />
             </div>
             <p className="text-primary font-semibold">Backend not reachable</p>
-            <p className="text-secondary text-sm">Make sure the Deadbird server is running and accessible.</p>
+            <p className="text-secondary text-sm">Make sure the lipIt server is running and accessible.</p>
             <button
               onClick={handleRefresh}
               className="mt-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
@@ -298,7 +294,7 @@ export function VideoPage() {
             </div>
             <p className="text-primary font-semibold">No videos tracked yet</p>
             <p className="text-secondary text-sm text-center max-w-sm">
-              Watch any {languageName} video on YouTube or Netflix — the Deadbird extension will track it automatically.
+              Watch any {languageName} video on YouTube or Netflix — the lipIt extension will track it automatically.
             </p>
           </motion.div>
         )}
@@ -355,7 +351,7 @@ export function VideoPage() {
                       )}
                       {/* Platform badge */}
                       <div className={`absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1 ${
-                        isNetflix ? 'bg-[#e50914]' : 'bg-red-600'
+                        isNetflix ? 'bg-[#B20710]' : 'bg-[#FF0000]'
                       }`}>
                         {isNetflix ? (
                           <>

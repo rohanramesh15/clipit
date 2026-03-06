@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
   Layers,
   BookOpen,
   BarChart3,
-  Bird,
   History,
   Sun,
-  Moon } from
+  Moon,
+  ChevronDown,
+  PanelLeft,
+  Check,
+  Globe } from
 'lucide-react';
-import { motion } from 'framer-motion';
+import clipitLogo from '../assets/clipitlogo.png';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 type Page =
@@ -34,6 +38,35 @@ export function Sidebar({
   const { language, setLanguage } = useLanguage();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collapsed');
+    return saved === 'true';
+  });
+  const languageRef = useRef<HTMLDivElement>(null);
+
+  const toggleCollapsed = () => {
+    const newValue = !isCollapsed;
+    setIsCollapsed(newValue);
+    localStorage.setItem('sidebar_collapsed', String(newValue));
+  };
+
+  const languages = [
+    { code: 'ko', flag: '🇰🇷', name: 'Korean' },
+    { code: 'uk', flag: '🇺🇦', name: 'Ukrainian' },
+  ];
+
+  const currentLang = languages.find(l => l.code === language) || languages[0];
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
+        setIsLanguageOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const navItems = [
   {
     id: 'video',
@@ -57,21 +90,42 @@ export function Sidebar({
   }] as
   const;
   return (
-    <nav className="fixed left-0 top-0 h-full w-20 md:w-64 bg-surface border-r border-white/5 flex flex-col z-50 transition-all duration-300">
+    <motion.nav
+      className={`fixed left-0 top-0 h-full bg-surface border-r border-white/5 flex flex-col z-50`}
+      animate={{ width: isCollapsed ? 80 : 256 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
       {/* Logo Area */}
-      <div className="h-20 flex items-center px-6 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
-            <Bird className="w-5 h-5 text-app" />
-          </div>
-          <span className="font-heading font-bold text-xl tracking-tight hidden md:block text-primary">
-            Dead<span className="text-accent">bird</span>
-          </span>
-        </div>
+      <div className={`h-24 flex flex-col items-center justify-center border-b border-white/5 relative`}>
+        <AnimatePresence mode="wait">
+          {!isCollapsed && (
+            <motion.div
+              key="logo"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center justify-center absolute inset-0 pr-4">
+              <img src={clipitLogo} alt="lipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
+              <span className="text-5xl tracking-tight hidden md:block" style={{
+                fontFamily: "'Love Ya Like A Sister', cursive",
+                WebkitTextStroke: '2px #9E3B3B',
+                paintOrder: 'stroke fill'
+              }}>
+                <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <button
+          onClick={toggleCollapsed}
+          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-md hover:bg-white/5 text-secondary hover:text-primary transition-colors z-10"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <PanelLeft className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-1 py-8 flex flex-col gap-2 px-3">
+      <div className={`flex-1 py-8 flex flex-col gap-2 ${isCollapsed ? 'px-2 items-center' : 'px-3'}`}>
         {navItems.map((item) => {
           const isActive = activePage === item.id;
           const Icon = item.icon;
@@ -81,6 +135,7 @@ export function Sidebar({
               onClick={() => onNavigate(item.id as Page)}
               className={`
                 group relative flex items-center gap-4 px-3 py-3 rounded-lg transition-all duration-200
+                ${isCollapsed ? 'justify-center w-12' : ''}
                 ${isActive ? 'bg-white/5 text-accent' : 'text-secondary hover:text-primary hover:bg-white/5'}
               `}>
 
@@ -103,47 +158,84 @@ export function Sidebar({
               <Icon
                 className={`w-6 h-6 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
 
-
-              <span
-                className={`font-medium hidden md:block ${isActive ? 'text-primary' : ''}`}>
-
-                {item.label}
-              </span>
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className={`font-medium hidden md:block whitespace-nowrap ${isActive ? 'text-primary' : ''}`}>
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>);
 
         })}
       </div>
 
       {/* Theme Toggle + User Profile */}
-      <div className="p-4 border-t border-white/5 space-y-3">
-        {/* Language Toggle */}
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-white/3">
+      <div className={`p-4 border-t border-white/5 space-y-3 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
+        {/* Language Selector */}
+        <div className="relative" ref={languageRef}>
           <button
-            onClick={() => setLanguage('ko')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-bold transition-all ${
-              language === 'ko'
-                ? 'bg-accent text-app'
-                : 'text-secondary hover:text-primary hover:bg-white/5'
-            }`}>
-            <span>🇰🇷</span>
-            <span className="hidden md:inline">KO</span>
+            onClick={() => setIsLanguageOpen(!isLanguageOpen)}
+            className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
+            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 text-lg">
+              {currentLang.flag}
+            </div>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="hidden md:flex items-center flex-1">
+                  <span className="text-sm font-medium flex-1 text-left whitespace-nowrap">
+                    {currentLang.name}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
-          <button
-            onClick={() => setLanguage('uk')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-bold transition-all ${
-              language === 'uk'
-                ? 'bg-accent text-app'
-                : 'text-secondary hover:text-primary hover:bg-white/5'
-            }`}>
-            <span>🇺🇦</span>
-            <span className="hidden md:inline">UK</span>
-          </button>
+
+          {/* Popup */}
+          {isLanguageOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="absolute bottom-full left-0 right-0 mb-2 bg-surface border border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
+              <div className="p-2 space-y-1">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => {
+                      setLanguage(lang.code as 'ko' | 'uk');
+                      setIsLanguageOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      language === lang.code
+                        ? 'bg-accent/10 text-accent'
+                        : 'hover:bg-white/5 text-primary'
+                    }`}>
+                    <span className="text-lg">{lang.flag}</span>
+                    <span className="font-medium flex-1 text-left">{lang.name}</span>
+                    {language === lang.code && <Check className="w-4 h-4" />}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Theme Toggle */}
         <button
           onClick={onToggleTheme}
-          className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary">
+          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
 
           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 overflow-hidden">
             <motion.div
@@ -173,27 +265,45 @@ export function Sidebar({
               }
             </motion.div>
           </div>
-          <span className="text-sm font-medium hidden md:block">
-            {isDark ? 'Dark Mode' : 'Light Mode'}
-          </span>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                className="text-sm font-medium hidden md:block whitespace-nowrap">
+                {isDark ? 'Dark Mode' : 'Light Mode'}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
 
         {/* User Profile */}
         <button
           onClick={() => onNavigate('settings')}
-          className={`w-full flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${activePage === 'settings' ? 'bg-white/5' : 'hover:bg-white/5'}`}>
+          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isCollapsed ? 'justify-center' : 'w-full'} ${activePage === 'settings' ? 'bg-white/5' : 'hover:bg-white/5'}`}>
 
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-orange-500 flex items-center justify-center text-xs font-bold text-app shrink-0">
             {initials}
           </div>
-          <div className="hidden md:block overflow-hidden text-left">
-            <p className="text-sm font-medium text-primary truncate">
-              {user?.username ?? 'User'}
-            </p>
-            <p className="text-xs text-secondary truncate">{user?.email ?? ''}</p>
-          </div>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                className="hidden md:block overflow-hidden text-left">
+                <p className="text-sm font-medium text-primary truncate whitespace-nowrap">
+                  {user?.username ?? 'User'}
+                </p>
+                <p className="text-xs text-secondary truncate whitespace-nowrap">{user?.email ?? ''}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </button>
       </div>
-    </nav>);
+    </motion.nav>);
 
 }

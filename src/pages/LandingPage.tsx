@@ -224,7 +224,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               Ready to start your journey?
             </h2>
             <p className="text-xl text-secondary mb-10 max-w-2xl mx-auto">
-              Join thousands of students mastering French with Deadbird today.
+              Join thousands of students mastering French with lipIt today.
             </p>
             <button
               onClick={() => onNavigate('signup')}
@@ -244,7 +244,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
             <Bird className="w-5 h-5 text-accent" />
-            <span className="font-bold text-primary">Deadbird</span>
+            <span className="font-bold text-primary">lipIt</span>
           </div>
           <div className="flex gap-8 text-sm text-secondary">
             <a href="#" className="hover:text-primary transition-colors">
@@ -257,7 +257,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               Contact
             </a>
           </div>
-          <p className="text-sm text-muted">© 2024 Deadbird Inc.</p>
+          <p className="text-sm text-muted">© 2024 lipIt Inc.</p>
         </div>
       </footer>
     </div>);
