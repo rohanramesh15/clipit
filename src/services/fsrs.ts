@@ -100,11 +100,9 @@ export function getDueCards(words: string[]): string[] {
     return cardData.card.due <= now;
   });
 }
-
 // Sort words by priority: due cards first, then by due date
 export function sortByPriority(words: string[]): string[] {
   const allCards = loadCardData();
-  const now = new Date();
 
   return [...words].sort((a, b) => {
     const cardA = allCards[a];
@@ -240,16 +238,11 @@ export function getAnalyticsSummary(): {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   let streak = 0;
-  let checkDate = new Date(today);
+  const checkDate = new Date(today);
 
-  while (true) {
-    const dateStr = checkDate.toISOString().split('T')[0];
-    if (reviewsByDate[dateStr]) {
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      break;
-    }
+  while (reviewsByDate[checkDate.toISOString().split('T')[0]]) {
+    streak++;
+    checkDate.setDate(checkDate.getDate() - 1);
   }
 
   return {

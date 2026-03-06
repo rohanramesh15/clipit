@@ -109,10 +109,16 @@ export function DictionaryPage() {
     );
   }
 
-  if (error) {
+  if (error || entries.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-red-400">{error}</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+        <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center text-3xl">
+          {language === 'uk' ? '🇺🇦' : '🇰🇷'}
+        </div>
+        <p className="text-primary font-semibold">No words in your dictionary yet</p>
+        <p className="text-secondary text-sm text-center max-w-sm">
+          Watch a {languageName} video and start practicing to build your personal dictionary.
+        </p>
       </div>
     );
   }
