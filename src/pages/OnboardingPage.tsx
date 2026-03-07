@@ -119,15 +119,115 @@ declare global {
   }
 }
 
-// Sample Flashcard Component
+// Sample Flashcard Component (mimics practice page layout)
 function SampleFlashcard() {
   const [isFlipped, setIsFlipped] = useState(false);
+  const playerRef = useRef<YT.Player | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const loopIntervalRef = useRef<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const videoId = '-JRWVxMuiLo';
+  const startTime = 3256; // 54:16
+  const endTime = 3261; // ~5 seconds of clip
+
+  useEffect(() => {
+    const setupLooping = (player: YT.Player) => {
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current);
+      }
+      loopIntervalRef.current = window.setInterval(() => {
+        try {
+          const currentTime = player.getCurrentTime();
+          if (currentTime >= endTime) {
+            player.seekTo(startTime, true);
+          }
+        } catch (e) {
+          // Player not ready
+        }
+      }, 200);
+    };
+
+    const initPlayer = () => {
+      if (containerRef.current && window.YT && window.YT.Player) {
+        playerRef.current = new window.YT.Player(containerRef.current, {
+          videoId,
+          width: '100%',
+          height: '100%',
+          playerVars: {
+            start: startTime,
+            autoplay: 0,
+            controls: 0,
+            modestbranding: 1,
+            rel: 0,
+            showinfo: 0,
+            fs: 0,
+            disablekb: 1,
+            playsinline: 1,
+          },
+          events: {
+            onReady: () => {
+              if (playerRef.current) {
+                setupLooping(playerRef.current);
+              }
+            },
+            onStateChange: (event: YT.OnStateChangeEvent) => {
+              setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
+            },
+          },
+        });
+      }
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    }
+
+    return () => {
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current);
+      }
+      playerRef.current?.destroy();
+    };
+  }, []);
+
+  const handlePlayClick = () => {
+    if (playerRef.current) {
+      if (isPlaying) {
+        playerRef.current.pauseVideo();
+      } else {
+        playerRef.current.seekTo(startTime, true);
+        playerRef.current.playVideo();
+      }
+    }
+  };
 
   return (
-    <div className="w-full max-w-sm mx-auto mt-6 mb-4">
+    <div className="w-full max-w-sm mx-auto mt-6 mb-4 space-y-4">
+      {/* Video card */}
+      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black ring-1 ring-white/10">
+        <div ref={containerRef} className="absolute inset-0 [&>iframe]:w-full [&>iframe]:h-full" />
+        {!isPlaying && (
+          <button
+            onClick={handlePlayClick}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors z-10">
+            <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
+              <Play className="w-6 h-6 text-white ml-0.5" fill="white" />
+            </div>
+          </button>
+        )}
+        {/* Sentence context overlay */}
+        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2 text-center">
+          <p className="text-xs text-white font-medium">
+            맛있는 <span className="text-accent font-bold">피자</span> 게살 <span className="text-accent font-bold">피자</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Flashcard */}
       <div
         onClick={() => setIsFlipped(!isFlipped)}
-        className="relative h-48 cursor-pointer perspective-1000"
+        className="relative h-36 cursor-pointer"
         style={{ perspective: '1000px' }}
       >
         <motion.div
@@ -139,19 +239,19 @@ function SampleFlashcard() {
         >
           {/* Front */}
           <div
-            className="absolute inset-0 w-full h-full bg-surface border border-white/10 rounded-2xl flex flex-col items-center justify-center shadow-xl backface-hidden"
+            className="absolute inset-0 w-full h-full bg-surface border border-white/10 rounded-2xl flex flex-col items-center justify-center shadow-xl"
             style={{ backfaceVisibility: 'hidden' }}
           >
-            <p className="text-3xl font-bold text-primary mb-2">사랑</p>
-            <p className="text-sm text-muted">tap to flip</p>
+            <p className="text-3xl font-bold text-primary mb-1">피자</p>
+            <p className="text-xs text-muted">tap to flip</p>
           </div>
           {/* Back */}
           <div
-            className="absolute inset-0 w-full h-full bg-accent/10 border border-accent/20 rounded-2xl flex flex-col items-center justify-center shadow-xl"
+            className="absolute inset-0 w-full h-full bg-surface-hover border border-accent/20 rounded-2xl flex flex-col items-center justify-center shadow-xl"
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
-            <p className="text-2xl font-bold text-primary mb-1">love</p>
-            <p className="text-sm text-secondary">noun / verb</p>
+            <p className="text-xs text-muted uppercase tracking-wider mb-1">English</p>
+            <p className="text-2xl font-bold text-primary">pizza</p>
           </div>
         </motion.div>
       </div>
@@ -493,11 +593,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               className={`h-2 rounded-full transition-colors duration-300 ${i === quizStep ? 'bg-accent w-6' : i < quizStep ? 'bg-accent/40 w-2' : 'bg-white/10 w-2'}`} />
             )}
           </div>
-          <button
-            onClick={onComplete}
-            className="text-sm text-secondary hover:text-primary transition-colors font-medium">
-            Skip
-          </button>
         </div>
 
         {/* Quiz content */}
@@ -646,12 +741,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
           )}
         </div>
-        <button
-          onClick={onComplete}
-          className="text-sm text-secondary hover:text-primary transition-colors font-medium">
-
-          Skip intro
-        </button>
       </div>
 
       {/* Slide content */}
