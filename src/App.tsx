@@ -54,7 +54,7 @@ function AppInner() {
       case 'analytics':
         return <AnalyticsPage />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage onEditProfile={() => setAppView('onboarding')} />;
       default:
         return <VideoPage />;
     }

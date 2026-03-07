@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bird, ArrowLeft, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Loader2 } from 'lucide-react';
+import clipitLogo from '../assets/clipitlogo.png';
 import { useAuth } from '../context/AuthContext';
 interface SignupPageProps {
   onNavigate: (view: 'landing' | 'login' | 'onboarding') => void;
@@ -12,6 +13,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const isDark = localStorage.getItem('theme') !== 'light';
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -26,7 +28,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
     }
   };
   return (
-    <div className="min-h-screen bg-app flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className={`min-h-screen bg-app flex flex-col items-center justify-center p-6 relative overflow-hidden ${isDark ? '' : 'light'}`}>
       {/* Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-3xl" />
@@ -54,16 +56,14 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
         <div className="bg-surface border border-white/10 rounded-2xl p-8 md:p-10 shadow-2xl">
           <div className="flex justify-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
-              <Bird className="w-7 h-7 text-app" />
-            </div>
+            <img src={clipitLogo} alt="ClipIt" className="w-16 h-16 object-contain" />
           </div>
 
           <h1 className="text-2xl font-heading font-bold text-center text-primary mb-2">
             Create Account
           </h1>
           <p className="text-secondary text-center mb-8">
-            Start your fluency journey today
+            Start clipping today
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">

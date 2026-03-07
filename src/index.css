@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Love+Ya+Like+A+Sister&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Love+Ya+Like+A+Sister&display=swap');
 
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -10,7 +10,7 @@
   --bg-surface: #14141f;
   --bg-surface-hover: #1c1c2a;
   --accent: #C4625A;
-  --accent-hover: #d4952e;
+  --accent-hover: #A84F49;
   --text-primary: #f0f0f0;
   --text-secondary: #6b6b7b;
   --text-muted: #4a4a5a;
@@ -23,7 +23,7 @@
   --bg-surface: #ffffff;
   --bg-surface-hover: #eeeef1;
   --accent: #C4625A;
-  --accent-hover: #b5771f;
+  --accent-hover: #A84F49;
   --text-primary: #1a1a2e;
   --text-secondary: #64648a;
   --text-muted: #9494aa;
@@ -33,7 +33,7 @@
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
