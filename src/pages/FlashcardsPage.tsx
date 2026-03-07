@@ -182,6 +182,34 @@ function getWordFontSize(text: string): string {
   return 'text-5xl md:text-6xl';
 }
 
+// Deleted cards persistence
+const DELETED_CARDS_KEY = 'lipit_deleted_cards';
+
+function getDeletedCards(language: string): Set<string> {
+  try {
+    const stored = localStorage.getItem(DELETED_CARDS_KEY);
+    if (!stored) return new Set();
+    const parsed = JSON.parse(stored);
+    return new Set(parsed[language] || []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addDeletedCard(language: string, word: string) {
+  try {
+    const stored = localStorage.getItem(DELETED_CARDS_KEY);
+    const parsed = stored ? JSON.parse(stored) : {};
+    if (!parsed[language]) parsed[language] = [];
+    if (!parsed[language].includes(word)) {
+      parsed[language].push(word);
+    }
+    localStorage.setItem(DELETED_CARDS_KEY, JSON.stringify(parsed));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function FlashcardsPage() {
   const { language, languageName } = useLanguage();
   const { token } = useAuth();
@@ -199,6 +227,7 @@ export function FlashcardsPage() {
   const [sessionStats, setSessionStats] = useState({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
   const [isEditingDefinition, setIsEditingDefinition] = useState(false);
   const [editedDefinition, setEditedDefinition] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -366,6 +395,13 @@ export function FlashcardsPage() {
         // Only show Netflix cards that have screenshots
         cards = cardsWithScreenshots;
       }
+
+      // Filter out deleted cards
+      const deletedCards = getDeletedCards(language);
+      cards = cards.filter((card: FlashCard) => {
+        const word = card.dictionary_form || card.target_word;
+        return !deletedCards.has(word);
+      });
 
       return cards;
     } catch {
@@ -546,37 +582,45 @@ export function FlashcardsPage() {
     }
   }
 
-  // Handle permanently deleting a flashcard
-  async function handleDeleteCard() {
+  // Show delete confirmation modal
+  function handleDeleteCard() {
+    if (!currentCard) return;
+    setShowDeleteConfirm(true);
+  }
+
+  // Actually delete the card after confirmation
+  async function confirmDeleteCard() {
     if (!currentCard) return;
 
     const word = currentCard.dictionary_form || currentCard.target_word;
+    setShowDeleteConfirm(false);
 
+    // Persist deletion to localStorage
+    addDeletedCard(language, word);
+
+    // Remove this card from all local state immediately (optimistic update)
+    const newDueCards = dueCards.filter((_, i) => i !== currentIndex);
+    const newCards = cards.filter(c => (c.dictionary_form || c.target_word) !== word);
+    setCards(newCards);
+    setDueCards(newDueCards);
+
+    // Adjust index if needed
+    if (currentIndex >= newDueCards.length && newDueCards.length > 0) {
+      setCurrentIndex(newDueCards.length - 1);
+    } else if (newDueCards.length === 0) {
+      setLoadState('session-complete');
+    }
+
+    setIsFlipped(false);
+
+    // Try to delete from API in background
     try {
-      // Call API to delete the card from FSRS progress
-      const res = await fetch(`${API_BASE_URL}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
+      await fetch(`${API_BASE_URL}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-
-      if (res.ok) {
-        // Remove this card from all local state
-        const newDueCards = dueCards.filter((_, i) => i !== currentIndex);
-        const newCards = cards.filter(c => (c.dictionary_form || c.target_word) !== word);
-        setCards(newCards);
-        setDueCards(newDueCards);
-
-        // Adjust index if needed
-        if (currentIndex >= newDueCards.length && newDueCards.length > 0) {
-          setCurrentIndex(newDueCards.length - 1);
-        } else if (newDueCards.length === 0) {
-          setLoadState('session-complete');
-        }
-
-        setIsFlipped(false);
-      }
     } catch (error) {
-      console.error('Failed to delete card:', error);
+      console.error('Failed to delete card from server:', error);
     }
   }
 
@@ -842,9 +886,9 @@ export function FlashcardsPage() {
       </AnimatePresence>
 
       {/* Card area */}
-      <div className="w-full">
+      <div className="w-full space-y-4">
         {/* Video clip (YouTube) or Netflix placeholder */}
-        <div className="relative w-full aspect-video rounded-t-2xl overflow-hidden ring-1 ring-white/10 bg-black">
+        <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 bg-black">
           {currentCard && isNetflixVideo(currentCard.video_id) ? (
             // Netflix screenshot or placeholder with deep link button
             <NetflixVideoPlaceholder
@@ -874,34 +918,33 @@ export function FlashcardsPage() {
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
+          {/* Sentence context overlay */}
+          {currentCard && (
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2.5 text-center">
+              <p className="text-sm text-white font-medium leading-snug">
+                {currentCard.sentence ? (
+                  currentCard.sentence.split(new RegExp(`(${currentCard.target_word})`, 'g')).map((part, i) =>
+                    part === currentCard.target_word ? (
+                      <span key={i} className="text-accent font-bold">{part}</span>
+                    ) : (
+                      <span key={i}>{part}</span>
+                    )
+                  )
+                ) : (
+                  <span className="text-accent">{currentCard.target_word}</span>
+                )}
+              </p>
+              {isFlipped && currentCard.sentence_translation && currentCard.sentence_translation !== 'No translation available' && (
+                <p className="text-xs text-white/60 mt-0.5 leading-snug">
+                  {currentCard.sentence_translation}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Sentence context strip */}
-        {currentCard && (
-          <div className="w-full bg-surface-hover border-x border-white/8 px-4 py-2.5 text-center">
-            <p className="text-sm text-secondary font-medium leading-snug">
-              {currentCard.sentence ? (
-                currentCard.sentence.split(new RegExp(`(${currentCard.target_word})`, 'g')).map((part, i) =>
-                  part === currentCard.target_word ? (
-                    <span key={i} className="text-accent font-bold">{part}</span>
-                  ) : (
-                    <span key={i}>{part}</span>
-                  )
-                )
-              ) : (
-                <span className="text-accent">{currentCard.target_word}</span>
-              )}
-            </p>
-            {isFlipped && currentCard.sentence_translation && currentCard.sentence_translation !== 'No translation available' && (
-              <p className="text-xs text-muted mt-0.5 leading-snug">
-                {currentCard.sentence_translation}
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Flashcard */}
-        <div className="relative w-full aspect-[4/3] -mt-px" style={{ perspective: '1200px' }}>
+        <div className="relative w-full aspect-[4/3]" style={{ perspective: '1200px' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -921,7 +964,7 @@ export function FlashcardsPage() {
 
                 {/* Front - Korean word */}
                 <div
-                  className="absolute inset-0 bg-surface border border-white/10 border-t-0 rounded-b-2xl shadow-2xl flex flex-col items-center justify-center p-8"
+                  className="absolute inset-0 bg-surface border border-white/10 rounded-2xl shadow-2xl flex flex-col items-center justify-center p-8"
                   style={{ backfaceVisibility: 'hidden' }}>
                   <div className="flex items-center gap-2 mb-5">
                     {currentCard?.rank && (
@@ -954,7 +997,7 @@ export function FlashcardsPage() {
 
                 {/* Back - English definition */}
                 <div
-                  className="absolute inset-0 bg-surface-hover border border-accent/20 border-t-0 rounded-b-2xl shadow-2xl flex flex-col items-center justify-center p-8"
+                  className="absolute inset-0 bg-surface-hover border border-accent/20 rounded-2xl shadow-2xl flex flex-col items-center justify-center p-8"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
                   <div className="flex items-center gap-2 mb-5">
                     <span className="text-xs font-bold tracking-widest text-secondary uppercase">
@@ -1089,6 +1132,49 @@ export function FlashcardsPage() {
           <span className="text-xs font-medium text-secondary group-hover:text-green-400">Easy</span>
         </button>
       </motion.div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-primary text-center mb-2">Delete Card?</h3>
+              <p className="text-sm text-secondary text-center mb-6">
+                Are you sure you want to delete this card? This cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteCard}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
