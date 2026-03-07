@@ -19,6 +19,7 @@ export interface FSRSCardData {
   word: string;
   card: Card;
   lastReview?: ReviewLog;
+  videoId?: string; // YouTube/Netflix video ID for deck organization
 }
 
 // Load all card data from localStorage
@@ -62,7 +63,8 @@ export function getOrCreateCard(word: string): FSRSCardData {
 export function rateCard(
   word: string,
   rating: Rating,
-  clipDuration?: number
+  clipDuration?: number,
+  videoId?: string
 ): { cardData: FSRSCardData; nextDue: Date } {
   const cardData = getOrCreateCard(word);
   const now = new Date();
@@ -73,6 +75,8 @@ export function rateCard(
     word,
     card: result.card,
     lastReview: result.log,
+    // Keep existing videoId or use new one (first video wins)
+    videoId: cardData.videoId || videoId,
   };
 
   // Persist

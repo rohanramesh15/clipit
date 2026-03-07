@@ -261,7 +261,7 @@ export function Sidebar({
               {isDark ?
               <Moon className="w-4 h-4" /> :
 
-              <Sun className="w-4 h-4 text-amber-500" />
+              <Sun className="w-4 h-4" />
               }
             </motion.div>
           </div>
