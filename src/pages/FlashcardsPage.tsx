@@ -1086,50 +1086,42 @@ export function FlashcardsPage() {
 
         <button
           onClick={() => handleRating(Rating.Again)}
-          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-red-500/10 border border-transparent hover:border-red-500/40 group transition-all">
+          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
           {previewTimes && (
             <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.again)}</span>
           )}
-          <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-medium text-secondary group-hover:text-red-400">Again</span>
+          <X className="w-6 h-6 text-accent" />
+          <span className="text-sm font-medium text-secondary group-hover:text-accent">Again</span>
         </button>
 
         <button
           onClick={() => handleRating(Rating.Hard)}
-          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-orange-500/10 border border-transparent hover:border-orange-500/40 group transition-all">
+          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
           {previewTimes && (
             <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.hard)}</span>
           )}
-          <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
-            <ThumbsDown className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-medium text-secondary group-hover:text-orange-400">Hard</span>
+          <ThumbsDown className="w-6 h-6 text-accent" />
+          <span className="text-sm font-medium text-secondary group-hover:text-accent">Hard</span>
         </button>
 
         <button
           onClick={() => handleRating(Rating.Good)}
-          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
+          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
           {previewTimes && (
             <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.good)}</span>
           )}
-          <div className="w-10 h-10 rounded-full bg-accent/20 text-accent flex items-center justify-center group-hover:bg-accent group-hover:text-app transition-colors">
-            <ThumbsUp className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-medium text-secondary group-hover:text-accent">Good</span>
+          <ThumbsUp className="w-6 h-6 text-accent" />
+          <span className="text-sm font-medium text-secondary group-hover:text-accent">Good</span>
         </button>
 
         <button
           onClick={() => handleRating(Rating.Easy)}
-          className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface hover:bg-green-500/10 border border-transparent hover:border-green-500/40 group transition-all">
+          className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface hover:bg-accent/10 border border-transparent hover:border-accent/40 group transition-all">
           {previewTimes && (
             <span className="text-[10px] text-muted font-medium">{formatNextReview(previewTimes.easy)}</span>
           )}
-          <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
-            <Check className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-medium text-secondary group-hover:text-green-400">Easy</span>
+          <Check className="w-6 h-6 text-accent" />
+          <span className="text-sm font-medium text-secondary group-hover:text-accent">Easy</span>
         </button>
       </motion.div>
 
