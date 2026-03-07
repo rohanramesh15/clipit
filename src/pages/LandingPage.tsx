@@ -1,31 +1,47 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Bird,
   Play,
-  Mic,
-  MessageCircle,
+  Puzzle,
   ArrowRight,
-  CheckCircle2 } from
+  Layers,
+  Sun,
+  Moon } from
 'lucide-react';
+import clipitLogo from '../assets/clipitlogo.png';
 interface LandingPageProps {
   onNavigate: (view: 'login' | 'signup') => void;
 }
 export function LandingPage({ onNavigate }: LandingPageProps) {
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved !== 'light';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
   return (
-    <div className="min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app overflow-x-hidden">
+    <div className={`min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app overflow-x-hidden ${isDark ? '' : 'light'}`}>
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-app/80 backdrop-blur-md border-b border-white/5">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-app border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shrink-0 shadow-lg shadow-accent/20">
-              <Bird className="w-6 h-6 text-app" />
-            </div>
-            <span className="font-heading font-bold text-2xl tracking-tight text-primary">
-              Dead<span className="text-accent">bird</span>
+          <div className="flex items-center">
+            <img src={clipitLogo} alt="lipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
+            <span className="text-5xl tracking-tight" style={{
+              fontFamily: "'Love Ya Like A Sister', cursive",
+              WebkitTextStroke: '2px #9E3B3B',
+              paintOrder: 'stroke fill'
+            }}>
+              <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-secondary hover:text-primary transition-colors border border-white/5">
+              {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
             <button
               onClick={() => onNavigate('login')}
               className="text-sm font-medium text-secondary hover:text-primary transition-colors hidden sm:block">
@@ -44,7 +60,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{
               opacity: 0,
@@ -58,19 +74,14 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               duration: 0.6
             }}>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold uppercase tracking-wider mb-6">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              New: Character Chat
-            </div>
             <h1 className="text-5xl md:text-7xl font-heading font-bold leading-tight mb-6">
-              Master French through{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-orange-500">
-                Immersion
+              Clip it.<br />
+              <span className="text-accent">
+                Learn it.
               </span>
             </h1>
             <p className="text-lg md:text-xl text-secondary mb-8 max-w-xl leading-relaxed">
-              Stop memorizing boring lists. Learn naturally by watching videos,
-              shadowing native speakers, and chatting with AI characters.
+              Watch anything. Pick up everything.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button
@@ -85,75 +96,6 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 Watch Demo
               </button>
             </div>
-            <div className="mt-8 flex items-center gap-4 text-sm text-muted">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) =>
-                <div
-                  key={i}
-                  className={`w-8 h-8 rounded-full border-2 border-app bg-gray-${i * 100 + 400}`} />
-
-                )}
-              </div>
-              <p>Join 10,000+ learners today</p>
-            </div>
-          </motion.div>
-
-          {/* Hero Visual */}
-          <motion.div
-            initial={{
-              opacity: 0,
-              scale: 0.9
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1
-            }}
-            transition={{
-              duration: 0.8,
-              delay: 0.2
-            }}
-            className="relative">
-
-            <div className="absolute -inset-4 bg-gradient-to-r from-accent/20 to-purple-500/20 rounded-3xl blur-3xl opacity-30" />
-            <div className="relative bg-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden aspect-[4/3]">
-              {/* Mock UI */}
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black p-6 flex flex-col">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                  </div>
-                </div>
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full bg-accent/20 text-accent flex items-center justify-center mx-auto mb-6 animate-pulse">
-                      <Mic className="w-10 h-10" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      Speak with Confidence
-                    </h3>
-                    <p className="text-white/60">
-                      AI analyzes your pronunciation in real-time
-                    </p>
-                  </div>
-                </div>
-                {/* Waveform */}
-                <div className="h-16 flex items-end justify-center gap-1 opacity-50">
-                  {Array.from({
-                    length: 20
-                  }).map((_, i) =>
-                  <div
-                    key={i}
-                    className="w-2 bg-accent rounded-t-full"
-                    style={{
-                      height: `${Math.random() * 100}%`
-                    }} />
-
-                  )}
-                </div>
-              </div>
-            </div>
           </motion.div>
         </div>
       </section>
@@ -163,11 +105,10 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-heading font-bold mb-4">
-              Everything you need to become fluent
+              How it works
             </h2>
             <p className="text-secondary text-lg max-w-2xl mx-auto">
-              Our scientifically-proven method combines input, output, and
-              feedback loops.
+              Three steps. No extra effort.
             </p>
           </div>
 
@@ -175,22 +116,22 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             {[
             {
               icon: Play,
-              title: 'Immersion Video',
-              desc: 'Watch curated content from Netflix & YouTube with smart interactive subtitles.',
+              title: 'Watch normally',
+              desc: 'Browse YouTube and Netflix as per usual.',
               color: 'text-blue-500',
               bg: 'bg-blue-500/10'
             },
             {
-              icon: Mic,
-              title: 'Shadow Practice',
-              desc: 'Record yourself speaking and get instant AI feedback on your pronunciation.',
+              icon: Puzzle,
+              title: 'Vocab captured',
+              desc: 'The ClipIt extension picks up new words automatically.',
               color: 'text-accent',
               bg: 'bg-accent/10'
             },
             {
-              icon: MessageCircle,
-              title: 'Character Chat',
-              desc: 'Have realistic conversations with fictional characters in text or voice mode.',
+              icon: Layers,
+              title: 'Review & Remember',
+              desc: 'Flip through your cards whenever you are ready.',
               color: 'text-green-500',
               bg: 'bg-green-500/10'
             }].
@@ -221,10 +162,10 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
           <div className="relative z-10">
             <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">
-              Ready to start your journey?
+              Ready to clip?
             </h2>
             <p className="text-xl text-secondary mb-10 max-w-2xl mx-auto">
-              Join thousands of students mastering French with lipIt today.
+              Your first word is one video away.
             </p>
             <button
               onClick={() => onNavigate('signup')}
@@ -242,9 +183,15 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 bg-app">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Bird className="w-5 h-5 text-accent" />
-            <span className="font-bold text-primary">lipIt</span>
+          <div className="flex items-center">
+            <img src={clipitLogo} alt="lipIt" className="w-10 h-10 object-contain shrink-0 -mt-1" />
+            <span className="text-3xl tracking-tight" style={{
+              fontFamily: "'Love Ya Like A Sister', cursive",
+              WebkitTextStroke: '1.5px #9E3B3B',
+              paintOrder: 'stroke fill'
+            }}>
+              <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
+            </span>
           </div>
           <div className="flex gap-8 text-sm text-secondary">
             <a href="#" className="hover:text-primary transition-colors">
@@ -257,7 +204,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               Contact
             </a>
           </div>
-          <p className="text-sm text-muted">© 2024 lipIt Inc.</p>
+          <p className="text-sm text-muted">© 2024 ClipIt Inc.</p>
         </div>
       </footer>
     </div>);

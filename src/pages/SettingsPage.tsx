@@ -23,7 +23,11 @@ const DAILY_GOALS = [10, 15, 20, 30, 45, 60];
 
 type ExtStatus = 'checking' | 'active' | 'inactive';
 
-export function SettingsPage() {
+interface SettingsPageProps {
+  onEditProfile?: () => void;
+}
+
+export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const { user, logout, token } = useAuth();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [level, setLevel] = useState('B2');
@@ -98,7 +102,9 @@ export function SettingsPage() {
                 <span className="text-xs font-bold text-accent">Member</span>
               </div>
             </div>
-            <button className="text-sm font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 shrink-0 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/5">
+            <button
+              onClick={onEditProfile}
+              className="text-sm font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 shrink-0 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/5">
               Edit Profile <ChevronRight className="w-4 h-4" />
             </button>
           </div>
