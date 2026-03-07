@@ -46,24 +46,18 @@ export function AnalyticsPage() {
       label: 'Day Streak',
       value: analytics.streak.toString(),
       icon: Flame,
-      color: 'text-orange-500',
-      bg: 'bg-orange-500/10',
     },
     {
       id: 2,
       label: 'Words Learned',
       value: analytics.wordsLearned.toString(),
       icon: Book,
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10',
     },
     {
       id: 3,
       label: 'Total Reviews',
       value: analytics.totalReviews.toString(),
       icon: RotateCw,
-      color: 'text-purple-500',
-      bg: 'bg-purple-500/10',
     },
     {
       id: 4,
@@ -72,8 +66,6 @@ export function AnalyticsPage() {
         ? `${Math.round(analytics.hoursWatched * 60)}m`
         : `${analytics.hoursWatched}h`,
       icon: Play,
-      color: 'text-green-500',
-      bg: 'bg-green-500/10',
     },
   ];
 
@@ -127,11 +119,7 @@ export function AnalyticsPage() {
                   {stat.value}
                 </h3>
               </div>
-              <div
-                className={`w-12 h-12 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center`}
-              >
-                <stat.icon className="w-6 h-6" />
-              </div>
+              <stat.icon className="w-6 h-6 text-accent mt-4" />
             </motion.div>
           ))}
         </div>

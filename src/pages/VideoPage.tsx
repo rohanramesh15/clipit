@@ -208,9 +208,7 @@ export function VideoPage() {
       {/* Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
-            <Play className="w-5 h-5" />
-          </div>
+          <Play className="w-6 h-6 text-accent" />
           <div>
             <div className="text-2xl font-bold text-primary">
               {loadState === 'loading' ? '—' : filteredVideos.length}
@@ -221,9 +219,7 @@ export function VideoPage() {
           </div>
         </div>
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
-            <Clock className="w-5 h-5" />
-          </div>
+          <Clock className="w-6 h-6 text-accent" />
           <div>
             <div className="text-2xl font-bold text-primary">
               {loadState === 'loading' ? '—' : '0'}
@@ -234,9 +230,7 @@ export function VideoPage() {
           </div>
         </div>
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
-            <BookOpen className="w-5 h-5" />
-          </div>
+          <BookOpen className="w-6 h-6 text-accent" />
           <div>
             <div className="text-2xl font-bold text-primary">
               {loadState === 'loading' ? '—' : '0'}
@@ -360,7 +354,7 @@ export function VideoPage() {
                           </>
                         ) : (
                           <>
-                            <Youtube className="w-3 h-3 fill-current" />
+                            <Youtube className="w-3 h-3" />
                             YouTube
                           </>
                         )}
