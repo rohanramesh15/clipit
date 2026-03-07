@@ -921,7 +921,7 @@ export function FlashcardsPage() {
           {/* Sentence context overlay */}
           {currentCard && (
             <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2.5 text-center">
-              <p className="text-sm text-white font-medium leading-snug">
+              <p className="text-sm font-medium leading-snug" style={{ color: '#ffffff' }}>
                 {currentCard.sentence ? (
                   currentCard.sentence.split(new RegExp(`(${currentCard.target_word})`, 'g')).map((part, i) =>
                     part === currentCard.target_word ? (
@@ -935,7 +935,7 @@ export function FlashcardsPage() {
                 )}
               </p>
               {isFlipped && currentCard.sentence_translation && currentCard.sentence_translation !== 'No translation available' && (
-                <p className="text-xs text-white/60 mt-0.5 leading-snug">
+                <p className="text-xs mt-0.5 leading-snug" style={{ color: 'rgba(255,255,255,0.6)' }}>
                   {currentCard.sentence_translation}
                 </p>
               )}
