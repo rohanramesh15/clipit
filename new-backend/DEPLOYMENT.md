@@ -12,10 +12,12 @@
 
 ## Initial Deployment
 
-### 1. Navigate to the backend directory
+### 1. Navigate to the repository root
 ```bash
-cd new-backend
+cd project-deadbird-backend
 ```
+
+**Note:** The `fly.toml` is at the repository root and configured to build from the `new-backend` subdirectory.
 
 ### 2. Launch the app (first time only)
 ```bash
@@ -86,7 +88,7 @@ Your API will be available at: `https://deadbird-backend.fly.dev`
 After making changes to your code:
 
 ```bash
-cd new-backend
+cd project-deadbird-backend
 flyctl deploy
 ```
 
