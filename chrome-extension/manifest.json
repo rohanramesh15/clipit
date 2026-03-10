@@ -22,7 +22,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["http://localhost:5176/*"],
+      "matches": ["http://localhost:5176/*", "https://project-deadbird-frontend.fly.dev/*"],
       "js": ["token-bridge.js"],
       "run_at": "document_idle"
     }
