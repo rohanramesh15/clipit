@@ -25,6 +25,16 @@ function AppInner() {
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
   const [isDark, setIsDark] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collapsed');
+    return saved === 'true';
+  });
+
+  const toggleSidebarCollapsed = () => {
+    const newValue = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newValue);
+    localStorage.setItem('sidebar_collapsed', String(newValue));
+  };
 
   // Sync appView with auth state
   useEffect(() => {
@@ -84,10 +94,15 @@ function AppInner() {
         activePage={activePage}
         onNavigate={setActivePage}
         isDark={isDark}
-        onToggleTheme={() => setIsDark(!isDark)} />
+        onToggleTheme={() => setIsDark(!isDark)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={toggleSidebarCollapsed} />
 
 
-      <main className="flex-1 ml-20 md:ml-64 p-4 md:p-8 overflow-x-hidden">
+      <motion.main
+        className="flex-1 p-4 md:p-8 overflow-x-hidden"
+        animate={{ marginLeft: isSidebarCollapsed ? 80 : 256 }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activePage}
@@ -112,7 +127,7 @@ function AppInner() {
             {renderPage()}
           </motion.div>
         </AnimatePresence>
-      </main>
+      </motion.main>
     </div>);
 
 }

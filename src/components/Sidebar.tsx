@@ -27,29 +27,23 @@ interface SidebarProps {
   onNavigate: (page: Page) => void;
   isDark: boolean;
   onToggleTheme: () => void;
+  isCollapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 export function Sidebar({
   activePage,
   onNavigate,
   isDark,
   onToggleTheme,
+  isCollapsed,
+  onToggleCollapsed,
 }: SidebarProps) {
   const { user } = useAuth();
   const { language, setLanguage } = useLanguage();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    const saved = localStorage.getItem('sidebar_collapsed');
-    return saved === 'true';
-  });
   const languageRef = useRef<HTMLDivElement>(null);
-
-  const toggleCollapsed = () => {
-    const newValue = !isCollapsed;
-    setIsCollapsed(newValue);
-    localStorage.setItem('sidebar_collapsed', String(newValue));
-  };
 
   const languages = [
     { code: 'ko', flag: '🇰🇷', name: 'Korean' },
@@ -117,7 +111,7 @@ export function Sidebar({
           )}
         </AnimatePresence>
         <button
-          onClick={toggleCollapsed}
+          onClick={onToggleCollapsed}
           className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-md hover:bg-white/5 text-secondary hover:text-primary transition-colors z-10"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           <PanelLeft className="w-4 h-4" />

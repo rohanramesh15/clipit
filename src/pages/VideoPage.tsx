@@ -18,27 +18,23 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 
 function NetflixThumbnail({ videoId }: { videoId: string }) {
-  const [hasThumbnail, setHasThumbnail] = React.useState<boolean | null>(null);
+  const [hasError, setHasError] = React.useState(false);
 
-  React.useEffect(() => {
-    fetch(`${API_BASE_URL}/netflix/thumbnail/${videoId}`, { method: 'HEAD' })
-      .then(res => setHasThumbnail(res.ok))
-      .catch(() => setHasThumbnail(false));
-  }, [videoId]);
-
-  if (hasThumbnail) {
+  if (hasError) {
     return (
-      <img
-        src={`${API_BASE_URL}/netflix/thumbnail/${videoId}`}
-        alt=""
-        className="w-full h-full object-cover"
-      />
+      <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
+        <span className="text-[#B20710] font-bold text-xl">N</span>
+      </div>
     );
   }
+
   return (
-    <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
-      <span className="text-[#B20710] font-bold text-xl">N</span>
-    </div>
+    <img
+      src={`${API_BASE_URL}/netflix/thumbnail/${videoId}`}
+      alt=""
+      className="w-full h-full object-cover"
+      onError={() => setHasError(true)}
+    />
   );
 }
 
