@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Deadbird",
-  "version": "1.1.0",
-  "description": "Tracks YouTube and Netflix videos for language learning with Deadbird",
+  "name": "ClipIt",
+  "version": "1.2.0",
+  "description": "Learn languages from YouTube and Netflix videos you love",
   "permissions": ["storage", "scripting", "tabCapture", "offscreen", "activeTab"],
   "host_permissions": [
     "<all_urls>"
@@ -29,7 +29,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Deadbird",
+    "default_title": "ClipIt",
     "default_icon": {
       "16": "icons/16.png",
       "48": "icons/48.png",
