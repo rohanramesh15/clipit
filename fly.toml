@@ -1,9 +1,8 @@
-app = 'deadbird-backend'
-primary_region = 'bos'
+app = 'project-deadbird-backend'
+primary_region = 'ewr'
 
 [build]
-  dockerfile = "new-backend/Dockerfile"
-  build-context = "new-backend"
+  dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8000
