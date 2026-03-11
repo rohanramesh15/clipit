@@ -1,124 +1,103 @@
-# FastAPI Backend
+# Deadbird Backend
 
-A modern FastAPI backend application with a clean project structure.
+A FastAPI backend for the Deadbird language learning application. Learn languages through video content with spaced repetition flashcards.
+
+## Features
+
+- **User Authentication**: JWT-based auth with signup/login
+- **Video Tracking**: Track watched videos from YouTube and Netflix
+- **Subtitle Management**: Fetch and cache subtitles with multi-language support (Ukrainian, Serbian, Bulgarian)
+- **Vocabulary System**: Save and organize vocabulary from videos
+- **Flashcards**: Spaced repetition using FSRS algorithm
+- **Translation**: DeepL integration for word lookups
+- **Deck Management**: Organize flashcards into custom decks
 
 ## Project Structure
 
 ```
 .
 ├── app/
-│   ├── api/
-│   │   └── routes/          # API route handlers
-│   │       └── health.py    # Health check endpoint
+│   ├── api/routes/       # API endpoints
+│   │   ├── auth.py       # Authentication
+│   │   ├── videos.py     # Video tracking
+│   │   ├── subtitles.py  # Subtitle fetching
+│   │   ├── vocabulary.py # Vocabulary management
+│   │   ├── flashcards.py # Flashcard operations
+│   │   ├── fsrs.py       # Spaced repetition
+│   │   ├── lookup.py     # Word lookups
+│   │   ├── netflix.py    # Netflix integration
+│   │   └── decks.py      # Deck management
 │   ├── core/
-│   │   └── config.py        # Application configuration
-│   ├── models/              # Database models
-│   ├── schemas/             # Pydantic schemas
-│   └── services/            # Business logic
-├── main.py                  # Application entry point
-├── requirements.txt         # Python dependencies
-└── README.md
+│   │   ├── config.py     # App configuration
+│   │   └── database.py   # Database setup
+│   ├── models/           # SQLAlchemy models
+│   ├── schemas/          # Pydantic schemas
+│   └── services/         # Business logic
+├── alembic/              # Database migrations
+├── data/                 # Local data storage
+├── subtitles_cache/      # Cached subtitle files
+├── main.py               # Application entry point
+└── requirements.txt      # Python dependencies
 ```
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.8+
 - pip
 
 ### Installation
 
-1. Create a virtual environment:
+1. Create and activate a virtual environment:
 ```bash
 python -m venv venv
+source venv/bin/activate  # macOS/Linux
 ```
 
-2. Activate the virtual environment:
-```bash
-# On macOS/Linux
-source venv/bin/activate
-
-# On Windows
-venv\Scripts\activate
-```
-
-3. Install dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Configuration
-
-Create a `.env` file in the root directory to override default settings:
-
+3. Create a `.env` file:
 ```env
-PROJECT_NAME=My FastAPI App
+PROJECT_NAME=Deadbird API
 DEBUG=True
 HOST=0.0.0.0
 PORT=8000
+DATABASE_URL=sqlite:///./deadbird.db
+SECRET_KEY=your-secret-key
+DEEPL_API_KEY=your-deepl-key
 ```
 
-## Running the Application
+## Running
 
-### Development Mode
-
-Run with auto-reload enabled:
+### Development
 ```bash
 python main.py
 ```
 
-Or using uvicorn directly:
-```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Production Mode
-
+### Production
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ## API Documentation
 
-Once the server is running, visit:
-
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
-## Available Endpoints
+## API Endpoints
 
-- `GET /` - Root endpoint with API information
-- `GET /api/health` - Health check endpoint
-
-## Adding New Routes
-
-1. Create a new file in `app/api/routes/`
-2. Define your router and endpoints
-3. Import and include the router in `main.py`
-
-Example:
-```python
-# app/api/routes/users.py
-from fastapi import APIRouter
-
-router = APIRouter()
-
-@router.get("/users")
-async def get_users():
-    return {"users": []}
-```
-
-Then in `main.py`:
-```python
-from app.api.routes import users
-app.include_router(users.router, prefix="/api", tags=["users"])
-```
-
-## Next Steps
-
-- Add database integration (SQLAlchemy)
-- Implement authentication (JWT)
-- Add environment-specific configurations
-- Set up testing with pytest
-- Add logging and monitoring
+| Endpoint | Description |
+|----------|-------------|
+| `/api/auth/*` | User authentication |
+| `/api/videos/*` | Video tracking |
+| `/api/subtitles/*` | Subtitle management |
+| `/api/vocabulary/*` | Vocabulary operations |
+| `/api/flashcards/*` | Flashcard CRUD |
+| `/api/fsrs/*` | Spaced repetition scheduling |
+| `/api/lookup/*` | Word translation/lookup |
+| `/api/netflix/*` | Netflix integration |
+| `/api/decks/*` | Deck management |
