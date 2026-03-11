@@ -23,7 +23,35 @@ A FastAPI backend for the Deadbird language learning application. Learn language
 - **Deck Management**: Organize flashcards into custom decks
 - **Chrome Extension**: Netflix subtitle integration
 
-## Backend Setup
+## Project Structure (new-backend)
+
+```
+new-backend/
+├── app/
+│   ├── api/routes/       # API endpoints
+│   │   ├── auth.py       # Authentication
+│   │   ├── videos.py     # Video tracking
+│   │   ├── subtitles.py  # Subtitle fetching
+│   │   ├── vocabulary.py # Vocabulary management
+│   │   ├── flashcards.py # Flashcard operations
+│   │   ├── fsrs.py       # Spaced repetition
+│   │   ├── lookup.py     # Word lookups
+│   │   ├── netflix.py    # Netflix integration
+│   │   └── decks.py      # Deck management
+│   ├── core/
+│   │   ├── config.py     # App configuration
+│   │   └── database.py   # Database setup
+│   ├── models/           # SQLAlchemy models
+│   ├── schemas/          # Pydantic schemas
+│   └── services/         # Business logic
+├── alembic/              # Database migrations
+├── data/                 # Local data storage
+├── subtitles_cache/      # Cached subtitle files
+├── main.py               # Application entry point
+└── requirements.txt      # Python dependencies
+```
+
+## Setup
 
 ### Prerequisites
 
@@ -59,21 +87,21 @@ SECRET_KEY=your-secret-key
 DEEPL_API_KEY=your-deepl-key
 ```
 
-### Running
+## Running
 
-#### Development
+### Development
 ```bash
 cd new-backend
 python main.py
 ```
 
-#### Production
+### Production
 ```bash
 cd new-backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-#### Docker
+### Docker
 ```bash
 docker-compose up
 ```

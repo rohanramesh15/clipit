@@ -1,5 +1,5 @@
-const API = 'http://localhost:8000/api';
-const APP_URL = 'http://localhost:5176';
+const API = 'https://project-deadbird-backend.fly.dev/api';
+const APP_URL = 'https://project-deadbird-frontend.fly.dev';
 const root = document.getElementById('root');
 
 // ─── State ────────────────────────────────────────────
@@ -260,8 +260,8 @@ function tmplOffline() {
     <div class="body">
       <div class="center-state">
         <div class="icon">⚡</div>
-        <p class="title">Backend not running</p>
-        <p class="sub">Start the server to connect</p>
+        <p class="title">Cannot connect to Deadbird</p>
+        <p class="sub">Please check your internet connection or try again later</p>
       </div>
     </div>
   `;
@@ -408,7 +408,7 @@ function tmplDetail() {
       <div class="center-state">
         <div class="icon">⚠️</div>
         <p class="title">Couldn't load words</p>
-        <p class="sub">Check that the backend is running at localhost:8000</p>
+        <p class="sub">There was an error loading the vocabulary. Please try again.</p>
       </div>
     `;
   } else if (Array.isArray(words)) {

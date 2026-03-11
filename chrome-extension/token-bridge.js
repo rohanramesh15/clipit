@@ -1,10 +1,14 @@
 /**
- * token-bridge.js — content script injected into the Deadbird frontend (localhost:5176).
+ * token-bridge.js — content script injected into the Deadbird frontend.
  * Reads the JWT from localStorage and syncs it into chrome.storage.local so that
  * the background service worker and popup can attach it to authenticated API requests.
  *
  * The `storage` event only fires in OTHER windows, not the window that called setItem.
  * So we poll every second to catch same-window login/logout events.
+ *
+ * Injected into:
+ * - http://localhost:5176/* (development)
+ * - https://project-deadbird-frontend.fly.dev/* (production)
  */
 
 let lastSynced = null;

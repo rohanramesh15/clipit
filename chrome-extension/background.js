@@ -5,7 +5,7 @@
  * Supports YouTube and Netflix.
  */
 
-const API = 'http://localhost:8000/api';
+const API = 'https://project-deadbird-backend.fly.dev/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 async function getAuthToken() {

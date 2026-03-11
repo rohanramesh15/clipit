@@ -21,6 +21,7 @@ class Settings(BaseSettings):
         "http://localhost:5175",
         "http://localhost:5176",
         "http://localhost:8000",
+        "https://project-deadbird-frontend.fly.dev",
     ]
 
     # Database
