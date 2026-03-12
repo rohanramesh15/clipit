@@ -1,0 +1,21 @@
+from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
+from .base import BaseModel
+
+
+class UserVocabularyWord(BaseModel):
+    """Individual word entry from a user-uploaded vocabulary list"""
+    __tablename__ = "user_vocabulary_words"
+
+    list_id = Column(Integer, ForeignKey("user_vocabulary_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    word = Column(String(100), nullable=False, index=True)
+    translation = Column(String(500), nullable=False)
+    sort_order = Column(Integer, default=0)
+
+    # Relationships
+    vocabulary_list = relationship("UserVocabularyList", back_populates="words")
+
+    # Prevent duplicate words in the same list
+    __table_args__ = (
+        UniqueConstraint('list_id', 'word', name='uq_vocab_list_word'),
+    )

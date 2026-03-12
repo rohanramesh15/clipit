@@ -458,7 +458,7 @@ function header({ dot, right }) {
   const audioBtn = state.isNetflixTab ? (
     state.audioEnabled
       ? '<span class="audio-badge enabled" title="Audio capture enabled">🎤</span>'
-      : '<button class="audio-btn" data-action="enable-audio" title="Enable audio capture">🎤 Enable Audio</button>'
+      : '<button class="audio-btn" data-action="enable-audio" title="Enable audio capture">Enable Audio</button>'
   ) : '';
   const themeIcon = state.theme === 'dark'
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
