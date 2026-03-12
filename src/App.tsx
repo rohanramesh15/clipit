@@ -9,14 +9,19 @@ import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { HelpProvider } from './context/HelpContext';
+import { ReviewSessionProvider } from './context/ReviewSessionContext';
+import { HelpButton } from './components/HelpButton';
 type Page =
 'video' |
 'flashcards' |
 'dictionary' |
 'analytics' |
+'vocabulary' |
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app';
 
@@ -63,6 +68,8 @@ function AppInner() {
         return <DictionaryPage />;
       case 'analytics':
         return <AnalyticsPage />;
+      case 'vocabulary':
+        return <VocabularyUploadPage />;
       case 'settings':
         return <SettingsPage onEditProfile={() => setAppView('onboarding')} />;
       default:
@@ -89,46 +96,54 @@ function AppInner() {
 
   // Main App View
   return (
-    <div className="flex min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app">
-      <Sidebar
-        activePage={activePage}
-        onNavigate={setActivePage}
-        isDark={isDark}
-        onToggleTheme={() => setIsDark(!isDark)}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapsed={toggleSidebarCollapsed} />
+    <HelpProvider>
+      <ReviewSessionProvider>
+        <div className="flex min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app">
+        <Sidebar
+          activePage={activePage}
+          onNavigate={setActivePage}
+          isDark={isDark}
+          onToggleTheme={() => setIsDark(!isDark)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapsed={toggleSidebarCollapsed} />
 
 
-      <motion.main
-        className="flex-1 p-4 md:p-8 overflow-x-hidden"
-        animate={{ marginLeft: isSidebarCollapsed ? 80 : 256 }}
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activePage}
-            initial={{
-              opacity: 0,
-              x: 20
-            }}
-            animate={{
-              opacity: 1,
-              x: 0
-            }}
-            exit={{
-              opacity: 0,
-              x: -20
-            }}
-            transition={{
-              duration: 0.3,
-              ease: 'easeInOut'
-            }}
-            className="w-full max-w-7xl mx-auto">
+        <motion.main
+          className="flex-1 p-4 md:p-8 overflow-x-hidden"
+          animate={{ marginLeft: isSidebarCollapsed ? 80 : 256 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePage}
+              initial={{
+                opacity: 0,
+                x: 20
+              }}
+              animate={{
+                opacity: 1,
+                x: 0
+              }}
+              exit={{
+                opacity: 0,
+                x: -20
+              }}
+              transition={{
+                duration: 0.3,
+                ease: 'easeInOut'
+              }}
+              className="w-full max-w-7xl mx-auto">
 
-            {renderPage()}
-          </motion.div>
-        </AnimatePresence>
-      </motion.main>
-    </div>);
+              {renderPage()}
+            </motion.div>
+          </AnimatePresence>
+        </motion.main>
+
+        {/* Help button - floating in bottom right */}
+        <HelpButton />
+      </div>
+    </ReviewSessionProvider>
+  </HelpProvider>
+);
 
 }
 

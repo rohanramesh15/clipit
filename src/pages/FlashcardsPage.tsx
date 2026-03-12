@@ -23,7 +23,35 @@ import {
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { useReviewSession } from '../context/ReviewSessionContext';
 import { API_BASE_URL } from '../config';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { Sparkles } from 'lucide-react';
+
+const flashcardsPageTips: HelpTip[] = [
+  {
+    id: 'flashcards-intro',
+    text: 'Review vocabulary from videos you watched. Cards are scheduled using spaced repetition.',
+    position: 'top-center',
+  },
+  {
+    id: 'video-select',
+    text: 'Switch between decks or review all cards at once.',
+    position: 'top-left',
+    offset: { y: 20 },
+  },
+  {
+    id: 'flip-card',
+    text: 'Tap the card to flip and reveal the translation.',
+    position: 'center-left',
+  },
+  {
+    id: 'rating-buttons',
+    text: 'Rate how well you knew the word. This schedules the next review.',
+    position: 'bottom-center',
+    offset: { y: -40 },
+  },
+];
 
 // Netflix video placeholder component with screenshot and audio support
 function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; timestamp: number }) {
@@ -156,7 +184,7 @@ interface TrackedVideo {
   tracked_at: number;
 }
 
-type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-vocab' | 'session-complete';
+type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-vocab' | 'session-complete' | 'time-gated-complete';
 
 // Format next review time
 function formatNextReview(date: Date): string {
@@ -213,6 +241,16 @@ function addDeletedCard(language: string, word: string) {
 export function FlashcardsPage() {
   const { language, languageName } = useLanguage();
   const { token } = useAuth();
+  const {
+    session,
+    startSession,
+    endSession,
+    recordCardReview,
+    extendSession,
+    resetSession,
+    getGoalLabel,
+    getRemainingCards,
+  } = useReviewSession();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [dueCards, setDueCards] = useState<FlashCard[]>([]);
@@ -438,8 +476,10 @@ export function FlashcardsPage() {
       setLoadState('session-complete');
     } else {
       setLoadState('loaded');
+      // Start the review session timer
+      startSession();
     }
-  }, []);
+  }, [startSession]);
 
   // Load cards for "All Videos" mode
   const loadAllVideos = useCallback(async (videoList: TrackedVideo[]) => {
@@ -525,6 +565,9 @@ export function FlashcardsPage() {
     const { nextDue } = rateCard(currentCard.dictionary_form || currentCard.target_word, rating, clipDuration);
     const nextDueStr = formatNextReview(nextDue);
 
+    // Record card review and check if cap was just reached
+    const capJustReached = recordCardReview();
+
     // Update session stats
     const ratingKey = rating === Rating.Again ? 'again'
       : rating === Rating.Hard ? 'hard'
@@ -540,11 +583,19 @@ export function FlashcardsPage() {
     setIsFlipped(false);
 
     setTimeout(() => {
+      // Check if session cap was just reached (card count limit)
+      if (capJustReached) {
+        setLoadState('time-gated-complete');
+        endSession();
+        return;
+      }
+
       if (currentIndex < dueCards.length - 1) {
         setCurrentIndex(prev => prev + 1);
       } else {
-        // Session complete
+        // All cards reviewed - session complete
         setLoadState('session-complete');
+        endSession();
       }
       setLastRatingInfo(null);
     }, 300);
@@ -772,6 +823,61 @@ export function FlashcardsPage() {
     );
   }
 
+  // ── Time-Gated Complete (daily goal reached) ────────────────
+  if (loadState === 'time-gated-complete') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-4">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className="w-20 h-20 rounded-full bg-gradient-to-br from-accent/20 to-green-500/20 flex items-center justify-center">
+          <Sparkles className="w-10 h-10 text-accent" />
+        </motion.div>
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="text-center">
+          <h2 className="text-2xl font-heading font-bold text-primary mb-2">
+            {sessionStats.reviewed} cards — great work!
+          </h2>
+          <p className="text-secondary text-sm">
+            You hit your daily goal of {getGoalLabel()}
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-center mt-4">
+          <p className="text-secondary text-sm mb-4">Want to keep going?</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => {
+                // End session and go back to main screen
+                resetSession();
+                setLoadState('session-complete');
+              }}
+              className="px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
+              I'm done for today
+            </button>
+            <button
+              onClick={() => {
+                // Extend session and continue
+                extendSession();
+                setLoadState('loaded');
+              }}
+              className="px-5 py-3 rounded-xl bg-accent text-app text-sm font-semibold hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20">
+              Keep reviewing
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   // ── Session Complete ─────────────────────────────────────────
   if (loadState === 'session-complete') {
     return (
@@ -800,16 +906,21 @@ export function FlashcardsPage() {
         <div className="flex gap-3 mt-4">
           <button
             onClick={() => {
+              resetSession();
               setCurrentIndex(0);
               setDueCards(cards);
               setSessionStats({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
               setLoadState('loaded');
+              startSession();
             }}
             className="px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
             Review All Cards
           </button>
           <button
-            onClick={() => loadAllVideos(videos)}
+            onClick={() => {
+              resetSession();
+              loadAllVideos(videos);
+            }}
             className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
             Refresh
           </button>
@@ -821,6 +932,7 @@ export function FlashcardsPage() {
   // ── Loaded ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col items-center max-w-md mx-auto px-4 py-8 md:py-10">
+      <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
       <div className="w-full flex items-center justify-between mb-5">
@@ -837,17 +949,31 @@ export function FlashcardsPage() {
           </button>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-2xl font-bold text-accent">
-            {currentIndex + 1}
-            <span className="text-muted text-lg"> / {dueCards.length}</span>
-          </div>
-          <div className="w-28 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
-            <motion.div
-              className="h-full bg-accent"
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
+          {session.isExtended ? (
+            <>
+              <div className="text-2xl font-bold text-accent">
+                {getRemainingCards(dueCards.length - currentIndex)}
+                <span className="text-muted text-lg"> left</span>
+              </div>
+              <div className="text-xs text-secondary mt-1">
+                {sessionStats.reviewed} reviewed
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-2xl font-bold text-accent">
+                {session.cardsReviewed}
+                <span className="text-muted text-lg"> / {session.sessionCap}</span>
+              </div>
+              <div className="w-24 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
+                <motion.div
+                  className="h-full bg-accent"
+                  animate={{ width: `${Math.min(100, (session.cardsReviewed / session.sessionCap) * 100)}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -967,11 +1093,6 @@ export function FlashcardsPage() {
                   className="absolute inset-0 bg-surface border border-white/10 rounded-2xl shadow-2xl flex flex-col items-center justify-center p-8"
                   style={{ backfaceVisibility: 'hidden' }}>
                   <div className="flex items-center gap-2 mb-5">
-                    {currentCard?.rank && (
-                      <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border border-white/10 text-muted">
-                        #{currentCard.rank}
-                      </span>
-                    )}
                     {currentStats && !currentStats.isNew && (
                       <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border border-accent/20 text-accent flex items-center gap-1">
                         <Clock className="w-3 h-3" />

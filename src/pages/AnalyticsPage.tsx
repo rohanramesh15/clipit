@@ -3,6 +3,20 @@ import { motion } from 'framer-motion';
 import { Flame, Book, TrendingUp, RotateCw, Play } from 'lucide-react';
 import { getAnalyticsSummary, getActivityHeatmapCurrentYear } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+
+const analyticsPageTips: HelpTip[] = [
+  {
+    id: 'stats-overview',
+    text: 'Track your learning progress: streak, words learned, reviews, and watch time.',
+    position: 'top-center',
+  },
+  {
+    id: 'heatmap',
+    text: 'Your activity heatmap shows daily review consistency over the year.',
+    position: 'center-left',
+  },
+];
 
 const API = 'http://localhost:8000/api';
 
@@ -96,6 +110,8 @@ export function AnalyticsPage() {
 
   return (
     <div className="min-h-screen pb-20 max-w-6xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={analyticsPageTips} />
+
       <h1 className="text-3xl font-heading font-bold text-primary mb-8">
         Your Progress
       </h1>

@@ -3,6 +3,25 @@ import { Search, Volume2, Loader2, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+
+const dictionaryPageTips: HelpTip[] = [
+  {
+    id: 'search',
+    text: 'Search for any word in our frequency dictionary.',
+    position: 'top-center',
+  },
+  {
+    id: 'mastery',
+    text: 'The progress bar shows your mastery level from flashcard reviews.',
+    position: 'center-right',
+  },
+  {
+    id: 'audio',
+    text: 'Click the speaker icon to hear pronunciation.',
+    position: 'center-left',
+  },
+];
 
 const API = 'http://localhost:8000/api';
 
@@ -125,6 +144,8 @@ export function DictionaryPage() {
 
   return (
     <div className="min-h-screen pb-20 max-w-5xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={dictionaryPageTips} />
+
       {/* Header & Search */}
       <div className="sticky top-0 bg-app/95 backdrop-blur-md z-10 pb-6 border-b border-white/5 mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">

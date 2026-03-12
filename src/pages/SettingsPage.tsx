@@ -10,6 +10,20 @@ import {
   ChevronRight,
   Crown,
 } from 'lucide-react';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+
+const settingsPageTips: HelpTip[] = [
+  {
+    id: 'language',
+    text: 'Switch your target language between Korean and Ukrainian.',
+    position: 'top-left',
+  },
+  {
+    id: 'goals',
+    text: 'Set daily goals to stay on track with your learning.',
+    position: 'center-right',
+  },
+];
 
 const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' }[] = [
   { label: 'Korean', flag: '🇰🇷', value: 'ko' },
@@ -41,8 +55,16 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const { language, setLanguage } = useLanguage();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [motivation, setMotivation] = useState('pop_culture');
-  const [dailyGoal, setDailyGoal] = useState('15');
+  const [dailyGoal, setDailyGoal] = useState(() => {
+    return localStorage.getItem('daily_goal') || '15';
+  });
   const [notifications, setNotifications] = useState(true);
+
+  // Persist daily goal to localStorage
+  const handleDailyGoalChange = (value: string) => {
+    setDailyGoal(value);
+    localStorage.setItem('daily_goal', value);
+  };
 
   return (
     <motion.div
@@ -50,6 +72,7 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       className="min-h-screen pb-20 max-w-3xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={settingsPageTips} />
 
       {/* Header */}
       <div className="mb-10">
@@ -157,7 +180,7 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
                 {DAILY_GOALS.map((g) => (
                   <button
                     key={g.value}
-                    onClick={() => setDailyGoal(g.value)}
+                    onClick={() => handleDailyGoalChange(g.value)}
                     className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${
                       dailyGoal === g.value
                         ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'

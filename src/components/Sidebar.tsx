@@ -10,7 +10,8 @@ import {
   ChevronDown,
   PanelLeft,
   Check,
-  Globe } from
+  Globe,
+  Upload } from
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +22,7 @@ type Page =
 'flashcards' |
 'dictionary' |
 'analytics' |
+'vocabulary' |
 'settings';
 interface SidebarProps {
   activePage: Page;
@@ -76,6 +78,11 @@ export function Sidebar({
     id: 'dictionary',
     icon: BookOpen,
     label: 'Dictionary'
+  },
+  {
+    id: 'vocabulary',
+    icon: Upload,
+    label: 'Upload'
   },
   {
     id: 'analytics',

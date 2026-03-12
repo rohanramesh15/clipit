@@ -16,6 +16,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+
+const videoPageTips: HelpTip[] = [
+  {
+    id: 'videos-intro',
+    text: 'Videos you watch with the browser extension appear here automatically.',
+    position: 'top-left',
+  },
+  {
+    id: 'platform-filter',
+    text: 'Filter by YouTube or Netflix to find specific videos.',
+    position: 'top-center',
+    offset: { y: 80 },
+  },
+  {
+    id: 'stats-cards',
+    text: 'Track your watching progress and vocabulary growth.',
+    position: 'center-left',
+    offset: { y: -60 },
+  },
+  {
+    id: 'video-card',
+    text: 'Click any video to watch it again. Hover to delete or open externally.',
+    position: 'center-right',
+    offset: { y: 40 },
+  },
+];
 
 function NetflixThumbnail({ videoId }: { videoId: string }) {
   const [hasError, setHasError] = React.useState(false);
@@ -139,6 +166,8 @@ export function VideoPage() {
 
   return (
     <div className="min-h-screen pb-20 max-w-6xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={videoPageTips} />
+
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
