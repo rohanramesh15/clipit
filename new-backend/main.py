@@ -51,6 +51,13 @@ if settings.DATABASE_URL.startswith("sqlite"):
         if "video_id" not in cols:
             conn.execute(text("ALTER TABLE user_flashcard_progress ADD COLUMN video_id TEXT"))
 
+        # Migrations for users table (password reset)
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+        if "reset_token" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN reset_token TEXT"))
+        if "reset_token_expires" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN reset_token_expires DATETIME"))
+
         conn.commit()
 
 app = FastAPI(

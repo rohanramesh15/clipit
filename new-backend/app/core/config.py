@@ -38,7 +38,11 @@ class Settings(BaseSettings):
     # SQLite + subtitle cache
     SQLITE_DB_PATH: str = "deadbird.db"
     SUBTITLES_CACHE_DIR: str = "subtitles_cache"
-      
+
+    # Email (Resend)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "Clip It <onboarding@resend.dev>"
+    FRONTEND_URL: str = "http://localhost:5176"
 
     class Config:
         env_file = ".env"
