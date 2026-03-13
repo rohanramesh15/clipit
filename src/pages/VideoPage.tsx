@@ -307,13 +307,38 @@ export function VideoPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center">
-              <Tv className="w-7 h-7 text-accent" />
+            className="flex flex-col items-center justify-center py-24 gap-6">
+            <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
+              <Tv className="w-8 h-8 text-accent" />
             </div>
-            <p className="text-primary font-semibold">No videos tracked yet</p>
-            <p className="text-secondary text-sm text-center max-w-sm">
-              Watch any {languageName} video on YouTube or Netflix — the lipIt extension will track it automatically.
+            <div className="text-center">
+              <p className="text-primary font-semibold text-lg mb-2">No videos tracked yet</p>
+              <p className="text-secondary text-sm max-w-sm">
+                Watch any {languageName} video on YouTube or Netflix — the Clip It extension will track it automatically.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+              <a
+                href="https://www.youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-app font-semibold transition-all shadow-lg shadow-accent/20">
+                <Youtube className="w-5 h-5" />
+                Browse YouTube
+                <ExternalLink className="w-4 h-4 opacity-70" />
+              </a>
+              <a
+                href="https://www.netflix.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-app font-semibold transition-all shadow-lg shadow-accent/20">
+                <Film className="w-5 h-5" />
+                Browse Netflix
+                <ExternalLink className="w-4 h-4 opacity-70" />
+              </a>
+            </div>
+            <p className="text-muted text-xs mt-2">
+              Make sure the Clip It browser extension is installed and enabled
             </p>
           </motion.div>
         )}

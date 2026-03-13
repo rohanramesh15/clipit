@@ -54,7 +54,9 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const { user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
-  const [motivation, setMotivation] = useState('pop_culture');
+  const [motivation, setMotivation] = useState(() => {
+    return localStorage.getItem('user_motivation') || 'pop_culture';
+  });
   const [dailyGoal, setDailyGoal] = useState(() => {
     return localStorage.getItem('daily_goal') || '15';
   });
@@ -154,7 +156,10 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
                 {MOTIVATIONS.map((m) => (
                   <button
                     key={m.value}
-                    onClick={() => setMotivation(m.value)}
+                    onClick={() => {
+                      setMotivation(m.value);
+                      localStorage.setItem('user_motivation', m.value);
+                    }}
                     className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
                       motivation === m.value
                         ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'

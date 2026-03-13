@@ -4,7 +4,7 @@ import { ArrowLeft, Mail, Lock, Loader2 } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { useAuth } from '../context/AuthContext';
 interface LoginPageProps {
-  onNavigate: (view: 'landing' | 'signup' | 'app') => void;
+  onNavigate: (view: 'landing' | 'signup' | 'app' | 'forgot-password') => void;
 }
 export function LoginPage({ onNavigate }: LoginPageProps) {
   const { login } = useAuth();
@@ -92,11 +92,12 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 <label className="block text-xs font-bold text-secondary uppercase tracking-wider">
                   Password
                 </label>
-                <a
-                  href="#"
+                <button
+                  type="button"
+                  onClick={() => onNavigate('forgot-password')}
                   className="text-xs text-accent hover:text-accent-hover font-medium">
                   Forgot password?
-                </a>
+                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />

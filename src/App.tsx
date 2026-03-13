@@ -8,6 +8,8 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -23,13 +25,14 @@ type Page =
 'analytics' |
 'vocabulary' |
 'settings';
-type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app';
+type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password';
 
 function AppInner() {
   const { user, isLoading } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
   const [isDark, setIsDark] = useState(true);
+  const [resetToken, setResetToken] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
     return saved === 'true';
@@ -41,12 +44,28 @@ function AppInner() {
     localStorage.setItem('sidebar_collapsed', String(newValue));
   };
 
+  // Check URL for reset token on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const path = window.location.pathname;
+
+    if (path === '/reset-password' || params.has('token')) {
+      const token = params.get('token') || '';
+      if (token) {
+        setResetToken(token);
+        setAppView('reset-password');
+        // Clean URL
+        window.history.replaceState({}, '', '/');
+      }
+    }
+  }, []);
+
   // Sync appView with auth state
   useEffect(() => {
     if (isLoading) return;
     if (user) {
       setAppView((v) => (v === 'landing' || v === 'login' || v === 'signup' ? 'app' : v));
-    } else {
+    } else if (appView !== 'reset-password' && appView !== 'forgot-password') {
       setAppView('landing');
     }
   }, [isLoading, user]);
@@ -88,6 +107,12 @@ function AppInner() {
   }
   if (appView === 'onboarding') {
     return <OnboardingPage onComplete={() => setAppView('app')} />;
+  }
+  if (appView === 'forgot-password') {
+    return <ForgotPasswordPage onNavigate={setAppView} />;
+  }
+  if (appView === 'reset-password') {
+    return <ResetPasswordPage token={resetToken} onNavigate={setAppView} />;
   }
   // Show nothing while checking stored token
   if (isLoading) {
