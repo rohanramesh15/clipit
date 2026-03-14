@@ -261,3 +261,53 @@ def delete_card(
         raise HTTPException(status_code=404, detail="Card not found")
 
     return {"status": "ok", "word": word, "language": language}
+
+
+@router.delete("/cards/video/{video_id}")
+def delete_cards_by_video(
+    video_id: str,
+    language: str = "ko",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete all flashcards for a specific video from the user's progress."""
+    # Get all cards for this video first (to delete their review history)
+    cards = (
+        db.query(UserFlashcardProgress)
+        .filter(
+            UserFlashcardProgress.user_id == current_user.id,
+            UserFlashcardProgress.video_id == video_id,
+            UserFlashcardProgress.language == language,
+        )
+        .all()
+    )
+
+    words_deleted = [card.word for card in cards]
+
+    # Delete the card progress
+    deleted_count = (
+        db.query(UserFlashcardProgress)
+        .filter(
+            UserFlashcardProgress.user_id == current_user.id,
+            UserFlashcardProgress.video_id == video_id,
+            UserFlashcardProgress.language == language,
+        )
+        .delete()
+    )
+
+    # Also delete review history for these words
+    if words_deleted:
+        db.query(UserReviewHistory).filter(
+            UserReviewHistory.user_id == current_user.id,
+            UserReviewHistory.word.in_(words_deleted),
+            UserReviewHistory.language == language,
+        ).delete(synchronize_session=False)
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "video_id": video_id,
+        "language": language,
+        "deleted_count": deleted_count,
+    }
