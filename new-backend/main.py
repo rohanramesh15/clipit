@@ -12,6 +12,7 @@ from app.models.user_vocabulary_list import UserVocabularyList  # noqa: F401
 from app.models.user_vocabulary_word import UserVocabularyWord  # noqa: F401
 from app.models.user_vocabulary_settings import UserVocabularySettings  # noqa: F401
 from app.models.user_mined_word import UserMinedWord  # noqa: F401
+from app.models.user_anki_progress import UserAnkiProgress  # noqa: F401
 from app.api.routes import health, users
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
@@ -23,6 +24,7 @@ from app.api.routes.netflix import router as netflix_router
 from app.api.routes.fsrs import router as fsrs_router
 from app.api.routes.decks import router as decks_router
 from app.api.routes.user_vocab import router as user_vocab_router
+from app.api.routes.anki import router as anki_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -86,6 +88,7 @@ app.include_router(netflix_router, prefix="/api/netflix", tags=["netflix"])
 app.include_router(fsrs_router, prefix="/api/fsrs", tags=["fsrs"])
 app.include_router(decks_router, prefix="/api/decks", tags=["decks"])
 app.include_router(user_vocab_router, prefix="/api/vocab", tags=["user-vocab"])
+app.include_router(anki_router, prefix="/api/anki", tags=["anki"])
 
 
 @app.get("/")

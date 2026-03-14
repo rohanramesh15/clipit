@@ -340,3 +340,26 @@ def delete_user_video(db: Session, user_id: int, video_id: str) -> bool:
     )
     db.commit()
     return deleted > 0
+
+
+def get_video_by_id(video_id: str) -> dict | None:
+    """Get a single video by its ID."""
+    db = _db()
+    try:
+        row = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
+        if not row:
+            return None
+        return {
+            "video_id": row.video_id,
+            "title": row.title,
+            "youtube_url": row.youtube_url,
+            "tracked_at": row.tracked_at,
+            "has_korean": row.has_korean,
+            "has_ukrainian": row.has_ukrainian,
+            "season": row.season,
+            "episode": row.episode,
+            "episode_title": row.episode_title,
+            "duration_seconds": row.duration_seconds,
+        }
+    finally:
+        db.close()

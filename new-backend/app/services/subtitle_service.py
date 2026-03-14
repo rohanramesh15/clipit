@@ -128,12 +128,13 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
     if korean_subs and english_subs:
         merged = merge_subtitles_by_timestamp(english_subs, korean_subs)
     elif korean_subs:
-        # Korean only — no English available
+        # Korean only — no English available, leave english empty for DeepL fallback
         merged = [
             {
                 'start': s['start'], 'duration': s['duration'],
                 'end': s['start'] + s['duration'],
-                'english': s['text'], 'korean': s['text'],
+                'english': '',
+                'korean': s['text'],
             }
             for s in korean_subs
             if s['text'] and s['text'].strip()

@@ -27,6 +27,7 @@ class CardUpsert(PydanticModel):
     lapses: int = 0
     state: int = 0                  # 0=New 1=Learning 2=Review 3=Relearning
     last_review: Optional[str] = None
+    video_id: Optional[str] = None  # YouTube video ID for deck organization
 
 
 class CardBulkUpsert(PydanticModel):
@@ -78,12 +79,16 @@ def _apply_card_upsert(
         existing.lapses = card.lapses
         existing.state = card.state
         existing.last_review = last_review
+        # Only update video_id if provided and not already set
+        if card.video_id and not existing.video_id:
+            existing.video_id = card.video_id
         return existing
     else:
         progress = UserFlashcardProgress(
             user_id=user_id,
             word=card.word,
             language=card.language,
+            video_id=card.video_id,
             due=due,
             stability=card.stability,
             difficulty=card.difficulty,
@@ -104,15 +109,21 @@ def _apply_card_upsert(
 def get_cards(
     limit: int = 500,
     offset: int = 0,
+    video_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Return FSRS card states for the current user, with optional pagination."""
+    """Return FSRS card states for the current user, with optional pagination and filtering."""
     query = (
         db.query(UserFlashcardProgress)
         .filter(UserFlashcardProgress.user_id == current_user.id)
-        .order_by(UserFlashcardProgress.word)
     )
+
+    # Filter by specific video (deck)
+    if video_id:
+        query = query.filter(UserFlashcardProgress.video_id == video_id)
+
+    query = query.order_by(UserFlashcardProgress.word)
     total = query.count()
     rows = query.offset(offset).limit(limit).all()
     return {
@@ -123,6 +134,7 @@ def get_cards(
             {
                 "word": r.word,
                 "language": r.language,
+                "video_id": r.video_id,
                 "due": r.due.isoformat() if r.due else None,
                 "stability": r.stability,
                 "difficulty": r.difficulty,

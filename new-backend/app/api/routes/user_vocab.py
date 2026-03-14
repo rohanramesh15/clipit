@@ -51,13 +51,15 @@ class VocabListDetailResponse(BaseModel):
 
 class VocabSettingsResponse(BaseModel):
     priority_mode: str
+    new_cards_per_day: int = 10
 
     class Config:
         from_attributes = True
 
 
 class VocabSettingsUpdate(BaseModel):
-    priority_mode: str  # 'uploaded_only', 'frequency_only', 'mixed'
+    priority_mode: Optional[str] = None  # 'uploaded_only', 'frequency_only', 'mixed'
+    new_cards_per_day: Optional[int] = None  # Number of new cards per day
 
 
 class WordCreate(BaseModel):
@@ -294,15 +296,18 @@ def get_vocabulary_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get the user's vocabulary priority settings."""
+    """Get the user's vocabulary and study settings."""
     settings = db.query(UserVocabularySettings).filter(
         UserVocabularySettings.user_id == current_user.id
     ).first()
 
     if not settings:
-        return VocabSettingsResponse(priority_mode="mixed")  # Default
+        return VocabSettingsResponse(priority_mode="mixed", new_cards_per_day=10)  # Defaults
 
-    return VocabSettingsResponse(priority_mode=settings.priority_mode)
+    return VocabSettingsResponse(
+        priority_mode=settings.priority_mode,
+        new_cards_per_day=settings.new_cards_per_day
+    )
 
 
 @router.put("/settings", response_model=VocabSettingsResponse)
@@ -311,12 +316,18 @@ def update_vocabulary_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update the user's vocabulary priority settings."""
+    """Update the user's vocabulary and study settings."""
     valid_modes = ['uploaded_only', 'frequency_only', 'mixed']
-    if settings_data.priority_mode not in valid_modes:
+    if settings_data.priority_mode is not None and settings_data.priority_mode not in valid_modes:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid priority_mode. Must be one of: {valid_modes}"
+        )
+
+    if settings_data.new_cards_per_day is not None and settings_data.new_cards_per_day < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="new_cards_per_day must be 0 or greater"
         )
 
     settings = db.query(UserVocabularySettings).filter(
@@ -324,16 +335,23 @@ def update_vocabulary_settings(
     ).first()
 
     if settings:
-        settings.priority_mode = settings_data.priority_mode
+        if settings_data.priority_mode is not None:
+            settings.priority_mode = settings_data.priority_mode
+        if settings_data.new_cards_per_day is not None:
+            settings.new_cards_per_day = settings_data.new_cards_per_day
     else:
         settings = UserVocabularySettings(
             user_id=current_user.id,
-            priority_mode=settings_data.priority_mode
+            priority_mode=settings_data.priority_mode or "mixed",
+            new_cards_per_day=settings_data.new_cards_per_day if settings_data.new_cards_per_day is not None else 10
         )
         db.add(settings)
 
     db.commit()
-    return VocabSettingsResponse(priority_mode=settings.priority_mode)
+    return VocabSettingsResponse(
+        priority_mode=settings.priority_mode,
+        new_cards_per_day=settings.new_cards_per_day
+    )
 
 
 # ── Helper: Get all user vocab words ─────────────────────────────────────────
@@ -364,3 +382,12 @@ def get_user_priority_mode(user_id: int, db: Session) -> str:
     ).first()
 
     return settings.priority_mode if settings else "mixed"
+
+
+def get_user_new_cards_per_day(user_id: int, db: Session) -> int:
+    """Get user's new cards per day setting, defaults to 20."""
+    settings = db.query(UserVocabularySettings).filter(
+        UserVocabularySettings.user_id == user_id
+    ).first()
+
+    return settings.new_cards_per_day if settings else 10

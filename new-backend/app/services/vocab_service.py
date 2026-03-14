@@ -74,3 +74,81 @@ def get_difficulty(rank: int, language: str = 'ko') -> str:
         return 'advanced'
     else:
         return 'expert'
+
+
+def filter_by_priority_mode(
+    video_words: List[str],
+    frequency_map: Dict[str, int],
+    user_vocab: List[Dict],  # [{"word": "...", "translation": "..."}]
+    priority_mode: str = "mixed",
+    language: str = "ko"
+) -> List[Dict]:
+    """
+    Filter video words based on user's priority mode.
+
+    Args:
+        video_words: Words extracted from video subtitles
+        frequency_map: Standard frequency list
+        user_vocab: User's uploaded vocabulary words
+        priority_mode: 'uploaded_only', 'frequency_only', or 'mixed'
+        language: Language code
+
+    Returns:
+        Filtered vocabulary list with source indicators
+    """
+    video_word_set = set(video_words)
+    user_vocab_set = {w['word'] for w in user_vocab}
+    user_vocab_map = {w['word']: w['translation'] for w in user_vocab}
+
+    if priority_mode == "uploaded_only":
+        # Only show words from video that are in user's uploaded list
+        result = []
+        for idx, uv in enumerate(user_vocab):
+            if uv['word'] in video_word_set:
+                result.append({
+                    'word': uv['word'],
+                    'rank': idx + 1,  # Use upload order as rank
+                    'language': language,
+                    'source': 'uploaded',
+                    'user_translation': uv['translation']
+                })
+        return result
+
+    elif priority_mode == "frequency_only":
+        # Only show words from video that are in frequency list (current behavior)
+        filtered = filter_vocabulary(video_words, frequency_map, language)
+        for item in filtered:
+            item['source'] = 'frequency'
+            # If user has a translation for this word, include it
+            if item['word'] in user_vocab_map:
+                item['user_translation'] = user_vocab_map[item['word']]
+        return filtered
+
+    else:  # "mixed" - default
+        # Show words from video that are in EITHER uploaded list OR frequency list
+        result = []
+        seen_words = set()
+
+        # First, add uploaded words that appear in video
+        for idx, uv in enumerate(user_vocab):
+            if uv['word'] in video_word_set and uv['word'] not in seen_words:
+                result.append({
+                    'word': uv['word'],
+                    'rank': idx + 1,
+                    'language': language,
+                    'source': 'uploaded',
+                    'user_translation': uv['translation']
+                })
+                seen_words.add(uv['word'])
+
+        # Then, add frequency words that appear in video (excluding already seen)
+        freq_filtered = filter_vocabulary(video_words, frequency_map, language)
+        for item in freq_filtered:
+            if item['word'] not in seen_words:
+                item['source'] = 'frequency'
+                if item['word'] in user_vocab_map:
+                    item['user_translation'] = user_vocab_map[item['word']]
+                result.append(item)
+                seen_words.add(item['word'])
+
+        return result
