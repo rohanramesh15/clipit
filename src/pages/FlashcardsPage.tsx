@@ -262,6 +262,8 @@ export function FlashcardsPage() {
   const [isEditingDefinition, setIsEditingDefinition] = useState(false);
   const [editedDefinition, setEditedDefinition] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteVideoConfirm, setShowDeleteVideoConfirm] = useState<TrackedVideo | null>(null);
+  const [isDeletingVideo, setIsDeletingVideo] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -719,6 +721,58 @@ export function FlashcardsPage() {
     }
   }
 
+  // Delete all flashcards for a specific video
+  async function handleDeleteVideoFlashcards(video: TrackedVideo) {
+    setIsDeletingVideo(true);
+
+    try {
+      // Call API to delete flashcards for this video
+      const res = await fetch(
+        `${API_BASE_URL}/fsrs/cards/video/${encodeURIComponent(video.video_id)}?language=${language}`,
+        {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (res.ok) {
+        // Remove cards from local state
+        const newCards = cards.filter(c => c.video_id !== video.video_id);
+        const newDueCards = dueCards.filter(c => c.video_id !== video.video_id);
+        setCards(newCards);
+        setDueCards(newDueCards);
+
+        // Remove the video from the videos list (so it doesn't show in "All Videos")
+        const newVideos = videos.filter(v => v.video_id !== video.video_id);
+        setVideos(newVideos);
+
+        // If the deleted video was currently selected, switch to "All Videos"
+        if (selectedVideoId === video.video_id) {
+          setSelectedVideoId('all');
+          setSelectedVideoTitle('All Videos');
+        }
+
+        // Adjust current index if needed
+        if (currentIndex >= newDueCards.length && newDueCards.length > 0) {
+          setCurrentIndex(newDueCards.length - 1);
+        } else if (newDueCards.length === 0) {
+          // Check if there are no more videos at all
+          if (newVideos.length === 0) {
+            setLoadState('no-videos');
+          } else {
+            setLoadState('session-complete');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete video flashcards:', error);
+    } finally {
+      setIsDeletingVideo(false);
+      setShowDeleteVideoConfirm(null);
+      setShowVideoPicker(false);
+    }
+  }
+
   // Get stats for current card
   const currentStats = currentCard ? getCardStats(currentCard.dictionary_form || currentCard.target_word) : null;
 
@@ -994,14 +1048,27 @@ export function FlashcardsPage() {
 
             {/* Individual videos */}
             {videos.map(v => (
-              <button
+              <div
                 key={v.video_id}
-                onClick={() => { setShowVideoPicker(false); loadFlashcards(v.video_id, v.title); }}
-                className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${
+                className={`flex items-center justify-between border-b border-white/5 last:border-0 ${
                   v.video_id === selectedVideoId ? 'text-accent' : 'text-secondary'
                 }`}>
-                <span className="line-clamp-1">{v.title}</span>
-              </button>
+                <button
+                  onClick={() => { setShowVideoPicker(false); loadFlashcards(v.video_id, v.title); }}
+                  className="flex-1 text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors">
+                  <span className="line-clamp-1">{v.title}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDeleteVideoConfirm(v);
+                  }}
+                  className="p-2.5 mr-2 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
+                  title="Delete all flashcards for this video"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ))}
           </motion.div>
         )}
@@ -1279,6 +1346,69 @@ export function FlashcardsPage() {
                   className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
                 >
                   Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Video Flashcards Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteVideoConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+            onClick={() => !isDeletingVideo && setShowDeleteVideoConfirm(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-primary text-center mb-2">
+                Delete All Flashcards?
+              </h3>
+              <p className="text-sm text-secondary text-center mb-2">
+                Are you sure you want to delete all flashcards from:
+              </p>
+              <p className="text-sm text-primary font-medium text-center mb-4 px-4 line-clamp-2">
+                "{showDeleteVideoConfirm.title}"
+              </p>
+              <p className="text-xs text-muted text-center mb-6">
+                This will remove all vocabulary cards associated with this video. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteVideoConfirm(null)}
+                  disabled={isDeletingVideo}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteVideoFlashcards(showDeleteVideoConfirm)}
+                  disabled={isDeletingVideo}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeletingVideo ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete All
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
