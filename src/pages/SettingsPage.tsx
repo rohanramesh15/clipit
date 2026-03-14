@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { API_BASE_URL } from '../config';
 import {
   Bell,
   Shield,
@@ -9,19 +10,34 @@ import {
   Trash2,
   ChevronRight,
   Crown,
+  Layers,
 } from 'lucide-react';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 
 const settingsPageTips: HelpTip[] = [
   {
-    id: 'language',
-    text: 'Switch your target language between Korean and Ukrainian.',
-    position: 'top-left',
+    id: 'profile',
+    text: 'View and edit your profile information.',
+    targetId: 'section-profile',
+    position: 'right',
   },
   {
-    id: 'goals',
-    text: 'Set daily goals to stay on track with your learning.',
-    position: 'center-right',
+    id: 'learning',
+    text: 'Set your target language, motivation, daily goal, and new cards per day.',
+    targetId: 'section-learning',
+    position: 'right',
+  },
+  {
+    id: 'notifications',
+    text: 'Toggle daily reminders to stay on track with your learning.',
+    targetId: 'section-notifications',
+    position: 'right',
+  },
+  {
+    id: 'account',
+    text: 'Manage your account security or log out.',
+    targetId: 'section-account',
+    position: 'right',
   },
 ];
 
@@ -51,7 +67,7 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ onEditProfile }: SettingsPageProps) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
   const [motivation, setMotivation] = useState(() => {
@@ -61,11 +77,49 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
     return localStorage.getItem('daily_goal') || '15';
   });
   const [notifications, setNotifications] = useState(true);
+  const [newCardsPerDay, setNewCardsPerDay] = useState(10);
+  const [isSavingNewCards, setIsSavingNewCards] = useState(false);
+
+  // Fetch new cards per day setting on mount
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE_URL}/vocab/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.new_cards_per_day !== undefined) {
+          setNewCardsPerDay(data.new_cards_per_day);
+        }
+      })
+      .catch(err => console.error('Failed to fetch settings:', err));
+  }, [token]);
 
   // Persist daily goal to localStorage
   const handleDailyGoalChange = (value: string) => {
     setDailyGoal(value);
     localStorage.setItem('daily_goal', value);
+  };
+
+  // Save new cards per day to API
+  const handleNewCardsChange = async (value: number) => {
+    const clampedValue = Math.max(0, value);
+    setNewCardsPerDay(clampedValue);
+    setIsSavingNewCards(true);
+    try {
+      await fetch(`${API_BASE_URL}/vocab/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ new_cards_per_day: clampedValue }),
+      });
+    } catch (err) {
+      console.error('Failed to save new cards setting:', err);
+    } finally {
+      setIsSavingNewCards(false);
+    }
   };
 
   return (
@@ -88,7 +142,7 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
 
       <div className="space-y-10">
         {/* Profile */}
-        <section>
+        <section id="section-profile">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Profile
           </h2>
@@ -113,7 +167,7 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
         </section>
 
         {/* Learning Preferences */}
-        <section>
+        <section id="section-learning">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Learning
           </h2>
@@ -196,11 +250,44 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
                 ))}
               </div>
             </div>
+
+            <div className="border-t border-white/5" />
+
+            {/* New Cards Per Day */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="text-sm font-semibold text-primary block">
+                  New Cards Per Day
+                </label>
+                {isSavingNewCards && (
+                  <div className="w-4 h-4 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+                )}
+              </div>
+              <p className="text-xs text-secondary mb-3">
+                How many new flashcards do you want to learn each day?
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                  <input
+                    type="number"
+                    min="0"
+                    value={newCardsPerDay}
+                    onChange={(e) => handleNewCardsChange(parseInt(e.target.value) || 0)}
+                    className="w-32 bg-app border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-primary text-sm font-bold focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
+                  />
+                </div>
+                <span className="text-sm text-secondary">cards</span>
+              </div>
+              <p className="text-xs text-muted mt-2">
+                Set to 0 to only review existing cards
+              </p>
+            </div>
           </div>
         </section>
 
         {/* Notifications */}
-        <section>
+        <section id="section-notifications">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Notifications
           </h2>
@@ -228,7 +315,7 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
         </section>
 
         {/* Account */}
-        <section>
+        <section id="section-account">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Account
           </h2>

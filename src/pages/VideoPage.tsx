@@ -20,27 +20,22 @@ import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 
 const videoPageTips: HelpTip[] = [
   {
-    id: 'videos-intro',
-    text: 'Videos you watch with the browser extension appear here automatically.',
-    position: 'top-left',
-  },
-  {
     id: 'platform-filter',
     text: 'Filter by YouTube or Netflix to find specific videos.',
-    position: 'top-center',
-    offset: { y: 80 },
+    targetId: 'section-platform-tabs',
+    position: 'right',
   },
   {
     id: 'stats-cards',
     text: 'Track your watching progress and vocabulary growth.',
-    position: 'center-left',
-    offset: { y: -60 },
+    targetId: 'section-stats',
+    position: 'bottom',
   },
   {
-    id: 'video-card',
-    text: 'Click any video to watch it again. Hover to delete or open externally.',
-    position: 'center-right',
-    offset: { y: 40 },
+    id: 'video-grid',
+    text: 'Videos you watch with the browser extension appear here. Click to watch again, hover to delete.',
+    targetId: 'section-video-grid',
+    position: 'top',
   },
 ];
 
@@ -188,7 +183,7 @@ export function VideoPage() {
       </div>
 
       {/* Platform Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div id="section-platform-tabs" className="flex gap-2 mb-6">
         <button
           onClick={() => setPlatformFilter('all')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -231,7 +226,7 @@ export function VideoPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+      <div id="section-stats" className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
           <Play className="w-6 h-6 text-accent" />
           <div>
@@ -345,6 +340,7 @@ export function VideoPage() {
 
         {loadState === 'loaded' && (
           <motion.div
+            id="section-video-grid"
             key="loaded"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

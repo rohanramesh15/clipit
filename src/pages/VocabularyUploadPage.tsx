@@ -13,6 +13,7 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  Layers,
 } from 'lucide-react';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 
@@ -20,22 +21,26 @@ const uploadPageTips: HelpTip[] = [
   {
     id: 'priority-mode',
     text: 'Choose which words to extract from videos: your lists, our frequency list, or both.',
-    position: 'top-left',
+    targetId: 'section-word-source',
+    position: 'right',
   },
   {
-    id: 'csv-format',
-    text: 'Upload a CSV file with two columns: Korean word and English translation.',
-    position: 'top-right',
+    id: 'csv-upload',
+    text: 'Upload a CSV file with two columns: word and translation.',
+    targetId: 'section-csv-upload',
+    position: 'right',
   },
   {
-    id: 'upload-area',
-    text: 'Drag and drop your CSV file here, or click to browse.',
-    position: 'center-right',
+    id: 'anki-import',
+    text: 'Import your Anki decks with review progress. Check "Include scheduling information" when exporting from Anki.',
+    targetId: 'section-anki-import',
+    position: 'right',
   },
   {
     id: 'lists',
-    text: 'Your uploaded lists appear here. Click to expand and see all words.',
-    position: 'bottom-left',
+    text: 'Your uploaded lists and imported Anki decks appear here. Click to expand and see all words.',
+    targetId: 'section-word-lists',
+    position: 'right',
   },
 ];
 
@@ -79,6 +84,7 @@ const PRIORITY_MODES = [
 export function VocabularyUploadPage() {
   const { token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ankiInputRef = useRef<HTMLInputElement>(null);
 
   // State
   const [lists, setLists] = useState<VocabList[]>([]);
@@ -87,9 +93,16 @@ export function VocabularyUploadPage() {
   const [priorityMode, setPriorityMode] = useState('mixed');
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAnki, setIsUploadingAnki] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [ankiImportResult, setAnkiImportResult] = useState<{
+    deck_name: string;
+    imported: number;
+    updated: number;
+    skipped: number;
+  } | null>(null);
 
   // Fetch lists and settings on mount
   useEffect(() => {
@@ -244,6 +257,47 @@ export function VocabularyUploadPage() {
     }
   };
 
+  const handleAnkiUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAnki(true);
+    setError(null);
+    setSuccess(null);
+    setAnkiImportResult(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('language', 'ko'); // TODO: Get from language context
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/anki/import`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAnkiImportResult(data);
+        setSuccess(`Successfully imported "${data.deck_name}"!`);
+        // Refresh lists to show the new Anki import
+        fetchLists();
+      } else {
+        const data = await res.json();
+        setError(data.detail || 'Failed to import Anki deck');
+      }
+    } catch (err) {
+      console.error('[Anki Import] Exception:', err);
+      setError('Failed to import Anki deck. Please try again.');
+    } finally {
+      setIsUploadingAnki(false);
+      if (ankiInputRef.current) {
+        ankiInputRef.current.value = '';
+      }
+    }
+  };
+
   // Clear messages after 5 seconds
   useEffect(() => {
     if (success || error) {
@@ -321,7 +375,7 @@ export function VocabularyUploadPage() {
 
       <div className="space-y-10">
         {/* Priority Mode Selection */}
-        <section>
+        <section id="section-word-source">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Word Source
           </h2>
@@ -425,7 +479,7 @@ export function VocabularyUploadPage() {
         </section>
 
         {/* Upload Section */}
-        <section>
+        <section id="section-csv-upload">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Upload List
           </h2>
@@ -459,8 +513,102 @@ export function VocabularyUploadPage() {
           </div>
         </section>
 
+        {/* Anki Import Section */}
+        <section id="section-anki-import">
+          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
+            Import from Anki
+          </h2>
+          <div className="bg-surface border border-white/5 rounded-2xl p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-primary">Import Anki Deck</p>
+                <p className="text-xs text-secondary mt-0.5">
+                  Upload your .apkg file to import cards with their review progress
+                </p>
+              </div>
+            </div>
+
+            <input
+              ref={ankiInputRef}
+              type="file"
+              accept=".apkg"
+              onChange={handleAnkiUpload}
+              className="hidden"
+              id="anki-upload"
+            />
+            <label
+              htmlFor="anki-upload"
+              className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                isUploadingAnki
+                  ? 'border-purple-500/50 bg-purple-500/5'
+                  : 'border-white/10 hover:border-purple-500/30 hover:bg-purple-500/5'
+              }`}
+            >
+              {isUploadingAnki ? (
+                <Loader2 className="w-8 h-8 text-purple-400 animate-spin mb-2" />
+              ) : (
+                <Layers className="w-8 h-8 text-secondary mb-2" />
+              )}
+              <p className="font-semibold text-primary mb-1 text-sm">
+                {isUploadingAnki ? 'Importing...' : 'Click to upload .apkg file'}
+              </p>
+              <p className="text-xs text-secondary">Your review progress will be preserved</p>
+            </label>
+
+            {/* Import Result */}
+            {ankiImportResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl"
+              >
+                <p className="font-semibold text-purple-300 mb-2">Import Complete</p>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-primary">{ankiImportResult.imported}</p>
+                    <p className="text-xs text-secondary">New cards</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-primary">{ankiImportResult.updated}</p>
+                    <p className="text-xs text-secondary">Updated</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-muted">{ankiImportResult.skipped}</p>
+                    <p className="text-xs text-secondary">Skipped</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-xs text-amber-300 font-medium flex items-center gap-2">
+                <Info className="w-4 h-4 shrink-0" />
+                When exporting from Anki, check "Include scheduling information" to preserve your progress.
+              </p>
+            </div>
+
+            <ul className="mt-4 space-y-2 text-sm text-secondary">
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+                Imports cards with front/back content
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+                Preserves review history and due dates
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+                Converts Anki scheduling to FSRS
+              </li>
+            </ul>
+          </div>
+        </section>
+
         {/* My Lists */}
-        <section>
+        <section id="section-word-lists">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             My Word Lists ({lists.length})
           </h2>

@@ -9,12 +9,14 @@ const analyticsPageTips: HelpTip[] = [
   {
     id: 'stats-overview',
     text: 'Track your learning progress: streak, words learned, reviews, and watch time.',
-    position: 'top-center',
+    targetId: 'section-stats',
+    position: 'right',
   },
   {
     id: 'heatmap',
     text: 'Your activity heatmap shows daily review consistency over the year.',
-    position: 'center-left',
+    targetId: 'section-heatmap',
+    position: 'bottom',
   },
 ];
 
@@ -118,7 +120,7 @@ export function AnalyticsPage() {
 
       <div className="space-y-8 mb-12">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div id="section-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.id}
@@ -142,6 +144,7 @@ export function AnalyticsPage() {
 
         {/* Activity Heatmap */}
         <motion.div
+          id="section-heatmap"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}

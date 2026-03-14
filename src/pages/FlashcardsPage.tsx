@@ -30,26 +30,22 @@ import { Sparkles } from 'lucide-react';
 
 const flashcardsPageTips: HelpTip[] = [
   {
-    id: 'flashcards-intro',
-    text: 'Review vocabulary from videos you watched. Cards are scheduled using spaced repetition.',
-    position: 'top-center',
-  },
-  {
-    id: 'video-select',
+    id: 'deck-select',
     text: 'Switch between decks or review all cards at once.',
-    position: 'top-left',
-    offset: { y: 20 },
+    targetId: 'section-deck-select',
+    position: 'bottom',
   },
   {
-    id: 'flip-card',
+    id: 'flashcard',
     text: 'Tap the card to flip and reveal the translation.',
-    position: 'center-left',
+    targetId: 'section-flashcard',
+    position: 'right',
   },
   {
     id: 'rating-buttons',
     text: 'Rate how well you knew the word. This schedules the next review.',
-    position: 'bottom-center',
-    offset: { y: -40 },
+    targetId: 'section-rating-buttons',
+    position: 'top',
   },
 ];
 
@@ -936,7 +932,7 @@ export function FlashcardsPage() {
 
       {/* Header stats */}
       <div className="w-full flex items-center justify-between mb-5">
-        <div className="min-w-0 flex-1 mr-4">
+        <div id="section-deck-select" className="min-w-0 flex-1 mr-4">
           <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
           <button
             onClick={() => setShowVideoPicker(!showVideoPicker)}
@@ -1070,7 +1066,7 @@ export function FlashcardsPage() {
         </div>
 
         {/* Flashcard */}
-        <div className="relative w-full aspect-[4/3]" style={{ perspective: '1200px' }}>
+        <div id="section-flashcard" className="relative w-full aspect-[4/3]" style={{ perspective: '1200px' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -1200,6 +1196,7 @@ export function FlashcardsPage() {
 
       {/* Controls */}
       <motion.div
+        id="section-rating-buttons"
         className="grid grid-cols-4 gap-3 mt-8 w-full"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

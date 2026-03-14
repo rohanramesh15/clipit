@@ -9,17 +9,14 @@ const dictionaryPageTips: HelpTip[] = [
   {
     id: 'search',
     text: 'Search for any word in our frequency dictionary.',
-    position: 'top-center',
+    targetId: 'section-search',
+    position: 'bottom',
   },
   {
-    id: 'mastery',
-    text: 'The progress bar shows your mastery level from flashcard reviews.',
-    position: 'center-right',
-  },
-  {
-    id: 'audio',
-    text: 'Click the speaker icon to hear pronunciation.',
-    position: 'center-left',
+    id: 'word-list',
+    text: 'Words ranked by frequency. Progress bar shows your mastery level. Click speaker icon to hear pronunciation.',
+    targetId: 'section-word-list',
+    position: 'right',
   },
 ];
 
@@ -159,7 +156,7 @@ export function DictionaryPage() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4">
+        <div id="section-search" className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
             <input
@@ -194,7 +191,7 @@ export function DictionaryPage() {
       </div>
 
       {/* Word List */}
-      <div className="space-y-3">
+      <div id="section-word-list" className="space-y-3">
         {filteredEntries.map((entry, index) => (
           <motion.div
             key={entry.word}
