@@ -8,7 +8,6 @@ import {
   ThumbsDown,
   AlertCircle,
   Tv,
-  ChevronDown,
   Layers,
   Clock,
   Trophy,
@@ -18,6 +17,16 @@ import {
   VolumeX,
   Trash2,
   Pencil,
+  ArrowUpDown,
+  Film,
+  Calendar,
+  Search,
+  FolderPlus,
+  Folder,
+  Plus,
+  ChevronRight,
+  MoreVertical,
+  FolderOpen,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
@@ -179,7 +188,38 @@ interface TrackedVideo {
   tracked_at: number;
 }
 
-type LoadState = 'loading' | 'loaded' | 'error' | 'no-videos' | 'no-vocab' | 'session-complete' | 'time-gated-complete';
+type LoadState = 'loading' | 'deck-select' | 'loaded' | 'error' | 'no-videos' | 'no-vocab' | 'session-complete' | 'time-gated-complete';
+
+type SortOption = 'recent' | 'alphabetical' | 'oldest';
+
+// Folder for organizing video decks
+interface VideoFolder {
+  id: string;
+  name: string;
+  videoIds: string[];
+  createdAt: number;
+}
+
+// Folder persistence helpers
+const FOLDERS_KEY = 'lipit_video_folders';
+
+function getFolders(): VideoFolder[] {
+  try {
+    const stored = localStorage.getItem(FOLDERS_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
+}
+
+function saveFolders(folders: VideoFolder[]) {
+  try {
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 // Format next review time
 function formatNextReview(date: Date): string {
@@ -254,7 +294,6 @@ export function FlashcardsPage() {
   const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [showVideoPicker, setShowVideoPicker] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('Loading watch history...');
   const [lastRatingInfo, setLastRatingInfo] = useState<{ word: string; nextDue: string } | null>(null);
   const [sessionStats, setSessionStats] = useState({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
@@ -263,9 +302,114 @@ export function FlashcardsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteVideoConfirm, setShowDeleteVideoConfirm] = useState<TrackedVideo | null>(null);
   const [isDeletingVideo, setIsDeletingVideo] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>('recent');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [folders, setFolders] = useState<VideoFolder[]>([]);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [editingFolder, setEditingFolder] = useState<VideoFolder | null>(null);
+  const [addingToFolder, setAddingToFolder] = useState<TrackedVideo | null>(null);
+  const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
+
+  // Load folders from localStorage on mount
+  useEffect(() => {
+    setFolders(getFolders());
+  }, []);
+
+  // Create a new folder
+  function handleCreateFolder() {
+    if (!newFolderName.trim()) return;
+    const newFolder: VideoFolder = {
+      id: `folder_${Date.now()}`,
+      name: newFolderName.trim(),
+      videoIds: [],
+      createdAt: Date.now(),
+    };
+    const updatedFolders = [...folders, newFolder];
+    setFolders(updatedFolders);
+    saveFolders(updatedFolders);
+    setNewFolderName('');
+    setShowCreateFolder(false);
+  }
+
+  // Add video to folder
+  function handleAddToFolder(video: TrackedVideo, folderId: string) {
+    const updatedFolders = folders.map(f => {
+      if (f.id === folderId && !f.videoIds.includes(video.video_id)) {
+        return { ...f, videoIds: [...f.videoIds, video.video_id] };
+      }
+      return f;
+    });
+    setFolders(updatedFolders);
+    saveFolders(updatedFolders);
+    setAddingToFolder(null);
+  }
+
+  // Remove video from folder
+  function handleRemoveFromFolder(videoId: string, folderId: string) {
+    const updatedFolders = folders.map(f => {
+      if (f.id === folderId) {
+        return { ...f, videoIds: f.videoIds.filter(id => id !== videoId) };
+      }
+      return f;
+    });
+    setFolders(updatedFolders);
+    saveFolders(updatedFolders);
+  }
+
+  // Delete folder
+  function handleDeleteFolder(folderId: string) {
+    const updatedFolders = folders.filter(f => f.id !== folderId);
+    setFolders(updatedFolders);
+    saveFolders(updatedFolders);
+    setEditingFolder(null);
+  }
+
+  // Rename folder
+  function handleRenameFolder(folderId: string, newName: string) {
+    if (!newName.trim()) return;
+    const updatedFolders = folders.map(f => {
+      if (f.id === folderId) {
+        return { ...f, name: newName.trim() };
+      }
+      return f;
+    });
+    setFolders(updatedFolders);
+    saveFolders(updatedFolders);
+    setEditingFolder(null);
+  }
+
+  // Load flashcards for a folder (multiple videos)
+  const loadFolderFlashcards = useCallback(async (folder: VideoFolder) => {
+    const folderVideos = videos.filter(v => folder.videoIds.includes(v.video_id));
+    if (folderVideos.length === 0) return;
+
+    setLoadState('loading');
+    setLoadingMsg(`Loading flashcards from "${folder.name}"...`);
+    setCards([]);
+    setDueCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSelectedVideoId(`folder_${folder.id}`);
+    setSelectedVideoTitle(folder.name);
+    setLastRatingInfo(null);
+
+    const allCards: FlashCard[] = [];
+    for (const video of folderVideos) {
+      setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
+      const videoCards = await fetchCardsForVideo(video.video_id);
+      allCards.push(...videoCards);
+    }
+
+    if (!allCards.length) {
+      setLoadState('no-vocab');
+      return;
+    }
+    prepareCardsForReview(allCards);
+  }, [videos, fetchCardsForVideo, prepareCardsForReview]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -542,16 +686,39 @@ export function FlashcardsPage() {
           return;
         }
 
-        await loadAllVideos(vids);
+        // Show deck selection screen instead of auto-loading
+        setLoadState('deck-select');
       } catch {
         setLoadState('error');
       }
     }
     bootstrap();
-  }, [language, token, loadAllVideos]);
+  }, [language, token]);
 
   const currentCard = dueCards[currentIndex];
   const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;
+
+  // Filter and sort videos based on search query and selected option
+  const filteredAndSortedVideos = [...videos]
+    .filter(v => {
+      if (!searchQuery.trim()) return true;
+      return v.title.toLowerCase().includes(searchQuery.toLowerCase());
+    })
+    .sort((a, b) => {
+      switch (sortOption) {
+        case 'alphabetical':
+          return a.title.localeCompare(b.title);
+        case 'oldest':
+          return a.tracked_at - b.tracked_at;
+        case 'recent':
+        default:
+          return b.tracked_at - a.tracked_at;
+      }
+    });
+
+  // Get videos not in any folder (for the "Ungrouped" section)
+  const videosInFolders = new Set(folders.flatMap(f => f.videoIds));
+  const ungroupedVideos = filteredAndSortedVideos.filter(v => !videosInFolders.has(v.video_id));
 
   // Handle rating a card
   function handleRating(rating: Rating) {
@@ -733,6 +900,9 @@ export function FlashcardsPage() {
           // Check if there are no more videos at all
           if (newVideos.length === 0) {
             setLoadState('no-videos');
+          } else if (loadState === 'deck-select') {
+            // Stay on deck select if that's where we are
+            setLoadState('deck-select');
           } else {
             setLoadState('session-complete');
           }
@@ -745,6 +915,18 @@ export function FlashcardsPage() {
       setShowDeleteVideoConfirm(null);
       setShowVideoPicker(false);
     }
+  }
+
+  // Go back to deck selection
+  function handleBackToDecks() {
+    setLoadState('deck-select');
+    setCards([]);
+    setDueCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSelectedVideoId('');
+    setSelectedVideoTitle('');
+    resetSession();
   }
 
   // Get stats for current card
@@ -783,6 +965,499 @@ export function FlashcardsPage() {
     );
   }
 
+  // ── Deck Selection ──────────────────────────────────────────
+  if (loadState === 'deck-select') {
+    // Helper to render a video card
+    const renderVideoCard = (video: TrackedVideo, index: number, inFolder?: string) => {
+      const isNetflix = video.video_id.startsWith('netflix_');
+      return (
+        <motion.div
+          key={video.video_id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.02 }}
+          className="bg-surface border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all group"
+        >
+          <div className="flex items-center">
+            <button
+              onClick={() => loadFlashcards(video.video_id, video.title)}
+              className="flex-1 flex items-center gap-3 p-3 text-left"
+            >
+              {/* Thumbnail */}
+              <div className="w-16 h-10 rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
+                {isNetflix ? (
+                  <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
+                    <Film className="w-4 h-4 text-[#B20710]" />
+                  </div>
+                ) : (
+                  <img
+                    src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
+                <div className={`absolute bottom-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-bold text-white ${
+                  isNetflix ? 'bg-[#B20710]' : 'bg-[#FF0000]'
+                }`}>
+                  {isNetflix ? 'N' : 'YT'}
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-primary text-sm line-clamp-1 group-hover:text-accent transition-colors">
+                  {video.title}
+                </h3>
+                <span className="text-[10px] text-muted">
+                  {new Date(video.tracked_at * 1000).toLocaleDateString()}
+                </span>
+              </div>
+
+              <Play className="w-4 h-4 text-accent opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            </button>
+
+            {/* Action buttons */}
+            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-1">
+              {inFolder ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRemoveFromFolder(video.video_id, inFolder); }}
+                  className="p-2 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
+                  title="Remove from folder"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setAddingToFolder(video); }}
+                  className="p-2 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
+                  title="Add to folder"
+                >
+                  <FolderPlus className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDeleteVideoConfirm(video); }}
+                className="p-2 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
+                title="Delete video"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      );
+    };
+
+    return (
+      <div className="min-h-screen pb-20 max-w-2xl mx-auto px-4 pt-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-heading font-bold text-primary mb-2">Practice</h1>
+          <p className="text-secondary text-sm">Select a deck to start reviewing flashcards.</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+          <input
+            type="text"
+            placeholder="Search videos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-surface border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-muted hover:text-primary transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Sort & Create Folder */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-3.5 h-3.5 text-muted" />
+            {[
+              { value: 'recent' as SortOption, label: 'Recent' },
+              { value: 'alphabetical' as SortOption, label: 'A-Z' },
+              { value: 'oldest' as SortOption, label: 'Oldest' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSortOption(option.value)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  sortOption === option.value
+                    ? 'bg-accent text-app'
+                    : 'bg-surface border border-white/10 text-secondary hover:text-primary'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowCreateFolder(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-white/10 text-secondary hover:text-primary hover:border-white/20 text-xs font-medium transition-all"
+          >
+            <FolderPlus className="w-3.5 h-3.5" />
+            New Folder
+          </button>
+        </div>
+
+        {/* All Videos Card - Always First */}
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => loadAllVideos(videos)}
+          className="w-full bg-gradient-to-r from-accent/20 to-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 text-left hover:from-accent/30 hover:to-accent/20 transition-all group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
+              <Layers className="w-6 h-6 text-accent" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-primary group-hover:text-accent transition-colors">
+                All Videos
+              </h3>
+              <p className="text-xs text-secondary">
+                {videos.length} videos
+              </p>
+            </div>
+            <Play className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </motion.button>
+
+        {/* Folders Section */}
+        {folders.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Folders</h2>
+            <div className="space-y-2">
+              {folders.map((folder) => {
+                const folderVideos = videos.filter(v => folder.videoIds.includes(v.video_id));
+                const isExpanded = expandedFolderId === folder.id;
+
+                return (
+                  <div key={folder.id} className="bg-surface border border-white/5 rounded-xl overflow-hidden">
+                    {/* Folder Header */}
+                    <div className="flex items-center group">
+                      <button
+                        onClick={() => setExpandedFolderId(isExpanded ? null : folder.id)}
+                        className="flex-1 flex items-center gap-3 p-3 text-left"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                          {isExpanded ? (
+                            <FolderOpen className="w-5 h-5 text-accent" />
+                          ) : (
+                            <Folder className="w-5 h-5 text-accent" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-primary text-sm">{folder.name}</h3>
+                          <span className="text-[10px] text-muted">{folderVideos.length} videos</span>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                      </button>
+
+                      {/* Folder actions */}
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                        <button
+                          onClick={() => folderVideos.length > 0 && loadFolderFlashcards(folder)}
+                          disabled={folderVideos.length === 0}
+                          className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors disabled:opacity-30"
+                          title="Study this folder"
+                        >
+                          <Play className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setEditingFolder(folder)}
+                          className="p-2 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
+                          title="Edit folder"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded folder contents */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="border-t border-white/5 overflow-hidden"
+                        >
+                          <div className="p-2 space-y-1.5">
+                            {folderVideos.length === 0 ? (
+                              <p className="text-xs text-muted text-center py-4">
+                                No videos in this folder yet
+                              </p>
+                            ) : (
+                              folderVideos.map((video, index) => renderVideoCard(video, index, folder.id))
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Ungrouped Videos */}
+        {ungroupedVideos.length > 0 && (
+          <div>
+            {folders.length > 0 && (
+              <h2 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Videos</h2>
+            )}
+            <div className="space-y-2">
+              {ungroupedVideos.map((video, index) => renderVideoCard(video, index))}
+            </div>
+          </div>
+        )}
+
+        {/* No results message */}
+        {searchQuery && filteredAndSortedVideos.length === 0 && (
+          <div className="text-center py-12">
+            <Search className="w-10 h-10 text-muted mx-auto mb-3" />
+            <p className="text-secondary text-sm">No videos found for "{searchQuery}"</p>
+          </div>
+        )}
+
+        {/* Create Folder Modal */}
+        <AnimatePresence>
+          {showCreateFolder && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => setShowCreateFolder(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 mx-auto mb-4">
+                  <FolderPlus className="w-6 h-6 text-accent" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-4">Create Folder</h3>
+                <input
+                  type="text"
+                  placeholder="Folder name..."
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 mb-4"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowCreateFolder(false); setNewFolderName(''); }}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateFolder}
+                    disabled={!newFolderName.trim()}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-accent text-app font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
+                  >
+                    Create
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Add to Folder Modal */}
+        <AnimatePresence>
+          {addingToFolder && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => setAddingToFolder(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-bold text-primary text-center mb-2">Add to Folder</h3>
+                <p className="text-xs text-muted text-center mb-4 line-clamp-1">
+                  {addingToFolder.title}
+                </p>
+                {folders.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-secondary mb-3">No folders yet</p>
+                    <button
+                      onClick={() => { setAddingToFolder(null); setShowCreateFolder(true); }}
+                      className="px-4 py-2 rounded-xl bg-accent text-app text-sm font-medium hover:bg-accent/90 transition-colors"
+                    >
+                      Create Folder
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {folders.map(folder => {
+                      const alreadyInFolder = folder.videoIds.includes(addingToFolder.video_id);
+                      return (
+                        <button
+                          key={folder.id}
+                          onClick={() => !alreadyInFolder && handleAddToFolder(addingToFolder, folder.id)}
+                          disabled={alreadyInFolder}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                            alreadyInFolder
+                              ? 'bg-white/5 text-muted cursor-not-allowed'
+                              : 'bg-white/5 hover:bg-accent/10 text-primary hover:text-accent'
+                          }`}
+                        >
+                          <Folder className="w-5 h-5" />
+                          <span className="flex-1 text-sm font-medium">{folder.name}</span>
+                          {alreadyInFolder && <span className="text-xs text-muted">Added</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <button
+                  onClick={() => setAddingToFolder(null)}
+                  className="w-full mt-4 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Edit Folder Modal */}
+        <AnimatePresence>
+          {editingFolder && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => setEditingFolder(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-bold text-primary text-center mb-4">Edit Folder</h3>
+                <input
+                  type="text"
+                  defaultValue={editingFolder.name}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleRenameFolder(editingFolder.id, (e.target as HTMLInputElement).value);
+                    }
+                  }}
+                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 mb-4"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDeleteFolder(editingFolder.id)}
+                    className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-medium hover:bg-red-500/20 transition-colors"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setEditingFolder(null)}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Video Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteVideoConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => !isDeletingVideo && setShowDeleteVideoConfirm(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-2">
+                  Delete Video & Flashcards?
+                </h3>
+                <p className="text-sm text-secondary text-center mb-2">
+                  Are you sure you want to delete:
+                </p>
+                <p className="text-sm text-primary font-medium text-center mb-4 px-4 line-clamp-2">
+                  "{showDeleteVideoConfirm.title}"
+                </p>
+                <p className="text-xs text-muted text-center mb-6">
+                  This will remove the video from your watch history and delete all flashcards associated with it.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteVideoConfirm(null)}
+                    disabled={isDeletingVideo}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteVideoFlashcards(showDeleteVideoConfirm)}
+                    disabled={isDeletingVideo}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDeletingVideo ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   // ── No videos ────────────────────────────────────────────────
   if (loadState === 'no-videos') {
     return (
@@ -811,38 +1486,20 @@ export function FlashcardsPage() {
             ? `None of the tracked videos had ${languageName} words matching the frequency list.`
             : `No ${languageName} words from the frequency list were found in this video.`}
         </p>
-        {videos.length > 1 && selectedVideoId !== 'all' && (
-          <button
-            onClick={() => loadAllVideos(videos)}
-            className="mt-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
-            Try all videos
-          </button>
-        )}
-        {videos.length > 1 && (
-          <button
-            onClick={() => setShowVideoPicker(true)}
-            className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
-            Pick a specific video
-          </button>
-        )}
-        <AnimatePresence>
-          {showVideoPicker && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="w-full max-w-xs mt-2 bg-surface border border-white/10 rounded-xl overflow-hidden shadow-xl">
-              {videos.map(v => (
-                <button
-                  key={v.video_id}
-                  onClick={() => { setShowVideoPicker(false); loadFlashcards(v.video_id, v.title); }}
-                  className="w-full text-left px-4 py-3 text-sm text-secondary hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
-                  <span className="line-clamp-1">{v.title}</span>
-                </button>
-              ))}
-            </motion.div>
+        <div className="flex gap-3 mt-2">
+          {videos.length > 1 && selectedVideoId !== 'all' && (
+            <button
+              onClick={() => loadAllVideos(videos)}
+              className="px-5 py-2.5 rounded-xl bg-accent text-app text-sm font-semibold hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20">
+              Try all videos
+            </button>
           )}
-        </AnimatePresence>
+          <button
+            onClick={handleBackToDecks}
+            className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
+            Back to Decks
+          </button>
+        </div>
       </div>
     );
   }
@@ -927,7 +1584,7 @@ export function FlashcardsPage() {
             No cards are due for review right now. Come back later!
           </p>
         )}
-        <div className="flex gap-3 mt-4">
+        <div className="flex flex-col gap-3 mt-4">
           <button
             onClick={() => {
               resetSession();
@@ -937,16 +1594,13 @@ export function FlashcardsPage() {
               setLoadState('loaded');
               startSession();
             }}
-            className="px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
-            Review All Cards
+            className="px-6 py-3 rounded-xl bg-accent text-app text-sm font-semibold hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20">
+            Review All Cards Again
           </button>
           <button
-            onClick={() => {
-              resetSession();
-              loadAllVideos(videos);
-            }}
-            className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
-            Refresh
+            onClick={handleBackToDecks}
+            className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-secondary text-sm font-semibold hover:bg-white/8 transition-colors">
+            Back to Decks
           </button>
         </div>
       </div>
@@ -963,13 +1617,13 @@ export function FlashcardsPage() {
         <div id="section-deck-select" className="min-w-0 flex-1 mr-4">
           <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
           <button
-            onClick={() => setShowVideoPicker(!showVideoPicker)}
+            onClick={handleBackToDecks}
             className="flex items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group">
             {selectedVideoId === 'all'
               ? <><Layers className="w-3 h-3 shrink-0 mr-0.5" /><span>All Videos</span></>
               : <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
             }
-            <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${showVideoPicker ? 'rotate-180' : ''}`} />
+            <span className="text-muted ml-1">· Change deck</span>
           </button>
         </div>
         <div className="text-right shrink-0">
@@ -1000,53 +1654,6 @@ export function FlashcardsPage() {
           )}
         </div>
       </div>
-
-      {/* Video picker dropdown */}
-      <AnimatePresence>
-        {showVideoPicker && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="w-full mb-4 bg-surface border border-white/10 rounded-xl overflow-hidden shadow-xl">
-
-            {/* All Videos option */}
-            <button
-              onClick={() => { setShowVideoPicker(false); loadAllVideos(videos); }}
-              className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors border-b border-white/5 flex items-center gap-2 ${
-                selectedVideoId === 'all' ? 'text-accent' : 'text-secondary'
-              }`}>
-              <Layers className="w-3.5 h-3.5 shrink-0" />
-              <span>All Videos ({videos.length})</span>
-            </button>
-
-            {/* Individual videos */}
-            {videos.map(v => (
-              <div
-                key={v.video_id}
-                className={`flex items-center justify-between border-b border-white/5 last:border-0 ${
-                  v.video_id === selectedVideoId ? 'text-accent' : 'text-secondary'
-                }`}>
-                <button
-                  onClick={() => { setShowVideoPicker(false); loadFlashcards(v.video_id, v.title); }}
-                  className="flex-1 text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors">
-                  <span className="line-clamp-1">{v.title}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowDeleteVideoConfirm(v);
-                  }}
-                  className="p-2.5 mr-2 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
-                  title="Delete all flashcards for this video"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Card area */}
       <div className="w-full space-y-4">
