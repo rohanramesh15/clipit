@@ -310,6 +310,8 @@ export function FlashcardsPage() {
   const [editingFolder, setEditingFolder] = useState<VideoFolder | null>(null);
   const [addingToFolder, setAddingToFolder] = useState<TrackedVideo | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
+  const [draggingVideoId, setDraggingVideoId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -382,34 +384,46 @@ export function FlashcardsPage() {
     setEditingFolder(null);
   }
 
-  // Load flashcards for a folder (multiple videos)
-  const loadFolderFlashcards = useCallback(async (folder: VideoFolder) => {
-    const folderVideos = videos.filter(v => folder.videoIds.includes(v.video_id));
-    if (folderVideos.length === 0) return;
+  // Drag and drop handlers
+  function handleDragStart(e: React.DragEvent, videoId: string) {
+    setDraggingVideoId(videoId);
+    e.dataTransfer.setData('text/plain', videoId);
+    e.dataTransfer.effectAllowed = 'move';
+  }
 
-    setLoadState('loading');
-    setLoadingMsg(`Loading flashcards from "${folder.name}"...`);
-    setCards([]);
-    setDueCards([]);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setSelectedVideoId(`folder_${folder.id}`);
-    setSelectedVideoTitle(folder.name);
-    setLastRatingInfo(null);
+  function handleDragEnd() {
+    setDraggingVideoId(null);
+    setDragOverFolderId(null);
+  }
 
-    const allCards: FlashCard[] = [];
-    for (const video of folderVideos) {
-      setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
-      const videoCards = await fetchCardsForVideo(video.video_id);
-      allCards.push(...videoCards);
+  function handleDragOver(e: React.DragEvent, folderId: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverFolderId !== folderId) {
+      setDragOverFolderId(folderId);
     }
+  }
 
-    if (!allCards.length) {
-      setLoadState('no-vocab');
-      return;
+  function handleDragLeave(e: React.DragEvent) {
+    // Only clear if we're leaving the folder element entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      setDragOverFolderId(null);
     }
-    prepareCardsForReview(allCards);
-  }, [videos, fetchCardsForVideo, prepareCardsForReview]);
+  }
+
+  function handleDrop(e: React.DragEvent, folderId: string) {
+    e.preventDefault();
+    const videoId = e.dataTransfer.getData('text/plain');
+    if (videoId) {
+      const video = videos.find(v => v.video_id === videoId);
+      if (video) {
+        handleAddToFolder(video, folderId);
+      }
+    }
+    setDraggingVideoId(null);
+    setDragOverFolderId(null);
+  }
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -670,6 +684,35 @@ export function FlashcardsPage() {
     prepareCardsForReview(videoCards);
   }, [fetchCardsForVideo, prepareCardsForReview]);
 
+  // Load flashcards for a folder (multiple videos)
+  const loadFolderFlashcards = useCallback(async (folder: VideoFolder) => {
+    const folderVideos = videos.filter(v => folder.videoIds.includes(v.video_id));
+    if (folderVideos.length === 0) return;
+
+    setLoadState('loading');
+    setLoadingMsg(`Loading flashcards from "${folder.name}"...`);
+    setCards([]);
+    setDueCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSelectedVideoId(`folder_${folder.id}`);
+    setSelectedVideoTitle(folder.name);
+    setLastRatingInfo(null);
+
+    const allCards: FlashCard[] = [];
+    for (const video of folderVideos) {
+      setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
+      const videoCards = await fetchCardsForVideo(video.video_id);
+      allCards.push(...videoCards);
+    }
+
+    if (!allCards.length) {
+      setLoadState('no-vocab');
+      return;
+    }
+    prepareCardsForReview(allCards);
+  }, [videos, fetchCardsForVideo, prepareCardsForReview]);
+
   useEffect(() => {
     async function bootstrap() {
       try {
@@ -913,20 +956,54 @@ export function FlashcardsPage() {
     } finally {
       setIsDeletingVideo(false);
       setShowDeleteVideoConfirm(null);
-      setShowVideoPicker(false);
     }
   }
 
   // Go back to deck selection
-  function handleBackToDecks() {
-    setLoadState('deck-select');
+  async function handleBackToDecks() {
+    // Destroy YouTube player first to prevent DOM conflicts
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy();
+      } catch (e) {
+        // Player might already be destroyed
+      }
+      playerRef.current = null;
+    }
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
+
     setCards([]);
     setDueCards([]);
     setCurrentIndex(0);
     setIsFlipped(false);
     setSelectedVideoId('');
     setSelectedVideoTitle('');
+    setSearchQuery('');
     resetSession();
+
+    // Refetch videos to ensure we have the latest list
+    try {
+      setLoadState('loading');
+      setLoadingMsg('Loading decks...');
+      const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const vids: TrackedVideo[] = data.videos || [];
+      setVideos(vids);
+
+      if (!vids.length) {
+        setLoadState('no-videos');
+        return;
+      }
+      setLoadState('deck-select');
+    } catch {
+      setLoadState('error');
+    }
   }
 
   // Get stats for current card
@@ -970,24 +1047,32 @@ export function FlashcardsPage() {
     // Helper to render a video card
     const renderVideoCard = (video: TrackedVideo, index: number, inFolder?: string) => {
       const isNetflix = video.video_id.startsWith('netflix_');
+      const isDragging = draggingVideoId === video.video_id;
       return (
         <motion.div
           key={video.video_id}
           initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={{ opacity: isDragging ? 0.5 : 1, y: 0, scale: isDragging ? 0.98 : 1 }}
           transition={{ delay: index * 0.02 }}
-          className="bg-surface border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all group"
+          draggable={!inFolder}
+          onDragStart={(e) => !inFolder && handleDragStart(e as unknown as React.DragEvent, video.video_id)}
+          onDragEnd={handleDragEnd}
+          className={`bg-surface border rounded-xl overflow-hidden transition-all group ${
+            isDragging
+              ? 'border-accent/50 cursor-grabbing'
+              : 'border-white/5 hover:border-white/10 cursor-grab'
+          }`}
         >
           <div className="flex items-center">
             <button
               onClick={() => loadFlashcards(video.video_id, video.title)}
-              className="flex-1 flex items-center gap-3 p-3 text-left"
+              className="flex-1 flex items-center gap-4 p-4 text-left"
             >
               {/* Thumbnail */}
-              <div className="w-16 h-10 rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
+              <div className="w-24 h-14 rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
                 {isNetflix ? (
                   <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
-                    <Film className="w-4 h-4 text-[#B20710]" />
+                    <Film className="w-6 h-6 text-[#B20710]" />
                   </div>
                 ) : (
                   <img
@@ -997,7 +1082,7 @@ export function FlashcardsPage() {
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
                 )}
-                <div className={`absolute bottom-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-bold text-white ${
+                <div className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${
                   isNetflix ? 'bg-[#B20710]' : 'bg-[#FF0000]'
                 }`}>
                   {isNetflix ? 'N' : 'YT'}
@@ -1005,42 +1090,42 @@ export function FlashcardsPage() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-primary text-sm line-clamp-1 group-hover:text-accent transition-colors">
+                <h3 className="font-medium text-primary text-base line-clamp-1 group-hover:text-accent transition-colors">
                   {video.title}
                 </h3>
-                <span className="text-[10px] text-muted">
+                <span className="text-xs text-muted">
                   {new Date(video.tracked_at * 1000).toLocaleDateString()}
                 </span>
               </div>
 
-              <Play className="w-4 h-4 text-accent opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              <Play className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
 
             {/* Action buttons */}
-            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-1">
+            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-2">
               {inFolder ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRemoveFromFolder(video.video_id, inFolder); }}
-                  className="p-2 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
+                  className="p-2.5 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
                   title="Remove from folder"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); setAddingToFolder(video); }}
-                  className="p-2 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
+                  className="p-2.5 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
                   title="Add to folder"
                 >
-                  <FolderPlus className="w-3.5 h-3.5" />
+                  <FolderPlus className="w-4 h-4" />
                 </button>
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowDeleteVideoConfirm(video); }}
-                className="p-2 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
+                className="p-2.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
                 title="Delete video"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1049,22 +1134,22 @@ export function FlashcardsPage() {
     };
 
     return (
-      <div className="min-h-screen pb-20 max-w-2xl mx-auto px-4 pt-8">
+      <div className="min-h-screen pb-20 max-w-4xl mx-auto px-4 sm:px-6 pt-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-heading font-bold text-primary mb-2">Practice</h1>
-          <p className="text-secondary text-sm">Select a deck to start reviewing flashcards.</p>
+        <div className="mb-8">
+          <h1 className="text-4xl font-heading font-bold text-primary mb-2">Practice</h1>
+          <p className="text-secondary">Select a deck to start reviewing flashcards.</p>
         </div>
 
         {/* Search Bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+        <div className="relative mb-5">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
           <input
             type="text"
             placeholder="Search videos..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all"
+            className="w-full bg-surface border border-white/10 rounded-xl pl-12 pr-4 py-3.5 text-base text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all"
           />
           {searchQuery && (
             <button
@@ -1077,9 +1162,9 @@ export function FlashcardsPage() {
         </div>
 
         {/* Sort & Create Folder */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-3.5 h-3.5 text-muted" />
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <ArrowUpDown className="w-4 h-4 text-muted" />
             {[
               { value: 'recent' as SortOption, label: 'Recent' },
               { value: 'alphabetical' as SortOption, label: 'A-Z' },
@@ -1088,7 +1173,7 @@ export function FlashcardsPage() {
               <button
                 key={option.value}
                 onClick={() => setSortOption(option.value)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   sortOption === option.value
                     ? 'bg-accent text-app'
                     : 'bg-surface border border-white/10 text-secondary hover:text-primary'
@@ -1100,9 +1185,9 @@ export function FlashcardsPage() {
           </div>
           <button
             onClick={() => setShowCreateFolder(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-white/10 text-secondary hover:text-primary hover:border-white/20 text-xs font-medium transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-white/10 text-secondary hover:text-primary hover:border-white/20 text-sm font-medium transition-all"
           >
-            <FolderPlus className="w-3.5 h-3.5" />
+            <FolderPlus className="w-4 h-4" />
             New Folder
           </button>
         </div>
@@ -1112,71 +1197,91 @@ export function FlashcardsPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => loadAllVideos(videos)}
-          className="w-full bg-gradient-to-r from-accent/20 to-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 text-left hover:from-accent/30 hover:to-accent/20 transition-all group"
+          className="w-full bg-gradient-to-r from-accent/20 to-accent/10 border border-accent/30 rounded-2xl p-5 mb-5 text-left hover:from-accent/30 hover:to-accent/20 transition-all group"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
-              <Layers className="w-6 h-6 text-accent" />
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
+              <Layers className="w-7 h-7 text-accent" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-primary group-hover:text-accent transition-colors">
+              <h3 className="font-bold text-lg text-primary group-hover:text-accent transition-colors">
                 All Videos
               </h3>
-              <p className="text-xs text-secondary">
+              <p className="text-sm text-secondary">
                 {videos.length} videos
               </p>
             </div>
-            <Play className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Play className="w-6 h-6 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </motion.button>
 
         {/* Folders Section */}
         {folders.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Folders</h2>
-            <div className="space-y-2">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-muted uppercase tracking-wider">Folders</h2>
+              {draggingVideoId && (
+                <span className="text-xs text-accent animate-pulse">Drop video on a folder</span>
+              )}
+            </div>
+            <div className="space-y-3">
               {folders.map((folder) => {
                 const folderVideos = videos.filter(v => folder.videoIds.includes(v.video_id));
                 const isExpanded = expandedFolderId === folder.id;
+                const isDragOver = dragOverFolderId === folder.id;
 
                 return (
-                  <div key={folder.id} className="bg-surface border border-white/5 rounded-xl overflow-hidden">
+                  <div
+                    key={folder.id}
+                    className={`bg-surface border rounded-xl overflow-hidden transition-all ${
+                      isDragOver
+                        ? 'border-accent ring-2 ring-accent/30 bg-accent/5'
+                        : 'border-white/5'
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, folder.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, folder.id)}
+                  >
                     {/* Folder Header */}
                     <div className="flex items-center group">
                       <button
                         onClick={() => setExpandedFolderId(isExpanded ? null : folder.id)}
-                        className="flex-1 flex items-center gap-3 p-3 text-left"
+                        className="flex-1 flex items-center gap-4 p-4 text-left"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                          {isExpanded ? (
-                            <FolderOpen className="w-5 h-5 text-accent" />
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          isDragOver ? 'bg-accent/30' : 'bg-accent/10'
+                        }`}>
+                          {isDragOver ? (
+                            <FolderPlus className="w-6 h-6 text-accent" />
+                          ) : isExpanded ? (
+                            <FolderOpen className="w-6 h-6 text-accent" />
                           ) : (
-                            <Folder className="w-5 h-5 text-accent" />
+                            <Folder className="w-6 h-6 text-accent" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-primary text-sm">{folder.name}</h3>
-                          <span className="text-[10px] text-muted">{folderVideos.length} videos</span>
+                          <h3 className="font-semibold text-primary text-base">{folder.name}</h3>
+                          <span className="text-xs text-muted">{folderVideos.length} videos</span>
                         </div>
-                        <ChevronRight className={`w-4 h-4 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <ChevronRight className={`w-5 h-5 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
 
                       {/* Folder actions */}
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-3">
                         <button
                           onClick={() => folderVideos.length > 0 && loadFolderFlashcards(folder)}
                           disabled={folderVideos.length === 0}
-                          className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors disabled:opacity-30"
+                          className="p-2.5 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors disabled:opacity-30"
                           title="Study this folder"
                         >
-                          <Play className="w-4 h-4" />
+                          <Play className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => setEditingFolder(folder)}
-                          className="p-2 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
+                          className="p-2.5 rounded-lg hover:bg-white/10 text-muted hover:text-secondary transition-colors"
                           title="Edit folder"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Pencil className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -1190,9 +1295,9 @@ export function FlashcardsPage() {
                           exit={{ height: 0, opacity: 0 }}
                           className="border-t border-white/5 overflow-hidden"
                         >
-                          <div className="p-2 space-y-1.5">
+                          <div className="p-3 space-y-2">
                             {folderVideos.length === 0 ? (
-                              <p className="text-xs text-muted text-center py-4">
+                              <p className="text-sm text-muted text-center py-6">
                                 No videos in this folder yet
                               </p>
                             ) : (
@@ -1213,9 +1318,9 @@ export function FlashcardsPage() {
         {ungroupedVideos.length > 0 && (
           <div>
             {folders.length > 0 && (
-              <h2 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Videos</h2>
+              <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-4">Videos</h2>
             )}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {ungroupedVideos.map((video, index) => renderVideoCard(video, index))}
             </div>
           </div>
@@ -1223,9 +1328,9 @@ export function FlashcardsPage() {
 
         {/* No results message */}
         {searchQuery && filteredAndSortedVideos.length === 0 && (
-          <div className="text-center py-12">
-            <Search className="w-10 h-10 text-muted mx-auto mb-3" />
-            <p className="text-secondary text-sm">No videos found for "{searchQuery}"</p>
+          <div className="text-center py-16">
+            <Search className="w-12 h-12 text-muted mx-auto mb-4" />
+            <p className="text-secondary">No videos found for "{searchQuery}"</p>
           </div>
         )}
 
@@ -1331,6 +1436,14 @@ export function FlashcardsPage() {
                         </button>
                       );
                     })}
+                    {/* Create new folder button */}
+                    <button
+                      onClick={() => { setAddingToFolder(null); setShowCreateFolder(true); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl text-left bg-accent/10 hover:bg-accent/20 text-accent transition-all border border-dashed border-accent/30"
+                    >
+                      <FolderPlus className="w-5 h-5" />
+                      <span className="flex-1 text-sm font-medium">Create new folder</span>
+                    </button>
                   </div>
                 )}
                 <button
@@ -1617,12 +1730,22 @@ export function FlashcardsPage() {
         <div id="section-deck-select" className="min-w-0 flex-1 mr-4">
           <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
           <button
-            onClick={handleBackToDecks}
-            className="flex items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group">
-            {selectedVideoId === 'all'
-              ? <><Layers className="w-3 h-3 shrink-0 mr-0.5" /><span>All Videos</span></>
-              : <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
-            }
+            type="button"
+            onClick={() => handleBackToDecks()}
+            className="flex items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group cursor-pointer">
+            {selectedVideoId === 'all' ? (
+              <>
+                <Layers className="w-3 h-3 shrink-0 mr-0.5" />
+                <span>All Videos</span>
+              </>
+            ) : selectedVideoId.startsWith('folder_') ? (
+              <>
+                <Folder className="w-3 h-3 shrink-0 mr-0.5" />
+                <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+              </>
+            ) : (
+              <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+            )}
             <span className="text-muted ml-1">· Change deck</span>
           </button>
         </div>
