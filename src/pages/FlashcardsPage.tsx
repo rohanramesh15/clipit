@@ -12,7 +12,6 @@ import {
   Layers,
   Clock,
   Trophy,
-  RefreshCw,
   Play,
   ExternalLink,
   Volume2,
@@ -599,38 +598,6 @@ export function FlashcardsPage() {
     }, 300);
   }
 
-  // Handle skipping/regenerating a flashcard
-  async function handleSkipCard() {
-    if (!currentCard) return;
-
-    try {
-      // Call API to skip this sentence for this word
-      await fetch(`${API_BASE_URL}/flashcard-skip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          word: currentCard.dictionary_form || currentCard.target_word,
-          sentence: currentCard.sentence,
-        }),
-      });
-
-      // Remove this card from the current session
-      const newDueCards = dueCards.filter((_, i) => i !== currentIndex);
-      setDueCards(newDueCards);
-
-      // Adjust index if needed
-      if (currentIndex >= newDueCards.length && newDueCards.length > 0) {
-        setCurrentIndex(newDueCards.length - 1);
-      } else if (newDueCards.length === 0) {
-        setLoadState('session-complete');
-      }
-
-      setIsFlipped(false);
-    } catch (error) {
-      console.error('Failed to skip card:', error);
-    }
-  }
-
   // Show delete confirmation modal
   function handleDeleteCard() {
     if (!currentCard) return;
@@ -644,10 +611,8 @@ export function FlashcardsPage() {
     const word = currentCard.dictionary_form || currentCard.target_word;
     setShowDeleteConfirm(false);
 
-    // Persist deletion to localStorage
-    addDeletedCard(language, word);
-
-    // Remove this card from all local state immediately (optimistic update)
+    // Remove this card from current session (but don't permanently block the word)
+    // The word can come back with a new clip from future videos
     const newDueCards = dueCards.filter((_, i) => i !== currentIndex);
     const newCards = cards.filter(c => (c.dictionary_form || c.target_word) !== word);
     setCards(newCards);
@@ -662,7 +627,7 @@ export function FlashcardsPage() {
 
     setIsFlipped(false);
 
-    // Try to delete from API in background
+    // Delete from API - removes current progress but allows word to be recreated
     try {
       await fetch(`${API_BASE_URL}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
         method: 'DELETE',
@@ -1099,19 +1064,12 @@ export function FlashcardsPage() {
               className="w-full h-full"
             />
           )}
-          {/* Action buttons */}
-          <div className="absolute top-2 right-2 flex items-center gap-1.5">
-            <button
-              onClick={handleSkipCard}
-              className="p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white/70 hover:text-white transition-colors group"
-              title="Get a different clip for this word"
-            >
-              <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
-            </button>
+          {/* Action button */}
+          <div className="absolute top-2 right-2">
             <button
               onClick={handleDeleteCard}
               className="p-2 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/70 hover:text-white transition-colors"
-              title="Delete this card permanently"
+              title="Delete this flashcard"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -1339,9 +1297,9 @@ export function FlashcardsPage() {
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-500" />
               </div>
-              <h3 className="text-lg font-bold text-primary text-center mb-2">Delete Card?</h3>
+              <h3 className="text-lg font-bold text-primary text-center mb-2">Delete Flashcard?</h3>
               <p className="text-sm text-secondary text-center mb-6">
-                Are you sure you want to delete this card? This cannot be undone.
+                Remove this flashcard? The word can reappear with a new clip when you watch more content.
               </p>
               <div className="flex gap-3">
                 <button
