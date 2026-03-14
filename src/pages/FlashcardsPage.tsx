@@ -721,13 +721,13 @@ export function FlashcardsPage() {
     }
   }
 
-  // Delete all flashcards for a specific video
+  // Delete all flashcards for a specific video and remove from watch history
   async function handleDeleteVideoFlashcards(video: TrackedVideo) {
     setIsDeletingVideo(true);
 
     try {
       // Call API to delete flashcards for this video
-      const res = await fetch(
+      const flashcardsRes = await fetch(
         `${API_BASE_URL}/fsrs/cards/video/${encodeURIComponent(video.video_id)}?language=${language}`,
         {
           method: 'DELETE',
@@ -735,7 +735,16 @@ export function FlashcardsPage() {
         }
       );
 
-      if (res.ok) {
+      // Also delete the video from watch history
+      await fetch(
+        `${API_BASE_URL}/videos/${encodeURIComponent(video.video_id)}`,
+        {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (flashcardsRes.ok) {
         // Remove cards from local state
         const newCards = cards.filter(c => c.video_id !== video.video_id);
         const newDueCards = dueCards.filter(c => c.video_id !== video.video_id);
@@ -1374,16 +1383,16 @@ export function FlashcardsPage() {
                 <Trash2 className="w-6 h-6 text-red-500" />
               </div>
               <h3 className="text-lg font-bold text-primary text-center mb-2">
-                Delete All Flashcards?
+                Delete Video & Flashcards?
               </h3>
               <p className="text-sm text-secondary text-center mb-2">
-                Are you sure you want to delete all flashcards from:
+                Are you sure you want to delete:
               </p>
               <p className="text-sm text-primary font-medium text-center mb-4 px-4 line-clamp-2">
                 "{showDeleteVideoConfirm.title}"
               </p>
               <p className="text-xs text-muted text-center mb-6">
-                This will remove all vocabulary cards associated with this video. This action cannot be undone.
+                This will remove the video from your watch history and delete all flashcards associated with it. This action cannot be undone.
               </p>
               <div className="flex gap-3">
                 <button
