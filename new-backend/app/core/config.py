@@ -22,6 +22,8 @@ class Settings(BaseSettings):
         "http://localhost:5176",
         "http://localhost:8000",
         "https://project-deadbird-frontend.fly.dev",
+        "https://theclipitapp.com",
+        "https://www.theclipitapp.com",
     ]
 
     # Database
