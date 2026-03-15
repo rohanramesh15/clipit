@@ -101,39 +101,27 @@ function AppInner() {
         return <VideoPage />;
     }
   };
-  // Feedback button - shown on all pages
-  const feedbackButton = (
-    <a
-      href="https://forms.gle/5x6GJLDZKUTfJLTj9"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="fixed top-24 right-6 z-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-surface border border-white/10 text-secondary hover:text-primary hover:bg-surface/80"
-    >
-      Feedback
-    </a>
-  );
-
   // Render top-level views
   if (appView === 'landing') {
-    return <>{feedbackButton}<LandingPage onNavigate={setAppView} /></>;
+    return <LandingPage onNavigate={setAppView} />;
   }
   if (appView === 'login') {
-    return <>{feedbackButton}<LoginPage onNavigate={setAppView} /></>;
+    return <LoginPage onNavigate={setAppView} />;
   }
   if (appView === 'signup') {
-    return <>{feedbackButton}<SignupPage onNavigate={setAppView} /></>;
+    return <SignupPage onNavigate={setAppView} />;
   }
   if (appView === 'onboarding') {
-    return <>{feedbackButton}<OnboardingPage onComplete={() => setAppView('app')} /></>;
+    return <OnboardingPage onComplete={() => setAppView('app')} />;
   }
   if (appView === 'forgot-password') {
-    return <>{feedbackButton}<ForgotPasswordPage onNavigate={setAppView} /></>;
+    return <ForgotPasswordPage onNavigate={setAppView} />;
   }
   if (appView === 'reset-password') {
-    return <>{feedbackButton}<ResetPasswordPage token={resetToken} onNavigate={setAppView} /></>;
+    return <ResetPasswordPage token={resetToken} onNavigate={setAppView} />;
   }
   if (appView === 'privacy') {
-    return <>{feedbackButton}<PrivacyPage onNavigate={setAppView} /></>;
+    return <PrivacyPage onNavigate={setAppView} />;
   }
   // Show nothing while checking stored token
   if (isLoading) {
@@ -144,7 +132,6 @@ function AppInner() {
   return (
     <HelpProvider>
       <ReviewSessionProvider>
-        {feedbackButton}
         <div className="flex min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app">
         <Sidebar
           activePage={activePage}
