@@ -181,29 +181,6 @@ export function Sidebar({
 
       {/* Theme Toggle + User Profile */}
       <div className={`p-4 border-t border-white/5 space-y-3 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
-        {/* Feedback Link */}
-        <a
-          href="https://forms.gle/5x6GJLDZKUTfJLTj9"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-            <MessageSquare className="w-4 h-4" />
-          </div>
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="text-sm font-medium hidden md:block whitespace-nowrap">
-                Feedback
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </a>
-
         {/* Language Selector */}
         <div className="relative" ref={languageRef}>
           <button
@@ -305,6 +282,29 @@ export function Sidebar({
             )}
           </AnimatePresence>
         </button>
+
+        {/* Feedback Link */}
+        <a
+          href="https://forms.gle/5x6GJLDZKUTfJLTj9"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
+          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-4 h-4" />
+          </div>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                className="text-sm font-medium hidden md:block whitespace-nowrap">
+                Feedback
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </a>
 
         {/* User Profile */}
         <button
