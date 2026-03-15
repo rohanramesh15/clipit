@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Lock, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config';
 
 interface ResetPasswordPageProps {
   token: string;
@@ -35,7 +34,7 @@ export function ResetPasswordPage({ token, onNavigate }: ResetPasswordPageProps)
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/reset-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),

@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, Loader2, CheckCircle } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config';
 
 interface ForgotPasswordPageProps {
   onNavigate: (view: 'landing' | 'login') => void;
@@ -22,7 +21,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
