@@ -43,8 +43,8 @@ class Settings(BaseSettings):
 
     # Email (Resend)
     RESEND_API_KEY: str = ""
-    EMAIL_FROM: str = "Clip It <onboarding@resend.dev>"
-    FRONTEND_URL: str = "http://localhost:5176"
+    EMAIL_FROM: str = "Clip It <noreply@theclipitapp.com>"
+    FRONTEND_URL: str = "https://www.theclipitapp.com"
 
     class Config:
         env_file = ".env"
