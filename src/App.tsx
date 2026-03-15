@@ -10,6 +10,7 @@ import { SignupPage } from './pages/SignupPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -25,7 +26,7 @@ type Page =
 'analytics' |
 'vocabulary' |
 'settings';
-type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password';
+type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
 function AppInner() {
   const { user, isLoading } = useAuth();
@@ -44,10 +45,15 @@ function AppInner() {
     localStorage.setItem('sidebar_collapsed', String(newValue));
   };
 
-  // Check URL for reset token on mount
+  // Check URL for reset token and privacy page on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
+
+    if (path === '/privacy') {
+      setAppView('privacy');
+      return;
+    }
 
     if (path === '/reset-password' || params.has('token')) {
       const token = params.get('token') || '';
@@ -65,8 +71,8 @@ function AppInner() {
     if (isLoading) return;
     if (user) {
       setAppView((v) => (v === 'landing' || v === 'login' || v === 'signup' ? 'app' : v));
-    } else if (appView !== 'reset-password' && appView !== 'forgot-password') {
-      setAppView('landing');
+    } else {
+      setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
   }, [isLoading, user]);
   // Apply theme class to <html> so it cascades to everything including fixed elements and body
@@ -113,6 +119,9 @@ function AppInner() {
   }
   if (appView === 'reset-password') {
     return <ResetPasswordPage token={resetToken} onNavigate={setAppView} />;
+  }
+  if (appView === 'privacy') {
+    return <PrivacyPage onNavigate={setAppView} />;
   }
   // Show nothing while checking stored token
   if (isLoading) {
