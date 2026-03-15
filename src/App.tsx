@@ -101,27 +101,39 @@ function AppInner() {
         return <VideoPage />;
     }
   };
+  // Feedback button - shown on all pages
+  const feedbackButton = (
+    <a
+      href="https://forms.gle/5x6GJLDZKUTfJLTj9"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="fixed top-24 right-6 z-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-surface border border-white/10 text-secondary hover:text-primary hover:bg-surface/80"
+    >
+      Feedback
+    </a>
+  );
+
   // Render top-level views
   if (appView === 'landing') {
-    return <LandingPage onNavigate={setAppView} />;
+    return <>{feedbackButton}<LandingPage onNavigate={setAppView} /></>;
   }
   if (appView === 'login') {
-    return <LoginPage onNavigate={setAppView} />;
+    return <>{feedbackButton}<LoginPage onNavigate={setAppView} /></>;
   }
   if (appView === 'signup') {
-    return <SignupPage onNavigate={setAppView} />;
+    return <>{feedbackButton}<SignupPage onNavigate={setAppView} /></>;
   }
   if (appView === 'onboarding') {
-    return <OnboardingPage onComplete={() => setAppView('app')} />;
+    return <>{feedbackButton}<OnboardingPage onComplete={() => setAppView('app')} /></>;
   }
   if (appView === 'forgot-password') {
-    return <ForgotPasswordPage onNavigate={setAppView} />;
+    return <>{feedbackButton}<ForgotPasswordPage onNavigate={setAppView} /></>;
   }
   if (appView === 'reset-password') {
-    return <ResetPasswordPage token={resetToken} onNavigate={setAppView} />;
+    return <>{feedbackButton}<ResetPasswordPage token={resetToken} onNavigate={setAppView} /></>;
   }
   if (appView === 'privacy') {
-    return <PrivacyPage onNavigate={setAppView} />;
+    return <>{feedbackButton}<PrivacyPage onNavigate={setAppView} /></>;
   }
   // Show nothing while checking stored token
   if (isLoading) {

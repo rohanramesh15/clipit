@@ -119,9 +119,11 @@ export function Sidebar({
         </AnimatePresence>
         <button
           onClick={onToggleCollapsed}
-          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-md hover:bg-white/5 text-secondary hover:text-primary transition-colors z-10"
+          className={`hidden md:flex absolute top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-lg hover:bg-white/5 text-secondary hover:text-primary transition-all z-10 ${
+            isCollapsed ? 'left-1/2 -translate-x-1/2' : 'right-2'
+          }`}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          <PanelLeft className="w-4 h-4" />
+          <PanelLeft className="w-6 h-6" />
         </button>
       </div>
 
