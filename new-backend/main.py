@@ -13,6 +13,7 @@ from app.models.user_vocabulary_word import UserVocabularyWord  # noqa: F401
 from app.models.user_vocabulary_settings import UserVocabularySettings  # noqa: F401
 from app.models.user_mined_word import UserMinedWord  # noqa: F401
 from app.models.user_anki_progress import UserAnkiProgress  # noqa: F401
+from app.models.image_cache import ImageCache  # noqa: F401
 from app.api.routes import health, users
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
