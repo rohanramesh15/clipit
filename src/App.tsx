@@ -144,6 +144,7 @@ function AppInner() {
   return (
     <HelpProvider>
       <ReviewSessionProvider>
+        {feedbackButton}
         <div className="flex min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app">
         <Sidebar
           activePage={activePage}
