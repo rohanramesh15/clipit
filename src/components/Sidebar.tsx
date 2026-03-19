@@ -107,7 +107,7 @@ export function Sidebar({
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.2 }}
               className="flex items-center justify-center absolute inset-0 pr-4">
-              <img src={clipitLogo} alt="lipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
+              <img src={clipitLogo} alt="ClipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
               <span className="text-5xl tracking-tight hidden md:block" style={{
                 fontFamily: "'Love Ya Like A Sister', cursive",
                 WebkitTextStroke: '2px #9E3B3B',

@@ -287,7 +287,7 @@ export function VideoPage() {
               <AlertCircle className="w-7 h-7 text-red-500" />
             </div>
             <p className="text-primary font-semibold">Backend not reachable</p>
-            <p className="text-secondary text-sm">Make sure the lipIt server is running and accessible.</p>
+            <p className="text-secondary text-sm">Make sure the ClipIt server is running and accessible.</p>
             <button
               onClick={handleRefresh}
               className="mt-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">

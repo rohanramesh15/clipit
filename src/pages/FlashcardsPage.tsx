@@ -583,7 +583,7 @@ export function FlashcardsPage() {
           cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp))
         );
         const cardsWithScreenshots = cards.filter((_: FlashCard, i: number) => screenshotChecks[i]);
-        console.log(`[lipIt] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
+        console.log(`[ClipIt] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
 
         // Only show Netflix cards that have screenshots
         cards = cardsWithScreenshots;
@@ -1031,7 +1031,7 @@ export function FlashcardsPage() {
         </div>
         <p className="text-primary font-semibold">Couldn't load flashcards</p>
         <p className="text-secondary text-sm text-center max-w-sm">
-          Make sure the lipIt server is running and accessible.
+          Make sure the ClipIt server is running and accessible.
         </p>
         <button
           onClick={() => window.location.reload()}
