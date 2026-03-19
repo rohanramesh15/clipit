@@ -333,7 +333,7 @@ export function VideoPage() {
               </a>
             </div>
             <p className="text-muted text-xs mt-2">
-              Make sure the Clip It browser extension is installed and enabled
+              Make sure the <a href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Clip It browser extension</a> is installed and enabled
             </p>
           </motion.div>
         )}

@@ -1580,7 +1580,7 @@ export function FlashcardsPage() {
         </div>
         <p className="text-primary font-semibold">No videos tracked yet</p>
         <p className="text-secondary text-sm text-center max-w-sm">
-          Watch a {languageName} YouTube video with the lipIt extension to start building flashcards.
+          Watch a {languageName} YouTube video with the <a href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Clip It extension</a> to start building flashcards.
         </p>
       </div>
     );
