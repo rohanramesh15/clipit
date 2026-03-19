@@ -61,6 +61,11 @@ if settings.DATABASE_URL.startswith("sqlite"):
         if "reset_token_expires" not in cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN reset_token_expires DATETIME"))
 
+        # Migrations for user_video_watches table (actual watch time)
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(user_video_watches)")).fetchall()]
+        if "watch_time_seconds" not in cols:
+            conn.execute(text("ALTER TABLE user_video_watches ADD COLUMN watch_time_seconds INTEGER DEFAULT 0"))
+
         conn.commit()
 
 app = FastAPI(

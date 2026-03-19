@@ -308,27 +308,40 @@ def get_user_unchecked_videos(db: Session, user_id: int, lang: str = "ko") -> li
     return [{"video_id": r.video_id, "title": r.title, "tracked_at": r.tracked_at} for r in rows]
 
 
-def get_total_watch_time(lang: str = "ko") -> dict:
-    """Get total watch time stats for videos in the target language."""
-    db = _db()
-    try:
-        if lang == "uk":
-            rows = db.query(TrackedVideo).filter(TrackedVideo.has_ukrainian == True).all()
-        else:
-            rows = db.query(TrackedVideo).filter(TrackedVideo.has_korean == True).all()
-
-        total_seconds = sum(r.duration_seconds or 0 for r in rows)
-        video_count = len(rows)
-        videos_with_duration = sum(1 for r in rows if r.duration_seconds)
-
+def get_total_watch_time(db: Session, user_id: int, lang: str = "ko") -> dict:
+    """Get total actual watch time stats for a user's videos in the target language."""
+    # Get all user's video watches with their watch times
+    watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
+    if not watches:
         return {
-            "total_seconds": total_seconds,
-            "total_hours": round(total_seconds / 3600, 1),
-            "video_count": video_count,
-            "videos_with_duration": videos_with_duration,
+            "total_seconds": 0,
+            "total_hours": 0.0,
+            "video_count": 0,
+            "videos_with_watch_time": 0,
         }
-    finally:
-        db.close()
+
+    video_ids = [w.video_id for w in watches]
+    watch_times = {w.video_id: w.watch_time_seconds or 0 for w in watches}
+
+    # Filter to videos in the target language
+    query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
+    if lang == "uk":
+        query = query.filter(TrackedVideo.has_ukrainian == True)
+    else:
+        query = query.filter(TrackedVideo.has_korean == True)
+    filtered_videos = query.all()
+
+    # Sum actual watch time for filtered videos
+    total_seconds = sum(watch_times.get(v.video_id, 0) for v in filtered_videos)
+    video_count = len(filtered_videos)
+    videos_with_watch_time = sum(1 for v in filtered_videos if watch_times.get(v.video_id, 0) > 0)
+
+    return {
+        "total_seconds": total_seconds,
+        "total_hours": round(total_seconds / 3600, 1),
+        "video_count": video_count,
+        "videos_with_watch_time": videos_with_watch_time,
+    }
 
 
 def delete_user_video(db: Session, user_id: int, video_id: str) -> bool:
@@ -340,6 +353,28 @@ def delete_user_video(db: Session, user_id: int, video_id: str) -> bool:
     )
     db.commit()
     return deleted > 0
+
+
+def add_watch_time(db: Session, user_id: int, video_id: str, seconds: int) -> int:
+    """Add seconds to the user's accumulated watch time for a video. Returns total."""
+    watch = db.query(UserVideoWatch).filter(
+        UserVideoWatch.user_id == user_id,
+        UserVideoWatch.video_id == video_id,
+    ).first()
+    if watch:
+        watch.watch_time_seconds = (watch.watch_time_seconds or 0) + seconds
+        db.commit()
+        return watch.watch_time_seconds
+    # If no watch record exists, create one with current time
+    watch = UserVideoWatch(
+        user_id=user_id,
+        video_id=video_id,
+        watched_at=time.time(),
+        watch_time_seconds=seconds,
+    )
+    db.add(watch)
+    db.commit()
+    return seconds
 
 
 def get_video_by_id(video_id: str) -> dict | None:

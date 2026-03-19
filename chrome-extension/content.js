@@ -1,10 +1,88 @@
 /**
  * Deadbird — content script
  * Detects YouTube video navigation (SPA) and sends video ID + title to background.
+ * Also tracks actual watch time while video is playing.
  * Caption filtering (Korean + English required) is handled server-side.
  */
 
 let lastTrackedId = null;
+
+// ─── Watch time tracking ─────────────────────────────────────────────────────
+let watchTimeAccumulator = 0; // Seconds accumulated since last sync
+let lastWatchTimeSync = Date.now();
+let isVideoPlaying = false;
+let watchTimeInterval = null;
+const WATCH_TIME_SYNC_INTERVAL = 30000; // Sync every 30 seconds
+
+function getVideoElement() {
+  return document.querySelector('video.html5-main-video') || document.querySelector('video');
+}
+
+function startWatchTimeTracking() {
+  if (watchTimeInterval) return; // Already tracking
+
+  const video = getVideoElement();
+  if (!video) return;
+
+  // Listen for play/pause events
+  video.addEventListener('play', () => {
+    isVideoPlaying = true;
+    console.log('[Deadbird] Video playing - tracking watch time');
+  });
+
+  video.addEventListener('pause', () => {
+    isVideoPlaying = false;
+    console.log('[Deadbird] Video paused');
+    // Sync immediately on pause
+    syncWatchTime();
+  });
+
+  video.addEventListener('ended', () => {
+    isVideoPlaying = false;
+    syncWatchTime();
+  });
+
+  // Set initial state
+  isVideoPlaying = !video.paused;
+
+  // Accumulate watch time every second
+  watchTimeInterval = setInterval(() => {
+    if (isVideoPlaying && lastTrackedId) {
+      watchTimeAccumulator++;
+
+      // Sync periodically
+      if (Date.now() - lastWatchTimeSync >= WATCH_TIME_SYNC_INTERVAL) {
+        syncWatchTime();
+      }
+    }
+  }, 1000);
+}
+
+function syncWatchTime() {
+  if (watchTimeAccumulator > 0 && lastTrackedId) {
+    const secondsToSync = watchTimeAccumulator;
+    watchTimeAccumulator = 0;
+    lastWatchTimeSync = Date.now();
+
+    console.log(`[Deadbird] Syncing ${secondsToSync}s watch time for ${lastTrackedId}`);
+
+    try {
+      chrome.runtime.sendMessage({
+        type: 'UPDATE_WATCH_TIME',
+        videoId: lastTrackedId,
+        seconds: secondsToSync,
+        platform: 'youtube'
+      }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+    } catch (_) {}
+  }
+}
+
+function resetWatchTimeTracking() {
+  // Sync any remaining time before resetting
+  syncWatchTime();
+  watchTimeAccumulator = 0;
+  isVideoPlaying = false;
+}
 
 function getVideoId() {
   return new URLSearchParams(location.search).get('v');
@@ -26,6 +104,9 @@ function getTitle() {
 }
 
 function sendTrack(videoId) {
+  // Reset watch time when switching videos
+  resetWatchTimeTracking();
+
   // Retry up to 5 times (2.5s) waiting for title to render
   let attempts = 0;
   const interval = setInterval(() => {
@@ -39,6 +120,9 @@ function sendTrack(videoId) {
           videoId,
           title: (title && title !== 'Unknown') ? title : 'Unknown',
         }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+
+        // Start tracking watch time for this video
+        setTimeout(startWatchTimeTracking, 1000);
       }
     } catch (_) {
       // Extension context invalidated (extension reloaded while tab was open) — stop silently
@@ -76,3 +160,15 @@ const navInterval = setInterval(() => {
 
 // Track on initial page load (e.g. direct link to a watch URL)
 checkForNewVideo();
+
+// Sync watch time when page is about to unload
+window.addEventListener('beforeunload', () => {
+  syncWatchTime();
+});
+
+// Also sync on visibility change (user switches tabs)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    syncWatchTime();
+  }
+});

@@ -407,6 +407,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     return;
   }
+
+  // Update watch time (from content scripts)
+  if (msg.type === 'UPDATE_WATCH_TIME') {
+    updateWatchTime(msg.videoId, msg.seconds, msg.platform).then(sendResponse);
+    return true;
+  }
 });
 
 // ─── Netflix subtitle processing (received from content script) ──────────────
@@ -807,5 +813,42 @@ async function saveThumbnailToBackend(videoId, dataUrl) {
     }
   } catch (e) {
     console.error('[Deadbird] Failed to save thumbnail:', e);
+  }
+}
+
+// ─── Watch time tracking ─────────────────────────────────────────────────────
+
+async function updateWatchTime(videoId, seconds, platform) {
+  const token = await getAuthToken();
+  if (!token) {
+    console.warn('[Deadbird] No auth token — cannot update watch time');
+    return { success: false, reason: 'no_token' };
+  }
+
+  // Prepend platform prefix for Netflix videos if not already present
+  const fullVideoId = platform === 'netflix' && !videoId.startsWith('netflix_')
+    ? `netflix_${videoId}`
+    : videoId;
+
+  try {
+    const res = await fetch(`${API}/videos/watch-time`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        video_id: fullVideoId,
+        seconds: seconds,
+      }),
+    });
+
+    if (res.ok) {
+      console.log(`[Deadbird] Watch time updated: +${seconds}s for ${fullVideoId}`);
+      return { success: true };
+    } else {
+      console.error('[Deadbird] Watch time update failed:', res.status);
+      return { success: false, reason: res.status };
+    }
+  } catch (e) {
+    console.error('[Deadbird] Watch time update error:', e);
+    return { success: false, reason: e.message };
   }
 }

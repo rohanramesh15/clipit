@@ -1,6 +1,7 @@
 /**
  * Deadbird — Netflix content script
  * Detects Netflix video playback and intercepts subtitle requests.
+ * Also tracks actual watch time while video is playing.
  */
 
 let lastTrackedId = null;
@@ -9,6 +10,97 @@ let screenshotCache = {}; // { timestamp: true } - tracks what we've already cap
 let keywordTimestamps = []; // Timestamps where keywords appear (from backend)
 let keywordTimestampsFetched = false;
 let detectedAudioLang = null; // Track the detected audio language
+
+// ─── Watch time tracking ─────────────────────────────────────────────────────
+let watchTimeAccumulator = 0; // Seconds accumulated since last sync
+let lastWatchTimeSync = Date.now();
+let isVideoPlaying = false;
+let watchTimeInterval = null;
+const WATCH_TIME_SYNC_INTERVAL = 30000; // Sync every 30 seconds
+
+function getNetflixVideoElement() {
+  return document.querySelector('video');
+}
+
+function startWatchTimeTracking() {
+  if (watchTimeInterval) return; // Already tracking
+
+  const video = getNetflixVideoElement();
+  if (!video) {
+    // Retry after a delay if video not found yet
+    setTimeout(startWatchTimeTracking, 1000);
+    return;
+  }
+
+  // Listen for play/pause events
+  video.addEventListener('play', () => {
+    isVideoPlaying = true;
+    console.log('[Deadbird] Netflix video playing - tracking watch time');
+  });
+
+  video.addEventListener('pause', () => {
+    isVideoPlaying = false;
+    console.log('[Deadbird] Netflix video paused');
+    syncWatchTime();
+  });
+
+  video.addEventListener('ended', () => {
+    isVideoPlaying = false;
+    syncWatchTime();
+  });
+
+  // Set initial state
+  isVideoPlaying = !video.paused;
+
+  // Accumulate watch time every second
+  watchTimeInterval = setInterval(() => {
+    if (isVideoPlaying && lastTrackedId) {
+      watchTimeAccumulator++;
+
+      // Sync periodically
+      if (Date.now() - lastWatchTimeSync >= WATCH_TIME_SYNC_INTERVAL) {
+        syncWatchTime();
+      }
+    }
+  }, 1000);
+}
+
+function syncWatchTime() {
+  if (watchTimeAccumulator > 0 && lastTrackedId) {
+    const secondsToSync = watchTimeAccumulator;
+    watchTimeAccumulator = 0;
+    lastWatchTimeSync = Date.now();
+
+    console.log(`[Deadbird] Syncing ${secondsToSync}s watch time for Netflix ${lastTrackedId}`);
+
+    try {
+      chrome.runtime.sendMessage({
+        type: 'UPDATE_WATCH_TIME',
+        videoId: lastTrackedId,
+        seconds: secondsToSync,
+        platform: 'netflix'
+      }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+    } catch (_) {}
+  }
+}
+
+function resetWatchTimeTracking() {
+  syncWatchTime();
+  watchTimeAccumulator = 0;
+  isVideoPlaying = false;
+}
+
+// Sync watch time when page is about to unload
+window.addEventListener('beforeunload', () => {
+  syncWatchTime();
+});
+
+// Also sync on visibility change (user switches tabs)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    syncWatchTime();
+  }
+});
 
 // Extract Netflix video ID from URL (e.g., /watch/81234567)
 function getVideoId() {
@@ -514,6 +606,9 @@ function sendTrack(videoId) {
   keywordTimestampsFetched = false;
   detectedAudioLang = null; // Reset audio language
 
+  // Reset watch time tracking when switching videos
+  resetWatchTimeTracking();
+
   let attempts = 0;
   let lastTitle = null;
   let thumbnailCaptured = false;
@@ -554,6 +649,9 @@ function sendTrack(videoId) {
 
         // Start polling for keyword timestamps (set after subtitles processed)
         startKeywordTimestampPolling(videoId);
+
+        // Start tracking watch time for this video
+        setTimeout(startWatchTimeTracking, 1000);
       } else if (title && title !== 'Unknown') {
         lastTitle = title;
       }
