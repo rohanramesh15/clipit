@@ -128,3 +128,4 @@ docker-compose up
 ## Chrome Extension
 
 The `chrome-extension/` directory contains a browser extension for capturing subtitles from Netflix. See the extension's README for installation instructions.
+# Trigger redeploy Thu Mar 19 00:03:58 EDT 2026
