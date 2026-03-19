@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { Flame, Book, TrendingUp, RotateCw, Play } from 'lucide-react';
 import { getAnalyticsSummary, getActivityHeatmapCurrentYear } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { API_BASE_URL } from '../config';
 
 const analyticsPageTips: HelpTip[] = [
   {
@@ -20,11 +22,9 @@ const analyticsPageTips: HelpTip[] = [
   },
 ];
 
-const API = 'http://localhost:8000/api';
-
-
 export function AnalyticsPage() {
   const { language } = useLanguage();
+  const { token } = useAuth();
   const [analytics, setAnalytics] = useState({
     wordsLearned: 0,
     totalReviews: 0,
@@ -43,18 +43,22 @@ export function AnalyticsPage() {
     });
 
     // Fetch watch time from backend
-    fetch(`${API}/videos/stats/watch-time?lang=${language}`)
-      .then(res => res.json())
-      .then(data => {
-        setAnalytics(prev => ({
-          ...prev,
-          hoursWatched: data.total_hours || 0,
-        }));
+    if (token) {
+      fetch(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {
-        // Fallback: keep at 0 if API fails
-      });
-  }, [language]);
+        .then(res => res.json())
+        .then(data => {
+          setAnalytics(prev => ({
+            ...prev,
+            hoursWatched: data.total_hours || 0,
+          }));
+        })
+        .catch(() => {
+          // Fallback: keep at 0 if API fails
+        });
+    }
+  }, [language, token]);
 
   const stats = [
     {

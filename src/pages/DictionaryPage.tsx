@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { API_BASE_URL } from '../config';
 
 const dictionaryPageTips: HelpTip[] = [
   {
@@ -20,7 +21,6 @@ const dictionaryPageTips: HelpTip[] = [
   },
 ];
 
-const API = 'http://localhost:8000/api';
 
 interface DictionaryEntry {
   word: string;
@@ -87,7 +87,7 @@ export function DictionaryPage() {
     async function fetchDictionary() {
       try {
         setLoading(true);
-        const res = await fetch(`${API}/dictionary?lang=${language}`);
+        const res = await fetch(`${API_BASE_URL}/dictionary?lang=${language}`);
         if (!res.ok) throw new Error('Failed to fetch dictionary');
         const data = await res.json();
         setEntries(data.entries);
