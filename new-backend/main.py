@@ -68,6 +68,19 @@ if settings.DATABASE_URL.startswith("sqlite"):
 
         conn.commit()
 
+# PostgreSQL migration: add watch_time_seconds column if it doesn't exist
+if settings.DATABASE_URL.startswith("postgres"):
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        # Check if column exists in PostgreSQL
+        result = conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'user_video_watches' AND column_name = 'watch_time_seconds'
+        """))
+        if not result.fetchone():
+            conn.execute(text("ALTER TABLE user_video_watches ADD COLUMN watch_time_seconds INTEGER DEFAULT 0"))
+            conn.commit()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
