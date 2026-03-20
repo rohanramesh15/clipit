@@ -172,3 +172,49 @@ document.addEventListener('visibilitychange', () => {
     syncWatchTime();
   }
 });
+
+// ─── Hide subtitles feature ──────────────────────────────────────────────────
+const HIDE_SUBTITLES_STYLE_ID = 'deadbird-hide-subtitles';
+
+function setSubtitlesHidden(hide) {
+  let styleEl = document.getElementById(HIDE_SUBTITLES_STYLE_ID);
+
+  if (hide) {
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = HIDE_SUBTITLES_STYLE_ID;
+      styleEl.textContent = `
+        /* Hide YouTube subtitles/captions - covers various caption containers */
+        .ytp-caption-window-container,
+        .caption-window,
+        .captions-text,
+        .ytp-caption-segment {
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+      console.log('[Deadbird] YouTube subtitles hidden (still being captured)');
+    }
+  } else {
+    if (styleEl) {
+      styleEl.remove();
+      console.log('[Deadbird] YouTube subtitles visible');
+    }
+  }
+}
+
+// Listen for hide subtitles toggle from popup
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'SET_HIDE_SUBTITLES') {
+    setSubtitlesHidden(msg.hide);
+    sendResponse({ success: true });
+  }
+});
+
+// Apply saved preference on load
+chrome.storage.local.get('hideSubtitles').then(result => {
+  if (result.hideSubtitles) {
+    setSubtitlesHidden(true);
+  }
+});

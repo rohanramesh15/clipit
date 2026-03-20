@@ -9,7 +9,9 @@ let state = {
   selected: null,    // { video_id, title }
   words: null,       // null | 'loading' | 'no-words' | 'error' | []
   isNetflixTab: false,
+  isYouTubeTab: false,
   audioEnabled: false,
+  hideSubtitles: false, // hide subtitles while still capturing them
   lang: 'ko',        // 'ko' | 'uk'
   deleteConfirm: null, // { video_id, title } | null
   isDeleting: false,
@@ -19,9 +21,10 @@ let state = {
 // ─── Boot ─────────────────────────────────────────────
 (async function init() {
   // Load persisted preferences
-  const stored = await chrome.storage.local.get(['language', 'theme']);
+  const stored = await chrome.storage.local.get(['language', 'theme', 'hideSubtitles']);
   state.lang = stored.language === 'uk' ? 'uk' : 'ko';
   state.theme = stored.theme === 'light' ? 'light' : 'dark';
+  state.hideSubtitles = stored.hideSubtitles === true;
 
   // Apply theme to body
   if (state.theme === 'light') {
@@ -38,9 +41,10 @@ let state = {
 
 async function fetchVideos() {
   try {
-    // Check if we're on a Netflix tab
+    // Check if we're on a Netflix or YouTube tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     state.isNetflixTab = tab?.url?.includes('netflix.com/watch') || false;
+    state.isYouTubeTab = tab?.url?.includes('youtube.com/watch') || false;
 
     // Check if audio is enabled for this tab
     if (state.isNetflixTab && tab?.id) {
@@ -115,6 +119,16 @@ async function handleAction(e) {
       state.audioEnabled = true;
       render();
     }
+  }
+  if (action === 'toggle-hide-subtitles') {
+    state.hideSubtitles = !state.hideSubtitles;
+    chrome.storage.local.set({ hideSubtitles: state.hideSubtitles });
+    // Send to current Netflix or YouTube tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id && (state.isNetflixTab || state.isYouTubeTab)) {
+      chrome.tabs.sendMessage(tab.id, { type: 'SET_HIDE_SUBTITLES', hide: state.hideSubtitles });
+    }
+    render();
   }
   if (action === 'set-lang') {
     state.lang = el.dataset.lang;
@@ -460,6 +474,11 @@ function header({ dot, right }) {
       ? '<span class="audio-badge enabled" title="Audio capture enabled">🎤</span>'
       : '<button class="audio-btn" data-action="enable-audio" title="Enable audio capture">Enable Audio</button>'
   ) : '';
+  const hideSubsBtn = (state.isNetflixTab || state.isYouTubeTab) ? `
+    <button class="audio-btn ${state.hideSubtitles ? 'active' : ''}" data-action="toggle-hide-subtitles" title="${state.hideSubtitles ? 'Show subtitles' : 'Hide subtitles (still captured)'}">
+      ${state.hideSubtitles ? '👁️ Show' : '👁️‍🗨️ Hide'}
+    </button>
+  ` : '';
   const themeIcon = state.theme === 'dark'
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
@@ -470,6 +489,7 @@ function header({ dot, right }) {
         <span class="header-title"><span class="lip">lip</span><span class="it">It</span></span>
       </div>
       <div class="header-right">
+        ${hideSubsBtn}
         ${audioBtn}
         <button class="theme-btn" data-action="toggle-theme" title="Toggle theme">${themeIcon}</button>
         <div class="lang-toggle">

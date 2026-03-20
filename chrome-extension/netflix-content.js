@@ -713,6 +713,53 @@ function checkNavigation() {
   } catch (e) {}
 }
 
+// ─── Hide subtitles feature ──────────────────────────────────────────────────
+const HIDE_SUBTITLES_STYLE_ID = 'deadbird-hide-subtitles';
+
+function setSubtitlesHidden(hide) {
+  let styleEl = document.getElementById(HIDE_SUBTITLES_STYLE_ID);
+
+  if (hide) {
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = HIDE_SUBTITLES_STYLE_ID;
+      styleEl.textContent = `
+        /* Hide Netflix subtitles - covers various Netflix subtitle containers */
+        .player-timedtext,
+        .player-timedtext-text-container,
+        [data-uia="player-timedtext"],
+        .timedtext-container,
+        .watch-video--subtitles-container {
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+      console.log('[Deadbird] Subtitles hidden (still being captured)');
+    }
+  } else {
+    if (styleEl) {
+      styleEl.remove();
+      console.log('[Deadbird] Subtitles visible');
+    }
+  }
+}
+
+// Listen for hide subtitles toggle from popup
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'SET_HIDE_SUBTITLES') {
+    setSubtitlesHidden(msg.hide);
+    sendResponse({ success: true });
+  }
+});
+
+// Apply saved preference on load
+chrome.storage.local.get('hideSubtitles').then(result => {
+  if (result.hideSubtitles) {
+    setSubtitlesHidden(true);
+  }
+});
+
 // Initialize
 console.log('[Deadbird] Netflix content script loading...');
 injectInterceptor();
