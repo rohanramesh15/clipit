@@ -1,5 +1,5 @@
 /**
- * Deadbird — background service worker
+ * ClipIt — background service worker
  * Tracks videos and pre-fetches the full vocab pipeline in the background.
  * Results cached in chrome.storage.local so the popup loads instantly.
  * Supports YouTube and Netflix.
@@ -36,7 +36,7 @@ let loopbackActiveTabs = new Set();
 chrome.storage.session.get('audioActivatedTabs').then(result => {
   if (result.audioActivatedTabs) {
     audioActivatedTabs = new Set(result.audioActivatedTabs);
-    console.log('[Deadbird] Restored audioActivatedTabs:', [...audioActivatedTabs]);
+    console.log('[ClipIt] Restored audioActivatedTabs:', [...audioActivatedTabs]);
   }
 }).catch(() => {});
 
@@ -79,7 +79,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Don't use tab.title — it's often stale (shows previous video's title during navigation)
   // Let the content script provide the real title via TRACK_VIDEO message
   const title = 'Unknown';
-  console.log(`[Deadbird] YouTube tab navigation: ${videoId} — awaiting title from content script`);
+  console.log(`[ClipIt] YouTube tab navigation: ${videoId} — awaiting title from content script`);
   await trackAndPrefetch(videoId, title);
 });
 
@@ -106,7 +106,7 @@ async function ensureOffscreenDocument() {
     justification: 'Recording audio from tab for language learning flashcards'
   });
   offscreenDocumentCreated = true;
-  console.log('[Deadbird] Offscreen document created');
+  console.log('[ClipIt] Offscreen document created');
 }
 
 /**
@@ -128,7 +128,7 @@ async function startPersistentLoopback(tabId) {
       });
     });
 
-    console.log('[Deadbird] 🔊 Starting persistent loopback with stream ID:', streamId);
+    console.log('[ClipIt] 🔊 Starting persistent loopback with stream ID:', streamId);
 
     // Tell offscreen document to start persistent loopback
     const response = await chrome.runtime.sendMessage({
@@ -138,23 +138,23 @@ async function startPersistentLoopback(tabId) {
 
     if (response.success) {
       loopbackActiveTabs.add(tabId);
-      console.log('[Deadbird] 🔊 Persistent loopback active for tab:', tabId);
+      console.log('[ClipIt] 🔊 Persistent loopback active for tab:', tabId);
     } else {
       throw new Error(response.error || 'Failed to start loopback');
     }
   } catch (e) {
-    console.error('[Deadbird] Failed to start persistent loopback:', e);
+    console.error('[ClipIt] Failed to start persistent loopback:', e);
     throw e;
   }
 }
 
 async function captureAudio(tabId, duration = 3000) {
-  console.log('[Deadbird] 🎤 Starting audio capture, tabId:', tabId, 'duration:', duration);
+  console.log('[ClipIt] 🎤 Starting audio capture, tabId:', tabId, 'duration:', duration);
 
   // Check if audio capture is enabled for this tab
   if (!audioActivatedTabs.has(tabId)) {
-    console.log('[Deadbird] 🎤 Audio not enabled for tab. User needs to click "Enable Audio" in popup.');
-    throw new Error('Audio capture not enabled. Click the Deadbird extension icon and enable audio.');
+    console.log('[ClipIt] 🎤 Audio not enabled for tab. User needs to click "Enable Audio" in popup.');
+    throw new Error('Audio capture not enabled. Click the ClipIt extension icon and enable audio.');
   }
 
   try {
@@ -163,7 +163,7 @@ async function captureAudio(tabId, duration = 3000) {
 
     // Always try persistent loopback first (the offscreen document knows if it's active)
     // This handles service worker restarts where loopbackActiveTabs gets cleared
-    console.log('[Deadbird] 🎤 Trying persistent loopback for seamless capture');
+    console.log('[ClipIt] 🎤 Trying persistent loopback for seamless capture');
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'OFFSCREEN_RECORD_CLIP',
@@ -171,21 +171,21 @@ async function captureAudio(tabId, duration = 3000) {
       });
 
       if (response.success) {
-        console.log('[Deadbird] 🎤 Audio captured (seamless), size:', response.audioData?.size);
+        console.log('[ClipIt] 🎤 Audio captured (seamless), size:', response.audioData?.size);
         // Re-add to loopbackActiveTabs in case service worker restarted
         loopbackActiveTabs.add(tabId);
         return response.audioData;
       }
 
       // If loopback not active, the error will be "Loopback not active"
-      console.log('[Deadbird] 🎤 Persistent loopback not ready:', response.error);
+      console.log('[ClipIt] 🎤 Persistent loopback not ready:', response.error);
     } catch (loopbackErr) {
-      console.log('[Deadbird] 🎤 Loopback attempt failed:', loopbackErr.message);
+      console.log('[ClipIt] 🎤 Loopback attempt failed:', loopbackErr.message);
     }
 
     // Fallback: Start fresh loopback (this will fail if stream already active)
     // Try to start persistent loopback first
-    console.log('[Deadbird] 🎤 Attempting to start fresh loopback');
+    console.log('[ClipIt] 🎤 Attempting to start fresh loopback');
     try {
       await startPersistentLoopback(tabId);
       // Now try recording again
@@ -194,15 +194,15 @@ async function captureAudio(tabId, duration = 3000) {
         duration: duration
       });
       if (response.success) {
-        console.log('[Deadbird] 🎤 Audio captured after loopback restart, size:', response.audioData?.size);
+        console.log('[ClipIt] 🎤 Audio captured after loopback restart, size:', response.audioData?.size);
         return response.audioData;
       }
     } catch (restartErr) {
-      console.log('[Deadbird] 🎤 Could not restart loopback:', restartErr.message);
+      console.log('[ClipIt] 🎤 Could not restart loopback:', restartErr.message);
     }
 
     // Final fallback: Legacy mode (will likely fail if stream is active)
-    console.log('[Deadbird] 🎤 Final fallback: legacy recording');
+    console.log('[ClipIt] 🎤 Final fallback: legacy recording');
     const streamId = await new Promise((resolve, reject) => {
       chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
         if (chrome.runtime.lastError) {
@@ -223,10 +223,10 @@ async function captureAudio(tabId, duration = 3000) {
       throw new Error(response.error || 'Recording failed');
     }
 
-    console.log('[Deadbird] 🎤 Audio captured (legacy), size:', response.audioData?.size);
+    console.log('[ClipIt] 🎤 Audio captured (legacy), size:', response.audioData?.size);
     return response.audioData;
   } catch (e) {
-    console.error('[Deadbird] Audio capture failed:', e);
+    console.error('[ClipIt] Audio capture failed:', e);
     throw e;
   }
 }
@@ -236,18 +236,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'ENABLE_AUDIO_CAPTURE') {
     audioActivatedTabs.add(msg.tabId);
     persistAudioTabs();
-    console.log('[Deadbird] Audio capture enabled for tab:', msg.tabId);
+    console.log('[ClipIt] Audio capture enabled for tab:', msg.tabId);
     chrome.action.setBadgeText({ text: '🎤', tabId: msg.tabId });
     chrome.action.setBadgeBackgroundColor({ color: '#22c55e', tabId: msg.tabId });
 
     // Start persistent loopback for seamless audio
     startPersistentLoopback(msg.tabId)
       .then(() => {
-        console.log('[Deadbird] Persistent loopback started for tab:', msg.tabId);
+        console.log('[ClipIt] Persistent loopback started for tab:', msg.tabId);
         sendResponse({ success: true });
       })
       .catch(e => {
-        console.error('[Deadbird] Failed to start loopback:', e);
+        console.error('[ClipIt] Failed to start loopback:', e);
         sendResponse({ success: true }); // Still mark as enabled, will use legacy mode
       });
     return true; // async response
@@ -265,20 +265,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       target: { tabId: sender.tab.id },
       world: 'MAIN',
       files: ['inject.js']
-    }).catch(e => console.error('[Deadbird] Failed to inject:', e));
+    }).catch(e => console.error('[ClipIt] Failed to inject:', e));
     return;
   }
 
   // Screenshot capture for Netflix
   if (msg.type === 'CAPTURE_SCREENSHOT' && sender.tab) {
-    console.log('[Deadbird] 📷 Capture request received, tabId:', sender.tab.id, 'windowId:', sender.tab.windowId);
+    console.log('[ClipIt] 📷 Capture request received, tabId:', sender.tab.id, 'windowId:', sender.tab.windowId);
     captureScreenshot(sender.tab.id, sender.tab.windowId)
       .then(dataUrl => {
-        console.log('[Deadbird] 📷 Capture successful, size:', dataUrl?.length);
+        console.log('[ClipIt] 📷 Capture successful, size:', dataUrl?.length);
         sendResponse({ success: true, dataUrl });
       })
       .catch(e => {
-        console.error('[Deadbird] Screenshot failed:', e);
+        console.error('[ClipIt] Screenshot failed:', e);
         sendResponse({ success: false, error: e.message });
       });
     return true; // async response
@@ -286,14 +286,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Audio capture for Netflix
   if (msg.type === 'CAPTURE_AUDIO' && sender.tab) {
-    console.log('[Deadbird] 🎤 Audio capture request, tabId:', sender.tab.id, 'duration:', msg.duration);
+    console.log('[ClipIt] 🎤 Audio capture request, tabId:', sender.tab.id, 'duration:', msg.duration);
     captureAudio(sender.tab.id, msg.duration || 3000)
       .then(audioData => {
-        console.log('[Deadbird] 🎤 Audio capture successful');
+        console.log('[ClipIt] 🎤 Audio capture successful');
         sendResponse({ success: true, audioData });
       })
       .catch(e => {
-        console.error('[Deadbird] Audio capture failed:', e);
+        console.error('[ClipIt] Audio capture failed:', e);
         sendResponse({ success: false, error: e.message });
       });
     return true; // async response
@@ -301,17 +301,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Combined screenshot + audio capture for Netflix
   if (msg.type === 'CAPTURE_SCREENSHOT_AND_AUDIO' && sender.tab) {
-    console.log('[Deadbird] 📷🎤 Combined capture request, tabId:', sender.tab.id);
+    console.log('[ClipIt] 📷🎤 Combined capture request, tabId:', sender.tab.id);
     Promise.all([
       captureScreenshot(sender.tab.id, sender.tab.windowId),
       captureAudio(sender.tab.id, msg.duration || 3000)
     ])
       .then(([screenshotDataUrl, audioData]) => {
-        console.log('[Deadbird] 📷🎤 Combined capture successful');
+        console.log('[ClipIt] 📷🎤 Combined capture successful');
         sendResponse({ success: true, screenshotDataUrl, audioData });
       })
       .catch(e => {
-        console.error('[Deadbird] Combined capture failed:', e);
+        console.error('[ClipIt] Combined capture failed:', e);
         sendResponse({ success: false, error: e.message });
       });
     return true; // async response
@@ -360,7 +360,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'NETFLIX_SUBTITLES') {
     // Received subtitles from content script
-    console.log(`[Deadbird] Received ${msg.subtitles.length} subtitles for Netflix ${msg.videoId}`);
+    console.log(`[ClipIt] Received ${msg.subtitles.length} subtitles for Netflix ${msg.videoId}`);
     processNetflixSubtitles(msg.videoId, msg.subtitles, msg.language);
     sendResponse({ success: true });
     return true;
@@ -551,12 +551,12 @@ async function trackNetflix(videoId, title, audioLang, episodeInfo) {
     // Use shared updateStatus helper for language marking
     if (audioLang === 'ko' || audioLang === 'uk') {
       await updateStatus(`netflix_${videoId}`, audioLang, true);
-      console.log(`[Deadbird] Marked video as having ${audioLang} (audio detected)`);
+      console.log(`[ClipIt] Marked video as having ${audioLang} (audio detected)`);
     }
 
     return { success: true, is_new: data.is_new };
   } catch (e) {
-    console.error('[Deadbird] Error tracking Netflix:', e);
+    console.error('[ClipIt] Error tracking Netflix:', e);
     return { success: false };
   }
 }
@@ -569,7 +569,7 @@ async function updateNetflixTitle(videoId, title) {
       body: JSON.stringify({ title }),
     });
     if (res.ok) {
-      console.log(`[Deadbird] Updated Netflix title: ${title}`);
+      console.log(`[ClipIt] Updated Netflix title: ${title}`);
     }
   } catch (e) {
     // Silently fail - title update is optional
@@ -579,7 +579,7 @@ async function updateNetflixTitle(videoId, title) {
 async function updateNetflixAudioLanguage(videoId, audioLang) {
   if (audioLang === 'ko' || audioLang === 'uk') {
     await updateStatus(`netflix_${videoId}`, audioLang, true);
-    console.log(`[Deadbird] Updated: ${audioLang} audio detected`);
+    console.log(`[ClipIt] Updated: ${audioLang} audio detected`);
   }
 }
 
@@ -603,20 +603,20 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
     if (data.keyword_timestamps && data.keyword_timestamps.length > 0) {
       const key = `keyword_timestamps_${videoId}`;
       await chrome.storage.local.set({ [key]: data.keyword_timestamps });
-      console.log(`[Deadbird] Stored ${data.keyword_timestamps.length} keyword timestamps for ${videoId}`);
+      console.log(`[ClipIt] Stored ${data.keyword_timestamps.length} keyword timestamps for ${videoId}`);
     }
 
     // Run vocab pipeline
     runVocabPipeline(netflixVideoId, lang);
   } catch (e) {
-    console.error('[Deadbird] Error sending Netflix subtitles:', e);
+    console.error('[ClipIt] Error sending Netflix subtitles:', e);
   }
 }
 
 async function trackAndPrefetch(videoId, title, lang = 'ko') {
   const token = await getAuthToken();
   if (!token) {
-    console.warn('[Deadbird] No auth token — open the Deadbird app and log in first.');
+    console.warn('[ClipIt] No auth token — open the ClipIt app and log in first.');
     return { success: false, reason: 'no_token' };
   }
 
@@ -630,12 +630,12 @@ async function trackAndPrefetch(videoId, title, lang = 'ko') {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      console.error('[Deadbird] Track failed:', res.status, err.detail || '');
+      console.error('[ClipIt] Track failed:', res.status, err.detail || '');
       return { success: false, reason: res.status };
     }
 
     const data = await res.json();
-    console.log(`[Deadbird] Tracked: ${videoId} — ${title} (new: ${data.is_new})`);
+    console.log(`[ClipIt] Tracked: ${videoId} — ${title} (new: ${data.is_new})`);
 
     // 2. Run vocab pipeline for BOTH languages (fire and forget)
     runVocabPipeline(videoId, 'ko');
@@ -643,7 +643,7 @@ async function trackAndPrefetch(videoId, title, lang = 'ko') {
 
     return { success: true, is_new: data.is_new };
   } catch (e) {
-    console.error('[Deadbird] trackAndPrefetch error:', e);
+    console.error('[ClipIt] trackAndPrefetch error:', e);
     return { success: false };
   }
 }
@@ -758,7 +758,7 @@ async function captureScreenshot(tabId, windowId) {
     });
     return dataUrl;
   } catch (e) {
-    console.error('[Deadbird] captureVisibleTab failed:', e);
+    console.error('[ClipIt] captureVisibleTab failed:', e);
     throw e;
   }
 }
@@ -771,10 +771,10 @@ async function saveScreenshotToBackend(videoId, timestamp, dataUrl) {
       body: JSON.stringify({ video_id: videoId, timestamp, data_url: dataUrl }),
     });
     if (res.ok) {
-      console.log(`[Deadbird] Screenshot saved to backend: ${videoId} @ ${timestamp}s`);
+      console.log(`[ClipIt] Screenshot saved to backend: ${videoId} @ ${timestamp}s`);
     }
   } catch (e) {
-    console.error('[Deadbird] Failed to save screenshot:', e);
+    console.error('[ClipIt] Failed to save screenshot:', e);
   }
 }
 
@@ -791,10 +791,10 @@ async function saveAudioToBackend(videoId, timestamp, audioData) {
       }),
     });
     if (res.ok) {
-      console.log(`[Deadbird] Audio saved to backend: ${videoId} @ ${timestamp}s`);
+      console.log(`[ClipIt] Audio saved to backend: ${videoId} @ ${timestamp}s`);
     }
   } catch (e) {
-    console.error('[Deadbird] Failed to save audio:', e);
+    console.error('[ClipIt] Failed to save audio:', e);
   }
 }
 
@@ -809,10 +809,10 @@ async function saveThumbnailToBackend(videoId, dataUrl) {
       }),
     });
     if (res.ok) {
-      console.log(`[Deadbird] Thumbnail saved for: ${videoId}`);
+      console.log(`[ClipIt] Thumbnail saved for: ${videoId}`);
     }
   } catch (e) {
-    console.error('[Deadbird] Failed to save thumbnail:', e);
+    console.error('[ClipIt] Failed to save thumbnail:', e);
   }
 }
 
@@ -821,7 +821,7 @@ async function saveThumbnailToBackend(videoId, dataUrl) {
 async function updateWatchTime(videoId, seconds, platform) {
   const token = await getAuthToken();
   if (!token) {
-    console.warn('[Deadbird] No auth token — cannot update watch time');
+    console.warn('[ClipIt] No auth token — cannot update watch time');
     return { success: false, reason: 'no_token' };
   }
 
@@ -841,14 +841,14 @@ async function updateWatchTime(videoId, seconds, platform) {
     });
 
     if (res.ok) {
-      console.log(`[Deadbird] Watch time updated: +${seconds}s for ${fullVideoId}`);
+      console.log(`[ClipIt] Watch time updated: +${seconds}s for ${fullVideoId}`);
       return { success: true };
     } else {
-      console.error('[Deadbird] Watch time update failed:', res.status);
+      console.error('[ClipIt] Watch time update failed:', res.status);
       return { success: false, reason: res.status };
     }
   } catch (e) {
-    console.error('[Deadbird] Watch time update error:', e);
+    console.error('[ClipIt] Watch time update error:', e);
     return { success: false, reason: e.message };
   }
 }

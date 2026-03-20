@@ -274,7 +274,7 @@ function tmplOffline() {
     <div class="body">
       <div class="center-state">
         <div class="icon">⚡</div>
-        <p class="title">Cannot connect to Deadbird</p>
+        <p class="title">Cannot connect to ClipIt</p>
         <p class="sub">Please check your internet connection or try again later</p>
       </div>
     </div>

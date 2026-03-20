@@ -1,5 +1,5 @@
 /**
- * Deadbird — content script
+ * ClipIt — content script
  * Detects YouTube video navigation (SPA) and sends video ID + title to background.
  * Also tracks actual watch time while video is playing.
  * Caption filtering (Korean + English required) is handled server-side.
@@ -27,12 +27,12 @@ function startWatchTimeTracking() {
   // Listen for play/pause events
   video.addEventListener('play', () => {
     isVideoPlaying = true;
-    console.log('[Deadbird] Video playing - tracking watch time');
+    console.log('[ClipIt] Video playing - tracking watch time');
   });
 
   video.addEventListener('pause', () => {
     isVideoPlaying = false;
-    console.log('[Deadbird] Video paused');
+    console.log('[ClipIt] Video paused');
     // Sync immediately on pause
     syncWatchTime();
   });
@@ -64,7 +64,7 @@ function syncWatchTime() {
     watchTimeAccumulator = 0;
     lastWatchTimeSync = Date.now();
 
-    console.log(`[Deadbird] Syncing ${secondsToSync}s watch time for ${lastTrackedId}`);
+    console.log(`[ClipIt] Syncing ${secondsToSync}s watch time for ${lastTrackedId}`);
 
     try {
       chrome.runtime.sendMessage({
@@ -194,12 +194,12 @@ function setSubtitlesHidden(hide) {
         }
       `;
       document.head.appendChild(styleEl);
-      console.log('[Deadbird] YouTube subtitles hidden (still being captured)');
+      console.log('[ClipIt] YouTube subtitles hidden (still being captured)');
     }
   } else {
     if (styleEl) {
       styleEl.remove();
-      console.log('[Deadbird] YouTube subtitles visible');
+      console.log('[ClipIt] YouTube subtitles visible');
     }
   }
 }
