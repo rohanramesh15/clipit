@@ -1319,35 +1319,33 @@ export function FlashcardsPage() {
           </div>
         </motion.button>
 
-        {/* Vocabulary Lists Section */}
+        {/* Vocabulary List Filter Dropdown */}
         {vocabLists.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-4">My Word Lists</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {vocabLists.map((list, index) => (
-                <motion.button
-                  key={list.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  onClick={() => loadVocabListFlashcards(list.id, list.name)}
-                  className="bg-surface border border-white/5 hover:border-accent/30 rounded-xl p-4 text-left transition-all group hover:bg-surface-hover"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-6 h-6 text-purple-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-primary text-base line-clamp-1 group-hover:text-accent transition-colors">
-                        {list.name}
-                      </h3>
-                      <span className="text-xs text-muted">{list.word_count} words</span>
-                    </div>
-                    <Play className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                  </div>
-                </motion.button>
+          <div className="mb-6 flex items-center gap-3">
+            <BookOpen className="w-5 h-5 text-purple-400 shrink-0" />
+            <select
+              value={selectedVocabListId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  clearVocabListFilter();
+                  loadAllVideos(videos);
+                } else {
+                  const listId = parseInt(val);
+                  const list = vocabLists.find(l => l.id === listId);
+                  if (list) loadVocabListFlashcards(listId, list.name);
+                }
+              }}
+              className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-3 text-primary text-base focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
+            >
+              <option value="">All words (no filter)</option>
+              {vocabLists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name} ({list.word_count} words)
+                </option>
               ))}
-            </div>
+            </select>
           </div>
         )}
 
