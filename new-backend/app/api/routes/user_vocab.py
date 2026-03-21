@@ -142,11 +142,14 @@ async def upload_vocabulary_list(
     # Commit remaining words
     if batch:
         db.bulk_save_objects(batch)
+        db.commit()
 
+    # Refresh and update word count (object may be stale after bulk operations)
+    db.refresh(vocab_list)
     vocab_list.word_count = words_added
+    db.commit()
 
     print(f"[VOCAB UPLOAD] User {current_user.id} uploaded '{list_name}' with {words_added} words")
-    db.commit()
     db.refresh(vocab_list)
 
     return VocabListResponse(
