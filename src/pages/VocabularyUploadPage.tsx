@@ -95,6 +95,7 @@ export function VocabularyUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingAnki, setIsUploadingAnki] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [deletingListId, setDeletingListId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [ankiImportResult, setAnkiImportResult] = useState<{
@@ -203,6 +204,7 @@ export function VocabularyUploadPage() {
   const handleDeleteList = async (listId: number, listName: string) => {
     if (!confirm(`Are you sure you want to delete "${listName}"?`)) return;
 
+    setDeletingListId(listId);
     try {
       const res = await fetch(`${API_BASE_URL}/vocab/lists/${listId}`, {
         method: 'DELETE',
@@ -216,9 +218,13 @@ export function VocabularyUploadPage() {
           setExpandedListWords([]);
         }
         setSuccess(`Deleted "${listName}"`);
+      } else {
+        setError('Failed to delete list');
       }
     } catch (err) {
       setError('Failed to delete list');
+    } finally {
+      setDeletingListId(null);
     }
   };
 
@@ -648,9 +654,14 @@ export function VocabularyUploadPage() {
                     </button>
                     <button
                       onClick={() => handleDeleteList(list.id, list.name)}
-                      className="p-2 text-secondary hover:text-red-400 transition-colors"
+                      disabled={deletingListId === list.id}
+                      className="p-2 text-secondary hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      {deletingListId === list.id ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-5 h-5" />
+                      )}
                     </button>
                   </div>
 

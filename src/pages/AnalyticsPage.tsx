@@ -113,7 +113,7 @@ export function AnalyticsPage() {
 
   // Generate heatmap data and streak from backend review history
   const { heatmapData, calculatedStreak } = useMemo(() => {
-    const result: { date: string; intensity: number; isFuture: boolean }[] = [];
+    const result: { date: string; intensity: number; isFuture: boolean; isPlaceholder: boolean }[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -154,6 +154,17 @@ export function AnalyticsPage() {
     // Find max reviews in a day for normalization
     const maxReviews = Math.max(1, ...Object.values(reviewsByDate));
 
+    // Calculate what day of week January 1st falls on
+    // getDay() returns 0=Sunday, 1=Monday, etc.
+    // Our grid shows Monday first, so convert: Sun(0)->6, Mon(1)->0, Tue(2)->1, etc.
+    const startDayOfWeek = startOfYear.getDay();
+    const mondayFirstIndex = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    // Add placeholder entries for days before January 1st
+    for (let i = 0; i < mondayFirstIndex; i++) {
+      result.push({ date: '', intensity: 0, isFuture: false, isPlaceholder: true });
+    }
+
     // Iterate from Jan 1 to Dec 31
     const currentDate = new Date(startOfYear);
     while (currentDate <= endOfYear) {
@@ -163,7 +174,7 @@ export function AnalyticsPage() {
 
       // Normalize to 0-4 intensity (future days get 0)
       const intensity = isFuture ? 0 : (count > 0 ? Math.min(4, Math.ceil((count / maxReviews) * 4)) : 0);
-      result.push({ date: dateStr, intensity, isFuture });
+      result.push({ date: dateStr, intensity, isFuture, isPlaceholder: false });
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -179,20 +190,8 @@ export function AnalyticsPage() {
   }, [calculatedStreak]);
 
   const getIntensityColor = (level: number) => {
-    switch (level) {
-      case 0:
-        return 'bg-white/5';
-      case 1:
-        return 'bg-accent/20';
-      case 2:
-        return 'bg-accent/40';
-      case 3:
-        return 'bg-accent/70';
-      case 4:
-        return 'bg-accent';
-      default:
-        return 'bg-white/5';
-    }
+    // Simple binary: accent color if any activity, default otherwise
+    return level > 0 ? 'bg-accent' : 'bg-white/5';
   };
 
   // GitHub-style layout (7 rows x N columns)
@@ -267,6 +266,10 @@ export function AnalyticsPage() {
                         return <div key={dayIdx} className="flex-1 min-h-0" />;
                       }
                       const dayData = heatmapData[dataIdx];
+                      // Placeholder cells are invisible (before Jan 1st)
+                      if (dayData.isPlaceholder) {
+                        return <div key={dayIdx} className="flex-1 min-h-0" />;
+                      }
                       return (
                         <motion.div
                           key={dayIdx}
@@ -288,15 +291,15 @@ export function AnalyticsPage() {
               <span className="text-[10px] text-muted">
                 {new Date().getFullYear()}
               </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted mr-1">Less</span>
-                {[0, 1, 2, 3, 4].map((level) => (
-                  <div
-                    key={level}
-                    className={`w-3 h-3 rounded-sm ${getIntensityColor(level)}`}
-                  />
-                ))}
-                <span className="text-[10px] text-muted ml-1">More</span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-sm bg-white/5" />
+                  <span className="text-[10px] text-muted">No activity</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-sm bg-accent" />
+                  <span className="text-[10px] text-muted">Active</span>
+                </div>
               </div>
             </div>
         </motion.div>
