@@ -1,11 +1,18 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Flame, Book, TrendingUp, RotateCw, Play } from 'lucide-react';
-import { getAnalyticsSummary, getActivityHeatmapCurrentYear } from '../services/fsrs';
+import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { API_BASE_URL } from '../config';
+
+interface ReviewEntry {
+  word: string;
+  language: string;
+  rating: number;
+  reviewed_at: string;
+}
 
 const analyticsPageTips: HelpTip[] = [
   {
@@ -31,6 +38,7 @@ export function AnalyticsPage() {
     hoursWatched: 0,
     streak: 0,
   });
+  const [reviewHistory, setReviewHistory] = useState<ReviewEntry[]>([]);
 
   // Load analytics data
   useEffect(() => {
@@ -42,8 +50,9 @@ export function AnalyticsPage() {
       streak: data.streak,
     });
 
-    // Fetch watch time from backend
+    // Fetch watch time and review history from backend
     if (token) {
+      // Fetch watch time
       fetch(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -54,9 +63,22 @@ export function AnalyticsPage() {
             hoursWatched: data.total_hours || 0,
           }));
         })
-        .catch(() => {
-          // Fallback: keep at 0 if API fails
-        });
+        .catch(() => {});
+
+      // Fetch all reviews for heatmap (get a large batch)
+      fetch(`${API_BASE_URL}/fsrs/reviews?limit=10000`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          setReviewHistory(data.reviews || []);
+          // Update total reviews count from backend
+          setAnalytics(prev => ({
+            ...prev,
+            totalReviews: data.total || prev.totalReviews,
+          }));
+        })
+        .catch(() => {});
     }
   }, [language, token]);
 
@@ -89,10 +111,72 @@ export function AnalyticsPage() {
     },
   ];
 
-  // Get real heatmap data from review history - current calendar year
-  const heatmapData = useMemo(() => {
-    return getActivityHeatmapCurrentYear();
-  }, []);
+  // Generate heatmap data and streak from backend review history
+  const { heatmapData, calculatedStreak } = useMemo(() => {
+    const result: { date: string; intensity: number; isFuture: boolean }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Start from January 1st of current year
+    const year = today.getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31);
+
+    // Group reviews by date
+    const reviewsByDate: Record<string, number> = {};
+    reviewHistory.forEach(r => {
+      if (r.reviewed_at) {
+        const date = r.reviewed_at.split('T')[0]; // YYYY-MM-DD
+        reviewsByDate[date] = (reviewsByDate[date] || 0) + 1;
+      }
+    });
+
+    // Calculate streak from backend data
+    let streak = 0;
+    const todayStr = today.toISOString().split('T')[0];
+    const checkDate = new Date(today);
+
+    // If no reviews today, start from yesterday
+    if (!reviewsByDate[todayStr]) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    while (true) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      if (reviewsByDate[dateStr]) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    // Find max reviews in a day for normalization
+    const maxReviews = Math.max(1, ...Object.values(reviewsByDate));
+
+    // Iterate from Jan 1 to Dec 31
+    const currentDate = new Date(startOfYear);
+    while (currentDate <= endOfYear) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const count = reviewsByDate[dateStr] || 0;
+      const isFuture = currentDate > today;
+
+      // Normalize to 0-4 intensity (future days get 0)
+      const intensity = isFuture ? 0 : (count > 0 ? Math.min(4, Math.ceil((count / maxReviews) * 4)) : 0);
+      result.push({ date: dateStr, intensity, isFuture });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return { heatmapData: result, calculatedStreak: streak };
+  }, [reviewHistory]);
+
+  // Update streak when calculated from backend data
+  useEffect(() => {
+    if (calculatedStreak > 0) {
+      setAnalytics(prev => ({ ...prev, streak: calculatedStreak }));
+    }
+  }, [calculatedStreak]);
 
   const getIntensityColor = (level: number) => {
     switch (level) {
