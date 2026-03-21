@@ -34,7 +34,23 @@ import { useAuth } from '../context/AuthContext';
 import { useReviewSession } from '../context/ReviewSessionContext';
 import { API_BASE_URL } from '../config';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, BookOpen } from 'lucide-react';
+
+// Vocabulary list types
+interface VocabList {
+  id: number;
+  name: string;
+  language: string;
+  word_count: number;
+}
+
+interface VocabListDetail {
+  id: number;
+  name: string;
+  language: string;
+  word_count: number;
+  words: { word: string; translation: string }[];
+}
 
 const flashcardsPageTips: HelpTip[] = [
   {
@@ -312,6 +328,10 @@ export function FlashcardsPage() {
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [draggingVideoId, setDraggingVideoId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [vocabLists, setVocabLists] = useState<VocabList[]>([]);
+  const [selectedVocabListId, setSelectedVocabListId] = useState<number | null>(null);
+  const [selectedVocabListWords, setSelectedVocabListWords] = useState<Set<string>>(new Set());
+  const [selectedVocabListName, setSelectedVocabListName] = useState<string>('');
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -320,6 +340,25 @@ export function FlashcardsPage() {
   useEffect(() => {
     setFolders(getFolders());
   }, []);
+
+  // Fetch vocabulary lists on mount
+  useEffect(() => {
+    async function fetchVocabLists() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/vocab/lists`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const lists = await res.json();
+          setVocabLists(lists);
+        }
+      } catch (err) {
+        console.error('Failed to fetch vocab lists:', err);
+      }
+    }
+    fetchVocabLists();
+  }, [token]);
 
   // Create a new folder
   function handleCreateFolder() {
@@ -646,6 +685,9 @@ export function FlashcardsPage() {
     setIsFlipped(false);
     setSelectedVideoId('all');
     setSelectedVideoTitle('All Videos');
+    setSelectedVocabListId(null);
+    setSelectedVocabListWords(new Set());
+    setSelectedVocabListName('');
     setLastRatingInfo(null);
 
     const allCards: FlashCard[] = [];
@@ -672,6 +714,9 @@ export function FlashcardsPage() {
     setIsFlipped(false);
     setSelectedVideoId(videoId);
     setSelectedVideoTitle(videoTitle);
+    setSelectedVocabListId(null);
+    setSelectedVocabListWords(new Set());
+    setSelectedVocabListName('');
     setLastRatingInfo(null);
 
     setLoadingMsg('Extracting vocabulary...');
@@ -683,6 +728,62 @@ export function FlashcardsPage() {
     }
     prepareCardsForReview(videoCards);
   }, [fetchCardsForVideo, prepareCardsForReview]);
+
+  // Load flashcards filtered by a vocabulary list
+  const loadVocabListFlashcards = useCallback(async (listId: number, listName: string) => {
+    setLoadState('loading');
+    setLoadingMsg(`Loading flashcards from "${listName}"...`);
+    setCards([]);
+    setDueCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSelectedVideoId(`vocablist_${listId}`);
+    setSelectedVideoTitle(listName);
+    setSelectedVocabListId(listId);
+    setSelectedVocabListName(listName);
+    setLastRatingInfo(null);
+
+    // Fetch the list's words
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/lists/${listId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Failed to fetch list');
+      const listDetail: VocabListDetail = await res.json();
+      const listWords = new Set(listDetail.words.map(w => w.word.toLowerCase()));
+      setSelectedVocabListWords(listWords);
+
+      // Load all cards from all videos
+      const allCards: FlashCard[] = [];
+      for (const video of videos) {
+        setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
+        const videoCards = await fetchCardsForVideo(video.video_id);
+        allCards.push(...videoCards);
+      }
+
+      // Filter to only cards whose word is in the vocab list
+      const filteredCards = allCards.filter(card => {
+        const word = (card.dictionary_form || card.target_word).toLowerCase();
+        return listWords.has(word);
+      });
+
+      if (!filteredCards.length) {
+        setLoadState('no-vocab');
+        return;
+      }
+      prepareCardsForReview(filteredCards);
+    } catch (err) {
+      console.error('Failed to load vocab list flashcards:', err);
+      setLoadState('error');
+    }
+  }, [videos, token, fetchCardsForVideo, prepareCardsForReview]);
+
+  // Clear vocab list filter
+  const clearVocabListFilter = useCallback(() => {
+    setSelectedVocabListId(null);
+    setSelectedVocabListWords(new Set());
+    setSelectedVocabListName('');
+  }, []);
 
   // Load flashcards for a folder (multiple videos)
   const loadFolderFlashcards = useCallback(async (folder: VideoFolder) => {
@@ -697,6 +798,9 @@ export function FlashcardsPage() {
     setIsFlipped(false);
     setSelectedVideoId(`folder_${folder.id}`);
     setSelectedVideoTitle(folder.name);
+    setSelectedVocabListId(null);
+    setSelectedVocabListWords(new Set());
+    setSelectedVocabListName('');
     setLastRatingInfo(null);
 
     const allCards: FlashCard[] = [];
@@ -1196,7 +1300,7 @@ export function FlashcardsPage() {
         <motion.button
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          onClick={() => loadAllVideos(videos)}
+          onClick={() => { clearVocabListFilter(); loadAllVideos(videos); }}
           className="w-full bg-gradient-to-r from-accent/20 to-accent/10 border border-accent/30 rounded-2xl p-5 mb-5 text-left hover:from-accent/30 hover:to-accent/20 transition-all group"
         >
           <div className="flex items-center gap-5">
@@ -1214,6 +1318,38 @@ export function FlashcardsPage() {
             <Play className="w-6 h-6 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </motion.button>
+
+        {/* Vocabulary Lists Section */}
+        {vocabLists.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-4">My Word Lists</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {vocabLists.map((list, index) => (
+                <motion.button
+                  key={list.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  onClick={() => loadVocabListFlashcards(list.id, list.name)}
+                  className="bg-surface border border-white/5 hover:border-accent/30 rounded-xl p-4 text-left transition-all group hover:bg-surface-hover"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-primary text-base line-clamp-1 group-hover:text-accent transition-colors">
+                        {list.name}
+                      </h3>
+                      <span className="text-xs text-muted">{list.word_count} words</span>
+                    </div>
+                    <Play className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Folders Section */}
         {folders.length > 0 && (
@@ -1741,6 +1877,11 @@ export function FlashcardsPage() {
             ) : selectedVideoId.startsWith('folder_') ? (
               <>
                 <Folder className="w-3 h-3 shrink-0 mr-0.5" />
+                <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+              </>
+            ) : selectedVideoId.startsWith('vocablist_') ? (
+              <>
+                <BookOpen className="w-3 h-3 shrink-0 mr-0.5" />
                 <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
               </>
             ) : (
