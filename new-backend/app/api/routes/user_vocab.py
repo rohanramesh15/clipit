@@ -112,23 +112,36 @@ async def upload_vocabulary_list(
     db.add(vocab_list)
     db.flush()  # Get the ID
 
-    # Add words (skip duplicates within the file)
+    # Add words in batches (skip duplicates within the file)
+    BATCH_SIZE = 500
     words_added = 0
     seen_words = set()
+    batch = []
+
     for idx, row in enumerate(rows[start_idx:]):
         if len(row) >= 2:
             word = row[0].strip()
             translation = row[1].strip()
             if word and translation and word not in seen_words:
                 seen_words.add(word)
-                vocab_word = UserVocabularyWord(
+                batch.append(UserVocabularyWord(
                     list_id=vocab_list.id,
                     word=word,
                     translation=translation,
                     sort_order=words_added
-                )
-                db.add(vocab_word)
+                ))
                 words_added += 1
+
+                # Commit in batches to avoid timeout
+                if len(batch) >= BATCH_SIZE:
+                    db.bulk_save_objects(batch)
+                    db.commit()
+                    print(f"[VOCAB UPLOAD] Batch committed: {words_added} words so far")
+                    batch = []
+
+    # Commit remaining words
+    if batch:
+        db.bulk_save_objects(batch)
 
     vocab_list.word_count = words_added
 
