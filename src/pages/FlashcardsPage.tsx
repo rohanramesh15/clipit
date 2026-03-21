@@ -111,6 +111,8 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     } else {
+      // Reset to beginning before playing (in case audio ended)
+      audioRef.current.currentTime = 0;
       audioRef.current.play();
     }
   };
