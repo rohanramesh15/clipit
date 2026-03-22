@@ -67,14 +67,20 @@ def get_decks(
         if not video_id:
             continue
 
-        # Get video title from video store
+        # Get video title and episode info from video store
         video_info = get_video_by_id(video_id)
         video_title = video_info.get("title", f"Video {video_id}") if video_info else f"Video {video_id}"
+        season = video_info.get("season") if video_info else None
+        episode = video_info.get("episode") if video_info else None
+        episode_title = video_info.get("episode_title") if video_info else None
 
         decks.append({
             "video_id": video_id,
             "name": custom_names.get(video_id) or video_title,
             "video_title": video_title,
+            "season": season,
+            "episode": episode,
+            "episode_title": episode_title,
             "due_count": int(due_count) if due_count else 0,
             "total_count": int(total_count) if total_count else 0,
         })

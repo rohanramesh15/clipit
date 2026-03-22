@@ -320,6 +320,14 @@ function tmplList() {
     const platformBadge = isNetflix
       ? '<span class="platform-badge netflix">N</span>'
       : '<span class="platform-badge youtube">▶</span>';
+    // Build episode info string for Netflix shows
+    const episodeInfo = isNetflix && (v.season || v.episode)
+      ? (v.season && v.episode
+          ? `S${v.season}:E${v.episode}`
+          : v.season
+            ? `Season ${v.season}`
+            : `Episode ${v.episode}`)
+      : '';
     return `
       <div class="video-card">
         ${isNetflix
@@ -332,6 +340,7 @@ function tmplList() {
         }
         <div class="video-meta">
           <div class="video-title-text">${esc(v.title)}</div>
+          ${episodeInfo ? `<div class="video-episode-info">${episodeInfo}</div>` : ''}
         </div>
         <button class="words-btn"
           data-action="get-words"
