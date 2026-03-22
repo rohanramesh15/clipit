@@ -293,6 +293,45 @@ def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> lis
     ]
 
 
+def get_user_building_videos(db: Session, user_id: int, lang: str = "ko") -> list[dict]:
+    """
+    Return Netflix videos that are 'building' - tracked but no subtitles processed yet.
+    These are videos where the user should keep watching while ClipIt builds the deck.
+    """
+    watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
+    if not watches:
+        return []
+    video_ids = [w.video_id for w in watches]
+    watch_times = {w.video_id: w.watched_at for w in watches}
+
+    # Only get Netflix videos that don't have subtitles yet
+    query = db.query(TrackedVideo).filter(
+        TrackedVideo.video_id.in_(video_ids),
+        TrackedVideo.video_id.like('netflix_%')  # Only Netflix videos
+    )
+    if lang == "uk":
+        query = query.filter(
+            (TrackedVideo.has_ukrainian == None) | (TrackedVideo.has_ukrainian == False)
+        )
+    else:
+        query = query.filter(
+            (TrackedVideo.has_korean == None) | (TrackedVideo.has_korean == False)
+        )
+    rows = query.all()
+    return [
+        {
+            "video_id": r.video_id,
+            "title": r.title,
+            "tracked_at": watch_times.get(r.video_id, r.tracked_at),
+            "season": r.season,
+            "episode": r.episode,
+            "episode_title": r.episode_title,
+            "building": True,
+        }
+        for r in sorted(rows, key=lambda r: watch_times.get(r.video_id, 0), reverse=True)
+    ]
+
+
 def get_user_unchecked_videos(db: Session, user_id: int, lang: str = "ko") -> list[dict]:
     """Return user's videos where subtitle availability for the given lang hasn't been checked."""
     watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()

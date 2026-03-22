@@ -152,6 +152,21 @@ async def update_watch_time(
     return {"status": "ok", "video_id": req.video_id, "total_seconds": total}
 
 
+@router.get("/history/building")
+async def get_building_videos(
+    lang: str = "ko",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return Netflix videos that are still being built (tracked but no subtitles processed yet).
+    These are videos where the user is actively watching but ClipIt hasn't captured subtitles yet.
+    """
+    from app.services.video_store import get_user_building_videos
+    videos = get_user_building_videos(db, current_user.id, lang)
+    return {"total": len(videos), "lang": lang, "videos": videos}
+
+
 @router.delete("/{video_id}")
 async def delete_video(
     video_id: str,
