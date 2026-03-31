@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
@@ -11,6 +11,7 @@ class UserVocabularyWord(BaseModel):
     word = Column(String(100), nullable=False, index=True)
     translation = Column(String(500), nullable=False)
     sort_order = Column(Integer, default=0)
+    prefer_tts = Column(Boolean, nullable=False, default=False)  # User prefers TTS over video
 
     # Relationships
     vocabulary_list = relationship("UserVocabularyList", back_populates="words")

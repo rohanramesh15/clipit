@@ -67,6 +67,11 @@ class WordCreate(BaseModel):
     translation: str
 
 
+class RevertToTTSRequest(BaseModel):
+    word: str
+    language: str = 'ko'
+
+
 # ── Vocabulary List Routes ───────────────────────────────────────────────────
 
 @router.post("/lists/upload", response_model=VocabListResponse)
@@ -246,21 +251,23 @@ def get_vocab_list_flashcards(
     for w in words:
         video_context = None
 
-        # Check each watched video for this word
-        for video_id, subtitles in video_subtitles.items():
-            if not subtitles:
-                continue
-            sentence_data = find_sentence_for_word_simple(w.word, subtitles, language)
-            if sentence_data and sentence_data.get('sentence') != w.word:
-                # Found word in video subtitles
-                video_context = {
-                    'video_id': video_id,
-                    'sentence': sentence_data['sentence'],
-                    'sentence_translation': sentence_data['sentence_translation'],
-                    'timestamp': sentence_data['timestamp'],
-                    'end_timestamp': sentence_data['end_timestamp'],
-                }
-                break  # Use first video where word appears
+        # Skip video upgrade if user prefers TTS for this word
+        if not w.prefer_tts:
+            # Check each watched video for this word
+            for video_id, subtitles in video_subtitles.items():
+                if not subtitles:
+                    continue
+                sentence_data = find_sentence_for_word_simple(w.word, subtitles, language)
+                if sentence_data and sentence_data.get('sentence') != w.word:
+                    # Found word in video subtitles
+                    video_context = {
+                        'video_id': video_id,
+                        'sentence': sentence_data['sentence'],
+                        'sentence_translation': sentence_data['sentence_translation'],
+                        'timestamp': sentence_data['timestamp'],
+                        'end_timestamp': sentence_data['end_timestamp'],
+                    }
+                    break  # Use first video where word appears
 
         if video_context:
             # Word found in video - return as video card
@@ -422,6 +429,38 @@ def delete_word(
     db.commit()
 
     return {"status": "ok", "deleted_word_id": word_id}
+
+
+@router.post("/words/revert-to-tts")
+def revert_word_to_tts(
+    request: RevertToTTSRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Revert a video card back to TTS-only.
+    Sets prefer_tts=True so the word won't be auto-upgraded to video again.
+    """
+    # Find the word in user's vocab
+    word_record = (
+        db.query(UserVocabularyWord)
+        .join(UserVocabularyList)
+        .filter(
+            UserVocabularyList.user_id == current_user.id,
+            UserVocabularyList.language == request.language,
+            UserVocabularyWord.word == request.word
+        )
+        .first()
+    )
+
+    if not word_record:
+        raise HTTPException(status_code=404, detail="Word not found in vocabulary")
+
+    # Mark word as preferring TTS
+    word_record.prefer_tts = True
+    db.commit()
+
+    return {"status": "ok", "word": request.word, "card_type": "tts"}
 
 
 # ── Settings Routes ──────────────────────────────────────────────────────────
