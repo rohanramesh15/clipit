@@ -14,6 +14,7 @@ from app.services.vocab_service import load_frequency_map, filter_vocabulary, fi
 from app.services.mining_service import apply_mining_limits, record_mined_words, get_mining_stats
 from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.api.routes.user_vocab import get_user_vocabulary_words, get_user_priority_mode
+from app.services.card_upgrade_service import auto_upgrade_tts_cards
 
 router = APIRouter()
 
@@ -149,6 +150,17 @@ async def get_vocabulary(
 
     stats = get_vocab_stats(limited)
 
+    # Auto-upgrade TTS cards with video context for authenticated users
+    upgraded_count = 0
+    if current_user:
+        upgraded_words = auto_upgrade_tts_cards(
+            user_id=current_user.id,
+            video_id=video_id,
+            language=lang,
+            db=db
+        )
+        upgraded_count = len(upgraded_words)
+
     response = {
         "video_id": video_id,
         "lang": lang,
@@ -160,6 +172,9 @@ async def get_vocabulary(
 
     if mining_info:
         response["mining"] = mining_info
+
+    if upgraded_count > 0:
+        response["upgraded_tts_cards"] = upgraded_count
 
     return response
 
