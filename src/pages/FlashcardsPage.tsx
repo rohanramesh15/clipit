@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RotateCw,
+  RotateCcw,
   Check,
   X,
   ThumbsUp,
@@ -415,6 +416,7 @@ export function FlashcardsPage() {
   const [isEditingDefinition, setIsEditingDefinition] = useState(false);
   const [editedDefinition, setEditedDefinition] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
   const [showDeleteVideoConfirm, setShowDeleteVideoConfirm] = useState<TrackedVideo | null>(null);
   const [isDeletingVideo, setIsDeletingVideo] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('recent');
@@ -1114,6 +1116,37 @@ export function FlashcardsPage() {
       });
     } catch (error) {
       console.error('Failed to delete card from server:', error);
+    }
+  }
+
+  // Revert video card back to TTS-only
+  async function handleRevertToTTS() {
+    if (!currentCard || currentCard.card_type !== 'video') return;
+    setIsReverting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/words/revert-to-tts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          word: currentCard.target_word,
+          language: language,
+        }),
+      });
+      if (res.ok) {
+        // Update card in current session to show as TTS
+        setDueCards(prev => prev.map(c =>
+          c.target_word === currentCard.target_word
+            ? { ...c, card_type: 'tts', video_id: null, sentence: null, sentence_translation: null }
+            : c
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to revert card to TTS:', error);
+    } finally {
+      setIsReverting(false);
     }
   }
 
@@ -2187,8 +2220,18 @@ export function FlashcardsPage() {
               className="w-full h-full"
             />
           )}
-          {/* Action button */}
-          <div className="absolute top-2 right-2">
+          {/* Action buttons */}
+          <div className="absolute top-2 right-2 flex gap-1">
+            {currentCard?.card_type === 'video' && (
+              <button
+                onClick={handleRevertToTTS}
+                disabled={isReverting}
+                className="p-2 rounded-lg bg-black/60 hover:bg-blue-500/80 text-white/70 hover:text-white transition-colors disabled:opacity-50"
+                title="Revert to TTS-only"
+              >
+                <RotateCcw className={`w-4 h-4 ${isReverting ? 'animate-spin' : ''}`} />
+              </button>
+            )}
             <button
               onClick={handleDeleteCard}
               className="p-2 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/70 hover:text-white transition-colors"
