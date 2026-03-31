@@ -11,6 +11,7 @@ from app.models.user_flashcard_progress import UserFlashcardProgress
 from app.models.user_vocabulary_list import UserVocabularyList
 from app.models.user_vocabulary_word import UserVocabularyWord
 from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
+from app.api.routes.netflix import load_cached_netflix_subtitles
 
 
 def get_user_vocab_words_set(user_id: int, db: Session, language: str = 'ko') -> dict:
@@ -105,8 +106,10 @@ def auto_upgrade_tts_cards(
     if not user_vocab:
         return upgraded_words
 
-    # Load subtitles for the video
-    if language == 'uk':
+    # Load subtitles for the video (YouTube or Netflix)
+    if video_id.startswith('netflix_'):
+        subtitle_data = load_cached_netflix_subtitles(video_id, language)
+    elif language == 'uk':
         subtitle_data = load_cached_subtitles_ukrainian(video_id)
     else:
         subtitle_data = load_cached_subtitles(video_id)

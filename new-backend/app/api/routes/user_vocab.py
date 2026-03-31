@@ -206,6 +206,7 @@ def get_vocab_list_flashcards(
     from app.models.user_video_watch import UserVideoWatch
     from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
     from app.services.card_upgrade_service import find_sentence_for_word_simple
+    from app.api.routes.netflix import load_cached_netflix_subtitles
 
     query = (
         db.query(UserVocabularyWord)
@@ -233,12 +234,14 @@ def get_vocab_list_flashcards(
     if watched_videos:
         print(f"[VOCAB FLASHCARDS DEBUG] Video IDs: {[v.video_id for v in watched_videos[:5]]}")
 
-    # Load subtitles for all watched videos
+    # Load subtitles for all watched videos (YouTube and Netflix)
     video_subtitles = {}
     for watch in watched_videos:
         video_id = watch.video_id
         if video_id not in video_subtitles:
-            if language == 'uk':
+            if video_id.startswith('netflix_'):
+                subtitle_data = load_cached_netflix_subtitles(video_id, language)
+            elif language == 'uk':
                 subtitle_data = load_cached_subtitles_ukrainian(video_id)
             else:
                 subtitle_data = load_cached_subtitles(video_id)
