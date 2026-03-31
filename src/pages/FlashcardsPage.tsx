@@ -188,16 +188,108 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
   );
 }
 
+// TTS Card placeholder component - displays word with audio button (no video context)
+function TTSCardPlaceholder({
+  word,
+  language
+}: {
+  word: string;
+  language: string;
+}) {
+  const [isPlaying, setIsPlaying] = React.useState(false);
+
+  const playAudio = React.useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsPlaying(true);
+
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = language === 'uk' ? 'uk-UA' : 'ko-KR';
+    utterance.rate = 0.9;
+
+    const voices = window.speechSynthesis.getVoices();
+    const langPrefix = language === 'uk' ? 'uk' : 'ko';
+    // Prefer Yuna (best macOS Korean voice), then Google, then any Korean voice
+    const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name === 'Yuna')
+      || voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
+      || voices.find(v => v.lang.startsWith(langPrefix));
+
+    if (targetVoice) {
+      utterance.voice = targetVoice;
+    }
+
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+
+    window.speechSynthesis.speak(utterance);
+  }, [word, language]);
+
+  // Auto-play on mount (wait for Google voice to load)
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let hasPlayed = false;
+
+    const tryPlay = () => {
+      if (hasPlayed) return;
+
+      const voices = window.speechSynthesis.getVoices();
+      const langPrefix = language === 'uk' ? 'uk' : 'ko';
+
+      // Wait for Yuna (best macOS voice), Google, or any Korean voice
+      const yunaVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name === 'Yuna');
+      const googleVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'));
+      const anyVoice = voices.find(v => v.lang.startsWith(langPrefix));
+
+      if (yunaVoice || googleVoice || anyVoice) {
+        hasPlayed = true;
+        timer = setTimeout(playAudio, 500);
+      }
+    };
+
+    // Try immediately in case voices are cached
+    tryPlay();
+
+    // Also listen for voices to load
+    window.speechSynthesis.onvoiceschanged = tryPlay;
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [playAudio, language]);
+
+  return (
+    <div className="w-full h-full relative bg-gradient-to-br from-purple-900/30 to-accent/20 flex flex-col items-center justify-center">
+      <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mb-4">
+        <button
+          onClick={playAudio}
+          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
+            isPlaying
+              ? 'bg-accent text-app scale-110'
+              : 'bg-white/10 text-accent hover:bg-accent hover:text-app'
+          }`}
+        >
+          <Volume2 className={`w-8 h-8 ${isPlaying ? 'animate-pulse' : ''}`} />
+        </button>
+      </div>
+      <p className="text-white/60 text-sm">
+        {isPlaying ? 'Playing...' : 'Tap to hear pronunciation'}
+      </p>
+    </div>
+  );
+}
+
 interface FlashCard {
   target_word: string;
   dictionary_form: string;
   english: string;
-  sentence: string;
-  sentence_translation: string;
-  timestamp: number;
-  end_timestamp: number;
-  video_id: string;
+  sentence: string | null;
+  sentence_translation: string | null;
+  timestamp: number | null;
+  end_timestamp: number | null;
+  video_id: string | null;
   rank?: number;
+  card_type?: 'tts' | 'video';
 }
 
 interface TrackedVideo {
@@ -505,8 +597,8 @@ export function FlashcardsPage() {
     if (loadState !== 'loaded' || !card) return;
     if (!playerContainerRef.current) return;
 
-    // Skip YouTube player for Netflix videos
-    if (isNetflixVideo(card.video_id)) {
+    // Skip YouTube player for TTS cards (no video) and Netflix videos
+    if (!card.video_id || isNetflixVideo(card.video_id)) {
       // Destroy any existing YouTube player
       if (playerRef.current) {
         try {
@@ -519,8 +611,9 @@ export function FlashcardsPage() {
       return;
     }
 
-    // Add 3 seconds buffer to end timestamp
-    const endTime = (card.end_timestamp || card.timestamp + 5) + 3;
+    // Add 3 seconds buffer to end timestamp (timestamp is guaranteed non-null here since we have video_id)
+    const startTime = card.timestamp ?? 0;
+    const endTime = (card.end_timestamp || startTime + 5) + 3;
 
     const setupLooping = (player: any) => {
       if (loopIntervalRef.current) {
@@ -530,7 +623,7 @@ export function FlashcardsPage() {
         try {
           const currentTime = player.getCurrentTime();
           if (currentTime >= endTime) {
-            player.seekTo(card.timestamp, true);
+            player.seekTo(startTime, true);
           }
         } catch (e) {
           // Player not ready yet
@@ -543,7 +636,7 @@ export function FlashcardsPage() {
       if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
         playerRef.current.loadVideoById({
           videoId: card.video_id,
-          startSeconds: card.timestamp,
+          startSeconds: startTime,
         });
         setupLooping(playerRef.current);
         return;
@@ -555,7 +648,7 @@ export function FlashcardsPage() {
       playerRef.current = new (window as any).YT.Player(playerContainerRef.current, {
         videoId: card.video_id,
         playerVars: {
-          start: card.timestamp,
+          start: startTime,
           autoplay: 1,
           rel: 0,
           modestbranding: 1,
@@ -626,7 +719,7 @@ export function FlashcardsPage() {
       // For Netflix videos, only show cards that have screenshots
       if (videoId.startsWith('netflix_') && cards.length > 0) {
         const screenshotChecks = await Promise.all(
-          cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp))
+          cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp ?? 0))
         );
         const cardsWithScreenshots = cards.filter((_: FlashCard, i: number) => screenshotChecks[i]);
         console.log(`[ClipIt] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
@@ -785,6 +878,57 @@ export function FlashcardsPage() {
     }
   }, [videos, token, fetchCardsForVideo, prepareCardsForReview]);
 
+  // Load TTS-only flashcards from user vocabulary lists (no video required)
+  const loadVocabTTSCards = useCallback(async (listId?: number) => {
+    setLoadState('loading');
+    setLoadingMsg('Loading your vocabulary...');
+    setCards([]);
+    setDueCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSelectedVideoId(listId ? `vocablist_tts_${listId}` : 'vocablist_tts_all');
+    setSelectedVideoTitle(listId
+      ? vocabLists.find(l => l.id === listId)?.name || 'Vocabulary List'
+      : 'My Vocabulary'
+    );
+    setSelectedVocabListId(listId || null);
+    setSelectedVocabListName(listId ? (vocabLists.find(l => l.id === listId)?.name || '') : '');
+    setSelectedVocabListWords(new Set());
+    setLastRatingInfo(null);
+
+    try {
+      const url = listId
+        ? `${API_BASE_URL}/vocab/lists/flashcards?list_id=${listId}&language=${language}`
+        : `${API_BASE_URL}/vocab/lists/flashcards?language=${language}`;
+
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch vocab flashcards');
+
+      const data = await res.json();
+      let ttsCards: FlashCard[] = data.flashcards;
+
+      // Filter out deleted cards
+      const deletedCards = getDeletedCards(language);
+      ttsCards = ttsCards.filter(card => {
+        const word = card.dictionary_form || card.target_word;
+        return !deletedCards.has(word);
+      });
+
+      if (!ttsCards.length) {
+        setLoadState('no-vocab');
+        return;
+      }
+
+      prepareCardsForReview(ttsCards);
+    } catch (err) {
+      console.error('Failed to load vocab TTS cards:', err);
+      setLoadState('error');
+    }
+  }, [language, token, vocabLists, prepareCardsForReview]);
+
   // Clear vocab list filter
   const clearVocabListFilter = useCallback(() => {
     setSelectedVocabListId(null);
@@ -889,7 +1033,11 @@ export function FlashcardsPage() {
     if (!currentCard) return;
 
     // Calculate clip duration (with 3 second buffer that's added during playback)
-    const clipDuration = (currentCard.end_timestamp || currentCard.timestamp + 5) - currentCard.timestamp + 3;
+    // For TTS cards (no video), use a default duration of 5 seconds
+    const startTs = currentCard.timestamp ?? 0;
+    const clipDuration = currentCard.video_id
+      ? (currentCard.end_timestamp || startTs + 5) - startTs + 3
+      : 5;
     const { nextDue } = rateCard(currentCard.dictionary_form || currentCard.target_word, rating, clipDuration);
     const nextDueStr = formatNextReview(nextDue);
 
@@ -1335,6 +1483,32 @@ export function FlashcardsPage() {
             <Play className="w-6 h-6 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </motion.button>
+
+        {/* Study My Words Card - TTS-only cards from vocab lists */}
+        {vocabLists.length > 0 && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={() => loadVocabTTSCards()}
+            className="w-full bg-gradient-to-r from-purple-500/20 to-purple-500/10 border border-purple-500/30 rounded-2xl p-5 mb-5 text-left hover:from-purple-500/30 hover:to-purple-500/20 transition-all group"
+          >
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+                <BookOpen className="w-7 h-7 text-purple-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-lg text-primary group-hover:text-purple-400 transition-colors">
+                  Study My Words
+                </h3>
+                <p className="text-sm text-secondary">
+                  {vocabLists.reduce((sum, l) => sum + l.word_count, 0)} words from {vocabLists.length} {vocabLists.length === 1 ? 'list' : 'lists'}
+                </p>
+              </div>
+              <Play className="w-6 h-6 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </motion.button>
+        )}
 
         {/* Vocabulary List Filter Dropdown */}
         {vocabLists.length > 0 && (
@@ -1993,13 +2167,19 @@ export function FlashcardsPage() {
 
       {/* Card area */}
       <div className="w-full space-y-4">
-        {/* Video clip (YouTube) or Netflix placeholder */}
+        {/* Video clip (YouTube), Netflix placeholder, or TTS card */}
         <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 bg-black">
-          {currentCard && isNetflixVideo(currentCard.video_id) ? (
+          {currentCard && !currentCard.video_id ? (
+            // TTS-only card (no video context)
+            <TTSCardPlaceholder
+              word={currentCard.target_word}
+              language={language}
+            />
+          ) : currentCard && isNetflixVideo(currentCard.video_id!) ? (
             // Netflix screenshot or placeholder with deep link button
             <NetflixVideoPlaceholder
-              videoId={currentCard.video_id}
-              timestamp={currentCard.timestamp}
+              videoId={currentCard.video_id!}
+              timestamp={currentCard.timestamp!}
             />
           ) : (
             <div
