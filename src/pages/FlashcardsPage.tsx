@@ -437,6 +437,25 @@ export function FlashcardsPage() {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
 
+  // Play text using Web Speech API
+  const playTTS = useCallback((text: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === 'uk' ? 'uk-UA' : 'ko-KR';
+    utterance.rate = 0.9;
+
+    const voices = window.speechSynthesis.getVoices();
+    const langPrefix = language === 'uk' ? 'uk' : 'ko';
+    const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
+      || voices.find(v => v.lang.startsWith(langPrefix));
+
+    if (targetVoice) {
+      utterance.voice = targetVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }, [language]);
+
   // Load folders from localStorage on mount
   useEffect(() => {
     setFolders(getFolders());
@@ -2380,6 +2399,29 @@ export function FlashcardsPage() {
                       {currentCard?.target_word}
                     </p>
                   </div>
+                  {/* Example sentence for TTS cards */}
+                  {currentCard?.card_type === 'tts' && currentCard?.sentence && (
+                    <div className="w-full border-t border-white/5 pt-4 mt-4">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <p className="text-xs text-muted uppercase tracking-wider">Example</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (currentCard?.sentence) {
+                              playTTS(currentCard.sentence);
+                            }
+                          }}
+                          className="p-1.5 rounded-full bg-white/5 hover:bg-accent hover:text-app text-secondary transition-colors"
+                          title="Listen to example"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-base text-primary text-center">
+                        {currentCard.sentence}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </motion.div>
