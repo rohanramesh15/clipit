@@ -403,7 +403,6 @@ export function FlashcardsPage() {
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [dueCards, setDueCards] = useState<FlashCard[]>([]);
   const [videos, setVideos] = useState<TrackedVideo[]>([]);
-  const [buildingVideos, setBuildingVideos] = useState<TrackedVideo[]>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
   const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -971,23 +970,13 @@ export function FlashcardsPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        // Fetch both ready and building videos in parallel
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [filteredRes, buildingRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers }),
-          fetch(`${API_BASE_URL}/videos/history/building?lang=${language}`, { headers }),
-        ]);
+        const filteredRes = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers });
 
         if (!filteredRes.ok) throw new Error();
         const filteredData = await filteredRes.json();
         const vids: TrackedVideo[] = filteredData.videos || [];
         setVideos(vids);
-
-        // Building videos (Netflix videos still being processed)
-        if (buildingRes.ok) {
-          const buildingData = await buildingRes.json();
-          setBuildingVideos(buildingData.videos || []);
-        }
 
         if (!vids.length) {
           setLoadState('no-videos');
@@ -1670,62 +1659,6 @@ export function FlashcardsPage() {
           </div>
         )}
 
-        {/* Building Videos Section (Netflix videos still being processed) */}
-        {buildingVideos.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              Building Decks
-            </h2>
-            <div className="space-y-3">
-              {buildingVideos.map((video, index) => {
-                const episodeInfo = video.season && video.episode
-                  ? `S${video.season}:E${video.episode}`
-                  : video.season
-                    ? `Season ${video.season}`
-                    : video.episode
-                      ? `Episode ${video.episode}`
-                      : '';
-                return (
-                  <motion.div
-                    key={video.video_id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.02 }}
-                    className="bg-surface border border-amber-500/30 rounded-xl overflow-hidden"
-                  >
-                    <div className="flex items-center">
-                      <div className="flex-1 flex items-center gap-4 p-4">
-                        {/* Thumbnail */}
-                        <div className="w-24 h-14 rounded-lg overflow-hidden bg-[#B20710]/10 shrink-0 relative flex items-center justify-center">
-                          <Film className="w-6 h-6 text-[#B20710]" />
-                          <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-bold text-white bg-[#B20710]">
-                            N
-                          </div>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-primary text-base line-clamp-1">
-                            {video.title}
-                          </h3>
-                          {episodeInfo && (
-                            <span className="text-xs text-secondary">{episodeInfo}</span>
-                          )}
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            <span className="text-xs text-amber-500 font-medium">
-                              Keep watching to build deck
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Ungrouped Videos */}
         {ungroupedVideos.length > 0 && (
