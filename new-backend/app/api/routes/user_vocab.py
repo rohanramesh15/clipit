@@ -568,3 +568,132 @@ def get_user_new_cards_per_day(user_id: int, db: Session) -> int:
     ).first()
 
     return settings.new_cards_per_day if settings else 10
+
+
+# ── Join Class Endpoint ──────────────────────────────────────────────────────
+
+# Hardcoded class definitions (can be moved to database later)
+CLASS_DEFINITIONS = {
+    "KOREAN101": {
+        "name": "Korean 101 - Spring 2026",
+        "language": "ko",
+        "words": [
+            ("안녕하세요", "Hello (formal)"),
+            ("감사합니다", "Thank you"),
+            ("네", "Yes"),
+            ("아니요", "No"),
+            ("이름", "Name"),
+            ("뭐", "What"),
+            ("어디", "Where"),
+            ("언제", "When"),
+            ("왜", "Why"),
+            ("어떻게", "How"),
+            ("저", "I/Me (humble)"),
+            ("나", "I/Me (casual)"),
+            ("너", "You (casual)"),
+            ("우리", "We/Our"),
+            ("이것", "This"),
+            ("그것", "That"),
+            ("저것", "That over there"),
+            ("사람", "Person"),
+            ("학생", "Student"),
+            ("선생님", "Teacher"),
+            ("친구", "Friend"),
+            ("가족", "Family"),
+            ("아버지", "Father"),
+            ("어머니", "Mother"),
+            ("형", "Older brother (male speaker)"),
+            ("누나", "Older sister (male speaker)"),
+            ("오빠", "Older brother (female speaker)"),
+            ("언니", "Older sister (female speaker)"),
+            ("남동생", "Younger brother"),
+            ("여동생", "Younger sister"),
+            ("집", "House/Home"),
+            ("학교", "School"),
+            ("회사", "Company"),
+            ("식당", "Restaurant"),
+            ("가게", "Store"),
+            ("물", "Water"),
+            ("밥", "Rice/Meal"),
+            ("음식", "Food"),
+            ("커피", "Coffee"),
+            ("책", "Book"),
+            ("가다", "To go"),
+            ("오다", "To come"),
+            ("먹다", "To eat"),
+            ("마시다", "To drink"),
+            ("보다", "To see/watch"),
+            ("듣다", "To listen/hear"),
+            ("말하다", "To speak"),
+            ("읽다", "To read"),
+            ("쓰다", "To write"),
+            ("공부하다", "To study"),
+        ]
+    },
+}
+
+
+class JoinClassRequest(BaseModel):
+    class_code: str
+
+
+class JoinClassResponse(BaseModel):
+    status: str
+    class_name: str
+    words_added: int
+
+
+@router.post("/join-class", response_model=JoinClassResponse)
+def join_class(
+    request: JoinClassRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Join a class by code and get pre-made vocab list.
+    """
+    class_code = request.class_code.upper().strip()
+
+    if class_code not in CLASS_DEFINITIONS:
+        raise HTTPException(status_code=404, detail="Class not found. Please check your class code.")
+
+    class_def = CLASS_DEFINITIONS[class_code]
+    class_name = class_def["name"]
+    language = class_def["language"]
+    words = class_def["words"]
+
+    # Check if user already has this class list
+    existing_list = db.query(UserVocabularyList).filter(
+        UserVocabularyList.user_id == current_user.id,
+        UserVocabularyList.name == class_name
+    ).first()
+
+    if existing_list:
+        raise HTTPException(status_code=400, detail=f"You've already joined this class.")
+
+    # Create the vocab list
+    vocab_list = UserVocabularyList(
+        user_id=current_user.id,
+        name=class_name,
+        language=language,
+    )
+    db.add(vocab_list)
+    db.flush()  # Get the list ID
+
+    # Add all words
+    for idx, (word, translation) in enumerate(words):
+        vocab_word = UserVocabularyWord(
+            list_id=vocab_list.id,
+            word=word,
+            translation=translation,
+            sort_order=idx,
+        )
+        db.add(vocab_word)
+
+    db.commit()
+
+    return JoinClassResponse(
+        status="ok",
+        class_name=class_name,
+        words_added=len(words)
+    )
