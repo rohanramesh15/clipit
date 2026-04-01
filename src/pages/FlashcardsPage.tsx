@@ -890,7 +890,7 @@ export function FlashcardsPage() {
       ? vocabLists.find(l => l.id === listId)?.name || 'Vocabulary List'
       : 'My Vocabulary'
     );
-    setSelectedVocabListId(listId || null);
+    setSelectedVocabListId(listId || -1);  // -1 means "Study My Words" (all vocab lists)
     setSelectedVocabListName(listId ? (vocabLists.find(l => l.id === listId)?.name || '') : '');
     setSelectedVocabListWords(new Set());
     setLastRatingInfo(null);
@@ -1481,84 +1481,38 @@ export function FlashcardsPage() {
           </button>
         </div>
 
-        {/* All Videos Card - Always First */}
-        <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => { clearVocabListFilter(); loadAllVideos(videos); }}
-          className="w-full bg-gradient-to-r from-accent/20 to-accent/10 border border-accent/30 rounded-2xl p-5 mb-5 text-left hover:from-accent/30 hover:to-accent/20 transition-all group"
-        >
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
-              <Layers className="w-7 h-7 text-accent" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-lg text-primary group-hover:text-accent transition-colors">
-                All Videos
-              </h3>
-              <p className="text-sm text-secondary">
-                {videos.length} videos
-              </p>
-            </div>
-            <Play className="w-6 h-6 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </motion.button>
-
-        {/* Study My Words Card - TTS-only cards from vocab lists */}
-        {vocabLists.length > 0 && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            onClick={() => loadVocabTTSCards()}
-            className="w-full bg-gradient-to-r from-purple-500/20 to-purple-500/10 border border-purple-500/30 rounded-2xl p-5 mb-5 text-left hover:from-purple-500/30 hover:to-purple-500/20 transition-all group"
+        {/* Study Mode Dropdown */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-secondary mb-2">Choose what to study</label>
+          <select
+            value={selectedVocabListId === null ? 'all-videos' : selectedVocabListId === -1 ? 'my-words' : selectedVocabListId.toString()}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === 'all-videos') {
+                clearVocabListFilter();
+                loadAllVideos(videos);
+              } else if (val === 'my-words') {
+                loadVocabTTSCards();
+              } else {
+                const listId = parseInt(val);
+                const list = vocabLists.find(l => l.id === listId);
+                if (list) loadVocabListFlashcards(listId, list.name);
+              }
+            }}
+            className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary text-lg font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
           >
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
-                <BookOpen className="w-7 h-7 text-purple-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-lg text-primary group-hover:text-purple-400 transition-colors">
-                  Study My Words
-                </h3>
-                <p className="text-sm text-secondary">
-                  {vocabLists.reduce((sum, l) => sum + l.word_count, 0)} words from {vocabLists.length} {vocabLists.length === 1 ? 'list' : 'lists'}
-                </p>
-              </div>
-              <Play className="w-6 h-6 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </motion.button>
-        )}
-
-        {/* Vocabulary List Filter Dropdown */}
-        {vocabLists.length > 0 && (
-          <div className="mb-6 flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-purple-400 shrink-0" />
-            <select
-              value={selectedVocabListId ?? ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  clearVocabListFilter();
-                  loadAllVideos(videos);
-                } else {
-                  const listId = parseInt(val);
-                  const list = vocabLists.find(l => l.id === listId);
-                  if (list) loadVocabListFlashcards(listId, list.name);
-                }
-              }}
-              className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-3 text-primary text-base focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
-            >
-              <option value="">All words (no filter)</option>
-              {vocabLists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name} ({list.word_count} words)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+            <option value="all-videos">All Videos ({videos.length} videos)</option>
+            {vocabLists.length > 0 && (
+              <option value="my-words">Study My Words ({vocabLists.reduce((sum, l) => sum + l.word_count, 0)} words)</option>
+            )}
+            {vocabLists.map((list) => (
+              <option key={list.id} value={list.id}>
+                {list.name} ({list.word_count} words)
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Folders Section */}
         {folders.length > 0 && (
