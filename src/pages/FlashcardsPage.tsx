@@ -1484,34 +1484,49 @@ export function FlashcardsPage() {
         {/* Study Mode Dropdown */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-secondary mb-2">Choose what to study</label>
-          <select
-            value={selectedVocabListId === null ? 'all-videos' : selectedVocabListId === -1 ? 'my-words' : selectedVocabListId.toString()}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === 'all-videos') {
-                clearVocabListFilter();
-                loadAllVideos(videos);
-              } else if (val === 'my-words') {
-                loadVocabTTSCards();
-              } else {
-                const listId = parseInt(val);
-                const list = vocabLists.find(l => l.id === listId);
-                if (list) loadVocabListFlashcards(listId, list.name);
-              }
-            }}
-            className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary text-lg font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
-          >
-            <option value="all-videos">All Videos ({videos.length} videos)</option>
-            {vocabLists.length > 0 && (
-              <option value="my-words">Study My Words ({vocabLists.reduce((sum, l) => sum + l.word_count, 0)} words)</option>
-            )}
-            {vocabLists.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.name} ({list.word_count} words)
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-3">
+            <select
+              value={selectedVocabListId === null ? 'all-videos' : selectedVocabListId === -1 ? 'my-words' : selectedVocabListId.toString()}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'all-videos') {
+                  setSelectedVocabListId(null);
+                } else if (val === 'my-words') {
+                  setSelectedVocabListId(-1);
+                } else {
+                  setSelectedVocabListId(parseInt(val));
+                }
+              }}
+              className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary text-lg font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
+            >
+              <option value="all-videos">All Videos ({videos.length} videos)</option>
+              {vocabLists.length > 0 && (
+                <option value="my-words">Study My Words ({vocabLists.reduce((sum, l) => sum + l.word_count, 0)} words)</option>
+              )}
+              {vocabLists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name} ({list.word_count} words)
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (selectedVocabListId === null) {
+                  clearVocabListFilter();
+                  loadAllVideos(videos);
+                } else if (selectedVocabListId === -1) {
+                  loadVocabTTSCards();
+                } else {
+                  const list = vocabLists.find(l => l.id === selectedVocabListId);
+                  if (list) loadVocabListFlashcards(selectedVocabListId, list.name);
+                }
+              }}
+              className="px-6 py-4 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors"
+            >
+              Study
+            </button>
+          </div>
         </div>
 
         {/* Folders Section */}
