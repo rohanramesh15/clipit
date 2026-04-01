@@ -209,9 +209,8 @@ function TTSCardPlaceholder({
 
     const voices = window.speechSynthesis.getVoices();
     const langPrefix = language === 'uk' ? 'uk' : 'ko';
-    // Prefer Yuna (best macOS Korean voice), then Google, then any Korean voice
-    const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name === 'Yuna')
-      || voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
+    // Prefer Google voice, then any Korean voice
+    const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
       || voices.find(v => v.lang.startsWith(langPrefix));
 
     if (targetVoice) {
@@ -235,12 +234,11 @@ function TTSCardPlaceholder({
       const voices = window.speechSynthesis.getVoices();
       const langPrefix = language === 'uk' ? 'uk' : 'ko';
 
-      // Wait for Yuna (best macOS voice), Google, or any Korean voice
-      const yunaVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name === 'Yuna');
+      // Wait for Google voice or any Korean voice
       const googleVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'));
       const anyVoice = voices.find(v => v.lang.startsWith(langPrefix));
 
-      if (yunaVoice || googleVoice || anyVoice) {
+      if (googleVoice || anyVoice) {
         hasPlayed = true;
         timer = setTimeout(playAudio, 500);
       }

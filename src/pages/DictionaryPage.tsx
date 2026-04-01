@@ -54,11 +54,10 @@ function playAudio(word: string, lang: string) {
   utterance.lang = lang === 'uk' ? 'uk-UA' : 'ko-KR';
   utterance.rate = 0.9;
 
-  // Try to find a voice for the language (prefer Yuna for Korean, then Google, then any)
+  // Try to find a voice for the language (preferably Google)
   const voices = window.speechSynthesis.getVoices();
   const langPrefix = lang === 'uk' ? 'uk' : 'ko';
-  const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name === 'Yuna')
-    || voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
+  const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
     || voices.find(v => v.lang.startsWith(langPrefix));
 
   if (targetVoice) {
