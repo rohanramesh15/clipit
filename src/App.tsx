@@ -88,7 +88,7 @@ function AppInner() {
       case 'video':
         return <VideoPage />;
       case 'flashcards':
-        return <FlashcardsPage />;
+        return <FlashcardsPage onNavigate={setActivePage} />;
       case 'dictionary':
         return <DictionaryPage />;
       case 'analytics':

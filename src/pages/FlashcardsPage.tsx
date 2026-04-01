@@ -386,7 +386,13 @@ function addDeletedCard(language: string, word: string) {
   }
 }
 
-export function FlashcardsPage() {
+type Page = 'video' | 'flashcards' | 'dictionary' | 'analytics' | 'vocabulary' | 'settings';
+
+interface FlashcardsPageProps {
+  onNavigate?: (page: Page) => void;
+}
+
+export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const { language, languageName } = useLanguage();
   const { token } = useAuth();
   const {
@@ -2034,6 +2040,13 @@ export function FlashcardsPage() {
             <BookOpen className="w-5 h-5" />
             Join a Class
           </button>
+          <button
+            onClick={() => onNavigate?.('vocabulary')}
+            className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-white/20 text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Upload Your Own List
+          </button>
           <a
             href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
             target="_blank"
@@ -2046,7 +2059,7 @@ export function FlashcardsPage() {
         </div>
 
         <p className="text-muted text-xs text-center max-w-xs">
-          Join a class to get pre-made vocab lists, or use Clip It to build flashcards from {languageName} videos.
+          Join a class, upload your own vocab list, or use Clip It to learn from {languageName} videos.
         </p>
 
         {/* Join Class Modal */}
