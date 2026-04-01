@@ -288,13 +288,13 @@ def get_vocab_list_flashcards(
                 "language": language,
             })
         else:
-            # TTS-only card
+            # TTS-only card - use example sentence if available
             flashcards.append({
                 "target_word": w.word,
                 "dictionary_form": w.word,
                 "english": w.translation,
-                "sentence": None,
-                "sentence_translation": None,
+                "sentence": w.example,  # Example sentence from vocab list
+                "sentence_translation": w.example_translation,
                 "timestamp": None,
                 "end_timestamp": None,
                 "video_id": None,
@@ -572,62 +572,143 @@ def get_user_new_cards_per_day(user_id: int, db: Session) -> int:
 
 # ── Join Class Endpoint ──────────────────────────────────────────────────────
 
+# Korean 3 vocab organized by lesson and conversation
+# Format: (word, translation, example_sentence)
+KOREAN3_VOCAB = {
+    "L11_C1": {
+        "name": "Lesson 11 - Conversation 1",
+        "words": [
+            ("갈비", "ribs (Korean BBQ)", "제가 좋아하는 한국 음식은 갈비예요."),
+            ("물", "water", "깨끗한 물을 마시세요!"),
+            ("바닷가", "beach", "주말에 친구하고 바닷가에서 놀 거예요."),
+            ("밴쿠버", "Vancouver", "밴쿠버는 캐나다에 있는 큰 도시예요."),
+            ("불고기", "bulgogi", "제 동생은 불고기를 무척 좋아해서 매일 먹어요."),
+            ("생활", "life; living", "대학교 생활이 바쁘지만 재미있어요."),
+            ("어젯밤", "last night", "어젯밤에 잠을 잘 못 잤어요."),
+            ("차", "tea; car", "지금 너무 더워서 차가운 차를 마시고 싶어요."),
+            ("청바지", "jeans", "백화점에서 청바지하고 스웨터를 샀어요."),
+            ("캐나다", "Canada", "캐나다에 한국 사람들이 많이 살아요?"),
+            ("잔", "counter for cups/glasses", "아침에 커피 두 잔을 마셨어요."),
+            ("어떤", "what kind of", "어떤 사람을 좋아해요?"),
+            ("되다", "to become", "저는 의사가 되고 싶어요."),
+            ("눈이 오다", "to snow", "밤에 눈이 많이 왔어요."),
+            ("사귀다", "to make friends; to date", "한국 친구를 사귀고 싶어요."),
+            ("쓰다", "to use", "제니는 친구와 같이 부엌을 써요."),
+            ("착하다", "to be kind-hearted", "저는 착한 사람이 좋아요."),
+            ("친절하다", "to be friendly; kind", "미나는 친절한 사람이에요."),
+            ("-(으)ㄹ래요", "Do you want to...? / I want to...", "이번 주말에 같이 한국 식당에 갈래요?"),
+            ("-고 있다", "to be doing (progressive)", "지금 앤디가 음악을 듣고 있어요."),
+            ("-고 계시다", "to be doing (honorific progressive)", "선생님께서 케이크를 만들고 계세요."),
+            ("잘 됐네요", "That's great / It sounds good", "시험이 끝났어요. 잘 됐네요!"),
+            ("1이 어떻게 됩니까/돼요/되세요?", "What is your [noun]? (polite inquiry form)", "성함이 어떻게 되세요?"),
+        ]
+    },
+    "L11_C2": {
+        "name": "Lesson 11 - Conversation 2",
+        "words": [
+            ("골프", "golf", "저는 골프를 못 쳐요. 하지만 샘은 골프를 잘 쳐요."),
+            ("기차", "train", "기차를 타고 놀러 갔어요."),
+            ("연극", "play (theater)", "저녁에 같이 연극을 볼래요?"),
+            ("인터넷", "internet", "인터넷으로 콘서트 표를 샀어요."),
+            ("입구", "entrance", "미나하고 제니를 지하철역 입구에서 만났어요."),
+            ("끝나다", "to be over; finished", "오늘 수업이 일찍 끝났어요."),
+            ("쉬다", "to rest", "피곤해서 오늘은 좀 쉬고 싶어요."),
+            ("알아보다", "to find out; check out", "지금 한국 비행기 가격을 인터넷으로 알아보고 있어요."),
+            ("찾다", "to find; look for", "뭐 찾으세요? 남자 모자를 찾고 있어요."),
+            ("춤을 추다", "to dance", "수지는 춤을 잘 추는데 미나는 못 춰요."),
+            ("힘이 들다", "to be hard; difficult", "요즘 일이 많아서 피곤하고 힘들어요."),
+            ("다", "all", "배고파서 음식을 다 먹고 싶어요."),
+            ("벌써", "already", "벌써 12시예요? 몰랐어요."),
+            ("N까지", "to / until / through (time)", "집에서 학교까지 한 시간이 걸려요."),
+            ("N밖에", "nothing but; only", "집에서 학교까지 걸어서 5분밖에 안 걸려요."),
+            ("N부터", "from (time)", "매일 7시 45분부터 8시 35분까지 한국어 수업을 들어요."),
+            ("N이나", "as much/many as", "지난 학기에 다섯 과목이나 들었어요?"),
+            ("V-(으)ㄹ까요?", "Shall I/we...? / Do you think...?", "내일 같이 영화 볼까요?"),
+            ("글쎄요", "Well; It's hard to say", "글쎄요. 잘 모르겠어요."),
+            ("몇 과목", "how many subjects", "이번 학기에 몇 과목을 들어요?"),
+            ("스무 명", "20 people", "우리 반에 스무 명이 있어요."),
+            ("스물 한 명", "21 people", "파티에 스물 한 명이 왔어요."),
+            ("공연하다", "to perform", "토요일 저녁에 저희 밴드가 Hop에서 공연합니다."),
+            ("소극장", "small theater", "우리는 소극장에서 공연할 거예요."),
+            ("골프장", "golf course", "골프장에서 골프를 쳤어요."),
+        ]
+    },
+    "L12_C1": {
+        "name": "Lesson 12 - Conversation 1",
+        "words": [
+            ("데", "place", "항상 서울 식당만 갔는데 오늘은 다른 데에 가고 싶어요."),
+            ("동부", "East Coast", "제 할머니께서 미국 동부에 살고 계세요."),
+            ("막내", "youngest child", "저는 막내예요. 그래서 동생이 없어요."),
+            ("바지", "pants", "제니가 바지를 입었어요."),
+            ("밤", "night", "밤에 안 자고 공부했어요."),
+            ("부엌", "kitchen", "부엌에서 음식을 만들어서 친구하고 같이 먹었어요."),
+            ("셔츠", "shirt", "셔츠를 입고 있는 사람이 마이클이에요."),
+            ("형제", "siblings", "저는 형제가 없어요. 외동이에요."),
+            ("첫", "first (pre-noun)", "첫눈이 왔어요."),
+            ("다르다", "to be different", "한국이 미국하고 문화가 달라요."),
+            ("피곤하다", "to be tired", "어제 늦게 자서 지금 피곤해요."),
+            ("결혼하다", "to get married", "저희 부모님이 22년 전에 결혼하셨어요."),
+            ("기다리다", "to wait", "친구를 기다리고 있어요."),
+            ("자라다", "to grow up", "아이가 자라서 어른이 되었어요."),
+            ("태어나다", "to be born", "제가 태어난 곳은 한국이에요."),
+            ("아직", "still; yet", "숙제를 아직 못 했어요."),
+            ("N까지", "including (particle)", "1시부터 2시까지 카페에서 아르바이트해요."),
+            ("째", "ordinal number counter", "저는 셋째예요."),
+            ("번째", "ordinal number counter", "첫 번째 문제가 어려웠어요."),
+            ("-겠-", "may/will (conjecture)", "늦게 자서 피곤하겠어요."),
+            ("-아서/어서", "clausal connective (sequential)", "도서관에 가서 공부했어요."),
+            ("자매", "sisters; female siblings", "저는 언니만 있어요. 우리는 자매예요."),
+            ("배고프다", "to be hungry", "아침을 못 먹어서 너무 배고파요."),
+            ("배부르다", "to be full", "많이 먹어서 배불러요."),
+            ("기분이 좋다", "to be in a good mood", "숙제를 다 해서 기분이 좋아요."),
+        ]
+    },
+    "L12_C2": {
+        "name": "Lesson 12 - Conversation 2",
+        "words": [
+            ("눈", "1) eyes  2) snow", "제 눈은 갈색이에요."),
+            ("색", "color", "저는 흰색을 좋아해요."),
+            ("색깔", "color", "무슨 색깔을 좋아해요?"),
+            ("안경", "eyeglasses", "미나는 안경을 샀어요. 눈이 나빠요."),
+            ("한복", "traditional Korean dress", "설날에 한복을 많이 입어요."),
+            ("형님", "older brother (honorific)", "형님께 선물을 드렸어요."),
+            ("끼다", "to wear (glasses/gloves/rings)", "수지는 손에 반지를 꼈어요."),
+            ("나오다", "to come out", "아침 일찍 집에서 나왔어요."),
+            ("다니다", "to attend", "앤디는 다트머스 대학에 다녀요."),
+            ("닮다", "to resemble", "미나하고 수지는 얼굴이 닮았어요."),
+            ("쓰다", "to wear headgear", "모자를 쓴 사람이 누구예요?"),
+            ("입다", "to wear; put on (clothes)", "마이클은 오늘 멋있는 옷을 입었어요."),
+            ("벗다", "to take off (clothes)", "더워서 패딩을 벗었어요."),
+            ("N이랑", "with; and", "유미랑 미나는 베프예요."),
+            ("까맣다", "to be black", "제 눈은 까만 색이에요."),
+            ("노랗다", "to be yellow", "노란 옷을 입은 사람이 제니예요."),
+            ("빨갛다", "to be red", "빨간 사과를 먹고 싶어요."),
+            ("파랗다", "to be blue", "파란 하늘이 참 예뻐요."),
+            ("하얗다", "to be white", "하얀 눈이 많이 왔어요."),
+            ("키가 크다", "to be tall", "톰은 키가 커요."),
+            ("키가 작다", "to be short (height)", "제리는 키가 작아요."),
+            ("오래", "for a long time", "저는 한국에서 오래 살았어요."),
+            ("어머", "Oh my! Dear me!", "어머! 정말요?"),
+            ("V/A-네요", "sentence ending indicating speaker's reaction", "날씨가 정말 좋네요!"),
+            ("V-(으)ㄴ", "noun-modifying form (past tense verb)", "어제 먹은 음식이 뭐예요?"),
+        ]
+    },
+}
+
 # Hardcoded class definitions (can be moved to database later)
 CLASS_DEFINITIONS = {
-    "KOREAN101": {
-        "name": "Korean 101 - Spring 2026",
+    "PROFHWANGISTHEBEST": {
+        "name": "Korean 3 - Prof Hwang",
         "language": "ko",
-        "words": [
-            ("안녕하세요", "Hello (formal)"),
-            ("감사합니다", "Thank you"),
-            ("네", "Yes"),
-            ("아니요", "No"),
-            ("이름", "Name"),
-            ("뭐", "What"),
-            ("어디", "Where"),
-            ("언제", "When"),
-            ("왜", "Why"),
-            ("어떻게", "How"),
-            ("저", "I/Me (humble)"),
-            ("나", "I/Me (casual)"),
-            ("너", "You (casual)"),
-            ("우리", "We/Our"),
-            ("이것", "This"),
-            ("그것", "That"),
-            ("저것", "That over there"),
-            ("사람", "Person"),
-            ("학생", "Student"),
-            ("선생님", "Teacher"),
-            ("친구", "Friend"),
-            ("가족", "Family"),
-            ("아버지", "Father"),
-            ("어머니", "Mother"),
-            ("형", "Older brother (male speaker)"),
-            ("누나", "Older sister (male speaker)"),
-            ("오빠", "Older brother (female speaker)"),
-            ("언니", "Older sister (female speaker)"),
-            ("남동생", "Younger brother"),
-            ("여동생", "Younger sister"),
-            ("집", "House/Home"),
-            ("학교", "School"),
-            ("회사", "Company"),
-            ("식당", "Restaurant"),
-            ("가게", "Store"),
-            ("물", "Water"),
-            ("밥", "Rice/Meal"),
-            ("음식", "Food"),
-            ("커피", "Coffee"),
-            ("책", "Book"),
-            ("가다", "To go"),
-            ("오다", "To come"),
-            ("먹다", "To eat"),
-            ("마시다", "To drink"),
-            ("보다", "To see/watch"),
-            ("듣다", "To listen/hear"),
-            ("말하다", "To speak"),
-            ("읽다", "To read"),
-            ("쓰다", "To write"),
-            ("공부하다", "To study"),
+        "type": "multi_list",  # Creates multiple vocab lists
+        "lists": [
+            {"key": "L11_C1", "name": "Korean 3 - L11 Conversation 1"},
+            {"key": "L11_C2", "name": "Korean 3 - L11 Conversation 2"},
+            {"key": "L12_C1", "name": "Korean 3 - L12 Conversation 1"},
+            {"key": "L12_C2", "name": "Korean 3 - L12 Conversation 2"},
+            {"key": "L11_ALL", "name": "Korean 3 - Lesson 11 (All)"},
+            {"key": "L12_ALL", "name": "Korean 3 - Lesson 12 (All)"},
+            {"key": "ALL", "name": "Korean 3 - All Vocab"},
         ]
     },
 }
@@ -641,6 +722,32 @@ class JoinClassResponse(BaseModel):
     status: str
     class_name: str
     words_added: int
+    lists_created: int = 1
+
+
+def _get_words_for_key(key: str) -> list:
+    """Get words for a given vocab key (supports combined keys like L11_ALL, ALL)."""
+    if key == "ALL":
+        # Combine all lessons
+        all_words = []
+        for vocab_key in KOREAN3_VOCAB:
+            all_words.extend(KOREAN3_VOCAB[vocab_key]["words"])
+        return all_words
+    elif key == "L11_ALL":
+        # Combine L11 conversations
+        words = []
+        words.extend(KOREAN3_VOCAB["L11_C1"]["words"])
+        words.extend(KOREAN3_VOCAB["L11_C2"]["words"])
+        return words
+    elif key == "L12_ALL":
+        # Combine L12 conversations
+        words = []
+        words.extend(KOREAN3_VOCAB["L12_C1"]["words"])
+        words.extend(KOREAN3_VOCAB["L12_C2"]["words"])
+        return words
+    elif key in KOREAN3_VOCAB:
+        return KOREAN3_VOCAB[key]["words"]
+    return []
 
 
 @router.post("/join-class", response_model=JoinClassResponse)
@@ -650,7 +757,8 @@ def join_class(
     db: Session = Depends(get_db),
 ):
     """
-    Join a class by code and get pre-made vocab list.
+    Join a class by code and get pre-made vocab lists.
+    Creates multiple vocab lists for study by lesson/conversation.
     """
     class_code = request.class_code.upper().strip()
 
@@ -660,40 +768,79 @@ def join_class(
     class_def = CLASS_DEFINITIONS[class_code]
     class_name = class_def["name"]
     language = class_def["language"]
-    words = class_def["words"]
 
-    # Check if user already has this class list
+    # Check if user already has any list from this class
+    first_list_name = class_def["lists"][0]["name"] if class_def.get("type") == "multi_list" else class_name
     existing_list = db.query(UserVocabularyList).filter(
         UserVocabularyList.user_id == current_user.id,
-        UserVocabularyList.name == class_name
+        UserVocabularyList.name == first_list_name
     ).first()
 
     if existing_list:
-        raise HTTPException(status_code=400, detail=f"You've already joined this class.")
+        raise HTTPException(status_code=400, detail="You've already joined this class!")
 
-    # Create the vocab list
-    vocab_list = UserVocabularyList(
-        user_id=current_user.id,
-        name=class_name,
-        language=language,
-    )
-    db.add(vocab_list)
-    db.flush()  # Get the list ID
+    total_words = 0
+    lists_created = 0
 
-    # Add all words
-    for idx, (word, translation) in enumerate(words):
-        vocab_word = UserVocabularyWord(
-            list_id=vocab_list.id,
-            word=word,
-            translation=translation,
-            sort_order=idx,
+    if class_def.get("type") == "multi_list":
+        # Create multiple vocab lists
+        for list_config in class_def["lists"]:
+            vocab_list = UserVocabularyList(
+                user_id=current_user.id,
+                name=list_config["name"],
+                language=language,
+            )
+            db.add(vocab_list)
+            db.flush()
+
+            words = _get_words_for_key(list_config["key"])
+            for idx, (word, translation, example) in enumerate(words):
+                vocab_word = UserVocabularyWord(
+                    list_id=vocab_list.id,
+                    word=word,
+                    translation=translation,
+                    example=example,
+                    sort_order=idx,
+                )
+                db.add(vocab_word)
+
+            total_words += len(words)
+            lists_created += 1
+    else:
+        # Single list (legacy format)
+        vocab_list = UserVocabularyList(
+            user_id=current_user.id,
+            name=class_name,
+            language=language,
         )
-        db.add(vocab_word)
+        db.add(vocab_list)
+        db.flush()
+
+        words = class_def.get("words", [])
+        for idx, word_data in enumerate(words):
+            if len(word_data) == 3:
+                word, translation, example = word_data
+            else:
+                word, translation = word_data
+                example = None
+
+            vocab_word = UserVocabularyWord(
+                list_id=vocab_list.id,
+                word=word,
+                translation=translation,
+                example=example,
+                sort_order=idx,
+            )
+            db.add(vocab_word)
+
+        total_words = len(words)
+        lists_created = 1
 
     db.commit()
 
     return JoinClassResponse(
         status="ok",
         class_name=class_name,
-        words_added=len(words)
+        words_added=total_words,
+        lists_created=lists_created
     )

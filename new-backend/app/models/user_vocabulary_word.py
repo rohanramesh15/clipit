@@ -10,6 +10,8 @@ class UserVocabularyWord(BaseModel):
     list_id = Column(Integer, ForeignKey("user_vocabulary_lists.id", ondelete="CASCADE"), nullable=False, index=True)
     word = Column(String(100), nullable=False, index=True)
     translation = Column(String(500), nullable=False)
+    example = Column(String(1000), nullable=True)  # Example sentence in target language
+    example_translation = Column(String(1000), nullable=True)  # Example sentence translation
     sort_order = Column(Integer, default=0)
     prefer_tts = Column(Boolean, nullable=False, default=False)  # User prefers TTS over video
 
