@@ -3,6 +3,7 @@ import { Search, Volume2, Loader2, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { API_BASE_URL } from '../config';
 
@@ -28,6 +29,7 @@ interface DictionaryEntry {
   rank: number;
   pos: 'noun' | 'verb' | 'adjective' | 'adverb';
   language: string;
+  source?: 'user' | 'dictionary';
 }
 
 const POS_LABELS: Record<string, string> = {
@@ -69,6 +71,7 @@ function playAudio(word: string, lang: string) {
 
 export function DictionaryPage() {
   const { language, languageName } = useLanguage();
+  const { accessToken } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +90,11 @@ export function DictionaryPage() {
     async function fetchDictionary() {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/dictionary?lang=${language}`);
+        const headers: Record<string, string> = {};
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+        const res = await fetch(`${API_BASE_URL}/dictionary?lang=${language}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch dictionary');
         const data = await res.json();
         setEntries(data.entries);
@@ -100,7 +107,7 @@ export function DictionaryPage() {
       }
     }
     fetchDictionary();
-  }, [language]);
+  }, [language, accessToken]);
 
   // Filter entries by search term and part of speech
   const filteredEntries = entries.filter((entry) => {
@@ -210,9 +217,16 @@ export function DictionaryPage() {
                 </button>
 
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
-                    {entry.word}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
+                      {entry.word}
+                    </h3>
+                    {entry.source === 'user' && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-accent/20 text-accent rounded-full">
+                        My Word
+                      </span>
+                    )}
+                  </div>
                   <p className="text-secondary mt-1">{entry.english}</p>
                 </div>
               </div>
