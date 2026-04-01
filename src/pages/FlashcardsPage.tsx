@@ -467,24 +467,26 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setFolders(getFolders());
   }, []);
 
+  // Fetch vocabulary lists
+  const fetchVocabLists = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/lists`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const lists = await res.json();
+        setVocabLists(lists);
+      }
+    } catch (err) {
+      console.error('Failed to fetch vocab lists:', err);
+    }
+  }, [token]);
+
   // Fetch vocabulary lists on mount
   useEffect(() => {
-    async function fetchVocabLists() {
-      if (!token) return;
-      try {
-        const res = await fetch(`${API_BASE_URL}/vocab/lists`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const lists = await res.json();
-          setVocabLists(lists);
-        }
-      } catch (err) {
-        console.error('Failed to fetch vocab lists:', err);
-      }
-    }
     fetchVocabLists();
-  }, [token]);
+  }, [fetchVocabLists]);
 
   // Join a class to get pre-made vocab lists
   async function handleJoinClass() {
