@@ -421,6 +421,9 @@ export function FlashcardsPage() {
   const [folders, setFolders] = useState<VideoFolder[]>([]);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [showJoinClass, setShowJoinClass] = useState(false);
+  const [isJoiningClass, setIsJoiningClass] = useState(false);
+  const [classCode, setClassCode] = useState('');
   const [editingFolder, setEditingFolder] = useState<VideoFolder | null>(null);
   const [addingToFolder, setAddingToFolder] = useState<TrackedVideo | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
@@ -457,6 +460,38 @@ export function FlashcardsPage() {
     }
     fetchVocabLists();
   }, [token]);
+
+  // Join a class to get pre-made vocab lists
+  async function handleJoinClass() {
+    if (!classCode.trim() || !token) return;
+    setIsJoiningClass(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/join-class`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ class_code: classCode.trim() }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.detail || 'Failed to join class');
+        return;
+      }
+      const data = await res.json();
+      alert(`Successfully joined ${data.class_name}! ${data.words_added} words added to your vocab lists.`);
+      setShowJoinClass(false);
+      setClassCode('');
+      // Refresh vocab lists
+      fetchVocabLists();
+    } catch (err) {
+      console.error('Error joining class:', err);
+      alert('Failed to join class. Please try again.');
+    } finally {
+      setIsJoiningClass(false);
+    }
+  }
 
   // Create a new folder
   function handleCreateFolder() {
@@ -1527,6 +1562,17 @@ export function FlashcardsPage() {
               Study
             </button>
           </div>
+          {/* Join Class Link */}
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <BookOpen className="w-4 h-4 text-muted" />
+            <span className="text-secondary">Taking a class?</span>
+            <button
+              onClick={() => setShowJoinClass(true)}
+              className="text-accent hover:text-accent/80 font-medium transition-colors"
+            >
+              Join a class for pre-made vocab lists →
+            </button>
+          </div>
         </div>
 
         {/* Folders Section */}
@@ -1875,6 +1921,67 @@ export function FlashcardsPage() {
                         <Trash2 className="w-4 h-4" />
                         Delete
                       </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Join Class Modal */}
+        <AnimatePresence>
+          {showJoinClass && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => !isJoiningClass && setShowJoinClass(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 mx-auto mb-4">
+                  <BookOpen className="w-6 h-6 text-accent" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-2">Join a Class</h3>
+                <p className="text-sm text-secondary text-center mb-4">
+                  Enter your class code to get pre-made vocab lists from your instructor.
+                </p>
+                <input
+                  type="text"
+                  placeholder="Class code (e.g., KOREAN101)"
+                  value={classCode}
+                  onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && classCode.trim() && handleJoinClass()}
+                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 mb-4 uppercase"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowJoinClass(false); setClassCode(''); }}
+                    disabled={isJoiningClass}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleJoinClass}
+                    disabled={!classCode.trim() || isJoiningClass}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-accent text-app font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isJoiningClass ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-app/30 border-t-app animate-spin" />
+                        Joining...
+                      </>
+                    ) : (
+                      'Join Class'
                     )}
                   </button>
                 </div>
