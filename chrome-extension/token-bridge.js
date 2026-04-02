@@ -14,7 +14,8 @@
 let lastSynced = null;
 
 function syncToken() {
-  const token = localStorage.getItem('deadbird_token') || null;
+  // Check both localStorage and sessionStorage (for "Remember me" off)
+  const token = localStorage.getItem('deadbird_token') || sessionStorage.getItem('deadbird_token') || null;
   if (token === lastSynced) return; // nothing changed
   lastSynced = token;
   if (token) {
