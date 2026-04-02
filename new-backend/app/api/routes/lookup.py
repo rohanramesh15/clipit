@@ -72,6 +72,8 @@ async def get_dictionary(
             .all()
         )
         for vw in user_vocab_words:
+            if vw.word in seen_words:
+                continue  # Skip duplicate words across lists
             rank = frequency_map.get(vw.word, 10001)
             part_of_speech = get_part_of_speech(vw.word, vw.translation) if lang == 'ko' else 'noun'
             entries.append({

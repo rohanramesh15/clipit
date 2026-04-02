@@ -172,19 +172,32 @@ def get_vocabulary_lists(
     current_user: User = Depends(get_current_user),
 ):
     """Get all vocabulary lists for the current user."""
-    lists = db.query(UserVocabularyList).filter(
+    from sqlalchemy import func
+
+    # Get lists with actual word counts (calculated, not stored)
+    lists_with_counts = db.query(
+        UserVocabularyList,
+        func.count(UserVocabularyWord.id).label('actual_word_count')
+    ).outerjoin(
+        UserVocabularyWord,
+        UserVocabularyWord.list_id == UserVocabularyList.id
+    ).filter(
         UserVocabularyList.user_id == current_user.id
-    ).order_by(UserVocabularyList.created_at.desc()).all()
+    ).group_by(
+        UserVocabularyList.id
+    ).order_by(
+        UserVocabularyList.created_at.desc()
+    ).all()
 
     return [
         VocabListResponse(
             id=vl.id,
             name=vl.name,
             language=vl.language,
-            word_count=vl.word_count,
+            word_count=actual_count,  # Use calculated count
             created_at=vl.created_at.isoformat()
         )
-        for vl in lists
+        for vl, actual_count in lists_with_counts
     ]
 
 
@@ -726,25 +739,38 @@ class JoinClassResponse(BaseModel):
 
 
 def _get_words_for_key(key: str) -> list:
-    """Get words for a given vocab key (supports combined keys like L11_ALL, ALL)."""
+    """Get words for a given vocab key (supports combined keys like L11_ALL, ALL).
+    Deduplicates words by word field, keeping the first occurrence.
+    """
+    def dedupe_words(words_list: list) -> list:
+        """Remove duplicate words, keeping first occurrence."""
+        seen = set()
+        result = []
+        for word_tuple in words_list:
+            word = word_tuple[0]
+            if word not in seen:
+                seen.add(word)
+                result.append(word_tuple)
+        return result
+
     if key == "ALL":
         # Combine all lessons
         all_words = []
         for vocab_key in KOREAN3_VOCAB:
             all_words.extend(KOREAN3_VOCAB[vocab_key]["words"])
-        return all_words
+        return dedupe_words(all_words)
     elif key == "L11_ALL":
         # Combine L11 conversations
         words = []
         words.extend(KOREAN3_VOCAB["L11_C1"]["words"])
         words.extend(KOREAN3_VOCAB["L11_C2"]["words"])
-        return words
+        return dedupe_words(words)
     elif key == "L12_ALL":
         # Combine L12 conversations
         words = []
         words.extend(KOREAN3_VOCAB["L12_C1"]["words"])
         words.extend(KOREAN3_VOCAB["L12_C2"]["words"])
-        return words
+        return dedupe_words(words)
     elif key in KOREAN3_VOCAB:
         return KOREAN3_VOCAB[key]["words"]
     return []
@@ -789,6 +815,7 @@ def join_class(
                 user_id=current_user.id,
                 name=list_config["name"],
                 language=language,
+                word_count=0,
             )
             db.add(vocab_list)
             db.flush()
@@ -804,6 +831,8 @@ def join_class(
                 )
                 db.add(vocab_word)
 
+            # Update word count
+            vocab_list.word_count = len(words)
             total_words += len(words)
             lists_created += 1
     else:
@@ -812,6 +841,7 @@ def join_class(
             user_id=current_user.id,
             name=class_name,
             language=language,
+            word_count=0,
         )
         db.add(vocab_list)
         db.flush()
@@ -833,6 +863,8 @@ def join_class(
             )
             db.add(vocab_word)
 
+        # Update word count
+        vocab_list.word_count = len(words)
         total_words = len(words)
         lists_created = 1
 
