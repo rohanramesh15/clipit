@@ -189,6 +189,53 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
   );
 }
 
+// Preload voices on module load
+let voicesLoaded = false;
+let cachedVoices: SpeechSynthesisVoice[] = [];
+
+function loadVoices() {
+  cachedVoices = window.speechSynthesis.getVoices();
+  if (cachedVoices.length > 0) {
+    voicesLoaded = true;
+    const koreanVoices = cachedVoices.filter(v => v.lang.startsWith('ko'));
+    console.log('[TTS] Loaded Korean voices:', koreanVoices.map(v => v.name));
+  }
+}
+
+// Try to load voices immediately
+loadVoices();
+// Also listen for voiceschanged event
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+// Simple TTS function matching dictionary implementation
+function playTTSWord(word: string, lang: string) {
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = lang === 'uk' ? 'uk-UA' : 'ko-KR';
+  utterance.rate = 0.9;
+
+  // Use cached voices or try to get them again
+  const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+  const langPrefix = lang === 'uk' ? 'uk' : 'ko';
+
+  // Prefer natural voices: Google > Yuna > Sora > any non-Eddy > Eddy
+  const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
+    || voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Yuna'))
+    || voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Sora'))
+    || voices.find(v => v.lang.startsWith(langPrefix) && !v.name.includes('Eddy') && !v.name.includes('Rocko') && !v.name.includes('Shelley'))
+    || voices.find(v => v.lang.startsWith(langPrefix));
+
+  if (targetVoice) {
+    utterance.voice = targetVoice;
+    console.log('[TTS] Using voice:', targetVoice.name);
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
 // TTS Card placeholder component - displays word with audio button (no video context)
 function TTSCardPlaceholder({
   word,
@@ -200,62 +247,20 @@ function TTSCardPlaceholder({
   const [isPlaying, setIsPlaying] = React.useState(false);
 
   const playAudio = React.useCallback(() => {
-    window.speechSynthesis.cancel();
     setIsPlaying(true);
-
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.lang = language === 'uk' ? 'uk-UA' : 'ko-KR';
-    utterance.rate = 0.9;
-
-    const voices = window.speechSynthesis.getVoices();
-    const langPrefix = language === 'uk' ? 'uk' : 'ko';
-    // Prefer Google voice, then any Korean voice
-    const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
-      || voices.find(v => v.lang.startsWith(langPrefix));
-
-    if (targetVoice) {
-      utterance.voice = targetVoice;
-    }
-
-    utterance.onend = () => setIsPlaying(false);
-    utterance.onerror = () => setIsPlaying(false);
-
-    window.speechSynthesis.speak(utterance);
+    playTTSWord(word, language);
+    // Reset after typical speech duration
+    setTimeout(() => setIsPlaying(false), 1500);
   }, [word, language]);
 
-  // Auto-play on mount (wait for Google voice to load)
+  // Auto-play on mount with delay for voices to load
   React.useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let hasPlayed = false;
+    const timer = setTimeout(() => {
+      playAudio();
+    }, 300);
 
-    const tryPlay = () => {
-      if (hasPlayed) return;
-
-      const voices = window.speechSynthesis.getVoices();
-      const langPrefix = language === 'uk' ? 'uk' : 'ko';
-
-      // Wait for Google voice or any Korean voice
-      const googleVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'));
-      const anyVoice = voices.find(v => v.lang.startsWith(langPrefix));
-
-      if (googleVoice || anyVoice) {
-        hasPlayed = true;
-        timer = setTimeout(playAudio, 500);
-      }
-    };
-
-    // Try immediately in case voices are cached
-    tryPlay();
-
-    // Also listen for voices to load
-    window.speechSynthesis.onvoiceschanged = tryPlay;
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, [playAudio, language]);
+    return () => clearTimeout(timer);
+  }, [word, playAudio]);
 
   return (
     <div className="w-full h-full relative bg-gradient-to-br from-purple-900/30 to-accent/20 flex flex-col items-center justify-center">
@@ -452,8 +457,10 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
     const voices = window.speechSynthesis.getVoices();
     const langPrefix = language === 'uk' ? 'uk' : 'ko';
+    // Prefer Google voice, then any language-specific voice, then any voice
     const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
-      || voices.find(v => v.lang.startsWith(langPrefix));
+      || voices.find(v => v.lang.startsWith(langPrefix))
+      || voices[0]; // Fallback to first available voice
 
     if (targetVoice) {
       utterance.voice = targetVoice;
@@ -487,6 +494,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   useEffect(() => {
     fetchVocabLists();
   }, [fetchVocabLists]);
+
+  // Set default to "my words" if user has vocab lists and setting is enabled
+  useEffect(() => {
+    if (vocabLists.length > 0 && selectedVocabListId === null) {
+      const defaultMode = localStorage.getItem('default_study_mode') || 'my-words';
+      if (defaultMode === 'my-words') {
+        setSelectedVocabListId(-1);
+      }
+    }
+  }, [vocabLists, selectedVocabListId]);
 
   // Join a class to get pre-made vocab lists
   async function handleJoinClass() {
@@ -1591,7 +1608,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           </div>
           {/* Join Class Link */}
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <BookOpen className="w-4 h-4 text-muted" />
             <span className="text-secondary">Taking a class?</span>
             <button
               onClick={() => setShowJoinClass(true)}
@@ -2022,6 +2038,130 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── No videos ────────────────────────────────────────────────
   if (loadState === 'no-videos') {
+    // If user has vocab lists, show dropdown to study them
+    if (vocabLists.length > 0) {
+      return (
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-primary mb-2">Practice</h1>
+            <p className="text-secondary">Choose what to study</p>
+          </div>
+
+          {/* Study Mode Dropdown */}
+          <div className="mb-6">
+            <div className="flex gap-3">
+              <select
+                value={selectedVocabListId === null ? 'my-words' : selectedVocabListId === -1 ? 'my-words' : selectedVocabListId.toString()}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'my-words') {
+                    setSelectedVocabListId(-1);
+                  } else {
+                    setSelectedVocabListId(parseInt(val));
+                  }
+                }}
+                className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary text-lg font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
+              >
+                <option value="my-words">Study All Words ({vocabLists.reduce((sum, l) => sum + l.word_count, 0)} words)</option>
+                {vocabLists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name} ({list.word_count} words)
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (selectedVocabListId === -1 || selectedVocabListId === null) {
+                    loadVocabTTSCards();
+                  } else {
+                    loadVocabTTSCards(selectedVocabListId);
+                  }
+                }}
+                className="px-6 py-4 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors"
+              >
+                Study
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-muted text-sm mb-4">Want to add more?</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => setShowJoinClass(true)}
+                className="px-4 py-2 bg-surface border border-white/10 hover:border-white/20 text-secondary hover:text-primary font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                Join Another Class
+              </button>
+              <button
+                onClick={() => onNavigate?.('vocabulary')}
+                className="px-4 py-2 bg-surface border border-white/10 hover:border-white/20 text-secondary hover:text-primary font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Upload Your Own List
+              </button>
+            </div>
+          </div>
+
+          {/* Join Class Modal */}
+          <AnimatePresence>
+            {showJoinClass && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+                onClick={() => !isJoiningClass && setShowJoinClass(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 mx-auto mb-4">
+                    <BookOpen className="w-6 h-6 text-accent" />
+                  </div>
+                  <h3 className="text-lg font-bold text-primary text-center mb-2">Join a Class</h3>
+                  <p className="text-sm text-secondary text-center mb-4">
+                    Enter your class code to get pre-made vocab lists from your instructor.
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Class code (e.g., KOREAN101)"
+                    value={classCode}
+                    onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && classCode.trim() && handleJoinClass()}
+                    className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 mb-4 uppercase"
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setShowJoinClass(false); setClassCode(''); }}
+                      disabled={isJoiningClass}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleJoinClass}
+                      disabled={!classCode.trim() || isJoiningClass}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-accent text-app font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
+                    >
+                      {isJoiningClass ? 'Joining...' : 'Join'}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4">
         <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">

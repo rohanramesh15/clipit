@@ -71,7 +71,7 @@ function playAudio(word: string, lang: string) {
 
 export function DictionaryPage() {
   const { language, languageName } = useLanguage();
-  const { accessToken } = useAuth();
+  const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,8 +91,8 @@ export function DictionaryPage() {
       try {
         setLoading(true);
         const headers: Record<string, string> = {};
-        if (accessToken) {
-          headers['Authorization'] = `Bearer ${accessToken}`;
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
         }
         const res = await fetch(`${API_BASE_URL}/dictionary?lang=${language}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch dictionary');
@@ -107,7 +107,7 @@ export function DictionaryPage() {
       }
     }
     fetchDictionary();
-  }, [language, accessToken]);
+  }, [language, token]);
 
   // Filter entries by search term and part of speech
   const filteredEntries = entries.filter((entry) => {

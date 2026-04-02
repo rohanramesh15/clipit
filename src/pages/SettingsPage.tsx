@@ -62,6 +62,11 @@ const DAILY_GOALS = [
   { label: '1 hour+', value: '60' }
 ];
 
+const STUDY_MODES = [
+  { label: 'My Words', value: 'my-words', description: 'Study all vocab from your lists' },
+  { label: 'All Videos', value: 'all-videos', description: 'Study words from watched videos' }
+];
+
 interface SettingsPageProps {
   onEditProfile?: () => void;
 }
@@ -79,6 +84,9 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const [notifications, setNotifications] = useState(true);
   const [newCardsPerDay, setNewCardsPerDay] = useState(10);
   const [isSavingNewCards, setIsSavingNewCards] = useState(false);
+  const [defaultStudyMode, setDefaultStudyMode] = useState(() => {
+    return localStorage.getItem('default_study_mode') || 'my-words';
+  });
 
   // Fetch new cards per day setting on mount
   useEffect(() => {
@@ -282,6 +290,35 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
               <p className="text-xs text-muted mt-2">
                 Set to 0 to only review existing cards
               </p>
+            </div>
+
+            <div className="border-t border-white/5" />
+
+            {/* Default Study Mode */}
+            <div>
+              <label className="text-sm font-semibold text-primary mb-1 block">
+                Default Study Mode
+              </label>
+              <p className="text-xs text-secondary mb-3">
+                What should be selected by default on the Practice page?
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {STUDY_MODES.map((mode) => (
+                  <button
+                    key={mode.value}
+                    onClick={() => {
+                      setDefaultStudyMode(mode.value);
+                      localStorage.setItem('default_study_mode', mode.value);
+                    }}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                      defaultStudyMode === mode.value
+                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
+                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
+                    }`}>
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>

@@ -10,6 +10,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const isDark = localStorage.getItem('theme') !== 'light';
@@ -18,7 +19,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     setIsLoading(true);
     setError('');
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       onNavigate('app');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -109,6 +110,28 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                   className="w-full bg-app border border-white/10 rounded-xl py-3 pl-12 pr-4 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
                   required />
               </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setRememberMe(!rememberMe)}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  rememberMe
+                    ? 'bg-accent border-accent'
+                    : 'bg-transparent border-white/20 hover:border-white/40'
+                }`}>
+                {rememberMe && (
+                  <svg className="w-3 h-3 text-app" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <label
+                onClick={() => setRememberMe(!rememberMe)}
+                className="text-sm text-secondary cursor-pointer select-none">
+                Remember me
+              </label>
             </div>
 
             <button
