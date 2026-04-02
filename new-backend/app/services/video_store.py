@@ -412,6 +412,23 @@ def add_watch_time(db: Session, user_id: int, video_id: str, seconds: int) -> in
         watch_time_seconds=seconds,
     )
     db.add(watch)
+
+    # Also ensure TrackedVideo exists (in case initial tracking failed)
+    tracked = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
+    if not tracked:
+        # Determine URL format based on video_id prefix
+        if video_id.startswith('netflix_'):
+            url = f"https://www.netflix.com/watch/{video_id.replace('netflix_', '')}"
+        else:
+            url = f"https://www.youtube.com/watch?v={video_id}"
+        tracked = TrackedVideo(
+            video_id=video_id,
+            title="Unknown",
+            youtube_url=url,
+            tracked_at=time.time(),
+        )
+        db.add(tracked)
+
     db.commit()
     return seconds
 
