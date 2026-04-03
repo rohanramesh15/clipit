@@ -218,18 +218,30 @@ function sendTrack(videoId) {
   // Reset watch time when switching videos
   resetWatchTimeTracking();
 
-  // Retry up to 5 times (2.5s) waiting for title to render
+  // Capture the OLD title so we can detect when it changes
+  const oldTitle = getTitle();
+  console.log('[ClipIt] Old title before navigation:', oldTitle);
+
+  // Retry up to 10 times (5s) waiting for title to change/render
   let attempts = 0;
   const interval = setInterval(() => {
     try {
       const title = getTitle();
       attempts++;
-      if ((title && title !== 'Unknown') || attempts >= 5) {
+
+      // Check if title has changed from the old one, or if we've waited long enough
+      const titleChanged = title && title !== 'Unknown' && title !== oldTitle;
+      const gaveUp = attempts >= 10;
+
+      if (titleChanged || gaveUp) {
         clearInterval(interval);
+        const finalTitle = titleChanged ? title : (title !== 'Unknown' ? title : 'Unknown');
+        console.log('[ClipIt] Sending title after', attempts, 'attempts:', finalTitle);
+
         chrome.runtime.sendMessage({
           type: 'TRACK_VIDEO',
           videoId,
-          title: (title && title !== 'Unknown') ? title : 'Unknown',
+          title: finalTitle,
         }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
 
         // Start tracking watch time for this video
