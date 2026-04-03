@@ -5,6 +5,8 @@
  * Supports YouTube and Netflix.
  */
 
+console.log('[ClipIt] Service worker starting...');
+
 const API = 'https://project-deadbird-backend.onrender.com/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -232,6 +234,8 @@ async function captureAudio(tabId, duration = 3000) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  console.log('[ClipIt] Message received:', msg.type);
+
   // Enable audio capture for a tab (from popup)
   if (msg.type === 'ENABLE_AUDIO_CAPTURE') {
     audioActivatedTabs.add(msg.tabId);
@@ -319,9 +323,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // YouTube tracking (from content script — also checks dedup)
   if (msg.type === 'TRACK_VIDEO') {
+    console.log(`[ClipIt] TRACK_VIDEO received: ${msg.videoId} — ${msg.title}`);
     const lastTime = recentlyTracked.get(msg.videoId);
     if (lastTime && Date.now() - lastTime < 60000) {
       // Already tracked recently by tabs.onUpdated — just update title if better
+      console.log(`[ClipIt] Video ${msg.videoId} already tracked recently, skipping`);
       if (msg.title && msg.title !== 'Unknown') {
         fetch(`${API}/videos/${msg.videoId}/title`, {
           method: 'PUT',
@@ -410,7 +416,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Update watch time (from content scripts)
   if (msg.type === 'UPDATE_WATCH_TIME') {
+    console.log(`[ClipIt] UPDATE_WATCH_TIME received: ${msg.videoId} +${msg.seconds}s`);
     updateWatchTime(msg.videoId, msg.seconds, msg.platform).then(sendResponse);
+    return true;
+  }
+
+  // YouTube subtitles from content script (client-side fetch)
+  if (msg.type === 'YOUTUBE_SUBTITLES') {
+    console.log(`[ClipIt] YOUTUBE_SUBTITLES received: ${msg.videoId} (ko: ${msg.subtitles?.korean?.length || 0}, en: ${msg.subtitles?.english?.length || 0})`);
+    processYouTubeSubtitles(msg.videoId, msg.subtitles).then(sendResponse);
     return true;
   }
 });
@@ -613,6 +627,44 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
   }
 }
 
+// ─── YouTube subtitle processing (from content script) ───────────────────────
+
+async function processYouTubeSubtitles(videoId, subtitles) {
+  console.log(`[ClipIt] Processing YouTube subtitles for ${videoId}`);
+  try {
+    const res = await fetch(`${API}/youtube/subtitles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: videoId,
+        korean: subtitles.korean || [],
+        english: subtitles.english || [],
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`[ClipIt] YouTube subtitles saved: ${videoId} (has_korean: ${data.has_korean})`);
+
+      // Now run vocab pipeline - subtitles are cached, so it should work
+      if (data.has_korean) {
+        runVocabPipeline(videoId, 'ko');
+      }
+      if (data.has_ukrainian) {
+        runVocabPipeline(videoId, 'uk');
+      }
+
+      return { success: true };
+    } else {
+      console.error('[ClipIt] Failed to save YouTube subtitles:', res.status);
+      return { success: false };
+    }
+  } catch (e) {
+    console.error('[ClipIt] Error processing YouTube subtitles:', e);
+    return { success: false };
+  }
+}
+
 async function trackAndPrefetch(videoId, title, lang = 'ko') {
   const token = await getAuthToken();
   if (!token) {
@@ -649,13 +701,17 @@ async function trackAndPrefetch(videoId, title, lang = 'ko') {
 }
 
 async function runVocabPipeline(videoId, lang = 'ko') {
+  console.log(`[ClipIt] runVocabPipeline starting: ${videoId} (${lang})`);
   const cacheKey = `vocab_${lang}_${videoId}`;
 
   // Check if we have a recent cache
   const existing = await chrome.storage.local.get(cacheKey);
   if (existing[cacheKey] && !existing[cacheKey].loading) {
     const age = Date.now() - (existing[cacheKey].cachedAt || 0);
-    if (age < CACHE_TTL_MS) return; // Fresh cache, skip
+    if (age < CACHE_TTL_MS) {
+      console.log(`[ClipIt] runVocabPipeline: cache still fresh, skipping`);
+      return; // Fresh cache, skip
+    }
   }
 
   // Mark as loading
@@ -675,6 +731,7 @@ async function runVocabPipeline(videoId, lang = 'ko') {
 
     if (!vocab.total_words) {
       // No target language vocab found — update status and cache empty result
+      console.log(`[ClipIt] runVocabPipeline: No ${lang} vocab found, setting has_${lang}=false`);
       await updateStatus(videoId, lang, false);
       await chrome.storage.local.set({
         [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
@@ -714,12 +771,14 @@ async function runVocabPipeline(videoId, lang = 'ko') {
     }
 
     // Update language status to true
+    console.log(`[ClipIt] runVocabPipeline: Found ${words.length} words, setting has_${lang}=true`);
     await updateStatus(videoId, lang, true);
 
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, words, total: words.length, cachedAt: Date.now() }
     });
-  } catch {
+  } catch (e) {
+    console.error(`[ClipIt] runVocabPipeline error for ${videoId} (${lang}):`, e.message || e);
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, error: true, words: null, cachedAt: Date.now() }
     });

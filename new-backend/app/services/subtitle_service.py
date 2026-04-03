@@ -11,6 +11,41 @@ def _cache_path(video_id: str) -> Path:
     return cache_dir / f"subtitles_{video_id}.json"
 
 
+def save_client_youtube_subtitles(video_id: str, merged_subtitles: list, has_korean: bool) -> None:
+    """
+    Save YouTube subtitles that were fetched client-side by the Chrome extension.
+    This bypasses YouTube's IP blocking of cloud servers.
+    """
+    cache_file = _cache_path(video_id)
+
+    data = {
+        'video_id': video_id,
+        'total_subtitles': len(merged_subtitles),
+        'has_korean': has_korean,
+        'subtitles': merged_subtitles,
+        'source': 'client',  # Mark as client-fetched
+    }
+
+    # Save to local cache
+    with open(cache_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # Also persist to Neon (best-effort)
+    try:
+        save_subtitles(video_id, data)
+    except Exception:
+        pass
+
+    # Calculate and save video duration from last subtitle
+    if merged_subtitles:
+        last_sub = merged_subtitles[-1]
+        duration_seconds = int(last_sub.get('end', last_sub['start'] + last_sub.get('duration', 0)))
+        try:
+            update_video_duration(video_id, duration_seconds)
+        except Exception:
+            pass
+
+
 def _snippets_to_list(result) -> list:
     return [{'text': s.text, 'start': s.start, 'duration': s.duration} for s in result.snippets]
 
