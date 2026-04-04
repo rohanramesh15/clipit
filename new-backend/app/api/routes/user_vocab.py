@@ -749,6 +749,17 @@ class LeaveClassResponse(BaseModel):
     words_deleted: int
 
 
+class EnrolledClass(BaseModel):
+    class_code: str
+    class_name: str
+    lists_count: int
+    words_count: int
+
+
+class EnrolledClassesResponse(BaseModel):
+    classes: list[EnrolledClass]
+
+
 def _get_words_for_key(key: str) -> list:
     """Get words for a given vocab key (supports combined keys like L11_ALL, ALL).
     Deduplicates words by word field, keeping the first occurrence.
@@ -887,6 +898,51 @@ def join_class(
         words_added=total_words,
         lists_created=lists_created
     )
+
+
+@router.get("/enrolled-classes", response_model=EnrolledClassesResponse)
+def get_enrolled_classes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get list of classes the user is enrolled in.
+    """
+    enrolled = []
+
+    for class_code, class_def in CLASS_DEFINITIONS.items():
+        if class_def.get("type") == "multi_list":
+            # Check if user has any of the class lists
+            list_names = [lst["name"] for lst in class_def["lists"]]
+            user_lists = db.query(UserVocabularyList).filter(
+                UserVocabularyList.user_id == current_user.id,
+                UserVocabularyList.name.in_(list_names)
+            ).all()
+
+            if user_lists:
+                total_words = sum(lst.word_count for lst in user_lists)
+                enrolled.append(EnrolledClass(
+                    class_code=class_code,
+                    class_name=class_def["name"],
+                    lists_count=len(user_lists),
+                    words_count=total_words
+                ))
+        else:
+            # Single list class
+            user_list = db.query(UserVocabularyList).filter(
+                UserVocabularyList.user_id == current_user.id,
+                UserVocabularyList.name == class_def["name"]
+            ).first()
+
+            if user_list:
+                enrolled.append(EnrolledClass(
+                    class_code=class_code,
+                    class_name=class_def["name"],
+                    lists_count=1,
+                    words_count=user_list.word_count
+                ))
+
+    return EnrolledClassesResponse(classes=enrolled)
 
 
 @router.post("/leave-class", response_model=LeaveClassResponse)
