@@ -435,6 +435,9 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [showJoinClass, setShowJoinClass] = useState(false);
   const [isJoiningClass, setIsJoiningClass] = useState(false);
   const [classCode, setClassCode] = useState('');
+  const [showLeaveClass, setShowLeaveClass] = useState(false);
+  const [isLeavingClass, setIsLeavingClass] = useState(false);
+  const [leaveClassCode, setLeaveClassCode] = useState('');
   const [editingFolder, setEditingFolder] = useState<VideoFolder | null>(null);
   const [addingToFolder, setAddingToFolder] = useState<TrackedVideo | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
@@ -534,6 +537,38 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       alert('Failed to join class. Please try again.');
     } finally {
       setIsJoiningClass(false);
+    }
+  }
+
+  // Leave a class and remove all associated vocab lists
+  async function handleLeaveClass() {
+    if (!leaveClassCode.trim() || !token) return;
+    setIsLeavingClass(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/leave-class`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ class_code: leaveClassCode.trim() }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.detail || 'Failed to leave class');
+        return;
+      }
+      const data = await res.json();
+      alert(`Left ${data.class_name}. Removed ${data.lists_deleted} lists (${data.words_deleted} words).`);
+      setShowLeaveClass(false);
+      setLeaveClassCode('');
+      // Refresh vocab lists
+      fetchVocabLists();
+    } catch (err) {
+      console.error('Error leaving class:', err);
+      alert('Failed to leave class. Please try again.');
+    } finally {
+      setIsLeavingClass(false);
     }
   }
 
@@ -2028,6 +2063,75 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                     )}
                   </button>
                 </div>
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => { setShowJoinClass(false); setShowLeaveClass(true); }}
+                    className="text-xs text-muted hover:text-secondary transition-colors"
+                  >
+                    Need to leave a class?
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Leave Class Modal */}
+        <AnimatePresence>
+          {showLeaveClass && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => !isLeavingClass && setShowLeaveClass(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                  <BookOpen className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-2">Leave a Class</h3>
+                <p className="text-sm text-secondary text-center mb-4">
+                  Enter your class code to remove all vocab lists from that class.
+                </p>
+                <input
+                  type="text"
+                  placeholder="Class code (e.g., DARTKOR3)"
+                  value={leaveClassCode}
+                  onChange={(e) => setLeaveClassCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && leaveClassCode.trim() && handleLeaveClass()}
+                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-red-500/50 mb-4 uppercase"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowLeaveClass(false); setLeaveClassCode(''); }}
+                    disabled={isLeavingClass}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleLeaveClass}
+                    disabled={!leaveClassCode.trim() || isLeavingClass}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isLeavingClass ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Leaving...
+                      </>
+                    ) : (
+                      'Leave Class'
+                    )}
+                  </button>
+                </div>
               </motion.div>
             </motion.div>
           )}
@@ -2154,6 +2258,75 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                       {isJoiningClass ? 'Joining...' : 'Join'}
                     </button>
                   </div>
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={() => { setShowJoinClass(false); setShowLeaveClass(true); }}
+                      className="text-xs text-muted hover:text-secondary transition-colors"
+                    >
+                      Need to leave a class?
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Leave Class Modal */}
+          <AnimatePresence>
+            {showLeaveClass && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+                onClick={() => !isLeavingClass && setShowLeaveClass(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                    <BookOpen className="w-6 h-6 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-primary text-center mb-2">Leave a Class</h3>
+                  <p className="text-sm text-secondary text-center mb-4">
+                    Enter your class code to remove all vocab lists from that class.
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Class code (e.g., DARTKOR3)"
+                    value={leaveClassCode}
+                    onChange={(e) => setLeaveClassCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && leaveClassCode.trim() && handleLeaveClass()}
+                    className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-red-500/50 mb-4 uppercase"
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setShowLeaveClass(false); setLeaveClassCode(''); }}
+                      disabled={isLeavingClass}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleLeaveClass}
+                      disabled={!leaveClassCode.trim() || isLeavingClass}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isLeavingClass ? (
+                        <>
+                          <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                          Leaving...
+                        </>
+                      ) : (
+                        'Leave Class'
+                      )}
+                    </button>
+                  </div>
                 </motion.div>
               </motion.div>
             )}
@@ -2257,6 +2430,75 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                       </>
                     ) : (
                       'Join Class'
+                    )}
+                  </button>
+                </div>
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => { setShowJoinClass(false); setShowLeaveClass(true); }}
+                    className="text-xs text-muted hover:text-secondary transition-colors"
+                  >
+                    Need to leave a class?
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Leave Class Modal */}
+        <AnimatePresence>
+          {showLeaveClass && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => !isLeavingClass && setShowLeaveClass(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                  <BookOpen className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-2">Leave a Class</h3>
+                <p className="text-sm text-secondary text-center mb-4">
+                  Enter your class code to remove all vocab lists from that class.
+                </p>
+                <input
+                  type="text"
+                  placeholder="Class code (e.g., DARTKOR3)"
+                  value={leaveClassCode}
+                  onChange={(e) => setLeaveClassCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && leaveClassCode.trim() && handleLeaveClass()}
+                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-red-500/50 mb-4 uppercase"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowLeaveClass(false); setLeaveClassCode(''); }}
+                    disabled={isLeavingClass}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleLeaveClass}
+                    disabled={!leaveClassCode.trim() || isLeavingClass}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isLeavingClass ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Leaving...
+                      </>
+                    ) : (
+                      'Leave Class'
                     )}
                   </button>
                 </div>
