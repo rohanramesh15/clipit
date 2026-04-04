@@ -563,7 +563,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Open leave class modal and fetch enrolled classes
   function openLeaveClassModal() {
-    openLeaveClassModal();
+    setShowLeaveClass(true);
     fetchEnrolledClasses();
   }
 
