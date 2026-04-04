@@ -907,12 +907,22 @@ def leave_class(
     class_def = CLASS_DEFINITIONS[class_code]
     class_name = class_def["name"]
 
-    # Find all vocabulary lists from this class
-    # Lists are named like "Korean 3 - L11 Conversation 1", "Korean 3 - Lesson 11 (All)", etc.
-    lists_to_delete = db.query(UserVocabularyList).filter(
-        UserVocabularyList.user_id == current_user.id,
-        UserVocabularyList.name.like(f"{class_name}%")
-    ).all()
+    # Find all vocabulary lists from this class by their exact names
+    lists_to_delete = []
+
+    if class_def.get("type") == "multi_list":
+        # For multi-list classes, find lists by their exact names
+        list_names = [lst["name"] for lst in class_def["lists"]]
+        lists_to_delete = db.query(UserVocabularyList).filter(
+            UserVocabularyList.user_id == current_user.id,
+            UserVocabularyList.name.in_(list_names)
+        ).all()
+    else:
+        # For single-list classes, find by class name
+        lists_to_delete = db.query(UserVocabularyList).filter(
+            UserVocabularyList.user_id == current_user.id,
+            UserVocabularyList.name == class_name
+        ).all()
 
     if not lists_to_delete:
         raise HTTPException(
