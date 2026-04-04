@@ -437,7 +437,9 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [classCode, setClassCode] = useState('');
   const [showLeaveClass, setShowLeaveClass] = useState(false);
   const [isLeavingClass, setIsLeavingClass] = useState(false);
-  const [leaveClassCode, setLeaveClassCode] = useState('');
+  const [enrolledClasses, setEnrolledClasses] = useState<Array<{class_code: string, class_name: string, lists_count: number, words_count: number}>>([]);
+  const [isLoadingEnrolled, setIsLoadingEnrolled] = useState(false);
+  const [confirmLeaveClass, setConfirmLeaveClass] = useState<{class_code: string, class_name: string} | null>(null);
   const [editingFolder, setEditingFolder] = useState<VideoFolder | null>(null);
   const [addingToFolder, setAddingToFolder] = useState<TrackedVideo | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
@@ -540,9 +542,34 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
   }
 
+  // Fetch enrolled classes
+  async function fetchEnrolledClasses() {
+    if (!token) return;
+    setIsLoadingEnrolled(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/enrolled-classes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEnrolledClasses(data.classes || []);
+      }
+    } catch (err) {
+      console.error('Error fetching enrolled classes:', err);
+    } finally {
+      setIsLoadingEnrolled(false);
+    }
+  }
+
+  // Open leave class modal and fetch enrolled classes
+  function openLeaveClassModal() {
+    openLeaveClassModal();
+    fetchEnrolledClasses();
+  }
+
   // Leave a class and remove all associated vocab lists
-  async function handleLeaveClass() {
-    if (!leaveClassCode.trim() || !token) return;
+  async function handleLeaveClass(classCode: string) {
+    if (!classCode || !token) return;
     setIsLeavingClass(true);
     try {
       const res = await fetch(`${API_BASE_URL}/vocab/leave-class`, {
@@ -551,17 +578,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ class_code: leaveClassCode.trim() }),
+        body: JSON.stringify({ class_code: classCode }),
       });
       if (!res.ok) {
         const error = await res.json();
         alert(error.detail || 'Failed to leave class');
         return;
       }
-      const data = await res.json();
-      alert(`Left ${data.class_name}. Removed ${data.lists_deleted} lists (${data.words_deleted} words).`);
       setShowLeaveClass(false);
-      setLeaveClassCode('');
+      setConfirmLeaveClass(null);
       // Refresh vocab lists
       fetchVocabLists();
     } catch (err) {
@@ -1653,7 +1678,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               </button>
             </div>
             <button
-              onClick={() => setShowLeaveClass(true)}
+              onClick={() => openLeaveClassModal()}
               className="text-muted hover:text-red-400 font-medium transition-colors"
             >
               Leave a class
@@ -2041,7 +2066,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 </p>
                 <input
                   type="text"
-                  placeholder="Class code (e.g., KOREAN101)"
+                  placeholder="Enter class code"
                   value={classCode}
                   onChange={(e) => setClassCode(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && classCode.trim() && handleJoinClass()}
@@ -2078,7 +2103,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
         {/* Leave Class Modal */}
         <AnimatePresence>
-          {showLeaveClass && (
+          {showLeaveClass && !confirmLeaveClass && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2094,32 +2119,78 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
-                  <BookOpen className="w-6 h-6 text-red-400" />
+                  <LogOut className="w-6 h-6 text-red-400" />
                 </div>
                 <h3 className="text-lg font-bold text-primary text-center mb-2">Leave a Class</h3>
                 <p className="text-sm text-secondary text-center mb-4">
-                  Enter your class code to remove all vocab lists from that class.
+                  Select a class to leave. This will remove all vocab lists from that class.
                 </p>
-                <input
-                  type="text"
-                  placeholder="Class code (e.g., DARTKOR3)"
-                  value={leaveClassCode}
-                  onChange={(e) => setLeaveClassCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && leaveClassCode.trim() && handleLeaveClass()}
-                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-red-500/50 mb-4 uppercase"
-                  autoFocus
-                />
+                {isLoadingEnrolled ? (
+                  <div className="flex justify-center py-4">
+                    <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  </div>
+                ) : enrolledClasses.length === 0 ? (
+                  <p className="text-muted text-sm text-center py-4">You're not enrolled in any classes.</p>
+                ) : (
+                  <div className="space-y-2 mb-4">
+                    {enrolledClasses.map((cls) => (
+                      <button
+                        key={cls.class_code}
+                        onClick={() => setConfirmLeaveClass(cls)}
+                        className="w-full px-4 py-3 bg-app border border-white/10 hover:border-red-500/50 rounded-xl text-left transition-colors group"
+                      >
+                        <div className="font-medium text-primary group-hover:text-red-400">{cls.class_name}</div>
+                        <div className="text-xs text-muted">{cls.lists_count} lists · {cls.words_count} words</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowLeaveClass(false)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Confirm Leave Class Modal */}
+        <AnimatePresence>
+          {confirmLeaveClass && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => !isLeavingClass && setConfirmLeaveClass(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-2">Are you sure?</h3>
+                <p className="text-sm text-secondary text-center mb-4">
+                  This will remove all vocab lists from <span className="text-primary font-medium">{confirmLeaveClass.class_name}</span>. This action cannot be undone.
+                </p>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => { setShowLeaveClass(false); setLeaveClassCode(''); }}
+                    onClick={() => setConfirmLeaveClass(null)}
                     disabled={isLeavingClass}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleLeaveClass}
-                    disabled={!leaveClassCode.trim() || isLeavingClass}
+                    onClick={() => handleLeaveClass(confirmLeaveClass.class_code)}
+                    disabled={isLeavingClass}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isLeavingClass ? (
@@ -2207,7 +2278,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 Upload Your Own List
               </button>
               <button
-                onClick={() => setShowLeaveClass(true)}
+                onClick={() => openLeaveClassModal()}
                 className="px-4 py-2 bg-surface border border-white/10 hover:border-red-500/50 text-secondary hover:text-red-400 font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
               >
                 <LogOut className="w-4 h-4" />
@@ -2242,7 +2313,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                   </p>
                   <input
                     type="text"
-                    placeholder="Class code (e.g., KOREAN101)"
+                    placeholder="Enter class code"
                     value={classCode}
                     onChange={(e) => setClassCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === 'Enter' && classCode.trim() && handleJoinClass()}
@@ -2272,7 +2343,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
           {/* Leave Class Modal */}
           <AnimatePresence>
-            {showLeaveClass && (
+            {showLeaveClass && !confirmLeaveClass && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -2288,32 +2359,78 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
-                    <BookOpen className="w-6 h-6 text-red-400" />
+                    <LogOut className="w-6 h-6 text-red-400" />
                   </div>
                   <h3 className="text-lg font-bold text-primary text-center mb-2">Leave a Class</h3>
                   <p className="text-sm text-secondary text-center mb-4">
-                    Enter your class code to remove all vocab lists from that class.
+                    Select a class to leave. This will remove all vocab lists from that class.
                   </p>
-                  <input
-                    type="text"
-                    placeholder="Class code (e.g., DARTKOR3)"
-                    value={leaveClassCode}
-                    onChange={(e) => setLeaveClassCode(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === 'Enter' && leaveClassCode.trim() && handleLeaveClass()}
-                    className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-red-500/50 mb-4 uppercase"
-                    autoFocus
-                  />
+                  {isLoadingEnrolled ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    </div>
+                  ) : enrolledClasses.length === 0 ? (
+                    <p className="text-muted text-sm text-center py-4">You're not enrolled in any classes.</p>
+                  ) : (
+                    <div className="space-y-2 mb-4">
+                      {enrolledClasses.map((cls) => (
+                        <button
+                          key={cls.class_code}
+                          onClick={() => setConfirmLeaveClass(cls)}
+                          className="w-full px-4 py-3 bg-app border border-white/10 hover:border-red-500/50 rounded-xl text-left transition-colors group"
+                        >
+                          <div className="font-medium text-primary group-hover:text-red-400">{cls.class_name}</div>
+                          <div className="text-xs text-muted">{cls.lists_count} lists · {cls.words_count} words</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setShowLeaveClass(false)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Confirm Leave Class Modal */}
+          <AnimatePresence>
+            {confirmLeaveClass && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+                onClick={() => !isLeavingClass && setConfirmLeaveClass(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                    <AlertCircle className="w-6 h-6 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-primary text-center mb-2">Are you sure?</h3>
+                  <p className="text-sm text-secondary text-center mb-4">
+                    This will remove all vocab lists from <span className="text-primary font-medium">{confirmLeaveClass.class_name}</span>. This action cannot be undone.
+                  </p>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setShowLeaveClass(false); setLeaveClassCode(''); }}
+                      onClick={() => setConfirmLeaveClass(null)}
                       disabled={isLeavingClass}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={handleLeaveClass}
-                      disabled={!leaveClassCode.trim() || isLeavingClass}
+                      onClick={() => handleLeaveClass(confirmLeaveClass.class_code)}
+                      disabled={isLeavingClass}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isLeavingClass ? (
@@ -2355,7 +2472,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             Join a Class
           </button>
           <button
-            onClick={() => setShowLeaveClass(true)}
+            onClick={() => openLeaveClassModal()}
             className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-red-500/50 text-primary hover:text-red-400 font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             <LogOut className="w-5 h-5" />
@@ -2409,7 +2526,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 </p>
                 <input
                   type="text"
-                  placeholder="Class code (e.g., KOREAN101)"
+                  placeholder="Enter class code"
                   value={classCode}
                   onChange={(e) => setClassCode(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && classCode.trim() && handleJoinClass()}
@@ -2446,7 +2563,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
         {/* Leave Class Modal */}
         <AnimatePresence>
-          {showLeaveClass && (
+          {showLeaveClass && !confirmLeaveClass && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2462,32 +2579,78 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
-                  <BookOpen className="w-6 h-6 text-red-400" />
+                  <LogOut className="w-6 h-6 text-red-400" />
                 </div>
                 <h3 className="text-lg font-bold text-primary text-center mb-2">Leave a Class</h3>
                 <p className="text-sm text-secondary text-center mb-4">
-                  Enter your class code to remove all vocab lists from that class.
+                  Select a class to leave. This will remove all vocab lists from that class.
                 </p>
-                <input
-                  type="text"
-                  placeholder="Class code (e.g., DARTKOR3)"
-                  value={leaveClassCode}
-                  onChange={(e) => setLeaveClassCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && leaveClassCode.trim() && handleLeaveClass()}
-                  className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-red-500/50 mb-4 uppercase"
-                  autoFocus
-                />
+                {isLoadingEnrolled ? (
+                  <div className="flex justify-center py-4">
+                    <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  </div>
+                ) : enrolledClasses.length === 0 ? (
+                  <p className="text-muted text-sm text-center py-4">You're not enrolled in any classes.</p>
+                ) : (
+                  <div className="space-y-2 mb-4">
+                    {enrolledClasses.map((cls) => (
+                      <button
+                        key={cls.class_code}
+                        onClick={() => setConfirmLeaveClass(cls)}
+                        className="w-full px-4 py-3 bg-app border border-white/10 hover:border-red-500/50 rounded-xl text-left transition-colors group"
+                      >
+                        <div className="font-medium text-primary group-hover:text-red-400">{cls.class_name}</div>
+                        <div className="text-xs text-muted">{cls.lists_count} lists · {cls.words_count} words</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowLeaveClass(false)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Confirm Leave Class Modal */}
+        <AnimatePresence>
+          {confirmLeaveClass && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+              onClick={() => !isLeavingClass && setConfirmLeaveClass(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-surface border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-primary text-center mb-2">Are you sure?</h3>
+                <p className="text-sm text-secondary text-center mb-4">
+                  This will remove all vocab lists from <span className="text-primary font-medium">{confirmLeaveClass.class_name}</span>. This action cannot be undone.
+                </p>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => { setShowLeaveClass(false); setLeaveClassCode(''); }}
+                    onClick={() => setConfirmLeaveClass(null)}
                     disabled={isLeavingClass}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleLeaveClass}
-                    disabled={!leaveClassCode.trim() || isLeavingClass}
+                    onClick={() => handleLeaveClass(confirmLeaveClass.class_code)}
+                    disabled={isLeavingClass}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isLeavingClass ? (
