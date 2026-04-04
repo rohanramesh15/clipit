@@ -710,7 +710,7 @@ KOREAN3_VOCAB = {
 
 # Hardcoded class definitions (can be moved to database later)
 CLASS_DEFINITIONS = {
-    "PROFHWANGISTHEBEST": {
+    "DARTKOR3": {
         "name": "Korean 3 - Prof Hwang",
         "language": "ko",
         "type": "multi_list",  # Creates multiple vocab lists
@@ -736,6 +736,17 @@ class JoinClassResponse(BaseModel):
     class_name: str
     words_added: int
     lists_created: int = 1
+
+
+class LeaveClassRequest(BaseModel):
+    class_code: str
+
+
+class LeaveClassResponse(BaseModel):
+    success: bool
+    class_name: str
+    lists_deleted: int
+    words_deleted: int
 
 
 def _get_words_for_key(key: str) -> list:
@@ -875,4 +886,53 @@ def join_class(
         class_name=class_name,
         words_added=total_words,
         lists_created=lists_created
+    )
+
+
+@router.post("/leave-class", response_model=LeaveClassResponse)
+def leave_class(
+    request: LeaveClassRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Leave a class and remove all associated vocabulary lists.
+    This deletes all lists created when joining the class.
+    """
+    class_code = request.class_code.upper().strip()
+
+    if class_code not in CLASS_DEFINITIONS:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    class_def = CLASS_DEFINITIONS[class_code]
+    class_name = class_def["name"]
+
+    # Find all vocabulary lists from this class
+    # Lists are named like "Korean 3 - L11 Conversation 1", "Korean 3 - Lesson 11 (All)", etc.
+    lists_to_delete = db.query(UserVocabularyList).filter(
+        UserVocabularyList.user_id == current_user.id,
+        UserVocabularyList.name.like(f"{class_name}%")
+    ).all()
+
+    if not lists_to_delete:
+        raise HTTPException(
+            status_code=404,
+            detail=f"You are not enrolled in {class_name}"
+        )
+
+    # Count words before deletion
+    total_words = sum(lst.word_count for lst in lists_to_delete)
+    lists_count = len(lists_to_delete)
+
+    # Delete all lists (CASCADE will delete words)
+    for vocab_list in lists_to_delete:
+        db.delete(vocab_list)
+
+    db.commit()
+
+    return LeaveClassResponse(
+        success=True,
+        class_name=class_name,
+        lists_deleted=lists_count,
+        words_deleted=total_words
     )
