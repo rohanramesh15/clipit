@@ -35,7 +35,7 @@ import { useAuth } from '../context/AuthContext';
 import { useReviewSession } from '../context/ReviewSessionContext';
 import { API_BASE_URL } from '../config';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
-import { Sparkles, BookOpen } from 'lucide-react';
+import { Sparkles, BookOpen, LogOut } from 'lucide-react';
 
 // Vocabulary list types
 interface VocabList {
@@ -1641,14 +1641,22 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               Study
             </button>
           </div>
-          {/* Join Class Link */}
-          <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className="text-secondary">Taking a class?</span>
+          {/* Join/Leave Class Links */}
+          <div className="mt-3 flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-secondary">Taking a class?</span>
+              <button
+                onClick={() => setShowJoinClass(true)}
+                className="text-accent hover:text-accent/80 font-medium transition-colors"
+              >
+                Join a class →
+              </button>
+            </div>
             <button
-              onClick={() => setShowJoinClass(true)}
-              className="text-accent hover:text-accent/80 font-medium transition-colors"
+              onClick={() => setShowLeaveClass(true)}
+              className="text-muted hover:text-red-400 font-medium transition-colors"
             >
-              Join a class for pre-made vocab lists →
+              Leave a class
             </button>
           </div>
         </div>
@@ -2063,14 +2071,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                     )}
                   </button>
                 </div>
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => { setShowJoinClass(false); setShowLeaveClass(true); }}
-                    className="text-xs text-muted hover:text-secondary transition-colors"
-                  >
-                    Need to leave a class?
-                  </button>
-                </div>
               </motion.div>
             </motion.div>
           )}
@@ -2206,6 +2206,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 <Plus className="w-4 h-4" />
                 Upload Your Own List
               </button>
+              <button
+                onClick={() => setShowLeaveClass(true)}
+                className="px-4 py-2 bg-surface border border-white/10 hover:border-red-500/50 text-secondary hover:text-red-400 font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
+              >
+                <LogOut className="w-4 h-4" />
+                Leave a Class
+              </button>
             </div>
           </div>
 
@@ -2256,14 +2263,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                       className="flex-1 px-4 py-2.5 rounded-xl bg-accent text-app font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
                     >
                       {isJoiningClass ? 'Joining...' : 'Join'}
-                    </button>
-                  </div>
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={() => { setShowJoinClass(false); setShowLeaveClass(true); }}
-                      className="text-xs text-muted hover:text-secondary transition-colors"
-                    >
-                      Need to leave a class?
                     </button>
                   </div>
                 </motion.div>
@@ -2356,6 +2355,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             Join a Class
           </button>
           <button
+            onClick={() => setShowLeaveClass(true)}
+            className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-red-500/50 text-primary hover:text-red-400 font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-5 h-5" />
+            Leave a Class
+          </button>
+          <button
             onClick={() => onNavigate?.('vocabulary')}
             className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-white/20 text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
           >
@@ -2431,14 +2437,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                     ) : (
                       'Join Class'
                     )}
-                  </button>
-                </div>
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => { setShowJoinClass(false); setShowLeaveClass(true); }}
-                    className="text-xs text-muted hover:text-secondary transition-colors"
-                  >
-                    Need to leave a class?
                   </button>
                 </div>
               </motion.div>
