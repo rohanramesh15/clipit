@@ -8,10 +8,7 @@
     "*://www.youtube.com/*",
     "*://www.netflix.com/*",
     "https://project-deadbird-backend.onrender.com/*",
-    "https://theclipitapp.com/*",
-    "https://theclipitapp.vercel.app/*",
-    "http://localhost:5176/*",
-    "http://localhost:8000/*"
+    "https://theclipitapp.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -28,7 +25,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["http://localhost:5176/*", "https://theclipitapp.com/*", "https://theclipitapp.vercel.app/*"],
+      "matches": ["https://theclipitapp.com/*"],
       "js": ["token-bridge.js"],
       "run_at": "document_idle"
     }
