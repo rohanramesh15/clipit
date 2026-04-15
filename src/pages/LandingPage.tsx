@@ -10,7 +10,7 @@ import {
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 interface LandingPageProps {
-  onNavigate: (view: 'login' | 'signup') => void;
+  onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
 }
 export function LandingPage({ onNavigate }: LandingPageProps) {
   const [isDark, setIsDark] = useState(() => {
@@ -27,7 +27,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-app border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center">
-            <img src={clipitLogo} alt="lipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
+            <img src={clipitLogo} alt="ClipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
             <span className="text-5xl tracking-tight" style={{
               fontFamily: "'Love Ya Like A Sister', cursive",
               WebkitTextStroke: '2px #9E3B3B',
@@ -184,7 +184,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <footer className="border-t border-white/5 py-12 bg-app">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center">
-            <img src={clipitLogo} alt="lipIt" className="w-10 h-10 object-contain shrink-0 -mt-1" />
+            <img src={clipitLogo} alt="ClipIt" className="w-10 h-10 object-contain shrink-0 -mt-1" />
             <span className="text-3xl tracking-tight" style={{
               fontFamily: "'Love Ya Like A Sister', cursive",
               WebkitTextStroke: '1.5px #9E3B3B',
@@ -193,16 +193,10 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
             </span>
           </div>
-          <div className="flex gap-8 text-sm text-secondary">
-            <a href="#" className="hover:text-primary transition-colors">
+          <div className="flex gap-8 text-sm text-muted">
+            <button onClick={() => onNavigate('privacy')} className="hover:text-secondary transition-colors">
               Privacy
-            </a>
-            <a href="#" className="hover:text-primary transition-colors">
-              Terms
-            </a>
-            <a href="#" className="hover:text-primary transition-colors">
-              Contact
-            </a>
+            </button>
           </div>
           <p className="text-sm text-muted">© 2024 ClipIt Inc.</p>
         </div>

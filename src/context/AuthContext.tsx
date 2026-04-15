@@ -1,7 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '../config';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = API_BASE_URL;
 const TOKEN_KEY = 'deadbird_token';
+const REMEMBER_KEY = 'deadbird_remember';
+
+// Get token from either storage
+function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+}
+
+// Clear token from both storages
+function clearStoredToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REMEMBER_KEY);
+}
 
 export interface AuthUser {
   id: number;
@@ -14,7 +28,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -23,8 +37,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [isLoading, setIsLoading] = useState(!!localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [isLoading, setIsLoading] = useState(!!getStoredToken());
 
   const fetchMe = useCallback(async (accessToken: string): Promise<AuthUser> => {
     const res = await fetch(`${API_BASE}/auth/me`, {
@@ -36,15 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On mount, validate any stored token
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
+    const stored = getStoredToken();
     if (!stored) { setIsLoading(false); return; }
     fetchMe(stored)
       .then((me) => { setUser(me); setToken(stored); })
-      .catch(() => { localStorage.removeItem(TOKEN_KEY); setToken(null); })
+      .catch(() => { clearStoredToken(); setToken(null); })
       .finally(() => setIsLoading(false));
   }, [fetchMe]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = true) => {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -55,7 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(err.detail || 'Login failed');
     }
     const { access_token } = await res.json();
-    localStorage.setItem(TOKEN_KEY, access_token);
+    // Clear any existing tokens first
+    clearStoredToken();
+    // Store based on rememberMe preference
+    if (rememberMe) {
+      localStorage.setItem(TOKEN_KEY, access_token);
+      localStorage.setItem(REMEMBER_KEY, 'true');
+    } else {
+      sessionStorage.setItem(TOKEN_KEY, access_token);
+    }
     setToken(access_token);
     const me = await fetchMe(access_token);
     setUser(me);
@@ -79,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
+    clearStoredToken();
     setToken(null);
     setUser(null);
   };

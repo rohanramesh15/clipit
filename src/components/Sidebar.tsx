@@ -10,7 +10,9 @@ import {
   ChevronDown,
   PanelLeft,
   Check,
-  Globe } from
+  Globe,
+  Upload,
+  MessageSquare } from
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +23,7 @@ type Page =
 'flashcards' |
 'dictionary' |
 'analytics' |
+'vocabulary' |
 'settings';
 interface SidebarProps {
   activePage: Page;
@@ -78,6 +81,11 @@ export function Sidebar({
     label: 'Dictionary'
   },
   {
+    id: 'vocabulary',
+    icon: Upload,
+    label: 'Upload'
+  },
+  {
     id: 'analytics',
     icon: BarChart3,
     label: 'Progress'
@@ -99,7 +107,7 @@ export function Sidebar({
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.2 }}
               className="flex items-center justify-center absolute inset-0 pr-4">
-              <img src={clipitLogo} alt="lipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
+              <img src={clipitLogo} alt="ClipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
               <span className="text-5xl tracking-tight hidden md:block" style={{
                 fontFamily: "'Love Ya Like A Sister', cursive",
                 WebkitTextStroke: '2px #9E3B3B',
@@ -112,9 +120,11 @@ export function Sidebar({
         </AnimatePresence>
         <button
           onClick={onToggleCollapsed}
-          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-md hover:bg-white/5 text-secondary hover:text-primary transition-colors z-10"
+          className={`hidden md:flex absolute top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-lg hover:bg-white/5 text-secondary hover:text-primary transition-all z-10 ${
+            isCollapsed ? 'left-1/2 -translate-x-1/2' : 'right-2'
+          }`}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          <PanelLeft className="w-4 h-4" />
+          <PanelLeft className="w-6 h-6" />
         </button>
       </div>
 
@@ -272,6 +282,29 @@ export function Sidebar({
             )}
           </AnimatePresence>
         </button>
+
+        {/* Feedback Link */}
+        <a
+          href="https://forms.gle/5x6GJLDZKUTfJLTj9"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
+          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-4 h-4" />
+          </div>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                className="text-sm font-medium hidden md:block whitespace-nowrap">
+                Feedback
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </a>
 
         {/* User Profile */}
         <button

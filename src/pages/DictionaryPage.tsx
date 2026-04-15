@@ -3,8 +3,25 @@ import { Search, Volume2, Loader2, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { API_BASE_URL } from '../config';
 
-const API = 'http://localhost:8000/api';
+const dictionaryPageTips: HelpTip[] = [
+  {
+    id: 'search',
+    text: 'Search for any word in our frequency dictionary.',
+    targetId: 'section-search',
+    position: 'bottom',
+  },
+  {
+    id: 'word-list',
+    text: 'Words ranked by frequency. Progress bar shows your mastery level. Click speaker icon to hear pronunciation.',
+    targetId: 'section-word-list',
+    position: 'right',
+  },
+];
+
 
 interface DictionaryEntry {
   word: string;
@@ -12,6 +29,7 @@ interface DictionaryEntry {
   rank: number;
   pos: 'noun' | 'verb' | 'adjective' | 'adverb';
   language: string;
+  source?: 'user' | 'dictionary';
 }
 
 const POS_LABELS: Record<string, string> = {
@@ -53,6 +71,7 @@ function playAudio(word: string, lang: string) {
 
 export function DictionaryPage() {
   const { language, languageName } = useLanguage();
+  const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +90,11 @@ export function DictionaryPage() {
     async function fetchDictionary() {
       try {
         setLoading(true);
-        const res = await fetch(`${API}/dictionary?lang=${language}`);
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch(`${API_BASE_URL}/dictionary?lang=${language}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch dictionary');
         const data = await res.json();
         setEntries(data.entries);
@@ -84,7 +107,7 @@ export function DictionaryPage() {
       }
     }
     fetchDictionary();
-  }, [language]);
+  }, [language, token]);
 
   // Filter entries by search term and part of speech
   const filteredEntries = entries.filter((entry) => {
@@ -125,6 +148,8 @@ export function DictionaryPage() {
 
   return (
     <div className="min-h-screen pb-20 max-w-5xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={dictionaryPageTips} />
+
       {/* Header & Search */}
       <div className="sticky top-0 bg-app/95 backdrop-blur-md z-10 pb-6 border-b border-white/5 mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -138,7 +163,7 @@ export function DictionaryPage() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4">
+        <div id="section-search" className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
             <input
@@ -173,7 +198,7 @@ export function DictionaryPage() {
       </div>
 
       {/* Word List */}
-      <div className="space-y-3">
+      <div id="section-word-list" className="space-y-3">
         {filteredEntries.map((entry, index) => (
           <motion.div
             key={entry.word}
@@ -192,9 +217,16 @@ export function DictionaryPage() {
                 </button>
 
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
-                    {entry.word}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">
+                      {entry.word}
+                    </h3>
+                    {entry.source === 'user' && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-accent/20 text-accent rounded-full">
+                        My Word
+                      </span>
+                    )}
+                  </div>
                   <p className="text-secondary mt-1">{entry.english}</p>
                 </div>
               </div>

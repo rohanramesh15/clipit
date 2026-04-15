@@ -16,6 +16,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+
+const videoPageTips: HelpTip[] = [
+  {
+    id: 'platform-filter',
+    text: 'Filter by YouTube or Netflix to find specific videos.',
+    targetId: 'section-platform-tabs',
+    position: 'right',
+  },
+  {
+    id: 'stats-cards',
+    text: 'Track your watching progress and vocabulary growth.',
+    targetId: 'section-stats',
+    position: 'bottom',
+  },
+  {
+    id: 'video-grid',
+    text: 'Videos you watch with the browser extension appear here. Click to watch again, hover to delete.',
+    targetId: 'section-video-grid',
+    position: 'top',
+  },
+];
 
 function NetflixThumbnail({ videoId }: { videoId: string }) {
   const [hasError, setHasError] = React.useState(false);
@@ -139,6 +161,8 @@ export function VideoPage() {
 
   return (
     <div className="min-h-screen pb-20 max-w-6xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={videoPageTips} />
+
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
@@ -159,7 +183,7 @@ export function VideoPage() {
       </div>
 
       {/* Platform Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div id="section-platform-tabs" className="flex gap-2 mb-6">
         <button
           onClick={() => setPlatformFilter('all')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -202,7 +226,7 @@ export function VideoPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+      <div id="section-stats" className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
         <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
           <Play className="w-6 h-6 text-accent" />
           <div>
@@ -263,7 +287,7 @@ export function VideoPage() {
               <AlertCircle className="w-7 h-7 text-red-500" />
             </div>
             <p className="text-primary font-semibold">Backend not reachable</p>
-            <p className="text-secondary text-sm">Make sure the lipIt server is running and accessible.</p>
+            <p className="text-secondary text-sm">Make sure the ClipIt server is running and accessible.</p>
             <button
               onClick={handleRefresh}
               className="mt-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
@@ -278,19 +302,45 @@ export function VideoPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center">
-              <Tv className="w-7 h-7 text-accent" />
+            className="flex flex-col items-center justify-center py-24 gap-6">
+            <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
+              <Tv className="w-8 h-8 text-accent" />
             </div>
-            <p className="text-primary font-semibold">No videos tracked yet</p>
-            <p className="text-secondary text-sm text-center max-w-sm">
-              Watch any {languageName} video on YouTube or Netflix — the lipIt extension will track it automatically.
+            <div className="text-center">
+              <p className="text-primary font-semibold text-lg mb-2">No videos tracked yet</p>
+              <p className="text-secondary text-sm max-w-sm">
+                Watch any {languageName} video on YouTube or Netflix — the Clip It extension will track it automatically.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+              <a
+                href="https://www.youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-app font-semibold transition-all shadow-lg shadow-accent/20">
+                <Youtube className="w-5 h-5" />
+                Browse YouTube
+                <ExternalLink className="w-4 h-4 opacity-70" />
+              </a>
+              <a
+                href="https://www.netflix.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-app font-semibold transition-all shadow-lg shadow-accent/20">
+                <Film className="w-5 h-5" />
+                Browse Netflix
+                <ExternalLink className="w-4 h-4 opacity-70" />
+              </a>
+            </div>
+            <p className="text-muted text-xs mt-2">
+              Make sure the <a href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Clip It browser extension</a> is installed and enabled
             </p>
           </motion.div>
         )}
 
         {loadState === 'loaded' && (
           <motion.div
+            id="section-video-grid"
             key="loaded"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

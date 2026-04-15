@@ -556,8 +556,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const handleNextStep = () => {
     if (!quizAnswers[quizStep]) return;
     if (quizStep === quizQuestions.length - 1) {
-      // Save answers and complete
+      // Save answers to proper keys for Settings to read
       localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
+      if (quizAnswers[0]) localStorage.setItem('deadbird_language', quizAnswers[0]); // Language
+      if (quizAnswers[1]) localStorage.setItem('user_motivation', quizAnswers[1]); // Motivation
+      if (quizAnswers[2]) localStorage.setItem('daily_goal', quizAnswers[2]); // Daily goal
       onComplete();
     } else {
       setQuizStep((s) => s + 1);
@@ -635,17 +638,25 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={() => {
-                      // Mark as complete and finish onboarding
-                      localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
-                      onComplete();
-                    }}
-                    className="mt-4 bg-accent hover:bg-accent-hover text-app font-bold px-8 py-4 rounded-xl transition-all shadow-lg shadow-accent/20 text-base flex items-center gap-2 mx-auto"
-                  >
-                    <Puzzle className="w-5 h-5" />
-                    Add to Chrome
-                  </button>
+                  <div className="flex justify-center mt-4">
+                    <a
+                      href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        // Save answers to proper keys for Settings to read
+                        localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
+                        if (quizAnswers[0]) localStorage.setItem('deadbird_language', quizAnswers[0]);
+                        if (quizAnswers[1]) localStorage.setItem('user_motivation', quizAnswers[1]);
+                        if (quizAnswers[2]) localStorage.setItem('daily_goal', quizAnswers[2]);
+                        onComplete();
+                      }}
+                      className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-app font-bold px-8 py-4 rounded-xl transition-all shadow-lg shadow-accent/20 text-base"
+                    >
+                      <Puzzle className="w-5 h-5" />
+                      Add to Chrome
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className={`${'grid' in currentQuestion && currentQuestion.grid

@@ -1,20 +1,44 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Flame, Book, TrendingUp, RotateCw, Play } from 'lucide-react';
-import { getAnalyticsSummary, getActivityHeatmapCurrentYear } from '../services/fsrs';
+import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { API_BASE_URL } from '../config';
 
-const API = 'http://localhost:8000/api';
+interface ReviewEntry {
+  word: string;
+  language: string;
+  rating: number;
+  reviewed_at: string;
+}
 
+const analyticsPageTips: HelpTip[] = [
+  {
+    id: 'stats-overview',
+    text: 'Track your learning progress: streak, words learned, reviews, and watch time.',
+    targetId: 'section-stats',
+    position: 'right',
+  },
+  {
+    id: 'heatmap',
+    text: 'Your activity heatmap shows daily review consistency over the year.',
+    targetId: 'section-heatmap',
+    position: 'bottom',
+  },
+];
 
 export function AnalyticsPage() {
   const { language } = useLanguage();
+  const { token } = useAuth();
   const [analytics, setAnalytics] = useState({
     wordsLearned: 0,
     totalReviews: 0,
     hoursWatched: 0,
     streak: 0,
   });
+  const [reviewHistory, setReviewHistory] = useState<ReviewEntry[]>([]);
 
   // Load analytics data
   useEffect(() => {
@@ -26,19 +50,37 @@ export function AnalyticsPage() {
       streak: data.streak,
     });
 
-    // Fetch watch time from backend
-    fetch(`${API}/videos/stats/watch-time?lang=${language}`)
-      .then(res => res.json())
-      .then(data => {
-        setAnalytics(prev => ({
-          ...prev,
-          hoursWatched: data.total_hours || 0,
-        }));
+    // Fetch watch time and review history from backend
+    if (token) {
+      // Fetch watch time
+      fetch(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {
-        // Fallback: keep at 0 if API fails
-      });
-  }, [language]);
+        .then(res => res.json())
+        .then(data => {
+          setAnalytics(prev => ({
+            ...prev,
+            hoursWatched: data.total_hours || 0,
+          }));
+        })
+        .catch(() => {});
+
+      // Fetch all reviews for heatmap (get a large batch)
+      fetch(`${API_BASE_URL}/fsrs/reviews?limit=10000`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          setReviewHistory(data.reviews || []);
+          // Update total reviews count from backend
+          setAnalytics(prev => ({
+            ...prev,
+            totalReviews: data.total || prev.totalReviews,
+          }));
+        })
+        .catch(() => {});
+    }
+  }, [language, token]);
 
   const stats = [
     {
@@ -69,26 +111,87 @@ export function AnalyticsPage() {
     },
   ];
 
-  // Get real heatmap data from review history - current calendar year
-  const heatmapData = useMemo(() => {
-    return getActivityHeatmapCurrentYear();
-  }, []);
+  // Generate heatmap data and streak from backend review history
+  const { heatmapData, calculatedStreak } = useMemo(() => {
+    const result: { date: string; intensity: number; isFuture: boolean; isPlaceholder: boolean }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Start from January 1st of current year
+    const year = today.getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31);
+
+    // Group reviews by date
+    const reviewsByDate: Record<string, number> = {};
+    reviewHistory.forEach(r => {
+      if (r.reviewed_at) {
+        const date = r.reviewed_at.split('T')[0]; // YYYY-MM-DD
+        reviewsByDate[date] = (reviewsByDate[date] || 0) + 1;
+      }
+    });
+
+    // Calculate streak from backend data
+    let streak = 0;
+    const todayStr = today.toISOString().split('T')[0];
+    const checkDate = new Date(today);
+
+    // If no reviews today, start from yesterday
+    if (!reviewsByDate[todayStr]) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    while (true) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      if (reviewsByDate[dateStr]) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    // Find max reviews in a day for normalization
+    const maxReviews = Math.max(1, ...Object.values(reviewsByDate));
+
+    // Calculate what day of week January 1st falls on
+    // getDay() returns 0=Sunday, 1=Monday, etc.
+    // Our grid shows Monday first, so convert: Sun(0)->6, Mon(1)->0, Tue(2)->1, etc.
+    const startDayOfWeek = startOfYear.getDay();
+    const mondayFirstIndex = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    // Add placeholder entries for days before January 1st
+    for (let i = 0; i < mondayFirstIndex; i++) {
+      result.push({ date: '', intensity: 0, isFuture: false, isPlaceholder: true });
+    }
+
+    // Iterate from Jan 1 to Dec 31
+    const currentDate = new Date(startOfYear);
+    while (currentDate <= endOfYear) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const count = reviewsByDate[dateStr] || 0;
+      const isFuture = currentDate > today;
+
+      // Normalize to 0-4 intensity (future days get 0)
+      const intensity = isFuture ? 0 : (count > 0 ? Math.min(4, Math.ceil((count / maxReviews) * 4)) : 0);
+      result.push({ date: dateStr, intensity, isFuture, isPlaceholder: false });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return { heatmapData: result, calculatedStreak: streak };
+  }, [reviewHistory]);
+
+  // Update streak when calculated from backend data
+  useEffect(() => {
+    if (calculatedStreak > 0) {
+      setAnalytics(prev => ({ ...prev, streak: calculatedStreak }));
+    }
+  }, [calculatedStreak]);
 
   const getIntensityColor = (level: number) => {
-    switch (level) {
-      case 0:
-        return 'bg-white/5';
-      case 1:
-        return 'bg-accent/20';
-      case 2:
-        return 'bg-accent/40';
-      case 3:
-        return 'bg-accent/70';
-      case 4:
-        return 'bg-accent';
-      default:
-        return 'bg-white/5';
-    }
+    // Simple binary: accent color if any activity, default otherwise
+    return level > 0 ? 'bg-accent' : 'bg-white/5';
   };
 
   // GitHub-style layout (7 rows x N columns)
@@ -96,13 +199,15 @@ export function AnalyticsPage() {
 
   return (
     <div className="min-h-screen pb-20 max-w-6xl mx-auto px-4 pt-8">
+      <HelpOverlay tips={analyticsPageTips} />
+
       <h1 className="text-3xl font-heading font-bold text-primary mb-8">
         Your Progress
       </h1>
 
       <div className="space-y-8 mb-12">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div id="section-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.id}
@@ -126,6 +231,7 @@ export function AnalyticsPage() {
 
         {/* Activity Heatmap */}
         <motion.div
+          id="section-heatmap"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
@@ -160,6 +266,10 @@ export function AnalyticsPage() {
                         return <div key={dayIdx} className="flex-1 min-h-0" />;
                       }
                       const dayData = heatmapData[dataIdx];
+                      // Placeholder cells are invisible (before Jan 1st)
+                      if (dayData.isPlaceholder) {
+                        return <div key={dayIdx} className="flex-1 min-h-0" />;
+                      }
                       return (
                         <motion.div
                           key={dayIdx}
@@ -181,15 +291,15 @@ export function AnalyticsPage() {
               <span className="text-[10px] text-muted">
                 {new Date().getFullYear()}
               </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted mr-1">Less</span>
-                {[0, 1, 2, 3, 4].map((level) => (
-                  <div
-                    key={level}
-                    className={`w-3 h-3 rounded-sm ${getIntensityColor(level)}`}
-                  />
-                ))}
-                <span className="text-[10px] text-muted ml-1">More</span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-sm bg-white/5" />
+                  <span className="text-[10px] text-muted">No activity</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-sm bg-accent" />
+                  <span className="text-[10px] text-muted">Active</span>
+                </div>
               </div>
             </div>
         </motion.div>
