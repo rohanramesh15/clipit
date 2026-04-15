@@ -22,6 +22,8 @@ class Settings(BaseSettings):
         "http://localhost:5176",
         "http://localhost:8000",
         "https://project-deadbird-frontend.fly.dev",
+        "https://theclipitapp.com",
+        "https://www.theclipitapp.com",
     ]
 
     # Database
@@ -38,7 +40,11 @@ class Settings(BaseSettings):
     # SQLite + subtitle cache
     SQLITE_DB_PATH: str = "deadbird.db"
     SUBTITLES_CACHE_DIR: str = "subtitles_cache"
-      
+
+    # Email (Resend)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "Clip It <noreply@theclipitapp.com>"
+    FRONTEND_URL: str = "https://www.theclipitapp.com"
 
     class Config:
         env_file = ".env"

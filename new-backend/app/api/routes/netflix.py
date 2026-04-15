@@ -7,11 +7,13 @@ import base64
 from pathlib import Path
 from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
+from fastapi.responses import Response
 from app.core.config import settings
 from app.services.video_store import update_video_duration, update_korean_status, update_ukrainian_status
 from app.services.vocab_service import load_frequency_map, is_common_particle
 from app.services.korean_tokenizer import extract_korean_words
 from app.services.ukrainian_tokenizer import extract_ukrainian_words
+from app.services.image_store import save_image, get_image
 
 router = APIRouter()
 
@@ -174,28 +176,22 @@ async def save_netflix_subtitles(request: dict = Body(...)):
 
 
 def save_screenshot_file(video_id: str, timestamp: int, data_url: str) -> str | None:
-    """Save a screenshot from data URL to file, return the relative path."""
+    """Save a screenshot from data URL to database, return the key."""
     try:
-        SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-
         # Extract base64 data from data URL
         # Format: data:image/jpeg;base64,/9j/4AAQ...
         if "," not in data_url:
             return None
         header, b64_data = data_url.split(",", 1)
+        mime_type = "image/jpeg" if "jpeg" in header else "image/png"
 
-        # Determine file extension
-        ext = "jpg" if "jpeg" in header else "png"
+        # Save to database
+        key = f"screenshot_{video_id}_{timestamp}"
+        success = save_image(key, b64_data, mime_type)
 
-        # Create filename
-        filename = f"{video_id}_{timestamp}.{ext}"
-        filepath = SCREENSHOTS_DIR / filename
-
-        # Decode and save
-        with open(filepath, "wb") as f:
-            f.write(base64.b64decode(b64_data))
-
-        return f"screenshots/{filename}"
+        if success:
+            return key
+        return None
     except Exception as e:
         print(f"[Deadbird] Failed to save screenshot: {e}")
         return None
@@ -228,8 +224,22 @@ async def save_screenshot(request: dict = Body(...)):
     if not video_id or timestamp is None or not data_url:
         raise HTTPException(status_code=400, detail="video_id, timestamp, and data_url required")
 
-    path = save_screenshot_file(video_id, int(timestamp), data_url)
-    return {"status": "ok", "path": path}
+    # Extract base64 data from data URL
+    if "," in data_url:
+        header, b64_data = data_url.split(",", 1)
+        mime_type = "image/jpeg" if "jpeg" in header else "image/png"
+    else:
+        b64_data = data_url
+        mime_type = "image/jpeg"
+
+    # Save to database
+    key = f"screenshot_{video_id}_{int(timestamp)}"
+    success = save_image(key, b64_data, mime_type)
+
+    if success:
+        print(f"[Netflix] Screenshot saved to DB: {key}")
+
+    return {"status": "ok", "saved": success}
 
 
 @router.api_route("/screenshot/{video_id}/{timestamp}", methods=["GET", "HEAD"])
@@ -238,19 +248,17 @@ async def get_netflix_screenshot(video_id: str, timestamp: int):
     Get a screenshot for a specific video and timestamp.
     Also checks nearby timestamps (within 3 seconds) for a match.
     """
-    from fastapi.responses import FileResponse
-
-    SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-
     # Check exact timestamp and nearby (within 3 seconds)
     for offset in range(0, 4):
         for t in [timestamp + offset, timestamp - offset]:
             if t < 0:
                 continue
-            for ext in ["jpg", "png"]:
-                filepath = SCREENSHOTS_DIR / f"{video_id}_{t}.{ext}"
-                if filepath.exists():
-                    return FileResponse(filepath, media_type=f"image/{ext}")
+            key = f"screenshot_{video_id}_{t}"
+            result = get_image(key)
+            if result:
+                b64_data, mime_type = result
+                image_bytes = base64.b64decode(b64_data)
+                return Response(content=image_bytes, media_type=mime_type)
 
     raise HTTPException(status_code=404, detail="Screenshot not found")
 
@@ -378,21 +386,34 @@ async def save_thumbnail(request: dict = Body(...)):
     if not video_id or not data_url:
         raise HTTPException(status_code=400, detail="video_id and data_url required")
 
-    path = save_thumbnail_file(video_id, data_url)
-    return {"status": "ok", "path": path}
+    # Extract base64 data from data URL
+    if "," in data_url:
+        header, b64_data = data_url.split(",", 1)
+        mime_type = "image/jpeg" if "jpeg" in header else "image/png"
+    else:
+        b64_data = data_url
+        mime_type = "image/jpeg"
+
+    # Save to database
+    key = f"thumbnail_{video_id}"
+    success = save_image(key, b64_data, mime_type)
+
+    if success:
+        print(f"[Netflix] Thumbnail saved to DB for: {video_id}")
+
+    return {"status": "ok", "saved": success}
 
 
 @router.api_route("/thumbnail/{video_id}", methods=["GET", "HEAD"])
 async def get_netflix_thumbnail(video_id: str):
     """Get the thumbnail for a Netflix video."""
-    from fastapi.responses import FileResponse
+    key = f"thumbnail_{video_id}"
+    result = get_image(key)
 
-    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
-
-    for ext in ["jpg", "png"]:
-        filepath = THUMBNAILS_DIR / f"{video_id}.{ext}"
-        if filepath.exists():
-            return FileResponse(filepath, media_type=f"image/{ext}")
+    if result:
+        b64_data, mime_type = result
+        image_bytes = base64.b64decode(b64_data)
+        return Response(content=image_bytes, media_type=mime_type)
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
 

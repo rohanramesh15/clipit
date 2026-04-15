@@ -1,11 +1,109 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Body
+from typing import List, Optional
+from pydantic import BaseModel
 from app.services.subtitle_service import (
     fetch_and_cache_subtitles,
     fetch_and_cache_subtitles_ukrainian,
+    save_client_youtube_subtitles,
 )
 from app.api.routes.netflix import load_cached_netflix_subtitles
+from app.services.video_store import update_korean_status
 
 router = APIRouter()
+
+
+class SubtitleEntry(BaseModel):
+    start: float
+    duration: float
+    text: str
+
+
+class YouTubeSubtitlesRequest(BaseModel):
+    video_id: str
+    korean: List[SubtitleEntry] = []
+    english: List[SubtitleEntry] = []
+
+
+@router.post("/youtube/subtitles")
+async def receive_youtube_subtitles(req: YouTubeSubtitlesRequest):
+    """
+    Receive YouTube subtitles fetched client-side by the Chrome extension.
+    This bypasses YouTube's IP blocking of cloud servers.
+    """
+    try:
+        has_korean = len(req.korean) > 0
+        has_english = len(req.english) > 0
+
+        # Convert to our merged format
+        merged = merge_client_subtitles(req.korean, req.english)
+
+        # Save to cache
+        save_client_youtube_subtitles(req.video_id, merged, has_korean)
+
+        # Update the video's has_korean status
+        if has_korean:
+            update_korean_status(req.video_id, True)
+
+        return {
+            "success": True,
+            "video_id": req.video_id,
+            "has_korean": has_korean,
+            "has_english": has_english,
+            "subtitle_count": len(merged),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save subtitles: {str(e)}")
+
+
+def merge_client_subtitles(korean: List[SubtitleEntry], english: List[SubtitleEntry]) -> list:
+    """Merge Korean and English subtitles by timestamp."""
+    if not korean and not english:
+        return []
+
+    if korean and english:
+        # Match Korean subtitles with closest English ones
+        merged = []
+        for ko_sub in korean:
+            ko_start = ko_sub.start
+            # Find closest English subtitle
+            best_match = None
+            best_diff = float('inf')
+            for en_sub in english:
+                diff = abs(en_sub.start - ko_start)
+                if diff < best_diff and diff < 5:  # Within 5 seconds
+                    best_diff = diff
+                    best_match = en_sub
+
+            merged.append({
+                'start': ko_sub.start,
+                'duration': ko_sub.duration,
+                'end': ko_sub.start + ko_sub.duration,
+                'korean': ko_sub.text,
+                'english': best_match.text if best_match else '',
+            })
+        return merged
+    elif korean:
+        return [
+            {
+                'start': s.start,
+                'duration': s.duration,
+                'end': s.start + s.duration,
+                'korean': s.text,
+                'english': '',
+            }
+            for s in korean
+        ]
+    else:
+        return [
+            {
+                'start': s.start,
+                'duration': s.duration,
+                'end': s.start + s.duration,
+                'korean': '',
+                'english': s.text,
+            }
+            for s in english
+        ]
 
 
 @router.get("/subtitles/{video_id}")

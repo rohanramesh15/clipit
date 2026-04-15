@@ -9,6 +9,8 @@ class UserFlashcardProgress(BaseModel):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     word = Column(String, nullable=False)
     language = Column(String, nullable=False)  # 'ko', 'uk', 'sr', 'bg'
+    video_id = Column(String(64), nullable=True, index=True)  # YouTube/Netflix video ID for deck organization
+    card_type = Column(String(20), nullable=False, default='video')  # 'tts' or 'video'
 
     # FSRS fields — match ts-fsrs Card object
     due = Column(DateTime, nullable=False)

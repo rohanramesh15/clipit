@@ -1,12 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.auth import Token, LoginRequest
+from app.schemas.auth import (
+    Token,
+    LoginRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageResponse,
+)
 from app.api.deps import get_current_user
+from app.services.email_service import (
+    generate_token,
+    send_password_reset_email,
+    get_reset_token_expiry,
+    is_token_expired,
+)
 
 router = APIRouter()
 
@@ -66,3 +78,49 @@ def login(user_in: LoginRequest, db: Session = Depends(get_db)):
 def me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return current_user
+
+
+@router.post("/auth/forgot-password", response_model=MessageResponse)
+def forgot_password(
+    request: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Send password reset email."""
+    user = db.query(User).filter(User.email == request.email).first()
+
+    # Don't reveal if user exists - always return success
+    if user:
+        reset_token = generate_token()
+        user.reset_token = reset_token
+        user.reset_token_expires = get_reset_token_expiry()
+        db.commit()
+
+        background_tasks.add_task(send_password_reset_email, user.email, reset_token)
+
+    return MessageResponse(message="If that email exists, a password reset link has been sent")
+
+
+@router.post("/auth/reset-password", response_model=MessageResponse)
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password with token."""
+    user = db.query(User).filter(User.reset_token == request.token).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    if is_token_expired(user.reset_token_expires):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired",
+        )
+
+    user.hashed_password = hash_password(request.password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+
+    return MessageResponse(message="Password reset successfully")
