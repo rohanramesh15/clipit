@@ -65,22 +65,23 @@
       background: var(--bg-app);
     }
     .header-logo {
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       object-fit: contain;
+      margin-top: -1px;
     }
     .header-brand {
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 0;
     }
     .header-title {
       font-family: 'Love Ya Like A Sister', cursive;
-      font-size: 24px;
-      letter-spacing: 0.5px;
-      -webkit-text-stroke: 1px #9E3B3B;
+      font-size: 26px;
+      letter-spacing: -0.5px;
+      -webkit-text-stroke: 1.2px #9E3B3B;
       paint-order: stroke fill;
-      margin-top: 4px;
+      margin-top: 2px;
     }
     .header-title .lip { color: #EA7B7B; }
     .header-title .it { color: #FFEAD3; }
@@ -227,6 +228,9 @@
       -webkit-box-orient: vertical; overflow: hidden;
       line-height: 1.4;
     }
+    .video-episode-info {
+      font-size: 10px; font-weight: 600; color: var(--text-muted); margin-top: 2px;
+    }
     .video-id-text { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
 
     .words-btn {
@@ -288,6 +292,15 @@
     .audio-btn:hover {
       background: rgba(196,98,90,0.25);
       border-color: rgba(196,98,90,0.5);
+    }
+    .audio-btn.active {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.3);
+      color: #22c55e;
+    }
+    .audio-btn.active:hover {
+      background: rgba(34, 197, 94, 0.25);
+      border-color: rgba(34, 197, 94, 0.5);
     }
     .audio-badge {
       margin-right: 8px;

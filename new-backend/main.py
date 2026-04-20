@@ -7,6 +7,13 @@ from app.models.video import TrackedVideo  # noqa: F401
 from app.models.user_video_watch import UserVideoWatch  # noqa: F401
 from app.models.user_flashcard_progress import UserFlashcardProgress  # noqa: F401
 from app.models.user_review_history import UserReviewHistory  # noqa: F401
+from app.models.deck_settings import DeckSettings  # noqa: F401
+from app.models.user_vocabulary_list import UserVocabularyList  # noqa: F401
+from app.models.user_vocabulary_word import UserVocabularyWord  # noqa: F401
+from app.models.user_vocabulary_settings import UserVocabularySettings  # noqa: F401
+from app.models.user_mined_word import UserMinedWord  # noqa: F401
+from app.models.user_anki_progress import UserAnkiProgress  # noqa: F401
+from app.models.image_cache import ImageCache  # noqa: F401
 from app.api.routes import health, users
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
@@ -16,6 +23,9 @@ from app.api.routes.flashcards import router as flashcards_router
 from app.api.routes.lookup import router as lookup_router
 from app.api.routes.netflix import router as netflix_router
 from app.api.routes.fsrs import router as fsrs_router
+from app.api.routes.decks import router as decks_router
+from app.api.routes.user_vocab import router as user_vocab_router
+from app.api.routes.anki import router as anki_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -24,6 +34,7 @@ Base.metadata.create_all(bind=engine)
 if settings.DATABASE_URL.startswith("sqlite"):
     from sqlalchemy import text
     with engine.connect() as conn:
+        # Migrations for tracked_videos table
         cols = [row[1] for row in conn.execute(text("PRAGMA table_info(tracked_videos)")).fetchall()]
         migrations = [
             ("has_ukrainian",    "BOOLEAN"),
@@ -37,7 +48,38 @@ if settings.DATABASE_URL.startswith("sqlite"):
         for col, coltype in migrations:
             if col not in cols:
                 conn.execute(text(f"ALTER TABLE tracked_videos ADD COLUMN {col} {coltype}"))
+
+        # Migrations for user_flashcard_progress table
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(user_flashcard_progress)")).fetchall()]
+        if "video_id" not in cols:
+            conn.execute(text("ALTER TABLE user_flashcard_progress ADD COLUMN video_id TEXT"))
+
+        # Migrations for users table (password reset)
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+        if "reset_token" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN reset_token TEXT"))
+        if "reset_token_expires" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN reset_token_expires DATETIME"))
+
+        # Migrations for user_video_watches table (actual watch time)
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(user_video_watches)")).fetchall()]
+        if "watch_time_seconds" not in cols:
+            conn.execute(text("ALTER TABLE user_video_watches ADD COLUMN watch_time_seconds INTEGER DEFAULT 0"))
+
         conn.commit()
+
+# PostgreSQL migration: add watch_time_seconds column if it doesn't exist
+if settings.DATABASE_URL.startswith("postgres"):
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        # Check if column exists in PostgreSQL
+        result = conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'user_video_watches' AND column_name = 'watch_time_seconds'
+        """))
+        if not result.fetchone():
+            conn.execute(text("ALTER TABLE user_video_watches ADD COLUMN watch_time_seconds INTEGER DEFAULT 0"))
+            conn.commit()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -63,6 +105,9 @@ app.include_router(flashcards_router, prefix="/api", tags=["flashcards"])
 app.include_router(lookup_router, prefix="/api", tags=["lookup"])
 app.include_router(netflix_router, prefix="/api/netflix", tags=["netflix"])
 app.include_router(fsrs_router, prefix="/api/fsrs", tags=["fsrs"])
+app.include_router(decks_router, prefix="/api/decks", tags=["decks"])
+app.include_router(user_vocab_router, prefix="/api/vocab", tags=["user-vocab"])
+app.include_router(anki_router, prefix="/api/anki", tags=["anki"])
 
 
 @app.get("/")

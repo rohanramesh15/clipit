@@ -3,7 +3,7 @@
  * Uses multiple methods: network interception + DOM observation.
  */
 (function() {
-  console.log('[Deadbird] Injector v2 starting...');
+  console.log('[ClipIt] Injector v2 starting...');
 
   // Track what we've already captured
   const capturedUrls = new Set();
@@ -63,7 +63,7 @@
 
     if (isSubtitle) {
       capturedUrls.add(url);
-      console.log(`[Deadbird] ✓ Subtitle found via ${source}:`, url.substring(0, 80));
+      console.log(`[ClipIt] ✓ Subtitle found via ${source}:`, url.substring(0, 80));
       window.postMessage({ type: 'DEADBIRD_SUBTITLE', url: url, text: text }, '*');
     }
   }
@@ -86,7 +86,7 @@
 
     if (!subtitleContainer) {
       if (!debugLogged) {
-        console.log('[Deadbird] ⚠️ No subtitle container found. Looking for:', selectors.join(', '));
+        console.log('[ClipIt] ⚠️ No subtitle container found. Looking for:', selectors.join(', '));
         debugLogged = true;
       }
       return;
@@ -96,7 +96,7 @@
     if (!textContent || textContent === lastSubtitleText) return;
 
     lastSubtitleText = textContent;
-    console.log('[Deadbird] 📝 Subtitle changed:', textContent.substring(0, 50));
+    console.log('[ClipIt] 📝 Subtitle changed:', textContent.substring(0, 50));
 
     // Request screenshot capture (throttled)
     const now = Date.now();
@@ -107,7 +107,7 @@
       const video = document.querySelector('video');
       const currentTime = video ? Math.floor(video.currentTime) : 0;
 
-      console.log('[Deadbird] 🎯 Requesting screenshot at timestamp:', currentTime);
+      console.log('[ClipIt] 🎯 Requesting screenshot at timestamp:', currentTime);
 
       // Tell content script to capture screenshot
       window.postMessage({
@@ -121,5 +121,5 @@
   // Check for subtitle changes frequently
   setInterval(checkSubtitleElements, 500);
 
-  console.log('[Deadbird] Injector v2 ready (fetch + XHR + DOM)');
+  console.log('[ClipIt] Injector v2 ready (fetch + XHR + DOM)');
 })();

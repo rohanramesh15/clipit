@@ -12,7 +12,7 @@ from app.services.video_store import (
     get_ukrainian_filtered_videos, get_unchecked_ukrainian_videos,
     update_ukrainian_status, get_total_watch_time, update_video_title,
     add_user_watch, get_user_videos, get_user_filtered_videos, get_user_unchecked_videos,
-    delete_user_video,
+    delete_user_video, add_watch_time,
 )
 from app.services.subtitle_service import check_korean_available, check_ukrainian_available
 
@@ -39,6 +39,11 @@ class UkrainianStatusUpdate(BaseModel):
 
 class TitleUpdate(BaseModel):
     title: str
+
+
+class WatchTimeUpdate(BaseModel):
+    video_id: str
+    seconds: int
 
 
 @router.post("/track")
@@ -124,10 +129,42 @@ async def update_title(video_id: str, body: TitleUpdate):
 
 
 @router.get("/stats/watch-time")
-async def get_watch_time_stats(lang: str = "ko"):
-    """Get total watch time statistics for videos in the target language."""
-    stats = get_total_watch_time(lang)
+async def get_watch_time_stats(
+    lang: str = "ko",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get total watch time statistics for the current user's videos in the target language."""
+    stats = get_total_watch_time(db, current_user.id, lang)
     return stats
+
+
+@router.post("/watch-time")
+async def update_watch_time(
+    req: WatchTimeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Add watch time seconds to a video for the current user."""
+    if req.seconds <= 0:
+        raise HTTPException(status_code=400, detail="seconds must be positive")
+    total = add_watch_time(db, current_user.id, req.video_id, req.seconds)
+    return {"status": "ok", "video_id": req.video_id, "total_seconds": total}
+
+
+@router.get("/history/building")
+async def get_building_videos(
+    lang: str = "ko",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return Netflix videos that are still being built (tracked but no subtitles processed yet).
+    These are videos where the user is actively watching but ClipIt hasn't captured subtitles yet.
+    """
+    from app.services.video_store import get_user_building_videos
+    videos = get_user_building_videos(db, current_user.id, lang)
+    return {"total": len(videos), "lang": lang, "videos": videos}
 
 
 @router.delete("/{video_id}")

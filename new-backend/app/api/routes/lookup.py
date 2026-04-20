@@ -1,8 +1,14 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Body, Query
+from fastapi import APIRouter, HTTPException, Body, Query, Depends
+from sqlalchemy.orm import Session
 from app.api.routes.vocabulary import get_frequency_map
 from app.api.routes.flashcards import strip_korean_particles, load_definitions
 from app.services.deepl_service import translate
+from app.api.deps import get_current_user_optional
+from app.core.database import get_db
+from app.models.user import User
+from app.models.user_vocabulary_list import UserVocabularyList
+from app.models.user_vocabulary_word import UserVocabularyWord
 
 router = APIRouter()
 
@@ -35,23 +41,58 @@ def get_part_of_speech(korean: str, english: str) -> str:
 async def get_dictionary(
     search: Optional[str] = Query(None),
     pos: Optional[str] = Query(None),
-    lang: str = Query('ko')
+    lang: str = Query('ko'),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
 ):
     """
     Get all dictionary entries with optional search and part of speech filter.
     Search matches words or English definitions.
     pos can be: noun, verb, adjective, adverb
     lang can be: 'ko' (Korean) or 'uk' (Ukrainian)
+
+    If user is authenticated, includes their uploaded vocab words.
     """
     frequency_map = get_frequency_map(lang)
     deepl_source_lang = 'UK' if lang == 'uk' else 'KO'
+
+    # Track words we've seen to avoid duplicates
+    seen_words = set()
+    entries = []
+
+    # First, add user's vocab words (if authenticated)
+    if current_user:
+        user_vocab_words = (
+            db.query(UserVocabularyWord)
+            .join(UserVocabularyList)
+            .filter(
+                UserVocabularyList.user_id == current_user.id,
+                UserVocabularyList.language == lang
+            )
+            .all()
+        )
+        for vw in user_vocab_words:
+            if vw.word in seen_words:
+                continue  # Skip duplicate words across lists
+            rank = frequency_map.get(vw.word, 10001)
+            part_of_speech = get_part_of_speech(vw.word, vw.translation) if lang == 'ko' else 'noun'
+            entries.append({
+                'word': vw.word,
+                'english': vw.translation,
+                'rank': rank,
+                'pos': part_of_speech,
+                'language': lang,
+                'source': 'user',  # Mark as user-uploaded word
+            })
+            seen_words.add(vw.word)
 
     # For Korean, use the local definitions.json
     # For Ukrainian, generate definitions from frequency list using DeepL
     if lang == 'ko':
         definitions = load_definitions()
-        entries = []
         for word, english in definitions.items():
+            if word in seen_words:
+                continue  # Skip if already added from user vocab
             rank = frequency_map.get(word, 10001)
             part_of_speech = get_part_of_speech(word, english)
             entries.append({
@@ -60,12 +101,14 @@ async def get_dictionary(
                 'rank': rank,
                 'pos': part_of_speech,
                 'language': lang,
+                'source': 'dictionary',
             })
     else:
         # For Ukrainian, use the frequency list and translate top words
-        entries = []
         sorted_words = sorted(frequency_map.items(), key=lambda x: x[1])[:500]  # Top 500 words
         for word, rank in sorted_words:
+            if word in seen_words:
+                continue  # Skip if already added from user vocab
             english = translate(word, source_lang=deepl_source_lang) or "definition not available"
             entries.append({
                 'word': word,
@@ -73,6 +116,7 @@ async def get_dictionary(
                 'rank': rank,
                 'pos': 'noun',  # Default for Ukrainian (no morphology analysis yet)
                 'language': lang,
+                'source': 'dictionary',
             })
 
     # Sort by frequency rank (most common first)
