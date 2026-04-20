@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Volume2, Loader2, Filter } from 'lucide-react';
+import { Search, Volume2, Loader2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
@@ -77,6 +77,8 @@ export function DictionaryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [posFilter, setPosFilter] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   // Preload speech synthesis voices
   useEffect(() => {
@@ -123,6 +125,17 @@ export function DictionaryPage() {
     );
   });
 
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, posFilter]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredEntries.length);
+  const paginatedEntries = filteredEntries.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
@@ -158,7 +171,9 @@ export function DictionaryPage() {
           </h1>
           <div className="flex items-center gap-2">
             <span className="text-sm text-secondary">
-              {filteredEntries.length} words found
+              {filteredEntries.length > 0
+                ? `Showing ${startIndex + 1}-${endIndex} of ${filteredEntries.length} words`
+                : '0 words found'}
             </span>
           </div>
         </div>
@@ -199,7 +214,7 @@ export function DictionaryPage() {
 
       {/* Word List */}
       <div id="section-word-list" className="space-y-3">
-        {filteredEntries.map((entry, index) => (
+        {paginatedEntries.map((entry, index) => (
           <motion.div
             key={entry.word}
             initial={{ opacity: 0, y: 10 }}
@@ -247,7 +262,7 @@ export function DictionaryPage() {
           </motion.div>
         ))}
 
-        {filteredEntries.length === 0 && (
+        {paginatedEntries.length === 0 && (
           <div className="text-center py-20">
             <p className="text-muted text-lg">
               No words found matching "{searchTerm}"
@@ -255,6 +270,80 @@ export function DictionaryPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8 pb-8">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-1">
+            {/* First page */}
+            {currentPage > 3 && (
+              <>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  className="w-10 h-10 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary transition-all"
+                >
+                  1
+                </button>
+                {currentPage > 4 && (
+                  <span className="px-2 text-muted">...</span>
+                )}
+              </>
+            )}
+
+            {/* Page numbers around current */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(page => {
+                if (totalPages <= 7) return true;
+                if (page === 1 || page === totalPages) return false;
+                return Math.abs(page - currentPage) <= 2;
+              })
+              .map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-10 h-10 rounded-lg border transition-all ${
+                    currentPage === page
+                      ? 'bg-accent text-app border-accent font-semibold'
+                      : 'bg-surface border-white/10 text-secondary hover:bg-surface-hover hover:text-primary'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+            {/* Last page */}
+            {currentPage < totalPages - 2 && totalPages > 7 && (
+              <>
+                {currentPage < totalPages - 3 && (
+                  <span className="px-2 text-muted">...</span>
+                )}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="w-10 h-10 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary transition-all"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
