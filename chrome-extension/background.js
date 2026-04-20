@@ -59,7 +59,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ─── YouTube auto-tracking via tab URL change ────────────────────────────────
-// Deduplication: don't re-track the same video within 60 seconds
+// Deduplication: don't re-track the same video within 5 seconds (reduced from 60s to allow reloads)
 const recentlyTracked = new Map(); // videoId → timestamp
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -74,8 +74,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!videoId) return;
 
   // Skip if we tracked this video recently (content script may also fire)
+  // Reduced to 5 seconds so reloads work, but still prevents duplicate tracking on SPA navigation
   const lastTime = recentlyTracked.get(videoId);
-  if (lastTime && Date.now() - lastTime < 60000) return;
+  if (lastTime && Date.now() - lastTime < 5000) return;
   recentlyTracked.set(videoId, Date.now());
 
   // Don't use tab.title — it's often stale (shows previous video's title during navigation)
@@ -325,7 +326,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'TRACK_VIDEO') {
     console.log(`[ClipIt] TRACK_VIDEO received: ${msg.videoId} — ${msg.title}`);
     const lastTime = recentlyTracked.get(msg.videoId);
-    if (lastTime && Date.now() - lastTime < 60000) {
+    // Reduced dedup window to 5 seconds (was 60s) to allow page reloads to re-trigger tracking
+    if (lastTime && Date.now() - lastTime < 5000) {
       // Already tracked recently by tabs.onUpdated — just update title if better
       console.log(`[ClipIt] Video ${msg.videoId} already tracked recently, skipping`);
       if (msg.title && msg.title !== 'Unknown') {
