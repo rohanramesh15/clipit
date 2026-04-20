@@ -101,6 +101,11 @@ function AppInner() {
         return <VideoPage />;
     }
   };
+  // Show loading state while checking auth - prevents landing page flash for logged-in users
+  if (isLoading) {
+    return <div className="min-h-screen bg-app" />;
+  }
+
   // Render top-level views
   if (appView === 'landing') {
     return <LandingPage onNavigate={setAppView} />;
@@ -122,10 +127,6 @@ function AppInner() {
   }
   if (appView === 'privacy') {
     return <PrivacyPage onNavigate={setAppView} />;
-  }
-  // Show nothing while checking stored token
-  if (isLoading) {
-    return <div className="min-h-screen bg-app" />;
   }
 
   // Main App View
