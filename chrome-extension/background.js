@@ -5,6 +5,9 @@
  * Supports YouTube and Netflix.
  */
 
+// Import subtitle fetcher
+importScripts('subtitle-fetcher.js');
+
 const API = 'https://project-deadbird-backend.fly.dev/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -656,10 +659,44 @@ async function runVocabPipeline(videoId, lang = 'ko') {
   await chrome.storage.local.set({ [cacheKey]: { loading: true, cachedAt: Date.now() } });
 
   try {
-    // Step 1: fetch/cache subtitles (skip for Netflix - already captured)
+    // Step 1: fetch subtitles (skip for Netflix - already captured)
     if (!videoId.startsWith('netflix_')) {
-      const subRes = await fetch(`${API}/subtitles/${videoId}?lang=${lang}`);
-      if (!subRes.ok) throw new Error('subtitles');
+      console.log(`[Deadbird] Fetching subtitles for ${videoId} (${lang})`);
+
+      // Fetch subtitles directly from YouTube using the user's browser
+      const subtitleData = await fetchAllSubtitles(videoId, lang);
+
+      // Upload subtitles to backend for storage
+      try {
+        const uploadRes = await fetch(`${API}/subtitles/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            video_id: videoId,
+            lang: lang,
+            subtitles: subtitleData.subtitles,
+            has_korean: subtitleData.has_korean,
+            has_ukrainian: subtitleData.has_ukrainian
+          }),
+        });
+
+        if (uploadRes.ok) {
+          console.log(`[Deadbird] Uploaded ${subtitleData.subtitles.length} subtitles to backend`);
+        } else {
+          console.error('[Deadbird] Failed to upload subtitles:', await uploadRes.text());
+        }
+      } catch (uploadError) {
+        console.error('[Deadbird] Error uploading subtitles:', uploadError);
+      }
+
+      // If no subtitles were found, cache empty result
+      if (!subtitleData.subtitles || subtitleData.subtitles.length === 0) {
+        console.log(`[Deadbird] No subtitles found for ${videoId}`);
+        await chrome.storage.local.set({
+          [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
+        });
+        return;
+      }
     }
 
     // Step 2: vocabulary (all words in freq list, no level filter)
@@ -668,8 +705,8 @@ async function runVocabPipeline(videoId, lang = 'ko') {
     const vocab = await vocabRes.json();
 
     if (!vocab.total_words) {
-      // No target language vocab found — update status and cache empty result
-      await updateStatus(videoId, lang, false);
+      // No words matched frequency list, but video may still have the language
+      // Don't mark as false - just cache empty words
       await chrome.storage.local.set({
         [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
       });
@@ -707,13 +744,14 @@ async function runVocabPipeline(videoId, lang = 'ko') {
       }));
     }
 
-    // Update language status to true
+    // Update language status to true (only if words found)
     await updateStatus(videoId, lang, true);
 
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, words, total: words.length, cachedAt: Date.now() }
     });
-  } catch {
+  } catch (error) {
+    console.error('[Deadbird] Vocab pipeline error:', error);
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, error: true, words: null, cachedAt: Date.now() }
     });

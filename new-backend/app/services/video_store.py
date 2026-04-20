@@ -265,17 +265,22 @@ def get_user_videos(db: Session, user_id: int) -> list[dict]:
 
 
 def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> list[dict]:
-    """Return a user's videos that have subtitles in the target language."""
+    """
+    Return a user's videos that have or might have subtitles in the target language.
+    Shows videos where the language status is True or NULL (unchecked/processing).
+    Only excludes videos explicitly marked as False (definitely no subtitles).
+    """
     watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
     if not watches:
         return []
     video_ids = [w.video_id for w in watches]
     watch_times = {w.video_id: w.watched_at for w in watches}
     query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
+    # Filter to show videos with language = True OR NULL (not False)
     if lang == "uk":
-        query = query.filter(TrackedVideo.has_ukrainian == True)
+        query = query.filter((TrackedVideo.has_ukrainian == True) | (TrackedVideo.has_ukrainian == None))
     else:
-        query = query.filter(TrackedVideo.has_korean == True)
+        query = query.filter((TrackedVideo.has_korean == True) | (TrackedVideo.has_korean == None))
     rows = query.all()
     return [
         {
