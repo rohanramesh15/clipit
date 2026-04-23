@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+declare function gtag(...args: unknown[]): void;
 import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, Lock, Loader2 } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
@@ -20,6 +21,11 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     setError('');
     try {
       await login(email, password, rememberMe);
+      gtag('event', 'conversion', {
+        'send_to': 'AW-18115152337/s3QjCOHmyqEcENGT_b1D',
+        'value': 0,
+        'currency': 'USD'
+      });
       onNavigate('app');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');

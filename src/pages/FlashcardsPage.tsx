@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+declare function gtag(...args: unknown[]): void;
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RotateCw,
@@ -473,6 +474,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
     window.speechSynthesis.speak(utterance);
   }, [language]);
+
+  useEffect(() => {
+    gtag('event', 'conversion', {
+      'send_to': 'AW-18115152337/s3QjCOHmyqEcENGT_b1D',
+      'value': 0,
+      'currency': 'USD'
+    });
+  }, []);
 
   // Load folders from localStorage on mount
   useEffect(() => {
@@ -1109,7 +1118,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         const filteredRes = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers });
 
         if (!filteredRes.ok) throw new Error();
