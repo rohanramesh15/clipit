@@ -504,9 +504,11 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
   }, [token]);
 
-  // Fetch vocabulary lists on mount
+  // Fetch vocabulary lists on mount and sync enrolled classes
   useEffect(() => {
     fetchVocabLists();
+    // Auto-sync enrolled classes to get any new vocabulary
+    syncEnrolledClasses();
   }, [fetchVocabLists]);
 
   // Set default to "my words" if user has vocab lists and setting is enabled
@@ -567,6 +569,48 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       console.error('Error fetching enrolled classes:', err);
     } finally {
       setIsLoadingEnrolled(false);
+    }
+  }
+
+  // Sync all enrolled classes to get new vocabulary
+  async function syncEnrolledClasses() {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/vocab/enrolled-classes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const classes = data.classes || [];
+
+      let totalNewWords = 0;
+      for (const cls of classes) {
+        try {
+          const syncRes = await fetch(`${API_BASE_URL}/vocab/sync-class`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ class_code: cls.class_code }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            totalNewWords += syncData.words_added || 0;
+          }
+        } catch (err) {
+          console.error(`Error syncing class ${cls.class_code}:`, err);
+        }
+      }
+
+      // Refresh vocab lists if any new words were added
+      if (totalNewWords > 0) {
+        console.log(`Synced ${totalNewWords} new words from enrolled classes`);
+        fetchVocabLists();
+      }
+    } catch (err) {
+      console.error('Error syncing enrolled classes:', err);
     }
   }
 
