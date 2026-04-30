@@ -706,6 +706,156 @@ KOREAN3_VOCAB = {
             ("V-(으)ㄴ", "noun-modifying form (past tense verb)", "어제 먹은 음식이 뭐예요?"),
         ]
     },
+    "L13_C1": {
+        "name": "Lesson 13 - Conversation 1",
+        "words": [
+            ("도시", "city", "저는 도시에서 살고 싶어요."),
+            ("몸조리", "taking care of one's health (esp. while recovering)", "몸조리 잘 하세요!"),
+            ("엄마", "mom", "엄마가 보고 싶어서 전화를 했어요."),
+            ("감기에 걸리다", "to catch a cold", "요즘 피곤해서 감기에 걸렸어요."),
+            ("돕다", "to help", "저를 좀 도와 주세요!"),
+            ("바꾸다", "to change (something)", "제니가 헤어스타일을 바꿨어요."),
+            ("빨래하다", "to do laundry", "저는 주말마다 빨래하고 청소해요."),
+            ("부치다", "to send / to mail", "부모님께 발렌타인스 카드를 부쳤어요."),
+            ("비(가) 오다", "to rain", "지금 비가 많이 오네요."),
+            ("빌리다", "to borrow", "도서관에서 책을 빌렸어요."),
+            ("빌려주다", "to lend", "펜 좀 빌려주세요."),
+            ("실례하다", "to excuse oneself / excuse me", "실례하지만, 누구세요?"),
+            ("배(가) 고프다", "to be hungry", "아침을 못 먹어서 배고파요."),
+            ("나중에", "later", "나중에 다시 전화 주세요."),
+            ("다시", "again", "다시 말씀해 주세요."),
+            ("여보세요", "hello (on the phone)", "여보세요?"),
+            ("이따가", "in a little while / later (today)", "이따가 만나요."),
+            ("이젠", "now (contracted from 이제는)", "이젠 한국어가 어렵지 않아요."),
+            ("-(으)ㄹ게요", "I'll ~ (speaker's promise/intention)", "제가 도와줄게요."),
+            ("-아/어 주다", "to do (something) for someone", "여기에 이름을 좀 써 주세요."),
+            ("-아/어야 되다", "have to / must (do something)", "주말에 빨래해야 돼요."),
+            ("따르릉", "ring ring (phone sound)", "따르릉, 따르릉"),
+            ("허리", "lower back / waist", "허리가 아파서 병원에 갔어요."),
+            ("어깨", "shoulder", "어제 어깨 운동을 많이 했어요."),
+            ("푹 쉬다", "to rest well / get plenty of rest", "주말에 푹 쉬세요!"),
+        ]
+    },
+    "L13_C2": {
+        "name": "Lesson 13 - Conversation 2",
+        "words": [
+            ("그동안", "in the meantime / during that time / lately", "그동안 보고 싶었어요. 잘 지냈어요?"),
+            ("뉴스", "news", "어제 뉴스를 봤어요?"),
+            ("메시지", "message", "친구한테 메시지를 받았어요."),
+            ("물가", "(cost of) prices / cost of living", "요즘 물가가 비싸요."),
+            ("반", "half", "아니요. 반밖에 못 했어요."),
+            ("발", "foot", "발이 아파서 하이힐을 못 신었어요."),
+            ("비", "rain", "비가 많이 오네요!"),
+            ("신발", "shoes", "신발을 백화점에서 샀는데 좀 비쌌어요."),
+            ("인터뷰", "interview", "내일 인터뷰가 있어서 오늘 준비할 거예요."),
+            ("새", "new (modifier)", "새 신발을 사고 싶어요."),
+            ("시끄럽다", "to be loud / noisy", "헤비 메탈 음악은 좀 시끄러워요."),
+            ("남기다", "to leave (something) behind / leave over", "배가 불러서 음식을 남겼어요."),
+            ("돈이 들다", "to cost money / take money", "레고 때문에 돈이 많이 들었어요."),
+            ("들어가다", "to enter / go in", "동생이 MIT에 들어갔어요."),
+            ("부탁하다", "to ask a favor", "친구가 저한테 부탁했어요."),
+            ("그만", "stop (doing) / no more", "그만 하세요."),
+            ("때문에", "because of (noun)", "눈 때문에 차가 많이 막혀요."),
+            ("잠깐만", "just a moment / hold on", "잠깐만 기다려 주세요."),
+            ("-겠-", "would (intention/will)", "제가 하겠습니다!"),
+            ("잘 먹겠습니다", "I'll enjoy the meal (lit. I will eat well)", "잘 먹겠습니다!"),
+            ("00 좀 부탁합니다", "May I speak to 00?", "여보세요? 제니 씨 좀 부탁합니다."),
+            ("생활비", "living expenses", "부모님께 생활비를 받았어요."),
+            ("돈을 벌다", "to earn money", "아르바이트해서 돈을 많이 벌었어요."),
+            ("통화(하다)", "to talk on the phone", "누구하고 통화하고 있어요?"),
+            ("이", "tooth / teeth", "이가 아파요."),
+        ]
+    },
+    "L14_C1": {
+        "name": "Lesson 14 - Conversation 1",
+        "words": [
+            ("공항", "airport", "공항에 비행기도 많고 사람들도 많아요."),
+            ("기사", "driver (taxi, bus, etc.)", "버스 기사님이 친절하세요."),
+            ("길", "road / street / way", "오늘이 토요일이라서 길이 많이 막히네요."),
+            ("모레", "the day after tomorrow", "내일 모레가 토요일이에요."),
+            ("손님", "guest / customer", "식당에 손님이 많이 왔어요."),
+            ("아저씨", "mister / middle-aged man", "아저씨께서 길을 가르쳐 주셨어요."),
+            ("안부", "regards / greetings (to pass along)", "부모님께 제 안부 좀 전해 주세요."),
+            ("연락", "contact / getting in touch", "서울에서 연락이 왔어요?"),
+            ("연락하다", "to contact / to get in touch", "동생이 오랜만에 저한테 연락했어요."),
+            ("인천", "Incheon (city west of Seoul)", "인천에 공항이 있어요."),
+            ("전", "before", "수업 전에 화장실에 갔어요."),
+            ("후", "after", "수업 후에 아침을 먹으러 카페에 갔어요."),
+            ("휴일", "day off / holiday", "휴일에도 공부하세요?"),
+            ("공휴일", "public holiday / national holiday", "공휴일은 모두가 좋아하는 날이에요."),
+            ("적어도", "at least", "적어도 오늘까지 숙제를 다 하세요."),
+            ("빨리", "quickly / fast", "빨리 먹고 수업에 가야 돼요."),
+            ("건너다", "to cross (a street, river, etc.)", "저기에서 길을 건너세요."),
+            ("(돈을) 내다", "to pay (money)", "어제 식당에서 누가 돈을 냈어요?"),
+            ("수고하다", "to work hard / put in effort", "수고하셨습니다."),
+            ("운전하다", "to drive", "택시 기사 아저씨께서 운전을 잘 하세요."),
+            ("전하다", "to pass on / convey / deliver (a message)", "제 말을 전해 주세요."),
+            ("N(이)라서", "because (it) is N", "학생이라서 돈이 많이 없어요."),
+            ("V/A-지 못하다", "cannot / was unable to (do something)", "어제 너무 바빠서 전화하지 못했어요."),
+            ("내일 모레", "the day after tomorrow", "내일 모레 만나요."),
+            ("전화비", "phone bill", "7월 전화비가 많이 나왔어요."),
+        ]
+    },
+    "L14_C2": {
+        "name": "Lesson 14 - Conversation 2",
+        "words": [
+            ("게임", "game", "비디오 게임을 좋아하세요?"),
+            ("계단", "stairs", "계단 옆에 교실이 있어요."),
+            ("곳", "place / spot", "보스턴에서 좋아하는 곳이 어디예요?"),
+            ("노래방", "karaoke (room)", "노래방에 가서 친구하고 놀았어요."),
+            ("목소리", "voice", "제니는 목소리가 작아요."),
+            ("엘리베이터", "elevator", "엘리베이터에 4명이 탔어요."),
+            ("웬일", "what's the matter? / what brings you here?", "웬일이에요?"),
+            ("정류장", "(bus) stop", "버스 정류장이 어디예요?"),
+            ("출구", "exit", "지하철 출구에서 만나요."),
+            ("큰아버지", "uncle (father's older brother)", "큰아버지께서 키가 아주 크세요."),
+            ("택시비", "taxi fare", "택시비가 많이 나왔어요."),
+            ("휴게실", "lounge / break room", "휴게실에서 커피를 마셨어요."),
+            ("더", "more", "밥을 더 주세요."),
+            ("배(가) 부르다", "to be full (after eating)", "밥을 많이 먹어서 배불러요."),
+            ("졸리다", "to be drowsy / sleepy", "어제 늦게 자서 지금 너무 졸려요."),
+            ("(노래) 부르다", "to sing (a song)", "노래방에서 노래를 많이 불렀어요."),
+            ("도착하다", "to arrive", "한국 인천 공항에 도착했어요."),
+            ("마중 나오다", "to come out to greet/pick someone up (toward speaker)", "친구가 공항에 마중 나왔어요."),
+            ("마중 나가다", "to go out to greet/pick someone up (away from speaker)", "내일 부모님을 마중 나갈 거예요."),
+            ("복잡하다", "to be crowded / complicated", "뉴욕은 차가 많아서 교통이 복잡해요."),
+            ("(목이) 마르다", "to be thirsty", "목이 말라서 물을 마시고 싶어요."),
+            ("졸다", "to doze off / nod off", "수업 시간에 졸지 마세요!"),
+            ("A-게", "adverbial suffix (turns adjective into adverb)", "어제 늦게 자서 오늘 아침에도 일찍 못 일어났어요."),
+            ("-지 말다 (마세요)", "don't (do something)", "수업 시간에 늦지 마세요."),
+            ("-지 마세요", "don't (do something) — polite command form", "핸드폰을 오래 보지 마세요. 눈이 아파요."),
+        ]
+    },
+    "L15_C1": {
+        "name": "Lesson 15 - Conversation 1",
+        "words": [
+            ("까만색", "black (color)", "까만색 고양이가 귀여워요."),
+            ("사이즈", "size", "사이즈가 큰 셔츠를 샀어요."),
+            ("세일", "sale", "세일이라서 옷을 싸게 샀어요."),
+            ("양말", "socks", "날씨가 추워서 따뜻한 양말을 신었어요."),
+            ("운동화", "sneakers / athletic shoes", "운동화를 사러 백화점에 갔어요."),
+            ("점원", "store clerk / salesperson", "백화점 점원이 친절했어요."),
+            ("금방", "soon / in a moment", "수업이 금방 시작할 거예요."),
+            ("어서", "quickly / please (welcoming)", "어서 오세요."),
+            ("번 (counter)", "times (counter for occurrences)", "책을 두 번 읽었어요."),
+            ("켤레 (counter)", "pair (counter for shoes/socks)", "양말 한 켤레를 샀어요."),
+            ("V-(으)ㄹ 수 있다", "can (do something)", "컴퓨터 좀 쓸 수 있을까요?"),
+            ("V-(으)ㄹ 수 없다", "cannot (do something)", "수업이 있어서 지금 갈 수 없어요."),
+            ("갈아입다", "to change (clothes)", "아침에 옷을 갈아입었어요."),
+            ("갈아타다", "to transfer (transportation)", "뉴욕에서 비행기를 갈아타야 돼요."),
+            ("갖고 가다/오다", "to take/bring (something) along", "친구가 선물을 갖고 왔어요."),
+            ("갖고 다니다", "to carry around (regularly)", "가방에 물을 갖고 다녀요."),
+            ("갖다 놓다", "to put / place (something somewhere)", "이 케이크를 책상 위에 갖다 놓으세요."),
+            ("갖다 주다", "to bring (something) to someone", "케이크를 미나한테 갖다 주세요."),
+            ("걸어가다", "to go on foot / walk (away)", "학교에 걸어갔어요."),
+            ("걸어오다", "to come on foot / walk (toward)", "학교에 걸어왔어요."),
+            ("걸어다니다", "to walk around / commute on foot", "저는 학교에 걸어다녀요."),
+            ("돌아오다", "to come back / return", "언제 한국에서 돌아왔어요?"),
+            ("타고 가다/오다", "to go/come by (vehicle)", "버스를 타고 학교에 갔어요."),
+            ("타고 다니다", "to commute by (vehicle)", "저는 학교에 버스를 타고 다녀요."),
+            ("N에", "for / per (price/quantity)", "사과 세 개에 삼 천원이에요."),
+        ]
+    },
 }
 
 # Hardcoded class definitions (can be moved to database later)
@@ -719,8 +869,16 @@ CLASS_DEFINITIONS = {
             {"key": "L11_C2", "name": "Korean 3 - L11 Conversation 2"},
             {"key": "L12_C1", "name": "Korean 3 - L12 Conversation 1"},
             {"key": "L12_C2", "name": "Korean 3 - L12 Conversation 2"},
+            {"key": "L13_C1", "name": "Korean 3 - L13 Conversation 1"},
+            {"key": "L13_C2", "name": "Korean 3 - L13 Conversation 2"},
+            {"key": "L14_C1", "name": "Korean 3 - L14 Conversation 1"},
+            {"key": "L14_C2", "name": "Korean 3 - L14 Conversation 2"},
+            {"key": "L15_C1", "name": "Korean 3 - L15 Conversation 1"},
             {"key": "L11_ALL", "name": "Korean 3 - Lesson 11 (All)"},
             {"key": "L12_ALL", "name": "Korean 3 - Lesson 12 (All)"},
+            {"key": "L13_ALL", "name": "Korean 3 - Lesson 13 (All)"},
+            {"key": "L14_ALL", "name": "Korean 3 - Lesson 14 (All)"},
+            {"key": "L15_ALL", "name": "Korean 3 - Lesson 15 (All)"},
             {"key": "ALL", "name": "Korean 3 - All Vocab"},
         ]
     },
@@ -782,16 +940,31 @@ def _get_words_for_key(key: str) -> list:
             all_words.extend(KOREAN3_VOCAB[vocab_key]["words"])
         return dedupe_words(all_words)
     elif key == "L11_ALL":
-        # Combine L11 conversations
         words = []
         words.extend(KOREAN3_VOCAB["L11_C1"]["words"])
         words.extend(KOREAN3_VOCAB["L11_C2"]["words"])
         return dedupe_words(words)
     elif key == "L12_ALL":
-        # Combine L12 conversations
         words = []
         words.extend(KOREAN3_VOCAB["L12_C1"]["words"])
         words.extend(KOREAN3_VOCAB["L12_C2"]["words"])
+        return dedupe_words(words)
+    elif key == "L13_ALL":
+        words = []
+        words.extend(KOREAN3_VOCAB["L13_C1"]["words"])
+        words.extend(KOREAN3_VOCAB["L13_C2"]["words"])
+        return dedupe_words(words)
+    elif key == "L14_ALL":
+        words = []
+        words.extend(KOREAN3_VOCAB["L14_C1"]["words"])
+        words.extend(KOREAN3_VOCAB["L14_C2"]["words"])
+        return dedupe_words(words)
+    elif key == "L15_ALL":
+        words = []
+        if "L15_C1" in KOREAN3_VOCAB:
+            words.extend(KOREAN3_VOCAB["L15_C1"]["words"])
+        if "L15_C2" in KOREAN3_VOCAB:
+            words.extend(KOREAN3_VOCAB["L15_C2"]["words"])
         return dedupe_words(words)
     elif key in KOREAN3_VOCAB:
         return KOREAN3_VOCAB[key]["words"]
@@ -1001,4 +1174,121 @@ def leave_class(
         class_name=class_name,
         lists_deleted=lists_count,
         words_deleted=total_words
+    )
+
+
+class SyncClassResponse(BaseModel):
+    status: str
+    class_name: str
+    lists_added: int
+    words_added: int
+    lists_updated: int
+
+
+@router.post("/sync-class", response_model=SyncClassResponse)
+def sync_class(
+    request: JoinClassRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Sync a class to get any new vocabulary lists or words added since joining.
+    This will add any new lists that weren't there before and update existing
+    combined lists (like ALL, L11_ALL) with new words.
+    """
+    class_code = request.class_code.upper().strip()
+
+    if class_code not in CLASS_DEFINITIONS:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    class_def = CLASS_DEFINITIONS[class_code]
+    class_name = class_def["name"]
+    language = class_def["language"]
+
+    # Check if user is enrolled (has at least one list from this class)
+    if class_def.get("type") == "multi_list":
+        list_names = [lst["name"] for lst in class_def["lists"]]
+        existing_lists = db.query(UserVocabularyList).filter(
+            UserVocabularyList.user_id == current_user.id,
+            UserVocabularyList.name.in_(list_names)
+        ).all()
+        existing_list_names = {lst.name for lst in existing_lists}
+    else:
+        raise HTTPException(status_code=400, detail="Sync only supported for multi-list classes")
+
+    if not existing_lists:
+        raise HTTPException(status_code=400, detail="You're not enrolled in this class. Use join-class first.")
+
+    lists_added = 0
+    words_added = 0
+    lists_updated = 0
+
+    for list_config in class_def["lists"]:
+        list_name = list_config["name"]
+        words = _get_words_for_key(list_config["key"])
+
+        if list_name not in existing_list_names:
+            # Create new list
+            vocab_list = UserVocabularyList(
+                user_id=current_user.id,
+                name=list_name,
+                language=language,
+                word_count=0,
+            )
+            db.add(vocab_list)
+            db.flush()
+
+            for idx, (word, translation, example) in enumerate(words):
+                vocab_word = UserVocabularyWord(
+                    list_id=vocab_list.id,
+                    word=word,
+                    translation=translation,
+                    example=example,
+                    sort_order=idx,
+                )
+                db.add(vocab_word)
+
+            vocab_list.word_count = len(words)
+            words_added += len(words)
+            lists_added += 1
+        else:
+            # Update existing list - check for new words
+            existing_list = next(lst for lst in existing_lists if lst.name == list_name)
+            existing_words = db.query(UserVocabularyWord.word).filter(
+                UserVocabularyWord.list_id == existing_list.id
+            ).all()
+            existing_word_set = {w[0] for w in existing_words}
+
+            new_words_count = 0
+            max_order = db.query(UserVocabularyWord.sort_order).filter(
+                UserVocabularyWord.list_id == existing_list.id
+            ).order_by(UserVocabularyWord.sort_order.desc()).first()
+            next_order = (max_order[0] + 1) if max_order else 0
+
+            for word, translation, example in words:
+                if word not in existing_word_set:
+                    vocab_word = UserVocabularyWord(
+                        list_id=existing_list.id,
+                        word=word,
+                        translation=translation,
+                        example=example,
+                        sort_order=next_order,
+                    )
+                    db.add(vocab_word)
+                    next_order += 1
+                    new_words_count += 1
+
+            if new_words_count > 0:
+                existing_list.word_count += new_words_count
+                words_added += new_words_count
+                lists_updated += 1
+
+    db.commit()
+
+    return SyncClassResponse(
+        status="ok",
+        class_name=class_name,
+        lists_added=lists_added,
+        words_added=words_added,
+        lists_updated=lists_updated
     )
