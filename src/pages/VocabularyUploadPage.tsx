@@ -26,7 +26,7 @@ const uploadPageTips: HelpTip[] = [
   },
   {
     id: 'csv-upload',
-    text: 'Upload a CSV file with two columns: word and translation.',
+    text: 'Upload a CSV with word and translation. You can optionally add example sentences in columns 3-4.',
     targetId: 'section-csv-upload',
     position: 'right',
   },
@@ -56,6 +56,8 @@ interface VocabWord {
   id: number;
   word: string;
   translation: string;
+  example?: string;
+  example_translation?: string;
   sort_order: number;
 }
 
@@ -450,27 +452,33 @@ export function VocabularyUploadPage() {
               <div>
                 <p className="font-semibold text-primary">File Requirements</p>
                 <p className="text-xs text-secondary mt-0.5">
-                  Your CSV file should follow this format
+                  Your CSV file should follow one of these formats
                 </p>
               </div>
             </div>
 
-            <div className="bg-app/50 rounded-xl p-4 font-mono text-sm">
-              <p className="text-muted mb-2"># Example CSV content:</p>
+            <div className="bg-app/50 rounded-xl p-4 font-mono text-sm mb-4">
+              <p className="text-muted mb-2"># Basic format (word + translation):</p>
               <p className="text-secondary">word,translation</p>
               <p className="text-primary">안녕하세요,Hello</p>
               <p className="text-primary">감사합니다,Thank you</p>
-              <p className="text-primary">사랑해요,I love you</p>
+            </div>
+
+            <div className="bg-app/50 rounded-xl p-4 font-mono text-sm">
+              <p className="text-muted mb-2"># With example sentences (optional):</p>
+              <p className="text-secondary">word,translation,example,example_translation</p>
+              <p className="text-primary">사랑해요,I love you,나는 너를 사랑해요,I love you</p>
+              <p className="text-primary">먹다,to eat,밥을 먹어요,I eat rice</p>
             </div>
 
             <ul className="mt-4 space-y-2 text-sm text-secondary">
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
-                First column: Korean word
+                Columns 1-2: Word and translation (required)
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
-                Second column: English translation
+                Columns 3-4: Example sentence and translation (optional)
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
@@ -683,10 +691,20 @@ export function VocabularyUploadPage() {
                             {expandedListWords.map((word) => (
                               <div
                                 key={word.id}
-                                className="flex items-center gap-3 p-3 bg-app/30 rounded-lg"
+                                className="p-3 bg-app/30 rounded-lg"
                               >
-                                <span className="font-medium text-primary flex-1">{word.word}</span>
-                                <span className="text-secondary text-sm">{word.translation}</span>
+                                <div className="flex items-center gap-3">
+                                  <span className="font-medium text-primary flex-1">{word.word}</span>
+                                  <span className="text-secondary text-sm">{word.translation}</span>
+                                </div>
+                                {word.example && (
+                                  <div className="mt-2 pt-2 border-t border-white/5 text-xs">
+                                    <p className="text-muted">{word.example}</p>
+                                    {word.example_translation && (
+                                      <p className="text-muted/70 mt-0.5">{word.example_translation}</p>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
