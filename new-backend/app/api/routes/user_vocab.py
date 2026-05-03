@@ -32,6 +32,8 @@ class VocabWordResponse(BaseModel):
     id: int
     word: str
     translation: str
+    example: Optional[str] = None
+    example_translation: Optional[str] = None
     sort_order: int
 
     class Config:
@@ -82,8 +84,14 @@ async def upload_vocabulary_list(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Upload a CSV file with Korean vocabulary words.
-    CSV format: word,translation (with optional header row)
+    Upload a CSV file with vocabulary words.
+
+    Supported CSV formats:
+    - 2 columns: word,translation
+    - 3 columns: word,translation,example
+    - 4 columns: word,translation,example,example_translation
+
+    Header row is optional (auto-detected).
     """
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="File must be a CSV")
@@ -103,7 +111,7 @@ async def upload_vocabulary_list(
 
     # Skip header if it looks like a header
     start_idx = 0
-    if rows[0] and rows[0][0].lower() in ['word', 'korean', '단어', 'vocabulary']:
+    if rows[0] and rows[0][0].lower() in ['word', 'korean', '단어', 'vocabulary', 'term']:
         start_idx = 1
 
     # Create vocabulary list
@@ -127,12 +135,21 @@ async def upload_vocabulary_list(
         if len(row) >= 2:
             word = row[0].strip()
             translation = row[1].strip()
+
+            # Optional: example sentence (column 3)
+            example = row[2].strip() if len(row) >= 3 and row[2].strip() else None
+
+            # Optional: example translation (column 4)
+            example_translation = row[3].strip() if len(row) >= 4 and row[3].strip() else None
+
             if word and translation and word not in seen_words:
                 seen_words.add(word)
                 batch.append(UserVocabularyWord(
                     list_id=vocab_list.id,
                     word=word,
                     translation=translation,
+                    example=example,
+                    example_translation=example_translation,
                     sort_order=words_added
                 ))
                 words_added += 1
@@ -354,6 +371,8 @@ def get_vocabulary_list(
                 id=w.id,
                 word=w.word,
                 translation=w.translation,
+                example=w.example,
+                example_translation=w.example_translation,
                 sort_order=w.sort_order
             )
             for w in words
