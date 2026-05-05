@@ -382,9 +382,9 @@ def check_ukrainian_available(video_id: str) -> bool:
 
 
 def load_cached_subtitles_ukrainian(video_id: str) -> dict | None:
-    """Load Ukrainian subtitle cache from disk, no network call."""
+    """Load Ukrainian subtitle cache from disk, then Neon fallback."""
     cache_file = _cache_path_uk(video_id)
     if cache_file.exists():
         with open(cache_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return None
+    return get_subtitles(video_id)

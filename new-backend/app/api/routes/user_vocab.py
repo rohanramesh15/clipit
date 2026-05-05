@@ -1,7 +1,7 @@
 import csv
 import io
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -80,6 +80,7 @@ class RevertToTTSRequest(BaseModel):
 async def upload_vocabulary_list(
     file: UploadFile = File(...),
     name: Optional[str] = None,
+    language: str = Form('ko'),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -119,7 +120,7 @@ async def upload_vocabulary_list(
     vocab_list = UserVocabularyList(
         user_id=current_user.id,
         name=list_name,
-        language='ko',
+        language=language,
         word_count=0
     )
     db.add(vocab_list)
@@ -227,17 +228,8 @@ def get_vocab_list_flashcards(
 ):
     """
     Get flashcard-formatted data from user vocabulary lists.
-    If list_id is provided, returns cards from that list only.
-    Otherwise returns cards from all lists for the user.
-
-    Returns TTS cards by default, but auto-upgrades to video cards
-    if the word appeared in any watched video.
+    Returns stored words directly from the database — instant, no video mining.
     """
-    from app.models.user_video_watch import UserVideoWatch
-    from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
-    from app.services.card_upgrade_service import find_sentence_for_word_simple
-    from app.api.routes.netflix import load_cached_netflix_subtitles
-
     query = (
         db.query(UserVocabularyWord)
         .join(UserVocabularyList)
@@ -255,90 +247,26 @@ def get_vocab_list_flashcards(
         UserVocabularyWord.sort_order
     ).all()
 
-    # Get user's watched videos (most recent first)
-    watched_videos = db.query(UserVideoWatch).filter(
-        UserVideoWatch.user_id == current_user.id
-    ).order_by(UserVideoWatch.watched_at.desc()).limit(50).all()
-
-    print(f"[VOCAB FLASHCARDS DEBUG] User {current_user.id}: Found {len(watched_videos)} watched videos")
-    if watched_videos:
-        print(f"[VOCAB FLASHCARDS DEBUG] Video IDs: {[v.video_id for v in watched_videos[:5]]}")
-
-    # Load subtitles for all watched videos (YouTube and Netflix)
-    video_subtitles = {}
-    for watch in watched_videos:
-        video_id = watch.video_id
-        if video_id not in video_subtitles:
-            if video_id.startswith('netflix_'):
-                subtitle_data = load_cached_netflix_subtitles(video_id, language)
-            elif language == 'uk':
-                subtitle_data = load_cached_subtitles_ukrainian(video_id)
-            else:
-                subtitle_data = load_cached_subtitles(video_id)
-            video_subtitles[video_id] = subtitle_data.get('subtitles', []) if subtitle_data else []
-
-    # Build flashcards, checking if each word appears in any watched video
-    flashcards = []
-    upgraded_count = 0
-
-    for w in words:
-        video_context = None
-
-        # Skip video upgrade if user prefers TTS for this word
-        if not w.prefer_tts:
-            # Check each watched video for this word
-            for video_id, subtitles in video_subtitles.items():
-                if not subtitles:
-                    continue
-                sentence_data = find_sentence_for_word_simple(w.word, subtitles, language)
-                if sentence_data and sentence_data.get('sentence') != w.word:
-                    # Found word in video subtitles
-                    video_context = {
-                        'video_id': video_id,
-                        'sentence': sentence_data['sentence'],
-                        'sentence_translation': sentence_data['sentence_translation'],
-                        'timestamp': sentence_data['timestamp'],
-                        'end_timestamp': sentence_data['end_timestamp'],
-                    }
-                    break  # Use first video where word appears
-
-        if video_context:
-            # Word found in video - return as video card
-            upgraded_count += 1
-            flashcards.append({
-                "target_word": w.word,
-                "dictionary_form": w.word,
-                "english": w.translation,
-                "sentence": video_context['sentence'],
-                "sentence_translation": video_context['sentence_translation'],
-                "timestamp": video_context['timestamp'],
-                "end_timestamp": video_context['end_timestamp'],
-                "video_id": video_context['video_id'],
-                "card_type": "video",
-                "language": language,
-            })
-        else:
-            # TTS-only card - use example sentence if available
-            flashcards.append({
-                "target_word": w.word,
-                "dictionary_form": w.word,
-                "english": w.translation,
-                "sentence": w.example,  # Example sentence from vocab list
-                "sentence_translation": w.example_translation,
-                "timestamp": None,
-                "end_timestamp": None,
-                "video_id": None,
-                "card_type": "tts",
-                "language": language,
-            })
-
-    if upgraded_count > 0:
-        print(f"[VOCAB FLASHCARDS] User {current_user.id}: {upgraded_count} of {len(flashcards)} cards have video context")
+    flashcards = [
+        {
+            "target_word": w.word,
+            "dictionary_form": w.word,
+            "english": w.translation,
+            "sentence": w.example,
+            "sentence_translation": w.example_translation,
+            "timestamp": None,
+            "end_timestamp": None,
+            "video_id": None,
+            "card_type": "tts",
+            "language": language,
+        }
+        for w in words
+    ]
 
     return {
         "total_cards": len(flashcards),
-        "upgraded_cards": upgraded_count,
-        "flashcards": flashcards
+        "upgraded_cards": 0,
+        "flashcards": flashcards,
     }
 
 
