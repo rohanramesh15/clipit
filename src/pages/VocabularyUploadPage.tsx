@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import {
   Upload,
@@ -85,6 +86,7 @@ const PRIORITY_MODES = [
 
 export function VocabularyUploadPage() {
   const { token } = useAuth();
+  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ankiInputRef = useRef<HTMLInputElement>(null);
 
@@ -171,6 +173,7 @@ export function VocabularyUploadPage() {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('language', language);
 
     try {
       console.log('[Upload] Sending request to API...');
@@ -276,7 +279,7 @@ export function VocabularyUploadPage() {
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('language', 'ko'); // TODO: Get from language context
+    formData.append('language', language);
 
     try {
       const res = await fetch(`${API_BASE_URL}/anki/import`, {
