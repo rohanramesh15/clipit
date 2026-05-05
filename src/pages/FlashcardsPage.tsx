@@ -1710,8 +1710,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 } else if (selectedVocabListId === -1) {
                   loadVocabTTSCards();
                 } else {
-                  const list = vocabLists.find(l => l.id === selectedVocabListId);
-                  if (list) loadVocabListFlashcards(selectedVocabListId, list.name);
+                  loadVocabTTSCards(selectedVocabListId);
                 }
               }}
               className="px-6 py-4 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors"
