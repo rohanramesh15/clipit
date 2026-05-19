@@ -108,10 +108,6 @@ async function handleAction(e) {
     state.words = null;
     render();
   }
-  if (action === 'get-words') {
-    const { id, title } = el.dataset;
-    loadWords(id, title);
-  }
   if (action === 'enable-audio') {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
@@ -342,12 +338,6 @@ function tmplList() {
           <div class="video-title-text">${esc(v.title)}</div>
           ${episodeInfo ? `<div class="video-episode-info">${episodeInfo}</div>` : ''}
         </div>
-        <button class="words-btn"
-          data-action="get-words"
-          data-id="${v.video_id}"
-          data-title="${esc(v.title)}">
-          Words →
-        </button>
         <button class="delete-btn"
           data-action="show-delete-confirm"
           data-id="${v.video_id}"
