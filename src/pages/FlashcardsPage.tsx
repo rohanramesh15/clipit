@@ -46,14 +46,6 @@ interface VocabList {
   word_count: number;
 }
 
-interface VocabListDetail {
-  id: number;
-  name: string;
-  language: string;
-  word_count: number;
-  words: { word: string; translation: string }[];
-}
-
 const flashcardsPageTips: HelpTip[] = [
   {
     id: 'deck-select',
@@ -454,6 +446,24 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
 
+  const cleanupYouTubePlayer = useCallback(() => {
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy();
+      } catch {
+        // The iframe API can race with React unmounts while cards change.
+      }
+      playerRef.current = null;
+    }
+    if (playerContainerRef.current) {
+      playerContainerRef.current.replaceChildren();
+    }
+  }, []);
+
   // Play text using Web Speech API
   const playTTS = useCallback((text: string) => {
     window.speechSynthesis.cancel();
@@ -765,19 +775,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Destroy player when deck changes to force recreation
   useEffect(() => {
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch (e) {
-        // Player might already be destroyed
-      }
-      playerRef.current = null;
-    }
-    if (loopIntervalRef.current) {
-      clearInterval(loopIntervalRef.current);
-      loopIntervalRef.current = null;
-    }
-  }, [selectedVideoId]);
+    cleanupYouTubePlayer();
+  }, [selectedVideoId, cleanupYouTubePlayer]);
 
   // Check if a video is from Netflix
   const isNetflixVideo = (videoId: string) => videoId.startsWith('netflix_');
@@ -785,26 +784,23 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Create/update YouTube player when card changes (skip for Netflix)
   useEffect(() => {
     const card = dueCards[currentIndex];
-    if (loadState !== 'loaded' || !card) return;
-    if (!playerContainerRef.current) return;
-
-    // Skip YouTube player for TTS cards (no video) and Netflix videos
-    if (!card.video_id || isNetflixVideo(card.video_id)) {
-      // Destroy any existing YouTube player
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch (e) {
-          // Ignore destruction errors
-        }
-        playerRef.current = null;
-      }
+    if (loadState !== 'loaded' || !card) {
+      cleanupYouTubePlayer();
       return;
     }
+
+    const shouldUseYouTube = card.card_type === 'video' && card.video_id && !isNetflixVideo(card.video_id);
+    if (!shouldUseYouTube || !playerContainerRef.current) {
+      cleanupYouTubePlayer();
+      return;
+    }
+
+    cleanupYouTubePlayer();
 
     // Add 3 seconds buffer to end timestamp (timestamp is guaranteed non-null here since we have video_id)
     const startTime = card.timestamp ?? 0;
     const endTime = (card.end_timestamp || startTime + 5) + 3;
+    let isCancelled = false;
 
     const setupLooping = (player: any) => {
       if (loopIntervalRef.current) {
@@ -823,20 +819,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     };
 
     const initPlayer = () => {
-      // If player already exists, just load new video
-      if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
-        playerRef.current.loadVideoById({
-          videoId: card.video_id,
-          startSeconds: startTime,
-        });
-        setupLooping(playerRef.current);
-        return;
-      }
-
+      if (isCancelled) return;
       // Create new player
       if (!playerContainerRef.current) return;
 
-      playerRef.current = new (window as any).YT.Player(playerContainerRef.current, {
+      const playerMount = document.createElement('div');
+      playerMount.className = 'w-full h-full';
+      playerContainerRef.current.replaceChildren(playerMount);
+
+      playerRef.current = new (window as any).YT.Player(playerMount, {
         videoId: card.video_id,
         playerVars: {
           start: startTime,
@@ -854,6 +845,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
     // Wait for YT API to be ready
     const waitForYT = () => {
+      if (isCancelled) return;
       if ((window as any).YT && (window as any).YT.Player) {
         initPlayer();
       } else {
@@ -864,11 +856,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     waitForYT();
 
     return () => {
+      isCancelled = true;
       if (loopIntervalRef.current) {
         clearInterval(loopIntervalRef.current);
       }
     };
-  }, [currentIndex, loadState, dueCards]);
+  }, [currentIndex, loadState, dueCards, cleanupYouTubePlayer]);
 
   // Check if a Netflix screenshot exists for a given video/timestamp
   const checkScreenshotExists = async (videoId: string, timestamp: number): Promise<boolean> => {
@@ -904,6 +897,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       vocab.vocabulary.forEach((v: { word: string; rank: number }) => { rankMap[v.word] = v.rank; });
       let cards = (fc.flashcards || []).map((card: FlashCard) => ({
         ...card,
+        card_type: 'video',
+        video_id: card.video_id || videoId,
         rank: rankMap[card.target_word],
       }));
 
@@ -1022,55 +1017,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     prepareCardsForReview(videoCards);
   }, [fetchCardsForVideo, prepareCardsForReview]);
 
-  // Load flashcards filtered by a vocabulary list
-  const loadVocabListFlashcards = useCallback(async (listId: number, listName: string) => {
-    setLoadState('loading');
-    setLoadingMsg(`Loading flashcards from "${listName}"...`);
-    setCards([]);
-    setDueCards([]);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setSelectedVideoId(`vocablist_${listId}`);
-    setSelectedVideoTitle(listName);
-    setSelectedVocabListId(listId);
-    setSelectedVocabListName(listName);
-    setLastRatingInfo(null);
-
-    // Fetch the list's words
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/lists/${listId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Failed to fetch list');
-      const listDetail: VocabListDetail = await res.json();
-      const listWords = new Set(listDetail.words.map(w => w.word.toLowerCase()));
-      setSelectedVocabListWords(listWords);
-
-      // Load all cards from all videos
-      const allCards: FlashCard[] = [];
-      for (const video of videos) {
-        setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
-        const videoCards = await fetchCardsForVideo(video.video_id);
-        allCards.push(...videoCards);
-      }
-
-      // Filter to only cards whose word is in the vocab list
-      const filteredCards = allCards.filter(card => {
-        const word = (card.dictionary_form || card.target_word).toLowerCase();
-        return listWords.has(word);
-      });
-
-      if (!filteredCards.length) {
-        setLoadState('no-vocab');
-        return;
-      }
-      prepareCardsForReview(filteredCards);
-    } catch (err) {
-      console.error('Failed to load vocab list flashcards:', err);
-      setLoadState('error');
-    }
-  }, [videos, token, fetchCardsForVideo, prepareCardsForReview]);
-
   // Load TTS-only flashcards from user vocabulary lists (no video required)
   const loadVocabTTSCards = useCallback(async (listId?: number) => {
     setLoadState('loading');
@@ -1101,7 +1047,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       if (!res.ok) throw new Error('Failed to fetch vocab flashcards');
 
       const data = await res.json();
-      let ttsCards: FlashCard[] = data.flashcards;
+      let ttsCards: FlashCard[] = data.flashcards.map((card: FlashCard) => ({
+        ...card,
+        card_type: 'tts',
+        video_id: null,
+        timestamp: null,
+        end_timestamp: null,
+      }));
 
       // Filter out deleted cards
       const deletedCards = getDeletedCards(language);
@@ -1477,18 +1429,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Go back to deck selection
   async function handleBackToDecks() {
     // Destroy YouTube player first to prevent DOM conflicts
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch (e) {
-        // Player might already be destroyed
-      }
-      playerRef.current = null;
-    }
-    if (loopIntervalRef.current) {
-      clearInterval(loopIntervalRef.current);
-      loopIntervalRef.current = null;
-    }
+    cleanupYouTubePlayer();
 
     setCards([]);
     setDueCards([]);
@@ -2964,7 +2905,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <div className="w-full space-y-4">
         {/* Video clip (YouTube), Netflix placeholder, or TTS card */}
         <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 bg-black">
-          {currentCard && !currentCard.video_id ? (
+          {currentCard && currentCard.card_type !== 'video' ? (
             // TTS-only card (no video context)
             <TTSCardPlaceholder
               word={currentCard.target_word}
