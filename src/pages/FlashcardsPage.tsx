@@ -408,8 +408,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     recordCardReview,
     extendSession,
     resetSession,
+    setCardsReviewedToday,
     getGoalLabel,
-    getRemainingCards,
   } = useReviewSession();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [cards, setCards] = useState<FlashCard[]>([]);
@@ -959,12 +959,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     if (dueCardsFiltered.length === 0 && sortedCards.length > 0) {
       // No cards due - show completion screen
       setLoadState('session-complete');
+    } else if (!session.isExtended && session.cardsReviewed >= session.sessionCap) {
+      setLoadState('time-gated-complete');
     } else {
       setLoadState('loaded');
       // Start the review session timer
       startSession();
     }
-  }, [startSession]);
+  }, [session.cardsReviewed, session.isExtended, session.sessionCap, startSession]);
 
   // Load cards for "All Videos" mode
   const loadAllVideos = useCallback(async (videoList: TrackedVideo[]) => {
@@ -1163,6 +1165,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     async function bootstrap() {
       try {
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        if (token) {
+          const tzOffset = new Date().getTimezoneOffset();
+          const todayRes = await fetch(`${API_BASE_URL}/fsrs/reviews/today?tz_offset_minutes=${tzOffset}`, { headers });
+          if (todayRes.ok) {
+            const todayData = await todayRes.json();
+            setCardsReviewedToday(todayData.count || 0);
+          }
+        }
+
         const filteredRes = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers });
 
         if (!filteredRes.ok) throw new Error();
@@ -1182,10 +1193,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       }
     }
     bootstrap();
-  }, [language, token]);
+  }, [language, token, setCardsReviewedToday]);
 
   const currentCard = dueCards[currentIndex];
   const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;
+  const deckProgressTotal = dueCards.length;
+  const deckProgressReviewed = Math.min(session.sessionReviewed, deckProgressTotal);
+  const dailyGoalReviewed = Math.min(session.cardsReviewed, session.sessionCap);
 
   // Filter and sort videos based on search query and selected option
   const filteredAndSortedVideos = [...videos]
@@ -1221,6 +1235,26 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       : 5;
     const { nextDue } = rateCard(currentCard.dictionary_form || currentCard.target_word, rating, clipDuration);
     const nextDueStr = formatNextReview(nextDue);
+    const reviewedWord = currentCard.dictionary_form || currentCard.target_word;
+
+    if (token) {
+      fetch(`${API_BASE_URL}/fsrs/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          word: reviewedWord,
+          language,
+          rating,
+          clip_duration: clipDuration,
+          reviewed_at: new Date().toISOString(),
+        }),
+      }).catch((error) => {
+        console.error('Failed to record review history:', error);
+      });
+    }
 
     // Record card review and check if cap was just reached
     const capJustReached = recordCardReview();
@@ -1236,7 +1270,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       [ratingKey]: prev[ratingKey] + 1,
     }));
 
-    setLastRatingInfo({ word: currentCard.dictionary_form || currentCard.target_word, nextDue: nextDueStr });
+    setLastRatingInfo({ word: reviewedWord, nextDue: nextDueStr });
     setIsFlipped(false);
 
     setTimeout(() => {
@@ -2863,57 +2897,63 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div className="w-full flex items-center justify-between mb-5">
-        <div id="section-deck-select" className="min-w-0 flex-1 mr-4">
+      <div className="w-full grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 mb-5">
+        <div id="section-deck-select" className="min-w-0">
           <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
           <button
             type="button"
             onClick={() => handleBackToDecks()}
-            className="flex items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group cursor-pointer">
+            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group cursor-pointer w-full max-w-full">
             {selectedVideoId === 'all' ? (
               <>
                 <Layers className="w-3 h-3 shrink-0 mr-0.5" />
-                <span>All Videos</span>
+                <span className="truncate min-w-0">All Videos</span>
               </>
             ) : selectedVideoId.startsWith('folder_') ? (
               <>
                 <Folder className="w-3 h-3 shrink-0 mr-0.5" />
-                <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+                <span className="truncate min-w-0">{selectedVideoTitle}</span>
               </>
             ) : selectedVideoId.startsWith('vocablist_') ? (
               <>
                 <BookOpen className="w-3 h-3 shrink-0 mr-0.5" />
-                <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+                <span className="truncate min-w-0">{selectedVideoTitle}</span>
               </>
             ) : (
-              <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+              <>
+                <span className="w-3 h-3 mr-0.5" />
+                <span className="truncate min-w-0">{selectedVideoTitle}</span>
+              </>
             )}
-            <span className="text-muted ml-1">· Change deck</span>
+            <span className="text-muted whitespace-nowrap">· Change deck</span>
           </button>
         </div>
-        <div className="text-right shrink-0">
+        <div className="text-right shrink-0 w-[112px]">
           {session.isExtended ? (
             <>
               <div className="text-2xl font-bold text-accent">
-                {getRemainingCards(dueCards.length - currentIndex)}
+                {Math.max(0, deckProgressTotal - currentIndex)}
                 <span className="text-muted text-lg"> left</span>
               </div>
               <div className="text-xs text-secondary mt-1">
-                {sessionStats.reviewed} reviewed
+                Today: {dailyGoalReviewed} / {session.sessionCap}
               </div>
             </>
           ) : (
             <>
               <div className="text-2xl font-bold text-accent">
-                {session.cardsReviewed}
-                <span className="text-muted text-lg"> / {session.sessionCap}</span>
+                {deckProgressReviewed}
+                <span className="text-muted text-lg"> / {deckProgressTotal}</span>
               </div>
               <div className="w-24 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
                 <motion.div
                   className="h-full bg-accent"
-                  animate={{ width: `${Math.min(100, (session.cardsReviewed / session.sessionCap) * 100)}%` }}
+                  animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
                   transition={{ duration: 0.3 }}
                 />
+              </div>
+              <div className="text-xs text-secondary mt-1">
+                Today: {dailyGoalReviewed} / {session.sessionCap}
               </div>
             </>
           )}

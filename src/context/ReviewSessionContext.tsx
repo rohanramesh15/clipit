@@ -4,6 +4,7 @@ interface ReviewSessionState {
   isActive: boolean;
   sessionCap: number;
   cardsReviewed: number;
+  sessionReviewed: number;
   isCapReached: boolean;
   isExtended: boolean;
 }
@@ -15,8 +16,8 @@ interface ReviewSessionContextType {
   recordCardReview: () => boolean; // Returns true if cap was just reached
   extendSession: () => void;
   resetSession: () => void;
+  setCardsReviewedToday: (count: number) => void;
   getGoalLabel: () => string;
-  getRemainingCards: (totalDue: number) => number;
 }
 
 const ReviewSessionContext = createContext<ReviewSessionContextType | undefined>(undefined);
@@ -71,6 +72,7 @@ export function ReviewSessionProvider({ children }: { children: ReactNode }) {
     isActive: false,
     sessionCap: getSessionCap(),
     cardsReviewed: 0,
+    sessionReviewed: 0,
     isCapReached: false,
     isExtended: wasExtendedToday(),
   });
@@ -81,7 +83,7 @@ export function ReviewSessionProvider({ children }: { children: ReactNode }) {
       isActive: true,
       sessionCap: getSessionCap(),
       isExtended: wasExtendedToday(),
-      cardsReviewed: 0,
+      sessionReviewed: 0,
       isCapReached: false,
     }));
   }, []);
@@ -99,13 +101,15 @@ export function ReviewSessionProvider({ children }: { children: ReactNode }) {
 
     setSession(prev => {
       const newCount = prev.cardsReviewed + 1;
+      const newSessionCount = prev.sessionReviewed + 1;
 
       // Check if cap reached (only if not extended)
-      if (!prev.isExtended && newCount >= prev.sessionCap) {
+      if (!prev.isExtended && prev.cardsReviewed < prev.sessionCap && newCount >= prev.sessionCap) {
         capJustReached = true;
         return {
           ...prev,
           cardsReviewed: newCount,
+          sessionReviewed: newSessionCount,
           isCapReached: true,
         };
       }
@@ -113,6 +117,7 @@ export function ReviewSessionProvider({ children }: { children: ReactNode }) {
       return {
         ...prev,
         cardsReviewed: newCount,
+        sessionReviewed: newSessionCount,
       };
     });
 
@@ -129,22 +134,27 @@ export function ReviewSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetSession = useCallback(() => {
-    setSession({
+    setSession(prev => ({
+      ...prev,
       isActive: false,
       sessionCap: getSessionCap(),
-      cardsReviewed: 0,
+      sessionReviewed: 0,
       isCapReached: false,
       isExtended: wasExtendedToday(),
-    });
+    }));
+  }, []);
+
+  const setCardsReviewedToday = useCallback((count: number) => {
+    setSession(prev => ({
+      ...prev,
+      cardsReviewed: Math.max(0, count),
+      isCapReached: !prev.isExtended && count >= prev.sessionCap,
+    }));
   }, []);
 
   const getGoalLabel = useCallback(() => {
     return getGoalLabelFromStorage();
   }, []);
-
-  const getRemainingCards = useCallback((totalDue: number): number => {
-    return Math.max(0, totalDue - session.cardsReviewed);
-  }, [session.cardsReviewed]);
 
   return (
     <ReviewSessionContext.Provider
@@ -155,8 +165,8 @@ export function ReviewSessionProvider({ children }: { children: ReactNode }) {
         recordCardReview,
         extendSession,
         resetSession,
+        setCardsReviewedToday,
         getGoalLabel,
-        getRemainingCards,
       }}
     >
       {children}
