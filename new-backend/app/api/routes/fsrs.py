@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel as PydanticModel
@@ -49,7 +49,10 @@ def _parse_dt(dt_str: Optional[str]) -> Optional[datetime]:
     if not dt_str:
         return None
     try:
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
     except (ValueError, AttributeError):
         return datetime.utcnow()
 
@@ -226,6 +229,37 @@ def get_reviews(
             }
             for r in rows
         ],
+    }
+
+
+@router.get("/reviews/today")
+def get_reviews_today(
+    tz_offset_minutes: int = 0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return how many cards the current user reviewed today in their local timezone."""
+    now_utc = datetime.utcnow()
+    local_now = now_utc - timedelta(minutes=tz_offset_minutes)
+    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_end = local_start + timedelta(days=1)
+    utc_start = local_start + timedelta(minutes=tz_offset_minutes)
+    utc_end = local_end + timedelta(minutes=tz_offset_minutes)
+
+    count = (
+        db.query(UserReviewHistory)
+        .filter(
+            UserReviewHistory.user_id == current_user.id,
+            UserReviewHistory.reviewed_at >= utc_start,
+            UserReviewHistory.reviewed_at < utc_end,
+        )
+        .count()
+    )
+
+    return {
+        "count": count,
+        "date": local_start.date().isoformat(),
+        "tz_offset_minutes": tz_offset_minutes,
     }
 
 
