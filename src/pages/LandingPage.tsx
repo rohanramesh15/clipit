@@ -44,7 +44,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
             <button
               onClick={() => onNavigate('login')}
-              className="text-sm font-medium text-secondary hover:text-primary transition-colors hidden sm:block">
+              className="text-sm font-medium text-primary hover:text-accent transition-colors hidden sm:block">
 
               Log in
             </button>

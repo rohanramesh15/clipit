@@ -20,7 +20,8 @@ function clearStoredToken(): void {
 export interface AuthUser {
   id: number;
   email: string;
-  username: string;
+  full_name: string | null;
+  profile_picture: string | null;
   is_active: boolean;
 }
 
@@ -29,7 +30,8 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string, mode?: 'signin' | 'signup') => Promise<{ isNewUser: boolean }>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -83,11 +85,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me);
   };
 
-  const register = async (username: string, email: string, password: string) => {
+  const loginWithGoogle = async (credential: string, mode: 'signin' | 'signup' = 'signin'): Promise<{ isNewUser: boolean }> => {
+    const res = await fetch(`${API_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential, mode }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Google sign-in failed');
+    }
+    const { access_token, is_new_user } = await res.json();
+    clearStoredToken();
+    localStorage.setItem(TOKEN_KEY, access_token);
+    localStorage.setItem(REMEMBER_KEY, 'true');
+    setToken(access_token);
+    const me = await fetchMe(access_token);
+    setUser(me);
+    return { isNewUser: is_new_user };
+  };
+
+  const register = async (fullName: string, email: string, password: string) => {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ full_name: fullName, email, password }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -107,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
