@@ -129,11 +129,28 @@ function getVideoElement() {
   return document.querySelector('video.html5-main-video') || document.querySelector('video');
 }
 
+let watchTimeRetryCount = 0;
+const MAX_WATCH_TIME_RETRIES = 10;
+
 function startWatchTimeTracking() {
   if (watchTimeInterval) return; // Already tracking
 
   const video = getVideoElement();
-  if (!video) return;
+  if (!video) {
+    // Retry up to 10 times (5 seconds total) if video element not found
+    if (watchTimeRetryCount < MAX_WATCH_TIME_RETRIES) {
+      watchTimeRetryCount++;
+      console.log(`[ClipIt] Video element not found, retrying (${watchTimeRetryCount}/${MAX_WATCH_TIME_RETRIES})...`);
+      setTimeout(startWatchTimeTracking, 500);
+    } else {
+      console.log('[ClipIt] Video element not found after max retries');
+      watchTimeRetryCount = 0;
+    }
+    return;
+  }
+
+  watchTimeRetryCount = 0; // Reset retry count on success
+  console.log('[ClipIt] Video element found, attaching event listeners');
 
   // Listen for play/pause events
   video.addEventListener('play', () => {
@@ -153,8 +170,11 @@ function startWatchTimeTracking() {
     syncWatchTime();
   });
 
-  // Set initial state
+  // Set initial state - check if video is already playing
   isVideoPlaying = !video.paused;
+  if (isVideoPlaying) {
+    console.log('[ClipIt] Video already playing on attach');
+  }
 
   // Accumulate watch time every second
   watchTimeInterval = setInterval(() => {
@@ -284,8 +304,25 @@ const navInterval = setInterval(() => {
   }
 }, 1000);
 
-// Track on initial page load (e.g. direct link to a watch URL)
-checkForNewVideo();
+// Track on initial page load with retry mechanism
+// Sometimes the page isn't fully ready when content script runs
+let initialLoadRetries = 0;
+const MAX_INITIAL_RETRIES = 5;
+
+function tryInitialVideoDetection() {
+  const videoId = getVideoId();
+  if (videoId) {
+    console.log('[ClipIt] Initial video detected:', videoId);
+    checkForNewVideo();
+  } else if (initialLoadRetries < MAX_INITIAL_RETRIES) {
+    initialLoadRetries++;
+    console.log(`[ClipIt] No video ID yet, retrying initial detection (${initialLoadRetries}/${MAX_INITIAL_RETRIES})...`);
+    setTimeout(tryInitialVideoDetection, 500);
+  }
+}
+
+// Start initial detection
+tryInitialVideoDetection();
 
 // Sync watch time when page is about to unload
 window.addEventListener('beforeunload', () => {

@@ -22,15 +22,28 @@ function getNetflixVideoElement() {
   return document.querySelector('video');
 }
 
+let netflixWatchTimeRetryCount = 0;
+const MAX_NETFLIX_WATCH_TIME_RETRIES = 10;
+
 function startWatchTimeTracking() {
   if (watchTimeInterval) return; // Already tracking
 
   const video = getNetflixVideoElement();
   if (!video) {
-    // Retry after a delay if video not found yet
-    setTimeout(startWatchTimeTracking, 1000);
+    // Retry up to 10 times (10 seconds total) if video not found
+    if (netflixWatchTimeRetryCount < MAX_NETFLIX_WATCH_TIME_RETRIES) {
+      netflixWatchTimeRetryCount++;
+      console.log(`[ClipIt] Netflix video element not found, retrying (${netflixWatchTimeRetryCount}/${MAX_NETFLIX_WATCH_TIME_RETRIES})...`);
+      setTimeout(startWatchTimeTracking, 1000);
+    } else {
+      console.log('[ClipIt] Netflix video element not found after max retries');
+      netflixWatchTimeRetryCount = 0;
+    }
     return;
   }
+
+  netflixWatchTimeRetryCount = 0; // Reset on success
+  console.log('[ClipIt] Netflix video element found, attaching event listeners');
 
   // Listen for play/pause events
   video.addEventListener('play', () => {
@@ -49,8 +62,11 @@ function startWatchTimeTracking() {
     syncWatchTime();
   });
 
-  // Set initial state
+  // Set initial state - check if video is already playing
   isVideoPlaying = !video.paused;
+  if (isVideoPlaying) {
+    console.log('[ClipIt] Netflix video already playing on attach');
+  }
 
   // Accumulate watch time every second
   watchTimeInterval = setInterval(() => {

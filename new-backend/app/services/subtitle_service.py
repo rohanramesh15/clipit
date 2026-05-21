@@ -388,3 +388,59 @@ def load_cached_subtitles_ukrainian(video_id: str) -> dict | None:
         with open(cache_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     return get_subtitles(video_id)
+
+
+def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has_korean: bool = False, has_ukrainian: bool = False) -> bool:
+    """
+    Save subtitles that were fetched by the extension (in the user's browser).
+    This avoids YouTube IP blocking issues.
+    """
+    try:
+        # Determine which cache file to use
+        if lang == 'uk':
+            cache_file = _cache_path_uk(video_id)
+        else:
+            cache_file = _cache_path(video_id)
+
+        # Prepare data structure
+        data = {
+            'video_id': video_id,
+            'total_subtitles': len(subtitles),
+            'has_korean': has_korean,
+            'has_ukrainian': has_ukrainian,
+            'subtitles': subtitles,
+        }
+
+        # Save to disk cache
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # Also save to Neon database (best-effort)
+        try:
+            save_subtitles(video_id, data)
+        except Exception:
+            pass
+
+        # Update video language status in database
+        from app.services.video_store import update_korean_status, update_ukrainian_status
+        try:
+            if lang == 'uk':
+                update_ukrainian_status(video_id, has_ukrainian)
+            else:
+                update_korean_status(video_id, has_korean)
+        except Exception as e:
+            print(f"Failed to update video status: {e}")
+
+        # Calculate and save video duration from last subtitle
+        if subtitles:
+            last_sub = subtitles[-1]
+            duration_seconds = int(last_sub.get('end', last_sub.get('start', 0) + last_sub.get('duration', 0)))
+            try:
+                update_video_duration(video_id, duration_seconds)
+            except Exception:
+                pass
+
+        return True
+    except Exception as e:
+        print(f"Error saving subtitles from extension: {e}")
+        return False

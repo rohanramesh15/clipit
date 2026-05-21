@@ -6,7 +6,8 @@
  */
 
 console.log('[ClipIt] Service worker starting...');
-
+// Import subtitle fetcher
+importScripts('subtitle-fetcher.js');
 const API = 'https://project-deadbird-backend.onrender.com/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -59,7 +60,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ─── YouTube auto-tracking via tab URL change ────────────────────────────────
-// Deduplication: don't re-track the same video within 60 seconds
+// Deduplication: don't re-track the same video within 5 seconds (reduced from 60s to allow reloads)
 const recentlyTracked = new Map(); // videoId → timestamp
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -74,8 +75,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!videoId) return;
 
   // Skip if we tracked this video recently (content script may also fire)
+  // Reduced to 5 seconds so reloads work, but still prevents duplicate tracking on SPA navigation
   const lastTime = recentlyTracked.get(videoId);
-  if (lastTime && Date.now() - lastTime < 60000) return;
+  if (lastTime && Date.now() - lastTime < 5000) return;
   recentlyTracked.set(videoId, Date.now());
 
   // Don't use tab.title — it's often stale (shows previous video's title during navigation)
@@ -325,7 +327,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'TRACK_VIDEO') {
     console.log(`[ClipIt] TRACK_VIDEO received: ${msg.videoId} — ${msg.title}`);
     const lastTime = recentlyTracked.get(msg.videoId);
-    if (lastTime && Date.now() - lastTime < 60000) {
+    // Reduced dedup window to 5 seconds (was 60s) to allow page reloads to re-trigger tracking
+    if (lastTime && Date.now() - lastTime < 5000) {
       // Already tracked recently by tabs.onUpdated — just update title if better
       console.log(`[ClipIt] Video ${msg.videoId} already tracked recently, skipping`);
       if (msg.title && msg.title !== 'Unknown') {
@@ -718,10 +721,44 @@ async function runVocabPipeline(videoId, lang = 'ko') {
   await chrome.storage.local.set({ [cacheKey]: { loading: true, cachedAt: Date.now() } });
 
   try {
-    // Step 1: fetch/cache subtitles (skip for Netflix - already captured)
+    // Step 1: fetch subtitles (skip for Netflix - already captured)
     if (!videoId.startsWith('netflix_')) {
-      const subRes = await fetch(`${API}/subtitles/${videoId}?lang=${lang}`);
-      if (!subRes.ok) throw new Error('subtitles');
+      console.log(`[Deadbird] Fetching subtitles for ${videoId} (${lang})`);
+
+      // Fetch subtitles directly from YouTube using the user's browser
+      const subtitleData = await fetchAllSubtitles(videoId, lang);
+
+      // Upload subtitles to backend for storage
+      try {
+        const uploadRes = await fetch(`${API}/subtitles/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            video_id: videoId,
+            lang: lang,
+            subtitles: subtitleData.subtitles,
+            has_korean: subtitleData.has_korean,
+            has_ukrainian: subtitleData.has_ukrainian
+          }),
+        });
+
+        if (uploadRes.ok) {
+          console.log(`[Deadbird] Uploaded ${subtitleData.subtitles.length} subtitles to backend`);
+        } else {
+          console.error('[Deadbird] Failed to upload subtitles:', await uploadRes.text());
+        }
+      } catch (uploadError) {
+        console.error('[Deadbird] Error uploading subtitles:', uploadError);
+      }
+
+      // If no subtitles were found, cache empty result
+      if (!subtitleData.subtitles || subtitleData.subtitles.length === 0) {
+        console.log(`[Deadbird] No subtitles found for ${videoId}`);
+        await chrome.storage.local.set({
+          [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
+        });
+        return;
+      }
     }
 
     // Step 2: vocabulary (all words in freq list, no level filter)
@@ -730,9 +767,9 @@ async function runVocabPipeline(videoId, lang = 'ko') {
     const vocab = await vocabRes.json();
 
     if (!vocab.total_words) {
-      // No target language vocab found — update status and cache empty result
-      console.log(`[ClipIt] runVocabPipeline: No ${lang} vocab found, setting has_${lang}=false`);
-      await updateStatus(videoId, lang, false);
+      // No words matched frequency list, but video may still have the language
+      // Don't mark as false - just cache empty words
+      console.log(`[Deadbird] No ${lang} vocab found in frequency list, caching empty result`);
       await chrome.storage.local.set({
         [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
       });
@@ -770,15 +807,15 @@ async function runVocabPipeline(videoId, lang = 'ko') {
       }));
     }
 
-    // Update language status to true
-    console.log(`[ClipIt] runVocabPipeline: Found ${words.length} words, setting has_${lang}=true`);
+    // Update language status to true (only if words found)
+    console.log(`[Deadbird] Found ${words.length} words, setting has_${lang}=true`);
     await updateStatus(videoId, lang, true);
 
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, words, total: words.length, cachedAt: Date.now() }
     });
-  } catch (e) {
-    console.error(`[ClipIt] runVocabPipeline error for ${videoId} (${lang}):`, e.message || e);
+  } catch (error) {
+    console.error(`[Deadbird] Vocab pipeline error for ${videoId} (${lang}):`, error);
     await chrome.storage.local.set({
       [cacheKey]: { loading: false, error: true, words: null, cachedAt: Date.now() }
     });
