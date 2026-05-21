@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Sidebar } from './components/Sidebar';
 import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
@@ -19,6 +20,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { HelpButton } from './components/HelpButton';
+import { GOOGLE_CLIENT_ID } from './config';
 type Page =
 'video' |
 'flashcards' |
@@ -184,10 +186,12 @@ function AppInner() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <LanguageProvider>
-        <AppInner />
-      </LanguageProvider>
-    </AuthProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <LanguageProvider>
+          <AppInner />
+        </LanguageProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
