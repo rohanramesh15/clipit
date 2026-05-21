@@ -206,3 +206,4 @@ async def upload_subtitles(data: SubtitleUpload):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save subtitles: {str(e)}")
+

@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "Clip It <noreply@theclipitapp.com>"
     FRONTEND_URL: str = "https://www.theclipitapp.com"
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True

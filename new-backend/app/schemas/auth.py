@@ -6,6 +6,12 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class GoogleAuthToken(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    is_new_user: bool = False
+
+
 class TokenData(BaseModel):
     user_id: int
     email: str
@@ -15,6 +21,11 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: str  # Google ID token
+    mode: str = "signin"  # "signin" or "signup"
 
 
 class ForgotPasswordRequest(BaseModel):
