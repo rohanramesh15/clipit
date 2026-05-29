@@ -14,12 +14,12 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
+import { ConversePage } from './pages/ConversePage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
-import { HelpButton } from './components/HelpButton';
 import { GOOGLE_CLIENT_ID } from './config';
 type Page =
 'video' |
@@ -27,6 +27,7 @@ type Page =
 'dictionary' |
 'analytics' |
 'vocabulary' |
+'converse' |
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
@@ -34,7 +35,7 @@ function AppInner() {
   const { user, isLoading } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
   const [resetToken, setResetToken] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
@@ -77,12 +78,15 @@ function AppInner() {
       setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
   }, [isLoading, user]);
-  // Apply theme class to <html> so it cascades to everything including fixed elements and body
+  // Apply theme class to <html> so it cascades to everything including fixed elements and body.
+  // Persist to localStorage so the choice survives refreshes.
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.remove('light');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.add('light');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
   const renderPage = () => {
@@ -97,8 +101,16 @@ function AppInner() {
         return <AnalyticsPage />;
       case 'vocabulary':
         return <VocabularyUploadPage />;
+      case 'converse':
+        return <ConversePage />;
       case 'settings':
-        return <SettingsPage onEditProfile={() => setAppView('onboarding')} />;
+        return (
+          <SettingsPage
+            onEditProfile={() => setAppView('onboarding')}
+            isDark={isDark}
+            onToggleTheme={() => setIsDark((v) => !v)}
+          />
+        );
       default:
         return <VideoPage />;
     }
@@ -174,9 +186,6 @@ function AppInner() {
             </motion.div>
           </AnimatePresence>
         </motion.main>
-
-        {/* Help button - floating in bottom right */}
-        <HelpButton />
       </div>
     </ReviewSessionProvider>
   </HelpProvider>

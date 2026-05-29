@@ -53,12 +53,12 @@ function playAudio(word: string, lang: string) {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = lang === 'uk' ? 'uk-UA' : 'ko-KR';
+  utterance.lang = lang === 'uk' ? 'uk-UA' : lang === 'es' ? 'es-ES' : lang === 'en' ? 'en-US' : 'ko-KR';
   utterance.rate = 0.9;
 
   // Try to find a voice for the language (preferably Google)
   const voices = window.speechSynthesis.getVoices();
-  const langPrefix = lang === 'uk' ? 'uk' : 'ko';
+  const langPrefix = lang === 'uk' ? 'uk' : lang === 'es' ? 'es' : lang === 'en' ? 'en' : 'ko';
   const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
     || voices.find(v => v.lang.startsWith(langPrefix));
 
@@ -149,7 +149,7 @@ export function DictionaryPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center text-3xl">
-          {language === 'uk' ? '🇺🇦' : '🇰🇷'}
+          {language === 'uk' ? '🇺🇦' : language === 'es' ? '🇪🇸' : language === 'en' ? '🇬🇧' : '🇰🇷'}
         </div>
         <p className="text-primary font-semibold">No words in your dictionary yet</p>
         <p className="text-secondary text-sm text-center max-w-sm">

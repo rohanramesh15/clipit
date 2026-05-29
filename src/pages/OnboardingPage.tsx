@@ -479,7 +479,9 @@ const quizQuestions = [
     question: "What language are you learning?",
     options: [
       { label: "Korean", flag: "🇰🇷", value: "ko" },
-      { label: "Ukrainian", flag: "🇺🇦", value: "uk" }
+      { label: "Ukrainian", flag: "🇺🇦", value: "uk" },
+      { label: "Spanish", flag: "🇪🇸", value: "es" },
+      { label: "English", flag: "🇬🇧", value: "en" }
     ]
   },
   {

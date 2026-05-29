@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type Language = 'ko' | 'uk';
+export type Language = 'ko' | 'uk' | 'es' | 'en';
 
 interface LanguageContextValue {
   language: Language;
@@ -14,12 +14,17 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const LANGUAGE_NAMES: Record<Language, string> = {
   ko: 'Korean',
   uk: 'Ukrainian',
+  es: 'Spanish',
+  en: 'English',
 };
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const stored = localStorage.getItem('deadbird_language');
-    return (stored === 'uk' ? 'uk' : 'ko') as Language;
+    if (stored === 'uk') return 'uk';
+    if (stored === 'es') return 'es';
+    if (stored === 'en') return 'en';
+    return 'ko';
   });
 
   function setLanguage(lang: Language) {

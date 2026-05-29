@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
@@ -11,8 +11,14 @@ import {
   ChevronRight,
   Crown,
   Layers,
+  AlertTriangle,
+  X,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { Avatar } from '../components/Avatar';
+import { fetchTtsVoices, TtsVoice } from '../services/chat';
 
 const settingsPageTips: HelpTip[] = [
   {
@@ -41,9 +47,11 @@ const settingsPageTips: HelpTip[] = [
   },
 ];
 
-const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' }[] = [
+const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' | 'es' | 'en' }[] = [
   { label: 'Korean', flag: '🇰🇷', value: 'ko' },
-  { label: 'Ukrainian', flag: '🇺🇦', value: 'uk' }
+  { label: 'Ukrainian', flag: '🇺🇦', value: 'uk' },
+  { label: 'Spanish', flag: '🇪🇸', value: 'es' },
+  { label: 'English', flag: '🇬🇧', value: 'en' }
 ];
 
 const MOTIVATIONS = [
@@ -69,12 +77,45 @@ const STUDY_MODES = [
 
 interface SettingsPageProps {
   onEditProfile?: () => void;
+  isDark: boolean;
+  onToggleTheme: () => void;
 }
 
-export function SettingsPage({ onEditProfile }: SettingsPageProps) {
+export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsPageProps) {
   const { user, token, logout } = useAuth();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const closeDeleteModal = () => {
+    if (isDeletingAccount) return;
+    setShowDeleteModal(false);
+    setDeleteError(null);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setDeleteError(err.detail || 'Failed to delete account. Please try again.');
+        setIsDeletingAccount(false);
+        return;
+      }
+      logout();
+    } catch (err) {
+      setDeleteError('Failed to delete account. Please try again.');
+      setIsDeletingAccount(false);
+    }
+  };
+
   const { language, setLanguage } = useLanguage();
-  const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
+  const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
   const [motivation, setMotivation] = useState(() => {
     return localStorage.getItem('user_motivation') || 'pop_culture';
   });
@@ -87,6 +128,19 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const [defaultStudyMode, setDefaultStudyMode] = useState(() => {
     return localStorage.getItem('default_study_mode') || 'my-words';
   });
+  const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
+  const [ttsVoice, setTtsVoice] = useState(() => localStorage.getItem('tts_voice') || 'Kore');
+
+  // Load TTS voices from backend
+  useEffect(() => {
+    if (!token) return;
+    fetchTtsVoices(token).then(setTtsVoices).catch(() => {});
+  }, [token]);
+
+  const handleTtsVoiceChange = (voice: string) => {
+    setTtsVoice(voice);
+    localStorage.setItem('tts_voice', voice);
+  };
 
   // Fetch new cards per day setting on mount
   useEffect(() => {
@@ -155,11 +209,9 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
             Profile
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6 flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-accent to-orange-500 flex items-center justify-center text-xl font-bold text-app shrink-0">
-              {initials}
-            </div>
+            <Avatar user={user} size={64} />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-primary text-lg">{user?.username ?? 'User'}</p>
+              <p className="font-bold text-primary text-lg">{displayName}</p>
               <p className="text-sm text-secondary">{user?.email ?? ''}</p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <Crown className="w-3.5 h-3.5 text-accent" />
@@ -323,6 +375,70 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
           </div>
         </section>
 
+        {/* Voice (TTS) */}
+        {ttsVoices.length > 0 && (
+          <section id="section-voice">
+            <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
+              Voice
+            </h2>
+            <div className="bg-surface border border-white/5 rounded-2xl p-5">
+              <p className="font-bold text-primary mb-1">AI voice in conversations</p>
+              <p className="text-sm text-secondary mb-4">
+                Choose which voice the AI speaks with in Converse.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {ttsVoices.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => handleTtsVoiceChange(v.id)}
+                    className={`text-left px-4 py-3 rounded-xl border transition-colors ${
+                      ttsVoice === v.id
+                        ? 'bg-accent/10 border-accent text-primary'
+                        : 'bg-app/30 border-white/10 text-secondary hover:text-primary hover:border-white/20'
+                    }`}>
+                    <p className="text-sm font-medium">{v.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Appearance */}
+        <section id="section-appearance">
+          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
+            Appearance
+          </h2>
+          <div className="bg-surface border border-white/5 rounded-2xl p-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-500'
+              }`}>
+                {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </div>
+              <div>
+                <p className="font-bold text-primary">Dark mode</p>
+                <p className="text-sm text-secondary">
+                  {isDark ? 'Easier on the eyes at night' : 'Brighter, daytime-friendly'}
+                </p>
+              </div>
+            </div>
+            <button
+              role="switch"
+              aria-checked={isDark}
+              onClick={onToggleTheme}
+              className={`relative w-12 h-7 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 shrink-0 ${
+                isDark ? 'bg-accent' : 'bg-white/10'
+              }`}>
+              <span
+                className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                  isDark ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </section>
+
         {/* Notifications */}
         <section id="section-notifications">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
@@ -341,12 +457,17 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
               </div>
             </div>
             <button
+              role="switch"
+              aria-checked={notifications}
               onClick={() => setNotifications(!notifications)}
-              className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ${notifications ? 'bg-accent' : 'bg-white/10'}`}>
-              <motion.div
-                animate={{ x: notifications ? 22 : 2 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm" />
+              className={`relative w-12 h-7 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 shrink-0 ${
+                notifications ? 'bg-accent' : 'bg-white/10'
+              }`}>
+              <span
+                className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                  notifications ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
             </button>
           </div>
         </section>
@@ -368,13 +489,86 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
               <LogOut className="w-5 h-5 shrink-0" />
               Log Out
             </button>
-            <button className="w-full flex items-center gap-4 p-5 text-secondary hover:text-red-400 hover:bg-red-500/5 transition-all text-sm font-medium text-left rounded-b-2xl">
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-red-400 hover:bg-red-500/5 transition-all text-sm font-medium text-left rounded-b-2xl">
               <Trash2 className="w-5 h-5 shrink-0" />
               Delete Account
             </button>
           </div>
         </section>
       </div>
+
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={closeDeleteModal}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+                <button
+                  onClick={closeDeleteModal}
+                  disabled={isDeletingAccount}
+                  className="p-1.5 rounded-lg hover:bg-white/5 text-muted hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <h3 className="text-lg font-bold text-primary mb-2">
+                Delete your account?
+              </h3>
+              <p className="text-secondary text-sm mb-3">
+                This action <span className="font-semibold text-primary">cannot be undone</span>. Your account and all associated data will be permanently erased, including:
+              </p>
+              <ul className="text-muted text-sm mb-6 space-y-1.5 pl-1">
+                <li className="flex gap-2"><span className="text-red-400">•</span> Vocabulary lists and saved words</li>
+                <li className="flex gap-2"><span className="text-red-400">•</span> Flashcard progress and review history</li>
+                <li className="flex gap-2"><span className="text-red-400">•</span> Watched videos and mined words</li>
+                <li className="flex gap-2"><span className="text-red-400">•</span> Deck and learning preferences</li>
+              </ul>
+              {deleteError && (
+                <div className="mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {deleteError}
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={confirmDeleteAccount}
+                  disabled={isDeletingAccount}
+                  className="w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                  {isDeletingAccount ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Deleting…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete Account Permanently
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={closeDeleteModal}
+                  disabled={isDeletingAccount}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-primary hover:bg-white/10 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

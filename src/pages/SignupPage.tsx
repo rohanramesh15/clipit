@@ -227,7 +227,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
                   className="font-semibold transition-colors"
                   style={{ color: '#E07A7A' }}
                 >
-                  Log in
+                  Sign in
                 </button>
               </p>
             </div>

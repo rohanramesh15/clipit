@@ -18,12 +18,14 @@ import clipitLogo from '../assets/clipitlogo.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { Avatar } from './Avatar';
 type Page =
 'video' |
 'flashcards' |
 'dictionary' |
 'analytics' |
 'vocabulary' |
+'converse' |
 'settings';
 interface SidebarProps {
   activePage: Page;
@@ -43,7 +45,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { user } = useAuth();
   const { language, setLanguage } = useLanguage();
-  const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
+  const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const languageRef = useRef<HTMLDivElement>(null);
@@ -51,6 +53,8 @@ export function Sidebar({
   const languages = [
     { code: 'ko', flag: '🇰🇷', name: 'Korean' },
     { code: 'uk', flag: '🇺🇦', name: 'Ukrainian' },
+    { code: 'es', flag: '🇪🇸', name: 'Spanish' },
+    { code: 'en', flag: '🇬🇧', name: 'English' },
   ];
 
   const currentLang = languages.find(l => l.code === language) || languages[0];
@@ -89,6 +93,11 @@ export function Sidebar({
     id: 'analytics',
     icon: BarChart3,
     label: 'Progress'
+  },
+  {
+    id: 'converse',
+    icon: MessageSquare,
+    label: 'Converse'
   }] as
   const;
   return (
@@ -97,7 +106,7 @@ export function Sidebar({
       animate={{ width: isCollapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
       {/* Logo Area */}
-      <div className={`h-24 flex flex-col items-center justify-center border-b border-white/5 relative`}>
+      <div className={`h-24 flex flex-col items-center justify-center relative`}>
         <AnimatePresence mode="wait">
           {!isCollapsed && (
             <motion.div
@@ -218,7 +227,7 @@ export function Sidebar({
                   <button
                     key={lang.code}
                     onClick={() => {
-                      setLanguage(lang.code as 'ko' | 'uk');
+                      setLanguage(lang.code as 'ko' | 'uk' | 'es' | 'en');
                       setIsLanguageOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
@@ -235,53 +244,6 @@ export function Sidebar({
             </motion.div>
           )}
         </div>
-
-        {/* Theme Toggle */}
-        <button
-          onClick={onToggleTheme}
-          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
-
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 overflow-hidden">
-            <motion.div
-              key={isDark ? 'moon' : 'sun'}
-              initial={{
-                y: -20,
-                opacity: 0
-              }}
-              animate={{
-                y: 0,
-                opacity: 1
-              }}
-              exit={{
-                y: 20,
-                opacity: 0
-              }}
-              transition={{
-                type: 'spring',
-                stiffness: 300,
-                damping: 20
-              }}>
-
-              {isDark ?
-              <Moon className="w-4 h-4" /> :
-
-              <Sun className="w-4 h-4" />
-              }
-            </motion.div>
-          </div>
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="text-sm font-medium hidden md:block whitespace-nowrap">
-                {isDark ? 'Dark Mode' : 'Light Mode'}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
 
         {/* Feedback Link */}
         <a
@@ -311,9 +273,7 @@ export function Sidebar({
           onClick={() => onNavigate('settings')}
           className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isCollapsed ? 'justify-center' : 'w-full'} ${activePage === 'settings' ? 'bg-white/5' : 'hover:bg-white/5'}`}>
 
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-orange-500 flex items-center justify-center text-xs font-bold text-app shrink-0">
-            {initials}
-          </div>
+          <Avatar user={user} size={32} />
           <AnimatePresence>
             {!isCollapsed && (
               <motion.div
@@ -323,7 +283,7 @@ export function Sidebar({
                 transition={{ duration: 0.2 }}
                 className="hidden md:block overflow-hidden text-left">
                 <p className="text-sm font-medium text-primary truncate whitespace-nowrap">
-                  {user?.username ?? 'User'}
+                  {displayName}
                 </p>
                 <p className="text-xs text-secondary truncate whitespace-nowrap">{user?.email ?? ''}</p>
               </motion.div>

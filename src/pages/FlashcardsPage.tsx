@@ -215,12 +215,12 @@ function playTTSWord(word: string, lang: string) {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = lang === 'uk' ? 'uk-UA' : 'ko-KR';
+  utterance.lang = lang === 'uk' ? 'uk-UA' : lang === 'es' ? 'es-ES' : lang === 'en' ? 'en-US' : 'ko-KR';
   utterance.rate = 0.9;
 
   // Use cached voices or try to get them again
   const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
-  const langPrefix = lang === 'uk' ? 'uk' : 'ko';
+  const langPrefix = lang === 'uk' ? 'uk' : lang === 'es' ? 'es' : lang === 'en' ? 'en' : 'ko';
 
   // Prefer natural voices: Google > Yuna > Sora > any non-Eddy > Eddy
   const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
@@ -458,11 +458,11 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const playTTS = useCallback((text: string) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === 'uk' ? 'uk-UA' : 'ko-KR';
+    utterance.lang = language === 'uk' ? 'uk-UA' : language === 'es' ? 'es-ES' : language === 'en' ? 'en-US' : 'ko-KR';
     utterance.rate = 0.9;
 
     const voices = window.speechSynthesis.getVoices();
-    const langPrefix = language === 'uk' ? 'uk' : 'ko';
+    const langPrefix = language === 'uk' ? 'uk' : language === 'es' ? 'es' : language === 'en' ? 'en' : 'ko';
     // Prefer Google voice, then any language-specific voice, then any voice
     const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
       || voices.find(v => v.lang.startsWith(langPrefix))
@@ -2728,7 +2728,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center text-3xl">
-          {language === 'uk' ? '🇺🇦' : '🈚'}
+          {language === 'uk' ? '🇺🇦' : language === 'es' ? '🇪🇸' : language === 'en' ? '🇬🇧' : '🈚'}
         </div>
         <p className="text-primary font-semibold">No common {languageName} words found</p>
         <p className="text-secondary text-sm text-center max-w-sm">
