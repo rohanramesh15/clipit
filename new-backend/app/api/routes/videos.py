@@ -11,10 +11,12 @@ from app.services.video_store import (
     get_unchecked_videos, update_korean_status,
     get_ukrainian_filtered_videos, get_unchecked_ukrainian_videos,
     update_ukrainian_status, get_total_watch_time, update_video_title,
+    get_spanish_filtered_videos, get_unchecked_spanish_videos, update_spanish_status,
+    get_english_filtered_videos, get_unchecked_english_videos, update_english_status,
     add_user_watch, get_user_videos, get_user_filtered_videos, get_user_unchecked_videos,
     delete_user_video, add_watch_time,
 )
-from app.services.subtitle_service import check_korean_available, check_ukrainian_available
+from app.services.subtitle_service import check_korean_available, check_ukrainian_available, check_spanish_available, check_english_available
 
 router = APIRouter()
 
@@ -35,6 +37,14 @@ class StatusUpdate(BaseModel):
 
 class UkrainianStatusUpdate(BaseModel):
     has_ukrainian: bool
+
+
+class SpanishStatusUpdate(BaseModel):
+    has_spanish: bool
+
+
+class EnglishStatusUpdate(BaseModel):
+    has_english: bool
 
 
 class TitleUpdate(BaseModel):
@@ -61,9 +71,12 @@ async def track_video(
     if req.caption_languages:
         has_ko = any(l == 'ko' or l.startswith('ko-') for l in req.caption_languages)
         has_uk = any(l == 'uk' or l.startswith('uk-') for l in req.caption_languages)
+        has_es = any(l == 'es' or l.startswith('es-') for l in req.caption_languages)
         has_en = any(l == 'en' or l.startswith('en-') for l in req.caption_languages)
         update_korean_status(req.video_id, has_ko and has_en)
         update_ukrainian_status(req.video_id, has_uk and has_en)
+        update_spanish_status(req.video_id, has_es and has_en)
+        update_english_status(req.video_id, has_en)
 
     # Link this video to the current user
     watched_at = req.watched_at if req.watched_at is not None else time.time()
@@ -98,6 +111,14 @@ async def get_filtered_history(
         for video in unchecked:
             has_uk = check_ukrainian_available(video["video_id"])
             update_ukrainian_status(video["video_id"], has_uk)
+    elif lang == "es":
+        for video in unchecked:
+            has_es = check_spanish_available(video["video_id"])
+            update_spanish_status(video["video_id"], has_es)
+    elif lang == "en":
+        for video in unchecked:
+            has_en = check_english_available(video["video_id"])
+            update_english_status(video["video_id"], has_en)
     else:
         for video in unchecked:
             has_korean = check_korean_available(video["video_id"])
@@ -119,6 +140,20 @@ async def update_video_ukrainian_status(video_id: str, body: UkrainianStatusUpda
     """Update the has_ukrainian status for a video."""
     update_ukrainian_status(video_id, body.has_ukrainian)
     return {"status": "ok", "video_id": video_id, "has_ukrainian": body.has_ukrainian}
+
+
+@router.put("/{video_id}/status/spanish")
+async def update_video_spanish_status(video_id: str, body: SpanishStatusUpdate):
+    """Update the has_spanish status for a video."""
+    update_spanish_status(video_id, body.has_spanish)
+    return {"status": "ok", "video_id": video_id, "has_spanish": body.has_spanish}
+
+
+@router.put("/{video_id}/status/english")
+async def update_video_english_status(video_id: str, body: EnglishStatusUpdate):
+    """Update the has_english status for a video."""
+    update_english_status(video_id, body.has_english)
+    return {"status": "ok", "video_id": video_id, "has_english": body.has_english}
 
 
 @router.put("/{video_id}/title")

@@ -8,7 +8,8 @@ class UserFlashcardProgress(BaseModel):
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     word = Column(String, nullable=False)
-    language = Column(String, nullable=False)  # 'ko', 'uk', 'sr', 'bg'
+    lemma = Column(String, nullable=True, index=True)  # Canonical dictionary form; backfilled lazily per-language
+    language = Column(String, nullable=False)  # 'ko', 'uk', 'sr', 'bg', 'es'
     video_id = Column(String(64), nullable=True, index=True)  # YouTube/Netflix video ID for deck organization
     card_type = Column(String(20), nullable=False, default='video')  # 'tts' or 'video'
 

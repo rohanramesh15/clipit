@@ -21,3 +21,12 @@ google-auth==2.36.0
 
 # Anki import
 zstandard==0.23.0
+
+# Gemini (chat, embeddings, STT, TTS)
+google-genai==0.8.0
+
+# pgvector ORM support
+pgvector==0.3.6
+
+# Spanish lemmatization
+spacy==3.7.6

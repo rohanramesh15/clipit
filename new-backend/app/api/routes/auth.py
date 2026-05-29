@@ -18,6 +18,14 @@ from app.schemas.auth import (
     MessageResponse,
 )
 from app.api.deps import get_current_user
+from app.models.user_video_watch import UserVideoWatch
+from app.models.user_flashcard_progress import UserFlashcardProgress
+from app.models.user_review_history import UserReviewHistory
+from app.models.user_anki_progress import UserAnkiProgress
+from app.models.user_mined_word import UserMinedWord
+from app.models.user_vocabulary_list import UserVocabularyList
+from app.models.user_vocabulary_settings import UserVocabularySettings
+from app.models.deck_settings import DeckSettings
 from app.services.email_service import (
     generate_token,
     send_password_reset_email,
@@ -161,6 +169,29 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
 def me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return current_user
+
+
+@router.delete("/auth/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete the currently authenticated user and all their data."""
+    user_id = current_user.id
+
+    # Explicitly clear user-owned rows. Some FKs use ON DELETE CASCADE and some
+    # don't — clearing all of them keeps this resilient to schema drift.
+    db.query(UserReviewHistory).filter(UserReviewHistory.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserFlashcardProgress).filter(UserFlashcardProgress.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserAnkiProgress).filter(UserAnkiProgress.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserMinedWord).filter(UserMinedWord.user_id == user_id).delete(synchronize_session=False)
+    db.query(DeckSettings).filter(DeckSettings.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserVocabularySettings).filter(UserVocabularySettings.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserVocabularyList).filter(UserVocabularyList.user_id == user_id).delete(synchronize_session=False)
+
+    db.delete(current_user)
+    db.commit()
 
 
 @router.post("/auth/forgot-password", response_model=MessageResponse)

@@ -10,6 +10,10 @@ from .user_vocabulary_list import UserVocabularyList
 from .user_vocabulary_word import UserVocabularyWord
 from .user_vocabulary_settings import UserVocabularySettings
 from .user_mined_word import UserMinedWord
+from .subtitle_embedding import SubtitleEmbedding
+from .chat import ChatSession, ChatTurn, ChatSavedWord
+from .chat_memory import ChatMemoryFact
+from .user_language_profile import UserLanguageProfile
 
 __all__ = [
     "BaseModel",
@@ -23,4 +27,10 @@ __all__ = [
     "UserVocabularyWord",
     "UserVocabularySettings",
     "UserMinedWord",
+    "SubtitleEmbedding",
+    "ChatSession",
+    "ChatTurn",
+    "ChatSavedWord",
+    "ChatMemoryFact",
+    "UserLanguageProfile",
 ]

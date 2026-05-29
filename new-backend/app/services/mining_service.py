@@ -132,7 +132,14 @@ def apply_mining_limits(
         - applied_limits: Whether limits were applied
         - excluded_previously_mined: Count of words excluded
     """
-    language_key = "korean" if language == "ko" else "ukrainian"
+    if language == "uk":
+        language_key = "ukrainian"
+    elif language == "es":
+        language_key = "spanish"
+    elif language == "en":
+        language_key = "english"
+    else:
+        language_key = "korean"
 
     # Calculate session cap
     session_cap = calculate_session_cap(duration_seconds)

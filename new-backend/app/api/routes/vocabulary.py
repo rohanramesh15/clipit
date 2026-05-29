@@ -7,9 +7,11 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
-from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
+from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_spanish, load_cached_subtitles_english
 from app.services.korean_tokenizer import extract_korean_words_from_subtitles
 from app.services.ukrainian_tokenizer import extract_ukrainian_words_from_subtitles
+from app.services.spanish_tokenizer import extract_spanish_words_from_subtitles
+from app.services.english_tokenizer import extract_english_words_from_subtitles
 from app.services.vocab_service import load_frequency_map, filter_vocabulary, filter_by_priority_mode, get_vocab_stats
 from app.services.mining_service import apply_mining_limits, record_mined_words, get_mining_stats
 from app.api.routes.netflix import load_cached_netflix_subtitles
@@ -46,14 +48,24 @@ def get_optional_current_user(
 # Cache frequency maps in memory (loaded once at first request)
 _FREQUENCY_MAP_KO: dict | None = None
 _FREQUENCY_MAP_UK: dict | None = None
+_FREQUENCY_MAP_ES: dict | None = None
+_FREQUENCY_MAP_EN: dict | None = None
 
 
 def get_frequency_map(lang: str = 'ko') -> dict:
-    global _FREQUENCY_MAP_KO, _FREQUENCY_MAP_UK
+    global _FREQUENCY_MAP_KO, _FREQUENCY_MAP_UK, _FREQUENCY_MAP_ES, _FREQUENCY_MAP_EN
     if lang == 'uk':
         if _FREQUENCY_MAP_UK is None:
             _FREQUENCY_MAP_UK = load_frequency_map('uk')
         return _FREQUENCY_MAP_UK
+    elif lang == 'es':
+        if _FREQUENCY_MAP_ES is None:
+            _FREQUENCY_MAP_ES = load_frequency_map('es')
+        return _FREQUENCY_MAP_ES
+    elif lang == 'en':
+        if _FREQUENCY_MAP_EN is None:
+            _FREQUENCY_MAP_EN = load_frequency_map('en')
+        return _FREQUENCY_MAP_EN
     else:
         if _FREQUENCY_MAP_KO is None:
             _FREQUENCY_MAP_KO = load_frequency_map('ko')
@@ -85,12 +97,27 @@ async def get_vocabulary(
     # Handle Netflix videos
     if video_id.startswith('netflix_'):
         subtitle_data = load_cached_netflix_subtitles(video_id, lang)
-        lang_key = 'has_ukrainian' if lang == 'uk' else 'has_korean'
-        extract_fn = extract_ukrainian_words_from_subtitles if lang == 'uk' else extract_korean_words_from_subtitles
+        if lang == 'uk':
+            lang_key = 'has_ukrainian'
+            extract_fn = extract_ukrainian_words_from_subtitles
+        elif lang == 'es':
+            lang_key = 'has_spanish'
+            extract_fn = extract_spanish_words_from_subtitles
+        else:
+            lang_key = 'has_korean'
+            extract_fn = extract_korean_words_from_subtitles
     elif lang == 'uk':
         subtitle_data = load_cached_subtitles_ukrainian(video_id)
         lang_key = 'has_ukrainian'
         extract_fn = extract_ukrainian_words_from_subtitles
+    elif lang == 'es':
+        subtitle_data = load_cached_subtitles_spanish(video_id)
+        lang_key = 'has_spanish'
+        extract_fn = extract_spanish_words_from_subtitles
+    elif lang == 'en':
+        subtitle_data = load_cached_subtitles_english(video_id)
+        lang_key = 'has_english'
+        extract_fn = extract_english_words_from_subtitles
     else:
         subtitle_data = load_cached_subtitles(video_id)
         lang_key = 'has_korean'

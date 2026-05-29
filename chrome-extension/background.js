@@ -441,6 +441,7 @@ function detectSubtitleLanguage(url, content) {
   // Common Netflix URL patterns for language
   if (urlLower.includes('ko') || urlLower.includes('korean')) return 'ko';
   if (urlLower.includes('uk') || urlLower.includes('ukrainian')) return 'uk';
+  if (urlLower.includes('es') || urlLower.includes('spanish')) return 'es';
   if (urlLower.includes('en') || urlLower.includes('english')) return 'en';
 
   // Try to detect from content
@@ -451,6 +452,9 @@ function detectSubtitleLanguage(url, content) {
 
   // Check for Ukrainian characters (Cyrillic with Ukrainian-specific letters)
   if (/[\u0400-\u04FF]/.test(contentSample) && /[іїєґ]/i.test(contentSample)) return 'uk';
+
+  // Check for Spanish characters (Latin + Spanish-specific diacritics)
+  if (/[ñáéíóúü¿¡]/i.test(contentSample)) return 'es';
 
   // Check for mostly ASCII (likely English)
   if (/^[\x00-\x7F\s]+$/.test(contentSample.replace(/<[^>]*>/g, ''))) return 'en';
@@ -566,7 +570,7 @@ async function trackNetflix(videoId, title, audioLang, episodeInfo) {
     const data = await res.json();
 
     // Use shared updateStatus helper for language marking
-    if (audioLang === 'ko' || audioLang === 'uk') {
+    if (audioLang === 'ko' || audioLang === 'uk' || audioLang === 'es') {
       await updateStatus(`netflix_${videoId}`, audioLang, true);
       console.log(`[ClipIt] Marked video as having ${audioLang} (audio detected)`);
     }
@@ -594,7 +598,7 @@ async function updateNetflixTitle(videoId, title) {
 }
 
 async function updateNetflixAudioLanguage(videoId, audioLang) {
-  if (audioLang === 'ko' || audioLang === 'uk') {
+  if (audioLang === 'ko' || audioLang === 'uk' || audioLang === 'es') {
     await updateStatus(`netflix_${videoId}`, audioLang, true);
     console.log(`[ClipIt] Updated: ${audioLang} audio detected`);
   }
@@ -656,6 +660,9 @@ async function processYouTubeSubtitles(videoId, subtitles) {
       if (data.has_ukrainian) {
         runVocabPipeline(videoId, 'uk');
       }
+      if (data.has_spanish) {
+        runVocabPipeline(videoId, 'es');
+      }
 
       return { success: true };
     } else {
@@ -692,9 +699,10 @@ async function trackAndPrefetch(videoId, title, lang = 'ko') {
     const data = await res.json();
     console.log(`[ClipIt] Tracked: ${videoId} — ${title} (new: ${data.is_new})`);
 
-    // 2. Run vocab pipeline for BOTH languages (fire and forget)
+    // 2. Run vocab pipeline for ALL supported languages (fire and forget)
     runVocabPipeline(videoId, 'ko');
     runVocabPipeline(videoId, 'uk');
+    runVocabPipeline(videoId, 'es');
 
     return { success: true, is_new: data.is_new };
   } catch (e) {
@@ -738,7 +746,8 @@ async function runVocabPipeline(videoId, lang = 'ko') {
             lang: lang,
             subtitles: subtitleData.subtitles,
             has_korean: subtitleData.has_korean,
-            has_ukrainian: subtitleData.has_ukrainian
+            has_ukrainian: subtitleData.has_ukrainian,
+            has_spanish: subtitleData.has_spanish
           }),
         });
 
@@ -828,6 +837,12 @@ async function updateStatus(videoId, lang, value) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ has_ukrainian: value }),
+    }).catch(() => {});
+  } else if (lang === 'es') {
+    await fetch(`${API}/videos/${videoId}/status/spanish`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ has_spanish: value }),
     }).catch(() => {});
   } else {
     await fetch(`${API}/videos/${videoId}/status`, {

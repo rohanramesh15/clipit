@@ -151,6 +151,16 @@ def get_cards(
     }
 
 
+def _invalidate_vocab_profile(user_id: int, language: str) -> None:
+    """Best-effort: drop the cached chat vocab profile so the next chat sees
+    the most recent card state. Safe to call without the chat module loaded."""
+    try:
+        from app.services.vocab_profile_service import invalidate
+        invalidate(user_id, language)
+    except Exception:
+        pass
+
+
 @router.post("/cards")
 def upsert_card(
     card: CardUpsert,
@@ -160,6 +170,7 @@ def upsert_card(
     """Upsert a single FSRS card state for the current user."""
     _apply_card_upsert(db, current_user.id, card)
     db.commit()
+    _invalidate_vocab_profile(current_user.id, card.language)
     return {"status": "ok", "word": card.word, "language": card.language}
 
 
@@ -170,9 +181,13 @@ def upsert_cards_bulk(
     current_user: User = Depends(get_current_user),
 ):
     """Upsert many FSRS card states at once (for initial localStorage migration)."""
+    langs_touched = set()
     for card in body.cards:
         _apply_card_upsert(db, current_user.id, card)
+        langs_touched.add(card.language)
     db.commit()
+    for lang in langs_touched:
+        _invalidate_vocab_profile(current_user.id, lang)
     return {"status": "ok", "upserted": len(body.cards)}
 
 
@@ -194,6 +209,7 @@ def add_review(
     )
     db.add(entry)
     db.commit()
+    _invalidate_vocab_profile(current_user.id, review.language)
     return {"status": "ok"}
 
 

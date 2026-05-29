@@ -111,6 +111,7 @@ class SubtitleUpload(BaseModel):
     subtitles: list
     has_korean: bool = False
     has_ukrainian: bool = False
+    has_spanish: bool = False
 
 
 @router.get("/subtitles/{video_id}")
@@ -119,16 +120,21 @@ async def get_subtitles(video_id: str, lang: str = Query('ko')):
     Get cached subtitles for a YouTube or Netflix video.
     NOTE: This endpoint now only returns cached subtitles.
     Subtitles are fetched by the extension to avoid IP blocking.
-    lang: 'ko' (Korean) or 'uk' (Ukrainian). Defaults to 'ko'.
+    lang: 'ko' (Korean), 'uk' (Ukrainian), or 'es' (Spanish). Defaults to 'ko'.
     """
     try:
         # Handle Netflix videos (prefixed with netflix_)
         if video_id.startswith('netflix_'):
-            from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
+            from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_spanish
             data = load_cached_netflix_subtitles(video_id, lang)
             if not data:
                 raise HTTPException(status_code=404, detail=f"No Netflix subtitles found for {video_id}")
-            target_key = 'ukrainian' if lang == 'uk' else 'korean'
+            if lang == 'uk':
+                target_key = 'ukrainian'
+            elif lang == 'es':
+                target_key = 'spanish'
+            else:
+                target_key = 'korean'
             return {
                 "video_id": video_id,
                 "lang": lang,
@@ -145,11 +151,14 @@ async def get_subtitles(video_id: str, lang: str = Query('ko')):
             }
 
         # Handle YouTube videos - only load from cache
-        from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
+        from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_spanish
 
         if lang == 'uk':
             data = load_cached_subtitles_ukrainian(video_id)
             target_key = 'ukrainian'
+        elif lang == 'es':
+            data = load_cached_subtitles_spanish(video_id)
+            target_key = 'spanish'
         else:
             data = load_cached_subtitles(video_id)
             target_key = 'korean'
@@ -194,7 +203,8 @@ async def upload_subtitles(data: SubtitleUpload):
             lang=data.lang,
             subtitles=data.subtitles,
             has_korean=data.has_korean,
-            has_ukrainian=data.has_ukrainian
+            has_ukrainian=data.has_ukrainian,
+            has_spanish=data.has_spanish
         )
 
         return {

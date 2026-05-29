@@ -14,6 +14,8 @@ class TrackedVideo(BaseModel):
     tracked_at = Column(Float, default=time.time, nullable=False)
     has_korean = Column(Boolean, nullable=True)    # None = unchecked, True/False = confirmed
     has_ukrainian = Column(Boolean, nullable=True)  # None = unchecked, True/False = confirmed
+    has_spanish = Column(Boolean, nullable=True)   # None = unchecked, True/False = confirmed
+    has_english = Column(Boolean, nullable=True)   # None = unchecked, True/False = confirmed
     duration_seconds = Column(Integer, nullable=True)  # Video duration in seconds (from subtitles)
     # Netflix episode info
     season = Column(Integer, nullable=True)

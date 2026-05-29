@@ -178,6 +178,82 @@ async function fetchUkrainianSubtitles(videoId, _availableTracks) {
 }
 
 /**
+ * Try to get Spanish subtitles with fallback to translation
+ * @param {string} videoId - YouTube video ID
+ * @param {Array} availableTracks - Available caption tracks
+ * @returns {Promise<Array|null>} Spanish subtitles or null
+ */
+async function fetchSpanishSubtitles(videoId, _availableTracks) {
+  // Always try fetching Spanish directly first
+  const subs = await fetchSubtitles(videoId, 'es');
+  if (subs && subs.length > 0) {
+    console.log(`[Deadbird] Found ${subs.length} Spanish subtitles via direct fetch`);
+    return subs;
+  }
+
+  // Fallback: try English with Spanish translation
+  console.log('[Deadbird] No direct Spanish subs, trying English→Spanish translation');
+  try {
+    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&tlang=es&fmt=json3`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.events) {
+        const subtitles = [];
+        for (const event of data.events) {
+          if (!event.segs) continue;
+          const text = event.segs.map(seg => seg.utf8).join('');
+          if (!text || !text.trim()) continue;
+          subtitles.push({
+            text: text.trim(),
+            start: event.tStartMs / 1000,
+            duration: (event.dDurationMs || 0) / 1000
+          });
+        }
+        if (subtitles.length > 0) {
+          console.log(`[Deadbird] Found ${subtitles.length} Spanish subtitles via translation`);
+          return subtitles;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Deadbird] Spanish translation failed:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Merge Spanish and English subtitles by timestamp
+ * @param {Array} spanishSubs - Spanish subtitles
+ * @param {Array} englishSubs - English subtitles
+ * @returns {Array} Merged subtitles
+ */
+function mergeSpanishSubtitles(spanishSubs, englishSubs) {
+  const merged = [];
+
+  for (const esSub of spanishSubs) {
+    if (!esSub.text || !esSub.text.trim()) continue;
+
+    const matchingEng = englishSubs.find(enSub =>
+      Math.abs(esSub.start - enSub.start) < 1.0
+    );
+
+    if (matchingEng && matchingEng.text && matchingEng.text.trim()) {
+      merged.push({
+        start: esSub.start,
+        duration: esSub.duration,
+        end: esSub.start + esSub.duration,
+        spanish: esSub.text,
+        english: matchingEng.text
+      });
+    }
+  }
+
+  return merged;
+}
+
+/**
  * Merge Korean and English subtitles by timestamp
  * @param {Array} koreanSubs - Korean subtitles
  * @param {Array} englishSubs - English subtitles
@@ -257,6 +333,8 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
     let targetSubs;
     if (lang === 'uk') {
       targetSubs = await fetchUkrainianSubtitles(videoId, availableTracks);
+    } else if (lang === 'es') {
+      targetSubs = await fetchSpanishSubtitles(videoId, availableTracks);
     } else {
       targetSubs = await fetchKoreanSubtitles(videoId, availableTracks);
     }
@@ -267,6 +345,7 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
         video_id: videoId,
         has_korean: false,
         has_ukrainian: false,
+        has_spanish: false,
         subtitles: []
       };
     }
@@ -286,6 +365,19 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
           duration: sub.duration,
           end: sub.start + sub.duration,
           ukrainian: sub.text,
+          english: sub.text
+        }));
+      }
+    } else if (lang === 'es') {
+      if (englishSubs && englishSubs.length > 0) {
+        merged = mergeSpanishSubtitles(targetSubs, englishSubs);
+      } else {
+        // Spanish only, no English
+        merged = targetSubs.map(sub => ({
+          start: sub.start,
+          duration: sub.duration,
+          end: sub.start + sub.duration,
+          spanish: sub.text,
           english: sub.text
         }));
       }
@@ -311,6 +403,7 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
       total_subtitles: merged.length,
       has_korean: lang === 'ko' && targetSubs.length > 0,
       has_ukrainian: lang === 'uk' && targetSubs.length > 0,
+      has_spanish: lang === 'es' && targetSubs.length > 0,
       subtitles: merged
     };
   } catch (error) {
@@ -319,6 +412,7 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
       video_id: videoId,
       has_korean: false,
       has_ukrainian: false,
+      has_spanish: false,
       subtitles: []
     };
   }

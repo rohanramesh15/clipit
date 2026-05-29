@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
 
+    # Gemini (chat, embeddings, STT, TTS)
+    GEMINI_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True

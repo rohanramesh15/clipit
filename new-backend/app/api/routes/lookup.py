@@ -54,7 +54,7 @@ async def get_dictionary(
     If user is authenticated, includes their uploaded vocab words.
     """
     frequency_map = get_frequency_map(lang)
-    deepl_source_lang = 'UK' if lang == 'uk' else 'KO'
+    deepl_source_lang = {'uk': 'UK', 'es': 'ES', 'en': 'EN', 'ko': 'KO'}.get(lang, 'KO')
 
     # Track words we've seen to avoid duplicates
     seen_words = set()
@@ -87,7 +87,7 @@ async def get_dictionary(
             seen_words.add(vw.word)
 
     # For Korean, use the local definitions.json
-    # For Ukrainian, generate definitions from frequency list using DeepL
+    # For Ukrainian / Spanish, generate definitions from frequency list using DeepL
     if lang == 'ko':
         definitions = load_definitions()
         for word, english in definitions.items():
@@ -104,7 +104,7 @@ async def get_dictionary(
                 'source': 'dictionary',
             })
     else:
-        # For Ukrainian, use the frequency list and translate top words
+        # For Ukrainian / Spanish, use the frequency list and translate top words
         sorted_words = sorted(frequency_map.items(), key=lambda x: x[1])[:500]  # Top 500 words
         for word, rank in sorted_words:
             if word in seen_words:
@@ -114,7 +114,7 @@ async def get_dictionary(
                 'word': word,
                 'english': english,
                 'rank': rank,
-                'pos': 'noun',  # Default for Ukrainian (no morphology analysis yet)
+                'pos': 'noun',  # Default (no morphology analysis yet for non-Korean)
                 'language': lang,
                 'source': 'dictionary',
             })
@@ -152,7 +152,7 @@ async def lookup_words(word_list: List[str] = Body(...), lang: str = Query('ko')
 
     frequency_map = get_frequency_map(lang)
     definitions = load_definitions()
-    deepl_source_lang = 'UK' if lang == 'uk' else 'KO'
+    deepl_source_lang = {'uk': 'UK', 'es': 'ES', 'en': 'EN', 'ko': 'KO'}.get(lang, 'KO')
     results = []
 
     for word in word_list:
