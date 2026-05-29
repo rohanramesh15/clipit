@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Play,
@@ -6,7 +6,8 @@ import {
   ArrowRight,
   Layers,
   Sun,
-  Moon } from
+  Moon,
+  X } from
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 interface LandingPageProps {
@@ -17,10 +18,19 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
     const saved = localStorage.getItem('theme');
     return saved !== 'light';
   });
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
   }, [isDark]);
+
+  useEffect(() => {
+    if (!showDemoModal && videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  }, [showDemoModal]);
   return (
     <div className={`min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app overflow-x-hidden ${isDark ? '' : 'light'}`}>
       {/* Navigation */}
@@ -91,7 +101,9 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 Start Learning Free
                 <ArrowRight className="w-5 h-5" />
               </button>
-              <button className="bg-surface hover:bg-surface-hover border border-white/10 text-primary px-8 py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2">
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="bg-surface hover:bg-surface-hover border border-white/10 text-primary px-8 py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2">
                 <Play className="w-5 h-5 fill-current" />
                 Watch Demo
               </button>
@@ -201,6 +213,37 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           <p className="text-sm text-muted">© 2024 ClipIt Inc.</p>
         </div>
       </footer>
+
+      {/* Demo Video Modal */}
+      {showDemoModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setShowDemoModal(false)}>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowDemoModal(false)}
+              className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors flex items-center gap-2 text-sm">
+              <span>Close</span>
+              <X className="w-5 h-5" />
+            </button>
+            <video
+              ref={videoRef}
+              src="/clipitdemo.mp4"
+              controls
+              autoPlay
+              className="w-full rounded-2xl shadow-2xl"
+            />
+          </motion.div>
+        </motion.div>
+      )}
     </div>);
 
 }
