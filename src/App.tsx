@@ -14,7 +14,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
-import { ConversePage } from './pages/ConversePage';
+import { ConverseV2Page } from './pages/ConverseV2Page';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -27,7 +27,7 @@ type Page =
 'dictionary' |
 'analytics' |
 'vocabulary' |
-'converse' |
+'converse-v2' |
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
@@ -101,8 +101,8 @@ function AppInner() {
         return <AnalyticsPage />;
       case 'vocabulary':
         return <VocabularyUploadPage />;
-      case 'converse':
-        return <ConversePage />;
+      case 'converse-v2':
+        return <ConverseV2Page />;
       case 'settings':
         return (
           <SettingsPage

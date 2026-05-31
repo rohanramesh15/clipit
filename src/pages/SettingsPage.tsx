@@ -47,11 +47,10 @@ const settingsPageTips: HelpTip[] = [
   },
 ];
 
-const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' | 'es' | 'en' }[] = [
+const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' | 'es' }[] = [
   { label: 'Korean', flag: '🇰🇷', value: 'ko' },
   { label: 'Ukrainian', flag: '🇺🇦', value: 'uk' },
   { label: 'Spanish', flag: '🇪🇸', value: 'es' },
-  { label: 'English', flag: '🇬🇧', value: 'en' }
 ];
 
 const MOTIVATIONS = [

@@ -480,8 +480,7 @@ const quizQuestions = [
     options: [
       { label: "Korean", flag: "🇰🇷", value: "ko" },
       { label: "Ukrainian", flag: "🇺🇦", value: "uk" },
-      { label: "Spanish", flag: "🇪🇸", value: "es" },
-      { label: "English", flag: "🇬🇧", value: "en" }
+      { label: "Spanish", flag: "🇪🇸", value: "es" }
     ]
   },
   {

@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState } from 'react';
 
+// 'en' is retained as an internal language code because English is the
+// universal translation/gloss layer for other languages. It is intentionally
+// NOT offered as a selectable learning language in any UI selector.
 export type Language = 'ko' | 'uk' | 'es' | 'en';
 
 interface LanguageContextValue {
@@ -23,7 +26,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem('deadbird_language');
     if (stored === 'uk') return 'uk';
     if (stored === 'es') return 'es';
-    if (stored === 'en') return 'en';
     return 'ko';
   });
 

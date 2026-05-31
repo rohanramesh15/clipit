@@ -25,7 +25,7 @@ type Page =
 'dictionary' |
 'analytics' |
 'vocabulary' |
-'converse' |
+'converse-v2' |
 'settings';
 interface SidebarProps {
   activePage: Page;
@@ -54,7 +54,6 @@ export function Sidebar({
     { code: 'ko', flag: '🇰🇷', name: 'Korean' },
     { code: 'uk', flag: '🇺🇦', name: 'Ukrainian' },
     { code: 'es', flag: '🇪🇸', name: 'Spanish' },
-    { code: 'en', flag: '🇬🇧', name: 'English' },
   ];
 
   const currentLang = languages.find(l => l.code === language) || languages[0];
@@ -95,7 +94,7 @@ export function Sidebar({
     label: 'Progress'
   },
   {
-    id: 'converse',
+    id: 'converse-v2',
     icon: MessageSquare,
     label: 'Converse'
   }] as
