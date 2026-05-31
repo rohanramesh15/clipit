@@ -27,6 +27,8 @@ from app.api.routes.decks import router as decks_router
 from app.api.routes.user_vocab import router as user_vocab_router
 from app.api.routes.anki import router as anki_router
 from app.api.routes.chat import router as chat_router
+from app.api.routes.chat_voice import router as chat_voice_router
+from app.api.routes.converse_v2 import router as converse_v2_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -110,6 +112,8 @@ app.include_router(decks_router, prefix="/api/decks", tags=["decks"])
 app.include_router(user_vocab_router, prefix="/api/vocab", tags=["user-vocab"])
 app.include_router(anki_router, prefix="/api/anki", tags=["anki"])
 app.include_router(chat_router, prefix="/api", tags=["chat"])
+app.include_router(chat_voice_router, prefix="/api", tags=["chat-voice"])
+app.include_router(converse_v2_router, prefix="/api/converse2", tags=["converse2"])
 
 
 @app.get("/")

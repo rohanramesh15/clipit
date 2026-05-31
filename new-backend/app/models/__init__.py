@@ -14,6 +14,7 @@ from .subtitle_embedding import SubtitleEmbedding
 from .chat import ChatSession, ChatTurn, ChatSavedWord
 from .chat_memory import ChatMemoryFact
 from .user_language_profile import UserLanguageProfile
+from .converse_v2 import CV2Profile, CV2Session, CV2Turn, CV2Feedback
 
 __all__ = [
     "BaseModel",
@@ -33,4 +34,8 @@ __all__ = [
     "ChatSavedWord",
     "ChatMemoryFact",
     "UserLanguageProfile",
+    "CV2Profile",
+    "CV2Session",
+    "CV2Turn",
+    "CV2Feedback",
 ]
