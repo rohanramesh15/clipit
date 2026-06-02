@@ -21,8 +21,24 @@
   (document.head || document.documentElement).appendChild(script);
 })();
 
+let preferredLanguage = 'ko';
+
+chrome.storage.local.get('language').then(result => {
+  preferredLanguage = result.language === 'uk' ? 'uk' : 'ko';
+}).catch(() => {});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.language) {
+    preferredLanguage = changes.language.newValue === 'uk' ? 'uk' : 'ko';
+  }
+});
+
+function isTargetSubtitleLang(lang, targetLang = preferredLanguage) {
+  return lang === targetLang || lang?.startsWith(`${targetLang}-`);
+}
+
 // Store intercepted subtitles
-const interceptedSubtitles = { ko: null, en: null };
+const interceptedSubtitles = { target: null, en: null, lang: 'ko' };
 let subtitlesSentForVideo = null; // Track which video we've already sent subtitles for
 let subtitleSendTimeout = null;
 
@@ -37,8 +53,9 @@ window.addEventListener('message', (event) => {
   const subs = parseTimedtextContent(content);
   console.log('[ClipIt] Parsed', subs.length, 'subtitles from intercepted', lang);
 
-  if (lang === 'ko' || lang.startsWith('ko')) {
-    interceptedSubtitles.ko = subs;
+  if (isTargetSubtitleLang(lang)) {
+    interceptedSubtitles.target = subs;
+    interceptedSubtitles.lang = preferredLanguage;
   } else if (lang === 'en' || lang.startsWith('en')) {
     interceptedSubtitles.en = subs;
   }
@@ -46,8 +63,8 @@ window.addEventListener('message', (event) => {
   const videoId = new URLSearchParams(location.search).get('v');
   if (!videoId) return;
 
-  // Don't re-send if we already sent for this video with Korean subtitles
-  if (subtitlesSentForVideo === videoId && interceptedSubtitles.ko?.length > 0) {
+  // Don't re-send if we already sent for this video with target-language subtitles
+  if (subtitlesSentForVideo === videoId && interceptedSubtitles.target?.length > 0) {
     console.log('[ClipIt] Already sent subtitles for this video, skipping');
     return;
   }
@@ -59,18 +76,21 @@ window.addEventListener('message', (event) => {
 
   // Wait 500ms for both languages to arrive before sending
   subtitleSendTimeout = setTimeout(() => {
-    if (interceptedSubtitles.ko && interceptedSubtitles.ko.length > 0) {
+    if (interceptedSubtitles.target && interceptedSubtitles.target.length > 0) {
       console.log('[ClipIt] Sending intercepted subtitles to backend:', videoId);
-      console.log('[ClipIt] Korean:', interceptedSubtitles.ko.length, 'English:', interceptedSubtitles.en?.length || 0);
+      console.log('[ClipIt] Target:', interceptedSubtitles.lang, interceptedSubtitles.target.length, 'English:', interceptedSubtitles.en?.length || 0);
       subtitlesSentForVideo = videoId;
+      const targetKey = interceptedSubtitles.lang === 'uk' ? 'ukrainian' : 'korean';
       try {
         chrome.runtime.sendMessage({
           type: 'YOUTUBE_SUBTITLES',
           videoId,
           subtitles: {
-            korean: interceptedSubtitles.ko,
+            targetLanguage: interceptedSubtitles.lang,
+            [targetKey]: interceptedSubtitles.target,
             english: interceptedSubtitles.en || [],
-            hasKorean: true,
+            hasKorean: interceptedSubtitles.lang === 'ko',
+            hasUkrainian: interceptedSubtitles.lang === 'uk',
             hasEnglish: (interceptedSubtitles.en?.length || 0) > 0
           }
         }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
@@ -262,13 +282,14 @@ function sendTrack(videoId) {
           type: 'TRACK_VIDEO',
           videoId,
           title: finalTitle,
+          lang: preferredLanguage,
         }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
 
         // Start tracking watch time for this video
         setTimeout(startWatchTimeTracking, 1000);
 
         // Fetch and send subtitles client-side (bypasses YouTube IP blocking on cloud servers)
-        setTimeout(() => sendSubtitlesToBackground(videoId), 2000);
+        setTimeout(() => sendSubtitlesToBackground(videoId, preferredLanguage), 2000);
       }
     } catch (_) {
       // Extension context invalidated (extension reloaded while tab was open) — stop silently
@@ -385,8 +406,8 @@ chrome.storage.local.get('hideSubtitles').then(result => {
 // ─── Client-side subtitle fetching ───────────────────────────────────────────
 // Fetch subtitles directly from YouTube (bypasses cloud IP blocking)
 
-async function fetchYouTubeSubtitles(videoId) {
-  console.log(`[ClipIt] Fetching subtitles client-side for ${videoId}`);
+async function fetchYouTubeSubtitles(videoId, targetLang = preferredLanguage) {
+  console.log(`[ClipIt] Fetching ${targetLang} subtitles client-side for ${videoId}`);
 
   try {
     // Get the caption tracks from ytInitialPlayerResponse
@@ -407,29 +428,32 @@ async function fetchYouTubeSubtitles(videoId) {
 
     console.log('[ClipIt] Found caption tracks:', captionTracks.map(t => t.languageCode));
 
-    // Find Korean and English tracks
-    const koTrack = captionTracks.find(t => t.languageCode === 'ko' || t.languageCode?.startsWith('ko-'));
+    // Find target-language and English tracks
+    const targetTrack = captionTracks.find(t => t.languageCode === targetLang || t.languageCode?.startsWith(`${targetLang}-`));
     const enTrack = captionTracks.find(t => t.languageCode === 'en' || t.languageCode?.startsWith('en'));
-    console.log('[ClipIt] Korean track:', koTrack?.languageCode, 'English track:', enTrack?.languageCode);
-    console.log('[ClipIt] Korean baseUrl:', koTrack?.baseUrl?.substring(0, 150));
+    console.log('[ClipIt] Target track:', targetTrack?.languageCode, 'English track:', enTrack?.languageCode);
+    console.log('[ClipIt] Target baseUrl:', targetTrack?.baseUrl?.substring(0, 150));
 
-    if (!koTrack && !enTrack) {
-      console.log('[ClipIt] No Korean or English subtitles found');
+    if (!targetTrack && !enTrack) {
+      console.log('[ClipIt] No target-language or English subtitles found');
       return null;
     }
 
     // Fetch the subtitle content using baseUrl but with ip=0.0.0.0 stripped
-    const [koSubs, enSubs] = await Promise.all([
-      koTrack ? fetchSubtitleTrackSimple(videoId, koTrack.languageCode, koTrack.baseUrl) : Promise.resolve([]),
+    const [targetSubs, enSubs] = await Promise.all([
+      targetTrack ? fetchSubtitleTrackSimple(videoId, targetTrack.languageCode, targetTrack.baseUrl) : Promise.resolve([]),
       enTrack ? fetchSubtitleTrackSimple(videoId, enTrack.languageCode, enTrack.baseUrl) : Promise.resolve([])
     ]);
 
-    console.log(`[ClipIt] Fetched ${koSubs.length} Korean and ${enSubs.length} English subtitles`);
+    console.log(`[ClipIt] Fetched ${targetSubs.length} ${targetLang} and ${enSubs.length} English subtitles`);
 
+    const targetKey = targetLang === 'uk' ? 'ukrainian' : 'korean';
     return {
-      korean: koSubs,
+      targetLanguage: targetLang,
+      [targetKey]: targetSubs,
       english: enSubs,
-      hasKorean: koSubs.length > 0,
+      hasKorean: targetLang === 'ko' && targetSubs.length > 0,
+      hasUkrainian: targetLang === 'uk' && targetSubs.length > 0,
       hasEnglish: enSubs.length > 0
     };
   } catch (e) {
@@ -803,10 +827,11 @@ function parseSubtitleXML(xmlText) {
 }
 
 // Send subtitles to background script after tracking
-async function sendSubtitlesToBackground(videoId) {
+async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage) {
   // Reset intercepted subtitles for this video
-  interceptedSubtitles.ko = null;
+  interceptedSubtitles.target = null;
   interceptedSubtitles.en = null;
+  interceptedSubtitles.lang = targetLang;
   subtitlesSentForVideo = null; // Allow sending for new video
 
   // Method 1: Wait for player to be ready, then trigger caption loading
@@ -816,7 +841,7 @@ async function sendSubtitlesToBackground(videoId) {
   for (let attempt = 0; attempt < 5; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    if (await triggerCaptionLoading()) {
+    if (await triggerCaptionLoading(targetLang)) {
       console.log('[ClipIt] Caption loading triggered on attempt', attempt + 1);
       break;
     }
@@ -828,15 +853,15 @@ async function sendSubtitlesToBackground(videoId) {
   await new Promise(resolve => setTimeout(resolve, 3000));
 
   // Check if interceptor captured any subtitles
-  if (interceptedSubtitles.ko && interceptedSubtitles.ko.length > 0) {
+  if (interceptedSubtitles.target && interceptedSubtitles.target.length > 0) {
     console.log('[ClipIt] Using intercepted subtitles (already sent by interceptor listener)');
     return; // Interceptor listener already sent them
   }
 
   // Method 2: Fall back to manual fetch attempts
   console.log('[ClipIt] Interceptor did not capture subtitles, trying manual fetch...');
-  const subtitles = await fetchYouTubeSubtitles(videoId);
-  if (subtitles && (subtitles.hasKorean || subtitles.hasEnglish)) {
+  const subtitles = await fetchYouTubeSubtitles(videoId, targetLang);
+  if (subtitles && (subtitles.hasKorean || subtitles.hasUkrainian)) {
     try {
       chrome.runtime.sendMessage({
         type: 'YOUTUBE_SUBTITLES',
@@ -848,7 +873,7 @@ async function sendSubtitlesToBackground(videoId) {
   }
 }
 
-async function triggerCaptionLoading() {
+async function triggerCaptionLoading(targetLang = preferredLanguage) {
   // Method 1: Try player API if available - switch through tracks to force fetches
   const player = document.getElementById('movie_player');
   if (player && typeof player.getOption === 'function') {
@@ -857,14 +882,14 @@ async function triggerCaptionLoading() {
       console.log('[ClipIt] Available caption tracks via API:', tracklist?.map(t => t.languageCode) || 'none');
 
       if (tracklist && tracklist.length > 0) {
-        // Find Korean and English tracks
-        const koTrack = tracklist.find(t => t.languageCode === 'ko' || t.languageCode?.startsWith('ko'));
+        // Find target-language and English tracks
+        const targetTrack = tracklist.find(t => t.languageCode === targetLang || t.languageCode?.startsWith(`${targetLang}-`));
         const enTrack = tracklist.find(t => t.languageCode === 'en' || t.languageCode?.startsWith('en'));
 
-        // Load Korean track first (this triggers a fetch)
-        if (koTrack) {
-          console.log('[ClipIt] Triggering Korean caption track via API');
-          player.setOption('captions', 'track', koTrack);
+        // Load target-language track first (this triggers a fetch)
+        if (targetTrack) {
+          console.log('[ClipIt] Triggering target caption track via API');
+          player.setOption('captions', 'track', targetTrack);
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
@@ -875,12 +900,12 @@ async function triggerCaptionLoading() {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Switch back to Korean if available (preferred)
-        if (koTrack) {
-          player.setOption('captions', 'track', koTrack);
+        // Switch back to target-language captions if available
+        if (targetTrack) {
+          player.setOption('captions', 'track', targetTrack);
         }
 
-        if (koTrack || enTrack) {
+        if (targetTrack || enTrack) {
           return true;
         }
       }
