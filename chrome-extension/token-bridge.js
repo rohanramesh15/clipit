@@ -7,8 +7,7 @@
  * So we poll every second to catch same-window login/logout events.
  *
  * Injected into:
- * - http://localhost:5176/* (development)
- * - https://project-deadbird-frontend.fly.dev/* (production)
+ * - https://theclipitapp.com/* (production)
  */
 
 let lastSynced = null;

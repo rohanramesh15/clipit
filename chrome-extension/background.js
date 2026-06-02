@@ -16,6 +16,11 @@ async function getAuthToken() {
   return result.deadbird_token || null;
 }
 
+async function getPreferredLanguage() {
+  const result = await chrome.storage.local.get('language');
+  return result.language === 'uk' ? 'uk' : 'ko';
+}
+
 function authHeaders(token, extra = {}) {
   const headers = { 'Content-Type': 'application/json', ...extra };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -84,7 +89,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Let the content script provide the real title via TRACK_VIDEO message
   const title = 'Unknown';
   console.log(`[ClipIt] YouTube tab navigation: ${videoId} — awaiting title from content script`);
-  await trackAndPrefetch(videoId, title);
+  await trackAndPrefetch(videoId, title, await getPreferredLanguage());
 });
 
 // ─── Offscreen document management ───────────────────────────────────────────
@@ -341,7 +346,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ success: true, is_new: false });
     } else {
       recentlyTracked.set(msg.videoId, Date.now());
-      trackAndPrefetch(msg.videoId, msg.title, msg.lang || 'ko').then(sendResponse);
+      getPreferredLanguage()
+        .then(lang => trackAndPrefetch(msg.videoId, msg.title, msg.lang || lang))
+        .then(sendResponse);
     }
     return true;
   }
@@ -426,7 +433,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // YouTube subtitles from content script (client-side fetch)
   if (msg.type === 'YOUTUBE_SUBTITLES') {
-    console.log(`[ClipIt] YOUTUBE_SUBTITLES received: ${msg.videoId} (ko: ${msg.subtitles?.korean?.length || 0}, en: ${msg.subtitles?.english?.length || 0})`);
+    console.log(`[ClipIt] YOUTUBE_SUBTITLES received: ${msg.videoId} (lang: ${msg.subtitles?.targetLanguage || 'ko'}, target: ${(msg.subtitles?.korean || msg.subtitles?.ukrainian || []).length}, en: ${msg.subtitles?.english?.length || 0})`);
     processYouTubeSubtitles(msg.videoId, msg.subtitles).then(sendResponse);
     return true;
   }
@@ -634,6 +641,7 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
 
 async function processYouTubeSubtitles(videoId, subtitles) {
   console.log(`[ClipIt] Processing YouTube subtitles for ${videoId}`);
+  const targetLanguage = subtitles.targetLanguage === 'uk' ? 'uk' : 'ko';
   try {
     const res = await fetch(`${API}/youtube/subtitles`, {
       method: 'POST',
@@ -641,6 +649,7 @@ async function processYouTubeSubtitles(videoId, subtitles) {
       body: JSON.stringify({
         video_id: videoId,
         korean: subtitles.korean || [],
+        ukrainian: subtitles.ukrainian || [],
         english: subtitles.english || [],
       }),
     });
@@ -649,12 +658,9 @@ async function processYouTubeSubtitles(videoId, subtitles) {
       const data = await res.json();
       console.log(`[ClipIt] YouTube subtitles saved: ${videoId} (has_korean: ${data.has_korean})`);
 
-      // Now run vocab pipeline - subtitles are cached, so it should work
-      if (data.has_korean) {
-        runVocabPipeline(videoId, 'ko');
-      }
-      if (data.has_ukrainian) {
-        runVocabPipeline(videoId, 'uk');
+      // Now run vocab pipeline for the app-selected language only.
+      if ((targetLanguage === 'ko' && data.has_korean) || (targetLanguage === 'uk' && data.has_ukrainian)) {
+        runVocabPipeline(videoId, targetLanguage);
       }
 
       return { success: true };
@@ -692,9 +698,8 @@ async function trackAndPrefetch(videoId, title, lang = 'ko') {
     const data = await res.json();
     console.log(`[ClipIt] Tracked: ${videoId} — ${title} (new: ${data.is_new})`);
 
-    // 2. Run vocab pipeline for BOTH languages (fire and forget)
-    runVocabPipeline(videoId, 'ko');
-    runVocabPipeline(videoId, 'uk');
+    // 2. Run vocab pipeline for the app-selected language only.
+    runVocabPipeline(videoId, lang);
 
     return { success: true, is_new: data.is_new };
   } catch (e) {
@@ -754,11 +759,15 @@ async function runVocabPipeline(videoId, lang = 'ko') {
       // If no subtitles were found, cache empty result
       if (!subtitleData.subtitles || subtitleData.subtitles.length === 0) {
         console.log(`[Deadbird] No subtitles found for ${videoId}`);
+        await updateStatus(videoId, lang, false);
         await chrome.storage.local.set({
           [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
         });
         return;
       }
+
+      // Language exists even if no words match the frequency list later.
+      await updateStatus(videoId, lang, true);
     }
 
     // Step 2: vocabulary (all words in freq list, no level filter)
@@ -807,7 +816,7 @@ async function runVocabPipeline(videoId, lang = 'ko') {
       }));
     }
 
-    // Update language status to true (only if words found)
+    // Keep language status true because subtitles were found.
     console.log(`[Deadbird] Found ${words.length} words, setting has_${lang}=true`);
     await updateStatus(videoId, lang, true);
 
