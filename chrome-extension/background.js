@@ -732,6 +732,18 @@ async function runVocabPipeline(videoId, lang = 'ko') {
 
       // Fetch subtitles directly from YouTube using the user's browser
       const subtitleData = await fetchAllSubtitles(videoId, lang);
+      const subtitles = subtitleData?.subtitles || [];
+
+      // If no target-language subtitles were found, mark the language unavailable
+      // and avoid uploading an empty cache payload.
+      if (subtitles.length === 0) {
+        console.log(`[Deadbird] No ${lang} subtitles found for ${videoId}`);
+        await updateStatus(videoId, lang, false);
+        await chrome.storage.local.set({
+          [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
+        });
+        return;
+      }
 
       // If no subtitles were found, cache empty result and stop — don't upload
       // empty data which would corrupt Neon storage for the other language.
@@ -751,29 +763,19 @@ async function runVocabPipeline(videoId, lang = 'ko') {
           body: JSON.stringify({
             video_id: videoId,
             lang: lang,
-            subtitles: subtitleData.subtitles,
-            has_korean: subtitleData.has_korean,
-            has_ukrainian: subtitleData.has_ukrainian
+            subtitles,
+            has_korean: subtitleData?.has_korean || false,
+            has_ukrainian: subtitleData?.has_ukrainian || false
           }),
         });
 
         if (uploadRes.ok) {
-          console.log(`[Deadbird] Uploaded ${subtitleData.subtitles.length} subtitles to backend`);
+          console.log(`[Deadbird] Uploaded ${subtitles.length} subtitles to backend`);
         } else {
           console.error('[Deadbird] Failed to upload subtitles:', await uploadRes.text());
         }
       } catch (uploadError) {
         console.error('[Deadbird] Error uploading subtitles:', uploadError);
-      }
-
-      // If no subtitles were found, cache empty result
-      if (!subtitleData.subtitles || subtitleData.subtitles.length === 0) {
-        console.log(`[Deadbird] No subtitles found for ${videoId}`);
-        await updateStatus(videoId, lang, false);
-        await chrome.storage.local.set({
-          [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
-        });
-        return;
       }
 
       // Language exists even if no words match the frequency list later.
