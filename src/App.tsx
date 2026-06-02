@@ -16,7 +16,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { HelpButton } from './components/HelpButton';
@@ -31,11 +31,16 @@ type Page =
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
 function getStoredThemeIsDark() {
+  const themeParam = new URLSearchParams(window.location.search).get('theme');
+  if (themeParam === 'light' || themeParam === 'dark') {
+    return themeParam === 'dark';
+  }
   return localStorage.getItem('theme') !== 'light';
 }
 
 function AppInner() {
   const { user, isLoading } = useAuth();
+  const { setLanguage } = useLanguage();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
   const [isDark, setIsDark] = useState(getStoredThemeIsDark);
@@ -63,8 +68,27 @@ function AppInner() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
+    let shouldCleanUrl = false;
+
+    const themeParam = params.get('theme');
+    if (themeParam === 'light' || themeParam === 'dark') {
+      localStorage.setItem('theme', themeParam);
+      setIsDark(themeParam === 'dark');
+      params.delete('theme');
+      shouldCleanUrl = true;
+    }
+
+    const langParam = params.get('lang');
+    if (langParam === 'ko' || langParam === 'uk') {
+      setLanguage(langParam);
+      params.delete('lang');
+      shouldCleanUrl = true;
+    }
 
     if (path === '/privacy') {
+      if (shouldCleanUrl) {
+        window.history.replaceState({}, '', `${path}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash}`);
+      }
       setAppView('privacy');
       return;
     }
@@ -77,8 +101,10 @@ function AppInner() {
         // Clean URL
         window.history.replaceState({}, '', '/');
       }
+    } else if (shouldCleanUrl) {
+      window.history.replaceState({}, '', `${path}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash}`);
     }
-  }, []);
+  }, [setLanguage]);
 
   // Sync appView with auth state
   useEffect(() => {
