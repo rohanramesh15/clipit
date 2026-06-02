@@ -2,6 +2,13 @@ const API = 'https://project-deadbird-backend.onrender.com/api';
 const APP_URL = 'https://theclipitapp.com';
 const root = document.getElementById('root');
 
+function getAppUrlWithPresets() {
+  const url = new URL(APP_URL);
+  url.searchParams.set('theme', state.theme);
+  url.searchParams.set('lang', state.lang);
+  return url.toString();
+}
+
 // ─── State ────────────────────────────────────────────
 let state = {
   view: 'loading',   // loading | offline | not-logged-in | empty | list | detail
@@ -100,7 +107,7 @@ async function handleAction(e) {
   const action = el.dataset.action;
 
   if (action === 'open-app') {
-    chrome.tabs.create({ url: APP_URL });
+    chrome.tabs.create({ url: getAppUrlWithPresets() });
   }
   if (action === 'back') {
     state.view = 'list';
