@@ -97,8 +97,8 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
       >
         <div className="flex flex-col">
           <div className="flex items-center mb-4">
-            <img src={clipitLogo} alt="ClipIt" className="w-28 h-28 object-contain shrink-0" />
-            <span className="text-6xl tracking-tight" style={{
+            <img src={clipitLogo} alt="ClipIt" className="w-24 h-24 object-contain shrink-0 -mt-4" />
+            <span className="text-7xl tracking-tight" style={{
               fontFamily: "'Love Ya Like A Sister', cursive",
               WebkitTextStroke: '2px #9E3B3B',
               paintOrder: 'stroke fill'
