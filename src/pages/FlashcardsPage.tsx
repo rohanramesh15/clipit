@@ -876,7 +876,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
     try {
-      await fetch(`${API_BASE_URL}/subtitles/${videoId}`);
+      await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
 
       const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
       if (!vocabRes.ok) return [];
