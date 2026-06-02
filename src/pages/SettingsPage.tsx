@@ -67,11 +67,7 @@ const STUDY_MODES = [
   { label: 'All Videos', value: 'all-videos', description: 'Study words from watched videos' }
 ];
 
-interface SettingsPageProps {
-  onEditProfile?: () => void;
-}
-
-export function SettingsPage({ onEditProfile }: SettingsPageProps) {
+export function SettingsPage() {
   const { user, token, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const initials = user?.full_name
@@ -168,11 +164,6 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
                 <span className="text-xs font-bold text-accent">Member</span>
               </div>
             </div>
-            <button
-              onClick={onEditProfile}
-              className="text-sm font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 shrink-0 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/5">
-              Edit Profile <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
         </section>
 
