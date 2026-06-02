@@ -74,7 +74,9 @@ interface SettingsPageProps {
 export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const { user, token, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
-  const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? '?';
   const [motivation, setMotivation] = useState(() => {
     return localStorage.getItem('user_motivation') || 'pop_culture';
   });
@@ -159,7 +161,7 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-primary text-lg">{user?.username ?? 'User'}</p>
+              <p className="font-bold text-primary text-lg">{user?.full_name ?? user?.email ?? 'User'}</p>
               <p className="text-sm text-secondary">{user?.email ?? ''}</p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <Crown className="w-3.5 h-3.5 text-accent" />

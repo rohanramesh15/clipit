@@ -43,7 +43,9 @@ export function Sidebar({
 }: SidebarProps) {
   const { user } = useAuth();
   const { language, setLanguage } = useLanguage();
-  const initials = user?.username?.slice(0, 2).toUpperCase() ?? '??';
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? '?';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const languageRef = useRef<HTMLDivElement>(null);
@@ -323,7 +325,7 @@ export function Sidebar({
                 transition={{ duration: 0.2 }}
                 className="hidden md:block overflow-hidden text-left">
                 <p className="text-sm font-medium text-primary truncate whitespace-nowrap">
-                  {user?.username ?? 'User'}
+                  {user?.full_name ?? user?.email ?? 'User'}
                 </p>
                 <p className="text-xs text-secondary truncate whitespace-nowrap">{user?.email ?? ''}</p>
               </motion.div>
