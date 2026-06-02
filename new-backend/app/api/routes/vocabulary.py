@@ -115,14 +115,13 @@ async def get_vocabulary(
     words = extract_fn(subtitle_data["subtitles"])
     frequency_map = get_frequency_map(lang)
 
-    # If user is authenticated and using Korean, apply priority mode
+    # If user is authenticated, apply priority mode (works for all supported languages)
     priority_mode = None
-    if current_user and lang == 'ko':
+    if current_user:
         priority_mode = get_user_priority_mode(current_user.id, db)
         user_vocab = get_user_vocabulary_words(current_user.id, db, lang)
         filtered = filter_by_priority_mode(words, frequency_map, user_vocab, priority_mode, lang)
     else:
-        # Default behavior for unauthenticated users or non-Korean
         filtered = filter_vocabulary(words, frequency_map, language=lang)
 
     # Apply mining limits if requested

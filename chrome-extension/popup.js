@@ -482,7 +482,7 @@ function header({ dot, right }) {
   ) : '';
   const hideSubsBtn = (state.isNetflixTab || state.isYouTubeTab) ? `
     <button class="audio-btn ${state.hideSubtitles ? 'active' : ''}" data-action="toggle-hide-subtitles" title="${state.hideSubtitles ? 'Show subtitles' : 'Hide subtitles (still captured)'}">
-      ${state.hideSubtitles ? '👁️ Show' : '👁️‍🗨️ Hide'}
+      ${state.hideSubtitles ? 'Show Subtitles' : 'Hide Subtitles'}
     </button>
   ` : '';
   const langBadge = state.lang === 'uk' ? 'UK' : 'KO';

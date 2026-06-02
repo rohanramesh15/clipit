@@ -733,6 +733,16 @@ async function runVocabPipeline(videoId, lang = 'ko') {
       // Fetch subtitles directly from YouTube using the user's browser
       const subtitleData = await fetchAllSubtitles(videoId, lang);
 
+      // If no subtitles were found, cache empty result and stop — don't upload
+      // empty data which would corrupt Neon storage for the other language.
+      if (!subtitleData.subtitles || subtitleData.subtitles.length === 0) {
+        console.log(`[Deadbird] No ${lang} subtitles found for ${videoId}, skipping upload`);
+        await chrome.storage.local.set({
+          [cacheKey]: { loading: false, words: [], total: 0, cachedAt: Date.now() }
+        });
+        return;
+      }
+
       // Upload subtitles to backend for storage
       try {
         const uploadRes = await fetch(`${API}/subtitles/upload`, {
