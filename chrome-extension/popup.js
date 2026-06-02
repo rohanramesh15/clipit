@@ -27,9 +27,31 @@ let state = {
   state.hideSubtitles = stored.hideSubtitles === true;
 
   // Apply theme to body
-  if (state.theme === 'light') {
-    document.body.classList.add('light');
-  }
+  document.body.classList.toggle('light', state.theme === 'light');
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+
+    let shouldRefetch = false;
+    if (changes.theme) {
+      state.theme = changes.theme.newValue === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', state.theme === 'light');
+    }
+    if (changes.language) {
+      state.lang = changes.language.newValue === 'uk' ? 'uk' : 'ko';
+      state.selected = null;
+      state.words = null;
+      shouldRefetch = true;
+    }
+
+    if (shouldRefetch) {
+      state.view = 'loading';
+      render();
+      fetchVideos();
+    } else if (changes.theme) {
+      render();
+    }
+  });
 
   await fetchVideos();
 
@@ -124,21 +146,6 @@ async function handleAction(e) {
     if (tab?.id && (state.isNetflixTab || state.isYouTubeTab)) {
       chrome.tabs.sendMessage(tab.id, { type: 'SET_HIDE_SUBTITLES', hide: state.hideSubtitles });
     }
-    render();
-  }
-  if (action === 'set-lang') {
-    state.lang = el.dataset.lang;
-    state.selected = null;
-    state.words = null;
-    state.view = 'loading';
-    chrome.storage.local.set({ language: state.lang }); // fire and forget
-    render();
-    fetchVideos();
-  }
-  if (action === 'toggle-theme') {
-    state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    document.body.classList.toggle('light', state.theme === 'light');
-    chrome.storage.local.set({ theme: state.theme }); // fire and forget
     render();
   }
   if (action === 'show-delete-confirm') {
@@ -478,9 +485,7 @@ function header({ dot, right }) {
       ${state.hideSubtitles ? 'Show Subtitles' : 'Hide Subtitles'}
     </button>
   ` : '';
-  const themeIcon = state.theme === 'dark'
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+  const langBadge = state.lang === 'uk' ? 'UK' : 'KO';
   return `
     <div class="header">
       <div class="header-brand">
@@ -490,11 +495,7 @@ function header({ dot, right }) {
       <div class="header-right">
         ${hideSubsBtn}
         ${audioBtn}
-        <button class="theme-btn" data-action="toggle-theme" title="Toggle theme">${themeIcon}</button>
-        <div class="lang-toggle">
-          <button class="lang-btn ${state.lang === 'ko' ? 'active' : ''}" data-action="set-lang" data-lang="ko">KO</button>
-          <button class="lang-btn ${state.lang === 'uk' ? 'active' : ''}" data-action="set-lang" data-lang="uk">UK</button>
-        </div>
+        <span class="lang-badge" title="Synced from ClipIt app">${langBadge}</span>
         ${right}
         ${dotHtml}
       </div>

@@ -12,6 +12,8 @@
  */
 
 let lastSynced = null;
+let lastTheme = null;
+let lastLanguage = null;
 
 function syncToken() {
   // Check both localStorage and sessionStorage (for "Remember me" off)
@@ -27,8 +29,32 @@ function syncToken() {
   }
 }
 
+function syncPreferences() {
+  const theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
+  const language = localStorage.getItem('deadbird_language') === 'uk' ? 'uk' : 'ko';
+
+  const updates = {};
+  if (theme !== lastTheme) {
+    updates.theme = theme;
+    lastTheme = theme;
+  }
+  if (language !== lastLanguage) {
+    updates.language = language;
+    lastLanguage = language;
+  }
+
+  if (Object.keys(updates).length) {
+    chrome.storage.local.set(updates);
+    console.log('[ClipIt] Preferences synced to extension storage', updates);
+  }
+}
+
 // Sync immediately on page load
 syncToken();
+syncPreferences();
 
 // Poll every second to catch same-window login/logout
-setInterval(syncToken, 1000);
+setInterval(() => {
+  syncToken();
+  syncPreferences();
+}, 1000);
