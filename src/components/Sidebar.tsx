@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
   Layers,
-  BookOpen,
   BarChart3,
   History,
   Sun,
@@ -21,7 +20,6 @@ import { useLanguage } from '../context/LanguageContext';
 type Page =
 'video' |
 'flashcards' |
-'dictionary' |
 'analytics' |
 'vocabulary' |
 'settings';
@@ -76,11 +74,6 @@ export function Sidebar({
     id: 'flashcards',
     icon: Layers,
     label: 'Practice'
-  },
-  {
-    id: 'dictionary',
-    icon: BookOpen,
-    label: 'Dictionary'
   },
   {
     id: 'vocabulary',

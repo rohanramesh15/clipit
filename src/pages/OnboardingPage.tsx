@@ -10,12 +10,6 @@ import {
   ArrowLeft,
   ArrowRight,
   History,
-  Tv,
-  Plane,
-  Users,
-  Briefcase,
-  Heart,
-  Globe,
   Sprout,
   Clock,
   Target,
@@ -483,18 +477,6 @@ const quizQuestions = [
     ]
   },
   {
-    question: "Why are you learning the language?",
-    grid: true,
-    options: [
-      { label: "Pop Culture", description: "TV shows, movies, music", value: "pop_culture", icon: Tv },
-      { label: "Travel", description: "Explore the country", value: "travel", icon: Plane },
-      { label: "Family", description: "Connect with loved ones", value: "family", icon: Users },
-      { label: "Work", description: "Career & business", value: "work", icon: Briefcase },
-      { label: "Romance", description: "Connect with a partner", value: "romance", icon: Heart },
-      { label: "Heritage", description: "Reconnect with roots", value: "heritage", icon: Globe }
-    ]
-  },
-  {
     question: "Set your daily goal",
     grid: true,
     columns: 2,
@@ -559,8 +541,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       // Save answers to proper keys for Settings to read
       localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
       if (quizAnswers[0]) localStorage.setItem('deadbird_language', quizAnswers[0]); // Language
-      if (quizAnswers[1]) localStorage.setItem('user_motivation', quizAnswers[1]); // Motivation
-      if (quizAnswers[2]) localStorage.setItem('daily_goal', quizAnswers[2]); // Daily goal
+      if (quizAnswers[1]) localStorage.setItem('daily_goal', quizAnswers[1]); // Daily goal
       onComplete();
     } else {
       setQuizStep((s) => s + 1);
@@ -647,8 +628,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                         // Save answers to proper keys for Settings to read
                         localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
                         if (quizAnswers[0]) localStorage.setItem('deadbird_language', quizAnswers[0]);
-                        if (quizAnswers[1]) localStorage.setItem('user_motivation', quizAnswers[1]);
-                        if (quizAnswers[2]) localStorage.setItem('daily_goal', quizAnswers[2]);
+                        if (quizAnswers[1]) localStorage.setItem('daily_goal', quizAnswers[1]);
                         onComplete();
                       }}
                       className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-app font-bold px-8 py-4 rounded-xl transition-all shadow-lg shadow-accent/20 text-base"

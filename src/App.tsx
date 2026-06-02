@@ -3,7 +3,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Sidebar } from './components/Sidebar';
 import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
-import { DictionaryPage } from './pages/DictionaryPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -24,7 +23,6 @@ import { GOOGLE_CLIENT_ID } from './config';
 type Page =
 'video' |
 'flashcards' |
-'dictionary' |
 'analytics' |
 'vocabulary' |
 'settings';
@@ -91,14 +89,12 @@ function AppInner() {
         return <VideoPage />;
       case 'flashcards':
         return <FlashcardsPage onNavigate={setActivePage} />;
-      case 'dictionary':
-        return <DictionaryPage />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'vocabulary':
         return <VocabularyUploadPage />;
       case 'settings':
-        return <SettingsPage onEditProfile={() => setAppView('onboarding')} />;
+        return <SettingsPage />;
       default:
         return <VideoPage />;
     }

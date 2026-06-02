@@ -11,7 +11,7 @@ import {
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 interface LandingPageProps {
-  onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
+  onNavigate: (view: 'login' | 'signup' | 'privacy' | 'onboarding') => void;
 }
 export function LandingPage({ onNavigate }: LandingPageProps) {
   const [isDark, setIsDark] = useState(() => {
@@ -208,6 +208,9 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           <div className="flex gap-8 text-sm text-muted">
             <button onClick={() => onNavigate('privacy')} className="hover:text-secondary transition-colors">
               Privacy
+            </button>
+            <button onClick={() => onNavigate('onboarding')} className="hover:text-secondary transition-colors">
+              Tour
             </button>
           </div>
           <p className="text-sm text-muted">© 2024 ClipIt Inc.</p>
