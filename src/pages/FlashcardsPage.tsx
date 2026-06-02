@@ -1693,24 +1693,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               Study
             </button>
           </div>
-          {/* Join/Leave Class Links */}
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-secondary">Taking a class?</span>
-              <button
-                onClick={() => setShowJoinClass(true)}
-                className="text-accent hover:text-accent/80 font-medium transition-colors"
-              >
-                Join a class →
-              </button>
-            </div>
-            <button
-              onClick={() => openLeaveClassModal()}
-              className="text-muted hover:text-red-400 font-medium transition-colors"
-            >
-              Leave a class
-            </button>
-          </div>
         </div>
 
         {/* Folders Section */}
@@ -2524,7 +2506,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         </div>
 
         <p className="text-muted text-xs text-center max-w-xs">
-          Join a class, upload your own vocab list, or use Clip It to learn from {languageName} videos.
+          Join a community group, upload your own vocab list, or use Clip It to learn from {languageName} videos.
         </p>
 
         {/* Join Class Modal */}
