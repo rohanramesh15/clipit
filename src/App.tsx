@@ -13,6 +13,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -23,6 +24,7 @@ import { GOOGLE_CLIENT_ID } from './config';
 type Page =
 'video' |
 'flashcards' |
+'community' |
 'analytics' |
 'vocabulary' |
 'settings';
@@ -112,6 +114,8 @@ function AppInner() {
         return <VideoPage />;
       case 'flashcards':
         return <FlashcardsPage onNavigate={setActivePage} />;
+      case 'community':
+        return <CommunityPage />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'vocabulary':

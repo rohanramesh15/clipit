@@ -11,7 +11,8 @@ import {
   Check,
   Globe,
   Upload,
-  MessageSquare } from
+  MessageSquare,
+  Users } from
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +21,7 @@ import { useLanguage } from '../context/LanguageContext';
 type Page =
 'video' |
 'flashcards' |
+'community' |
 'analytics' |
 'vocabulary' |
 'settings';
@@ -74,6 +76,11 @@ export function Sidebar({
     id: 'flashcards',
     icon: Layers,
     label: 'Practice'
+  },
+  {
+    id: 'community',
+    icon: Users,
+    label: 'Community'
   },
   {
     id: 'vocabulary',
