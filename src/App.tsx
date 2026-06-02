@@ -30,11 +30,15 @@ type Page =
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
+function getStoredThemeIsDark() {
+  return localStorage.getItem('theme') !== 'light';
+}
+
 function AppInner() {
   const { user, isLoading } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(getStoredThemeIsDark);
   const [resetToken, setResetToken] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
@@ -45,6 +49,14 @@ function AppInner() {
     const newValue = !isSidebarCollapsed;
     setIsSidebarCollapsed(newValue);
     localStorage.setItem('sidebar_collapsed', String(newValue));
+  };
+
+  const toggleTheme = () => {
+    setIsDark(prev => {
+      const next = !prev;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      return next;
+    });
   };
 
   // Check URL for reset token and privacy page on mount
@@ -85,6 +97,17 @@ function AppInner() {
       document.documentElement.classList.add('light');
     }
   }, [isDark]);
+
+  useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (event.key === 'theme') {
+        setIsDark(event.newValue !== 'light');
+      }
+    }
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
   const renderPage = () => {
     switch (activePage) {
       case 'video':
@@ -140,7 +163,7 @@ function AppInner() {
           activePage={activePage}
           onNavigate={setActivePage}
           isDark={isDark}
-          onToggleTheme={() => setIsDark(!isDark)}
+          onToggleTheme={toggleTheme}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapsed={toggleSidebarCollapsed} />
 
