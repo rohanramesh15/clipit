@@ -23,7 +23,7 @@ const settingsPageTips: HelpTip[] = [
   },
   {
     id: 'learning',
-    text: 'Set your target language, motivation, daily goal, and new cards per day.',
+    text: 'Set your target language, daily goal, and new cards per day.',
     targetId: 'section-learning',
     position: 'right',
   },
@@ -46,15 +46,6 @@ const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' }[] = [
   { label: 'Ukrainian', flag: '🇺🇦', value: 'uk' }
 ];
 
-const MOTIVATIONS = [
-  { label: 'Pop Culture', value: 'pop_culture' },
-  { label: 'Travel', value: 'travel' },
-  { label: 'Family', value: 'family' },
-  { label: 'Work', value: 'work' },
-  { label: 'Romance', value: 'romance' },
-  { label: 'Heritage', value: 'heritage' }
-];
-
 const DAILY_GOALS = [
   { label: '5 min', value: '5' },
   { label: '15 min', value: '15' },
@@ -73,9 +64,6 @@ export function SettingsPage() {
   const initials = user?.full_name
     ? user.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? '?';
-  const [motivation, setMotivation] = useState(() => {
-    return localStorage.getItem('user_motivation') || 'pop_culture';
-  });
   const [dailyGoal, setDailyGoal] = useState(() => {
     return localStorage.getItem('daily_goal') || '15';
   });
@@ -192,35 +180,6 @@ export function SettingsPage() {
                         : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
                     }`}>
                     <span>{l.flag}</span> {l.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-white/5" />
-
-            {/* Motivation */}
-            <div>
-              <label className="text-sm font-semibold text-primary mb-1 block">
-                Motivation
-              </label>
-              <p className="text-xs text-secondary mb-3">
-                Why are you learning the language?
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {MOTIVATIONS.map((m) => (
-                  <button
-                    key={m.value}
-                    onClick={() => {
-                      setMotivation(m.value);
-                      localStorage.setItem('user_motivation', m.value);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
-                      motivation === m.value
-                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
-                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
-                    }`}>
-                    {m.label}
                   </button>
                 ))}
               </div>
