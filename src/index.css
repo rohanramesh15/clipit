@@ -6,16 +6,16 @@
 
 /* Dark theme (default) */
 :root {
-  --bg-app: #0a0a0f;
-  --bg-surface: #14141f;
-  --bg-surface-hover: #1c1c2a;
-  --accent: #C4625A;
-  --accent-hover: #A84F49;
-  --text-primary: #f0f0f0;
-  --text-secondary: #6b6b7b;
-  --text-muted: #4a4a5a;
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-medium: rgba(255, 255, 255, 0.1);
+  --bg-app: #141113;
+  --bg-surface: #201B21;
+  --bg-surface-hover: #2A242C;
+  --accent: #E06A5F;
+  --accent-hover: #F08378;
+  --text-primary: #F7F1EA;
+  --text-secondary: #CBBFC7;
+  --text-muted: #928790;
+  --border-subtle: rgba(247, 241, 234, 0.09);
+  --border-medium: rgba(247, 241, 234, 0.18);
 }
 /* Light theme */
 .light {
