@@ -96,7 +96,19 @@ async function fetchSubtitles(videoId, lang) {
       return null;
     }
 
-    const data = await response.json();
+    const body = await response.text();
+    if (!body.trim()) {
+      console.log(`[Deadbird] Empty ${lang} subtitle response for ${videoId}`);
+      return null;
+    }
+
+    let data;
+    try {
+      data = JSON.parse(body);
+    } catch (error) {
+      console.log(`[Deadbird] Non-JSON ${lang} subtitle response for ${videoId}`);
+      return null;
+    }
 
     // Convert YouTube's JSON3 format to our format
     if (!data.events) return null;
@@ -145,7 +157,16 @@ async function fetchTargetLanguageSubtitles(videoId, lang) {
     const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&tlang=${config.code}&fmt=json3`;
     const response = await fetch(url);
     if (response.ok) {
-      const data = await response.json();
+      const body = await response.text();
+      if (!body.trim()) return null;
+
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch (error) {
+        console.log(`[Deadbird] Non-JSON English→${config.name} translation response for ${videoId}`);
+        return null;
+      }
       if (data.events) {
         const subtitles = [];
         for (const event of data.events) {
