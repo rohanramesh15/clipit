@@ -338,7 +338,7 @@ function tmplList() {
           : `<img class="video-thumb"
               src="${thumbUrl}"
               alt=""
-              onerror="this.style.background='#1a1a2a';this.style.border='1px solid rgba(255,255,255,0.06)'"
+              onerror="this.style.background='#2A242C';this.style.border='1px solid rgba(247,241,234,0.09)'"
             >${platformBadge}`
         }
         <div class="video-meta">
