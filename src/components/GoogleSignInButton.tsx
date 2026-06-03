@@ -106,16 +106,17 @@ export function GoogleSignInButton({
         aria-hidden="true"
       />
 
-      {/* Custom styled button */}
+      {/* Custom styled button — uses the .auth-page theme tokens so text/border
+          meet contrast in both light and dark modes. */}
       <button
         type="button"
         onClick={handleClick}
         disabled={isLoading}
-        className="w-full bg-transparent hover:bg-[#E0D4D4]/5 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-3 border border-[#E0D4D4]/30 hover:border-[#E0D4D4]/50 disabled:opacity-70 disabled:cursor-not-allowed"
-        style={{ color: '#E0D4D4' }}
+        className="w-full bg-transparent hover:bg-[var(--auth-border-faint)] font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-3 border disabled:opacity-70 disabled:cursor-not-allowed"
+        style={{ color: 'var(--auth-text)', borderColor: 'var(--auth-border)' }}
       >
         {isLoading ? (
-          <Loader2 className="w-5 h-5 animate-spin text-white" />
+          <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--auth-text)' }} />
         ) : (
           <>
             <GoogleLogo className="w-5 h-5" />

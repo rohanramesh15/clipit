@@ -1,28 +1,22 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Play,
   Puzzle,
   ArrowRight,
-  Layers,
-  Sun,
-  Moon } from
+  Layers } from
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 interface LandingPageProps {
   onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
 }
 export function LandingPage({ onNavigate }: LandingPageProps) {
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved !== 'light';
-  });
-
+  // Landing always renders in light mode (the default theme); no dark toggle here.
   useEffect(() => {
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  }, [isDark]);
+    localStorage.setItem('theme', 'light');
+  }, []);
   return (
-    <div className={`min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app overflow-x-hidden ${isDark ? '' : 'light'}`}>
+    <div className="light min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-app border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -38,11 +32,6 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </div>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setIsDark(!isDark)}
-              className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-secondary hover:text-primary transition-colors border border-white/5">
-              {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            </button>
-            <button
               onClick={() => onNavigate('login')}
               className="text-sm font-medium text-primary hover:text-accent transition-colors hidden sm:block">
 
@@ -50,7 +39,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
             <button
               onClick={() => onNavigate('signup')}
-              className="bg-white/10 hover:bg-white/20 text-primary px-5 py-2.5 rounded-lg text-sm font-bold transition-all border border-white/5">
+              className="bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md">
 
               Get Started
             </button>
@@ -59,8 +48,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6">
-        <div className="max-w-7xl mx-auto">
+      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div
             initial={{
               opacity: 0,
@@ -80,7 +69,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 Learn it.
               </span>
             </h1>
-            <p className="text-lg md:text-xl text-secondary mb-8 max-w-xl leading-relaxed">
+            <p className="text-lg md:text-xl text-primary mb-8 max-w-xl leading-relaxed">
               Watch anything. Pick up everything.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -198,7 +187,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               Privacy
             </button>
           </div>
-          <p className="text-sm text-muted">© 2024 ClipIt Inc.</p>
+          <p className="text-sm text-muted">© 2026 ClipIt Inc.</p>
         </div>
       </footer>
     </div>);

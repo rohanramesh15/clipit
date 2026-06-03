@@ -484,7 +484,7 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
             </button>
             <button
               onClick={logout}
-              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-orange-400 hover:bg-orange-500/5 transition-all text-sm font-medium text-left">
+              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-accent hover:bg-accent/5 transition-all text-sm font-medium text-left">
               <LogOut className="w-5 h-5 shrink-0" />
               Log Out
             </button>

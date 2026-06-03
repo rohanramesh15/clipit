@@ -35,7 +35,7 @@ function AppInner() {
   const { user, isLoading } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('video');
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const [resetToken, setResetToken] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
