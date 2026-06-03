@@ -15,6 +15,10 @@ from .chat import ChatSession, ChatTurn, ChatSavedWord
 from .chat_memory import ChatMemoryFact
 from .user_language_profile import UserLanguageProfile
 from .converse_v2 import CV2Profile, CV2Session, CV2Turn, CV2Feedback
+from .community_group import CommunityGroup
+from .community_membership import CommunityMembership
+from .community_vocab_list import CommunityVocabList
+from .community_vocab_word import CommunityVocabWord
 
 __all__ = [
     "BaseModel",
@@ -38,4 +42,8 @@ __all__ = [
     "CV2Session",
     "CV2Turn",
     "CV2Feedback",
+    "CommunityGroup",
+    "CommunityMembership",
+    "CommunityVocabList",
+    "CommunityVocabWord",
 ]

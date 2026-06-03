@@ -94,7 +94,7 @@ def update_video_title(video_id: str, title: str) -> bool:
 
 
 def save_subtitles(video_id: str, subtitle_data: dict) -> None:
-    """Store subtitle JSON in Neon for the tracked video."""
+    """Store Korean subtitle JSON in Neon for the tracked video."""
     db = _db()
     try:
         db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).update(
@@ -106,12 +106,36 @@ def save_subtitles(video_id: str, subtitle_data: dict) -> None:
 
 
 def get_subtitles(video_id: str) -> dict | None:
-    """Retrieve stored subtitles from Neon. Returns None if not saved yet."""
+    """Retrieve stored Korean subtitles from Neon. Returns None if not saved yet."""
     db = _db()
     try:
         row = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
         if row and row.subtitles:
             return row.subtitles
+        return None
+    finally:
+        db.close()
+
+
+def save_subtitles_ukrainian(video_id: str, subtitle_data: dict) -> None:
+    """Store Ukrainian subtitle JSON in its own Neon column for the tracked video."""
+    db = _db()
+    try:
+        db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).update(
+            {"subtitles_uk": subtitle_data}
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def get_subtitles_ukrainian(video_id: str) -> dict | None:
+    """Retrieve stored Ukrainian subtitles from Neon. Returns None if not saved yet."""
+    db = _db()
+    try:
+        row = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
+        if row and row.subtitles_uk:
+            return row.subtitles_uk
         return None
     finally:
         db.close()

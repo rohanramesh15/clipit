@@ -1,3 +1,4 @@
+# Deploy trigger: 2026-05-28
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -14,6 +15,10 @@ from app.models.user_vocabulary_settings import UserVocabularySettings  # noqa: 
 from app.models.user_mined_word import UserMinedWord  # noqa: F401
 from app.models.user_anki_progress import UserAnkiProgress  # noqa: F401
 from app.models.image_cache import ImageCache  # noqa: F401
+from app.models.community_group import CommunityGroup  # noqa: F401
+from app.models.community_membership import CommunityMembership  # noqa: F401
+from app.models.community_vocab_list import CommunityVocabList  # noqa: F401
+from app.models.community_vocab_word import CommunityVocabWord  # noqa: F401
 from app.api.routes import health, users
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
@@ -29,6 +34,7 @@ from app.api.routes.anki import router as anki_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.chat_voice import router as chat_voice_router
 from app.api.routes.converse_v2 import router as converse_v2_router
+from app.api.routes.community import router as community_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -114,6 +120,7 @@ app.include_router(anki_router, prefix="/api/anki", tags=["anki"])
 app.include_router(chat_router, prefix="/api", tags=["chat"])
 app.include_router(chat_voice_router, prefix="/api", tags=["chat-voice"])
 app.include_router(converse_v2_router, prefix="/api/converse2", tags=["converse2"])
+app.include_router(community_router, prefix="/api/community", tags=["community"])
 
 
 @app.get("/")

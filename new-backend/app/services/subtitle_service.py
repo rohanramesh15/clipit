@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from youtube_transcript_api import YouTubeTranscriptApi
 from app.core.config import settings
-from app.services.video_store import save_subtitles, get_subtitles, update_video_duration
+from app.services.video_store import save_subtitles, get_subtitles, update_video_duration, save_subtitles_ukrainian, get_subtitles_ukrainian
 
 
 def _cache_path(video_id: str) -> Path:
@@ -326,7 +326,7 @@ def fetch_and_cache_subtitles_ukrainian(video_id: str) -> dict:
             {
                 'start': s['start'], 'duration': s['duration'],
                 'end': s['start'] + s['duration'],
-                'english': s['text'], 'ukrainian': s['text'],
+                'english': '', 'ukrainian': s['text'],
             }
             for s in ukrainian_subs
             if s['text'] and s['text'].strip()
@@ -351,6 +351,12 @@ def fetch_and_cache_subtitles_ukrainian(video_id: str) -> dict:
 
     with open(cache_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # Also persist to Neon (best-effort) using the dedicated Ukrainian column
+    try:
+        save_subtitles_ukrainian(video_id, data)
+    except Exception:
+        pass
 
     # Calculate and save video duration from last subtitle
     if merged:
@@ -382,12 +388,12 @@ def check_ukrainian_available(video_id: str) -> bool:
 
 
 def load_cached_subtitles_ukrainian(video_id: str) -> dict | None:
-    """Load Ukrainian subtitle cache from disk, then Neon fallback."""
+    """Load Ukrainian subtitle cache from disk, then dedicated Neon column fallback."""
     cache_file = _cache_path_uk(video_id)
     if cache_file.exists():
         with open(cache_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return get_subtitles(video_id)
+    return get_subtitles_ukrainian(video_id)
 
 
 # ── Spanish support ───────────────────────────────────────────────────────────
@@ -650,11 +656,16 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
         with open(cache_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-        # Also save to Neon database (best-effort)
-        try:
-            save_subtitles(video_id, data)
-        except Exception:
-            pass
+        # Also save to Neon database (best-effort), only when we have actual content.
+        # Use separate columns so Korean and Ukrainian never overwrite each other.
+        if subtitles:
+            try:
+                if lang == 'uk':
+                    save_subtitles_ukrainian(video_id, data)
+                else:
+                    save_subtitles(video_id, data)
+            except Exception:
+                pass
 
         # Update video language status in database
         from app.services.video_store import update_korean_status, update_ukrainian_status, update_spanish_status, update_english_status

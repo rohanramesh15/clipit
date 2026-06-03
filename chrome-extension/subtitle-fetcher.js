@@ -4,6 +4,43 @@
  * This avoids backend IP blocking issues
  */
 
+function getLanguageConfig(lang = 'ko') {
+  if (lang === 'uk') {
+    return {
+      code: 'uk',
+      name: 'Ukrainian',
+      subtitleKey: 'ukrainian',
+      availabilityKey: 'has_ukrainian',
+    };
+  }
+  if (lang === 'ko') {
+    return {
+      code: 'ko',
+      name: 'Korean',
+      subtitleKey: 'korean',
+      availabilityKey: 'has_korean',
+    };
+  }
+  return {
+    code: lang,
+    name: lang,
+    subtitleKey: lang,
+    availabilityKey: `has_${lang}`,
+  };
+}
+
+function makeAvailabilityFlags(lang, available) {
+  const flags = {
+    has_korean: false,
+    has_ukrainian: false,
+  };
+  const config = getLanguageConfig(lang);
+  if (config.availabilityKey in flags) {
+    flags[config.availabilityKey] = available;
+  }
+  return flags;
+}
+
 /**
  * Fetch available caption tracks for a video
  * @param {string} videoId - YouTube video ID
@@ -59,7 +96,19 @@ async function fetchSubtitles(videoId, lang) {
       return null;
     }
 
-    const data = await response.json();
+    const body = await response.text();
+    if (!body.trim()) {
+      console.log(`[Deadbird] Empty ${lang} subtitle response for ${videoId}`);
+      return null;
+    }
+
+    let data;
+    try {
+      data = JSON.parse(body);
+    } catch (error) {
+      console.log(`[Deadbird] Non-JSON ${lang} subtitle response for ${videoId}`);
+      return null;
+    }
 
     // Convert YouTube's JSON3 format to our format
     if (!data.events) return null;
@@ -86,26 +135,38 @@ async function fetchSubtitles(videoId, lang) {
 }
 
 /**
- * Try to get Korean subtitles with fallback to translation
+ * Try to get target-language subtitles with fallback to YouTube's English translation.
+ * This intentionally does not rely on availableTracks because that endpoint is often incomplete.
  * @param {string} videoId - YouTube video ID
- * @param {Array} availableTracks - Available caption tracks (may be incomplete due to API issues)
- * @returns {Promise<Array|null>} Korean subtitles or null
+ * @param {string} lang - Target language code
+ * @returns {Promise<Array|null>} Target subtitles or null
  */
-async function fetchKoreanSubtitles(videoId, _availableTracks) {
-  // Always try fetching Korean directly first (don't rely on availableTracks which may be incomplete)
-  const subs = await fetchSubtitles(videoId, 'ko');
+async function fetchTargetLanguageSubtitles(videoId, lang) {
+  const config = getLanguageConfig(lang);
+
+  // Always try fetching the target language directly first.
+  const subs = await fetchSubtitles(videoId, config.code);
   if (subs && subs.length > 0) {
-    console.log(`[Deadbird] Found ${subs.length} Korean subtitles via direct fetch`);
+    console.log(`[Deadbird] Found ${subs.length} ${config.name} subtitles via direct fetch`);
     return subs;
   }
 
-  // Fallback: try English with Korean translation
-  console.log('[Deadbird] No direct Korean subs, trying English→Korean translation');
+  // Fallback: try English with target-language translation.
+  console.log(`[Deadbird] No direct ${config.name} subs, trying English→${config.name} translation`);
   try {
-    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&tlang=ko&fmt=json3`;
+    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&tlang=${config.code}&fmt=json3`;
     const response = await fetch(url);
     if (response.ok) {
-      const data = await response.json();
+      const body = await response.text();
+      if (!body.trim()) return null;
+
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch (error) {
+        console.log(`[Deadbird] Non-JSON English→${config.name} translation response for ${videoId}`);
+        return null;
+      }
       if (data.events) {
         const subtitles = [];
         for (const event of data.events) {
@@ -119,197 +180,37 @@ async function fetchKoreanSubtitles(videoId, _availableTracks) {
           });
         }
         if (subtitles.length > 0) {
-          console.log(`[Deadbird] Found ${subtitles.length} Korean subtitles via translation`);
+          console.log(`[Deadbird] Found ${subtitles.length} ${config.name} subtitles via translation`);
           return subtitles;
         }
       }
     }
   } catch (error) {
-    console.error('[Deadbird] Korean translation failed:', error);
+    console.error(`[Deadbird] ${config.name} translation failed:`, error);
   }
 
   return null;
 }
 
-/**
- * Try to get Ukrainian subtitles with fallback to translation
- * @param {string} videoId - YouTube video ID
- * @param {Array} availableTracks - Available caption tracks (may be incomplete due to API issues)
- * @returns {Promise<Array|null>} Ukrainian subtitles or null
- */
-async function fetchUkrainianSubtitles(videoId, _availableTracks) {
-  // Always try fetching Ukrainian directly first (don't rely on availableTracks which may be incomplete)
-  const subs = await fetchSubtitles(videoId, 'uk');
-  if (subs && subs.length > 0) {
-    console.log(`[Deadbird] Found ${subs.length} Ukrainian subtitles via direct fetch`);
-    return subs;
-  }
-
-  // Fallback: try English with Ukrainian translation
-  console.log('[Deadbird] No direct Ukrainian subs, trying English→Ukrainian translation');
-  try {
-    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&tlang=uk&fmt=json3`;
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.events) {
-        const subtitles = [];
-        for (const event of data.events) {
-          if (!event.segs) continue;
-          const text = event.segs.map(seg => seg.utf8).join('');
-          if (!text || !text.trim()) continue;
-          subtitles.push({
-            text: text.trim(),
-            start: event.tStartMs / 1000,
-            duration: (event.dDurationMs || 0) / 1000
-          });
-        }
-        if (subtitles.length > 0) {
-          console.log(`[Deadbird] Found ${subtitles.length} Ukrainian subtitles via translation`);
-          return subtitles;
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[Deadbird] Ukrainian translation failed:', error);
-  }
-
-  return null;
-}
-
-/**
- * Try to get Spanish subtitles with fallback to translation
- * @param {string} videoId - YouTube video ID
- * @param {Array} availableTracks - Available caption tracks
- * @returns {Promise<Array|null>} Spanish subtitles or null
- */
-async function fetchSpanishSubtitles(videoId, _availableTracks) {
-  // Always try fetching Spanish directly first
-  const subs = await fetchSubtitles(videoId, 'es');
-  if (subs && subs.length > 0) {
-    console.log(`[Deadbird] Found ${subs.length} Spanish subtitles via direct fetch`);
-    return subs;
-  }
-
-  // Fallback: try English with Spanish translation
-  console.log('[Deadbird] No direct Spanish subs, trying English→Spanish translation');
-  try {
-    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&tlang=es&fmt=json3`;
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.events) {
-        const subtitles = [];
-        for (const event of data.events) {
-          if (!event.segs) continue;
-          const text = event.segs.map(seg => seg.utf8).join('');
-          if (!text || !text.trim()) continue;
-          subtitles.push({
-            text: text.trim(),
-            start: event.tStartMs / 1000,
-            duration: (event.dDurationMs || 0) / 1000
-          });
-        }
-        if (subtitles.length > 0) {
-          console.log(`[Deadbird] Found ${subtitles.length} Spanish subtitles via translation`);
-          return subtitles;
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[Deadbird] Spanish translation failed:', error);
-  }
-
-  return null;
-}
-
-/**
- * Merge Spanish and English subtitles by timestamp
- * @param {Array} spanishSubs - Spanish subtitles
- * @param {Array} englishSubs - English subtitles
- * @returns {Array} Merged subtitles
- */
-function mergeSpanishSubtitles(spanishSubs, englishSubs) {
+function mergeTargetSubtitles(targetSubs, englishSubs, lang) {
+  const config = getLanguageConfig(lang);
   const merged = [];
 
-  for (const esSub of spanishSubs) {
-    if (!esSub.text || !esSub.text.trim()) continue;
-
-    const matchingEng = englishSubs.find(enSub =>
-      Math.abs(esSub.start - enSub.start) < 1.0
-    );
-
-    if (matchingEng && matchingEng.text && matchingEng.text.trim()) {
-      merged.push({
-        start: esSub.start,
-        duration: esSub.duration,
-        end: esSub.start + esSub.duration,
-        spanish: esSub.text,
-        english: matchingEng.text
-      });
-    }
-  }
-
-  return merged;
-}
-
-/**
- * Merge Korean and English subtitles by timestamp
- * @param {Array} koreanSubs - Korean subtitles
- * @param {Array} englishSubs - English subtitles
- * @returns {Array} Merged subtitles
- */
-function mergeSubtitles(koreanSubs, englishSubs) {
-  const merged = [];
-
-  for (const koSub of koreanSubs) {
-    if (!koSub.text || !koSub.text.trim()) continue;
+  for (const targetSub of targetSubs) {
+    if (!targetSub.text || !targetSub.text.trim()) continue;
 
     // Find matching English subtitle (within 1 second)
-    const matchingEng = englishSubs.find(enSub =>
-      Math.abs(koSub.start - enSub.start) < 1.0
+    const matchingEng = (englishSubs || []).find(enSub =>
+      Math.abs(targetSub.start - enSub.start) < 1.0
     );
 
-    if (matchingEng && matchingEng.text && matchingEng.text.trim()) {
-      merged.push({
-        start: koSub.start,
-        duration: koSub.duration,
-        end: koSub.start + koSub.duration,
-        korean: koSub.text,
-        english: matchingEng.text
-      });
-    }
-  }
-
-  return merged;
-}
-
-/**
- * Merge Ukrainian and English subtitles by timestamp
- * @param {Array} ukrainianSubs - Ukrainian subtitles
- * @param {Array} englishSubs - English subtitles
- * @returns {Array} Merged subtitles
- */
-function mergeUkrainianSubtitles(ukrainianSubs, englishSubs) {
-  const merged = [];
-
-  for (const ukSub of ukrainianSubs) {
-    if (!ukSub.text || !ukSub.text.trim()) continue;
-
-    // Find matching English subtitle (within 1 second)
-    const matchingEng = englishSubs.find(enSub =>
-      Math.abs(ukSub.start - enSub.start) < 1.0
-    );
-
-    if (matchingEng && matchingEng.text && matchingEng.text.trim()) {
-      merged.push({
-        start: ukSub.start,
-        duration: ukSub.duration,
-        end: ukSub.start + ukSub.duration,
-        ukrainian: ukSub.text,
-        english: matchingEng.text
-      });
-    }
+    merged.push({
+      start: targetSub.start,
+      duration: targetSub.duration,
+      end: targetSub.start + targetSub.duration,
+      [config.subtitleKey]: targetSub.text,
+      english: matchingEng?.text?.trim() || targetSub.text
+    });
   }
 
   return merged;
@@ -322,7 +223,8 @@ function mergeUkrainianSubtitles(ukrainianSubs, englishSubs) {
  * @returns {Promise<Object>} Subtitle data ready to send to backend
  */
 async function fetchAllSubtitles(videoId, lang = 'ko') {
-  console.log(`[Deadbird] Fetching ${lang} subtitles for ${videoId}`);
+  const config = getLanguageConfig(lang);
+  console.log(`[Deadbird] Fetching ${config.name} subtitles for ${videoId}`);
 
   try {
     // Get available caption tracks
@@ -330,22 +232,13 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
     console.log(`[Deadbird] Available tracks:`, availableTracks.map(t => t.lang));
 
     // Fetch target language subtitles
-    let targetSubs;
-    if (lang === 'uk') {
-      targetSubs = await fetchUkrainianSubtitles(videoId, availableTracks);
-    } else if (lang === 'es') {
-      targetSubs = await fetchSpanishSubtitles(videoId, availableTracks);
-    } else {
-      targetSubs = await fetchKoreanSubtitles(videoId, availableTracks);
-    }
+    const targetSubs = await fetchTargetLanguageSubtitles(videoId, config.code);
 
     if (!targetSubs || targetSubs.length === 0) {
-      console.log(`[Deadbird] No ${lang} subtitles available for ${videoId}`);
+      console.log(`[Deadbird] No ${config.name} subtitles available for ${videoId}`);
       return {
         video_id: videoId,
-        has_korean: false,
-        has_ukrainian: false,
-        has_spanish: false,
+        ...makeAvailabilityFlags(config.code, false),
         subtitles: []
       };
     }
@@ -353,66 +246,23 @@ async function fetchAllSubtitles(videoId, lang = 'ko') {
     // Fetch English subtitles for translation
     const englishSubs = await fetchSubtitles(videoId, 'en');
 
-    // Merge subtitles
-    let merged;
-    if (lang === 'uk') {
-      if (englishSubs && englishSubs.length > 0) {
-        merged = mergeUkrainianSubtitles(targetSubs, englishSubs);
-      } else {
-        // Ukrainian only, no English
-        merged = targetSubs.map(sub => ({
-          start: sub.start,
-          duration: sub.duration,
-          end: sub.start + sub.duration,
-          ukrainian: sub.text,
-          english: sub.text
-        }));
-      }
-    } else if (lang === 'es') {
-      if (englishSubs && englishSubs.length > 0) {
-        merged = mergeSpanishSubtitles(targetSubs, englishSubs);
-      } else {
-        // Spanish only, no English
-        merged = targetSubs.map(sub => ({
-          start: sub.start,
-          duration: sub.duration,
-          end: sub.start + sub.duration,
-          spanish: sub.text,
-          english: sub.text
-        }));
-      }
-    } else {
-      if (englishSubs && englishSubs.length > 0) {
-        merged = mergeSubtitles(targetSubs, englishSubs);
-      } else {
-        // Korean only, no English
-        merged = targetSubs.map(sub => ({
-          start: sub.start,
-          duration: sub.duration,
-          end: sub.start + sub.duration,
-          korean: sub.text,
-          english: sub.text
-        }));
-      }
-    }
+    // Merge subtitles. If English is unavailable, use target text as the fallback
+    // translation so the rest of the pipeline can still build cards.
+    const merged = mergeTargetSubtitles(targetSubs, englishSubs || [], config.code);
 
     console.log(`[Deadbird] Fetched ${merged.length} merged subtitles for ${videoId}`);
 
     return {
       video_id: videoId,
       total_subtitles: merged.length,
-      has_korean: lang === 'ko' && targetSubs.length > 0,
-      has_ukrainian: lang === 'uk' && targetSubs.length > 0,
-      has_spanish: lang === 'es' && targetSubs.length > 0,
+      ...makeAvailabilityFlags(config.code, targetSubs.length > 0),
       subtitles: merged
     };
   } catch (error) {
     console.error(`[Deadbird] Error fetching subtitles for ${videoId}:`, error);
     return {
       video_id: videoId,
-      has_korean: false,
-      has_ukrainian: false,
-      has_spanish: false,
+      ...makeAvailabilityFlags(lang, false),
       subtitles: []
     };
   }

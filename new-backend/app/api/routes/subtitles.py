@@ -1,14 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query, Body
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.services.subtitle_service import (
     fetch_and_cache_subtitles,
     fetch_and_cache_subtitles_ukrainian,
-    save_client_youtube_subtitles,
     save_subtitles_from_extension,
 )
 from app.api.routes.netflix import load_cached_netflix_subtitles
-from app.services.video_store import update_korean_status
 
 router = APIRouter()
 
@@ -21,8 +19,9 @@ class SubtitleEntry(BaseModel):
 
 class YouTubeSubtitlesRequest(BaseModel):
     video_id: str
-    korean: List[SubtitleEntry] = []
-    english: List[SubtitleEntry] = []
+    korean: List[SubtitleEntry] = Field(default_factory=list)
+    ukrainian: List[SubtitleEntry] = Field(default_factory=list)
+    english: List[SubtitleEntry] = Field(default_factory=list)
 
 
 @router.post("/youtube/subtitles")
@@ -33,22 +32,31 @@ async def receive_youtube_subtitles(req: YouTubeSubtitlesRequest):
     """
     try:
         has_korean = len(req.korean) > 0
+        has_ukrainian = len(req.ukrainian) > 0
         has_english = len(req.english) > 0
+        lang = 'uk' if has_ukrainian else 'ko'
 
         # Convert to our merged format
-        merged = merge_client_subtitles(req.korean, req.english)
+        merged = merge_client_subtitles(
+            req.ukrainian if has_ukrainian else req.korean,
+            req.english,
+            lang,
+        )
 
-        # Save to cache
-        save_client_youtube_subtitles(req.video_id, merged, has_korean)
-
-        # Update the video's has_korean status
-        if has_korean:
-            update_korean_status(req.video_id, True)
+        # Save to the language-specific cache and update video language status.
+        save_subtitles_from_extension(
+            req.video_id,
+            lang,
+            merged,
+            has_korean=has_korean,
+            has_ukrainian=has_ukrainian,
+        )
 
         return {
             "success": True,
             "video_id": req.video_id,
             "has_korean": has_korean,
+            "has_ukrainian": has_ukrainian,
             "has_english": has_english,
             "subtitle_count": len(merged),
         }
@@ -56,43 +64,45 @@ async def receive_youtube_subtitles(req: YouTubeSubtitlesRequest):
         raise HTTPException(status_code=500, detail=f"Failed to save subtitles: {str(e)}")
 
 
-def merge_client_subtitles(korean: List[SubtitleEntry], english: List[SubtitleEntry]) -> list:
-    """Merge Korean and English subtitles by timestamp."""
-    if not korean and not english:
+def merge_client_subtitles(target_subtitles: List[SubtitleEntry], english: List[SubtitleEntry], lang: str = 'ko') -> list:
+    """Merge target-language and English subtitles by timestamp."""
+    target_key = 'ukrainian' if lang == 'uk' else 'korean'
+
+    if not target_subtitles and not english:
         return []
 
-    if korean and english:
-        # Match Korean subtitles with closest English ones
+    if target_subtitles and english:
+        # Match target-language subtitles with closest English ones
         merged = []
-        for ko_sub in korean:
-            ko_start = ko_sub.start
+        for target_sub in target_subtitles:
+            target_start = target_sub.start
             # Find closest English subtitle
             best_match = None
             best_diff = float('inf')
             for en_sub in english:
-                diff = abs(en_sub.start - ko_start)
+                diff = abs(en_sub.start - target_start)
                 if diff < best_diff and diff < 5:  # Within 5 seconds
                     best_diff = diff
                     best_match = en_sub
 
             merged.append({
-                'start': ko_sub.start,
-                'duration': ko_sub.duration,
-                'end': ko_sub.start + ko_sub.duration,
-                'korean': ko_sub.text,
+                'start': target_sub.start,
+                'duration': target_sub.duration,
+                'end': target_sub.start + target_sub.duration,
+                target_key: target_sub.text,
                 'english': best_match.text if best_match else '',
             })
         return merged
-    elif korean:
+    elif target_subtitles:
         return [
             {
                 'start': s.start,
                 'duration': s.duration,
                 'end': s.start + s.duration,
-                'korean': s.text,
+                target_key: s.text,
                 'english': '',
             }
-            for s in korean
+            for s in target_subtitles
         ]
     else:
         return [
@@ -100,7 +110,7 @@ def merge_client_subtitles(korean: List[SubtitleEntry], english: List[SubtitleEn
                 'start': s.start,
                 'duration': s.duration,
                 'end': s.start + s.duration,
-                'korean': '',
+                target_key: '',
                 'english': s.text,
             }
             for s in english
@@ -216,4 +226,3 @@ async def upload_subtitles(data: SubtitleUpload):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save subtitles: {str(e)}")
-
