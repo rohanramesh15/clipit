@@ -1493,25 +1493,53 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loading (skeleton mirrors the review layout) ──────────────
   if (loadState === 'loading') {
+    // Mirrors the deck-select page (the first Flash Cards screen): header,
+    // "choose what to study" card, videos toolbar, search, sort, and video rows.
     return (
-      <div className="min-h-screen flex flex-col items-center max-w-md mx-auto px-4 py-8 md:py-10 w-full">
-        <div className="w-full flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2 flex-1">
-            <Skeleton className="w-9 h-9 rounded-lg" />
-            <div className="flex-1">
-              <Skeleton className="h-5 w-32 rounded-md mb-2" />
-              <Skeleton className="h-3 w-24 rounded" />
-            </div>
+      <div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 sm:px-6 pt-8">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <Skeleton className="w-9 h-9 rounded-lg" />
+          <Skeleton className="h-9 w-40 rounded-lg" />
+        </div>
+
+        {/* Choose what to study */}
+        <div className="bg-surface rounded-2xl p-5 mb-8">
+          <Skeleton className="h-4 w-44 rounded mb-3" />
+          <div className="flex gap-3">
+            <Skeleton className="flex-1 h-14 rounded-xl" />
+            <Skeleton className="w-24 h-14 rounded-xl" />
           </div>
+          <Skeleton className="h-4 w-56 rounded mt-3" />
+        </div>
+
+        {/* Your videos toolbar */}
+        <div className="flex items-center justify-between mb-4">
+          <Skeleton className="h-4 w-28 rounded" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+
+        {/* Search */}
+        <Skeleton className="h-12 w-full rounded-xl mb-4" />
+
+        {/* Sort */}
+        <div className="flex gap-2 mb-5">
+          <Skeleton className="h-8 w-16 rounded-lg" />
+          <Skeleton className="h-8 w-14 rounded-lg" />
           <Skeleton className="h-8 w-16 rounded-lg" />
         </div>
-        <Skeleton className="h-1.5 w-full rounded-full mb-6" />
-        <Skeleton className="w-full mb-6" style={{ height: 320, borderRadius: 24 }} />
-        <div className="grid grid-cols-4 gap-2 w-full">
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
+
+        {/* Video rows */}
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bg-surface rounded-xl p-5 flex items-center gap-5">
+              <Skeleton className="w-32 h-[72px] rounded-lg shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3 rounded" />
+                <Skeleton className="h-3 w-1/3 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );

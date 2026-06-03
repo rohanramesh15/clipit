@@ -132,21 +132,21 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
       label: 'Flash Cards',
       description: 'Review your words with spaced repetition.',
       Icon: GalleryVerticalEnd,
-      color: '#C4625A', // terracotta (app accent)
+      color: '#A84F49', // deep terracotta
     },
     {
       id: 'converse-v2',
       label: 'Voice Chat',
       description: 'Talk with an AI partner that uses your words.',
       Icon: AudioLines,
-      color: '#D98A6E', // warm salmon
+      color: '#9E5A3C', // deep clay
     },
     {
       id: 'madlibs',
       label: 'Mad Libs',
       description: 'Fill in blanks in a sentence.',
       Icon: WandSparkles,
-      color: '#A65049', // deep brick
+      color: '#8C4640', // deep brick
     },
   ];
 

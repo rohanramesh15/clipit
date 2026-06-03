@@ -581,7 +581,15 @@ export function ConverseV2Page(
 
         {videos === null ? (
           <div className="space-y-3">
-            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="bg-surface rounded-2xl p-5 flex items-center gap-5">
+                <Skeleton className="w-32 aspect-video rounded-lg shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/3 rounded" />
+                  <Skeleton className="h-3 w-1/3 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : videos.length === 0 ? (
           <PracticeEmptyState onNavigate={(p) => onNavigate?.(p)} />
