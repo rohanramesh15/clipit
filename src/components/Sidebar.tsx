@@ -219,7 +219,7 @@ export function Sidebar({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-surface border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
+              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
               <div className="p-2 space-y-1">
                 {languages.map((lang) => (
                   <button
@@ -276,19 +276,13 @@ export function Sidebar({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-surface border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
+              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
               <div className="p-2 space-y-1">
                 <button
                   onClick={() => { setIsProfileOpen(false); onNavigate('settings'); }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-primary transition-colors">
                   <SettingsIcon className="w-4 h-4 shrink-0 text-secondary" />
                   <span className="font-medium text-sm text-left">Account settings</span>
-                </button>
-                <button
-                  onClick={() => { setIsProfileOpen(false); logout(); }}
-                  className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-primary hover:bg-red-500/10 hover:text-red-500 transition-colors">
-                  <LogOut className="w-4 h-4 shrink-0 text-secondary group-hover:text-red-500 transition-colors" />
-                  <span className="font-medium text-sm text-left">Log out</span>
                 </button>
                 <a
                   href={FEEDBACK_URL}
@@ -299,6 +293,12 @@ export function Sidebar({
                   <MessageSquare className="w-4 h-4 shrink-0 text-secondary" />
                   <span className="font-medium text-sm text-left">Feedback</span>
                 </a>
+                <button
+                  onClick={() => { setIsProfileOpen(false); logout(); }}
+                  className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-primary hover:bg-red-500/10 hover:text-red-500 transition-colors">
+                  <LogOut className="w-4 h-4 shrink-0 text-secondary group-hover:text-red-500 transition-colors" />
+                  <span className="font-medium text-sm text-left">Log out</span>
+                </button>
               </div>
             </motion.div>
           )}

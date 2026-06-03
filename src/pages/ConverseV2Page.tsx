@@ -327,19 +327,16 @@ export function ConverseV2Page(
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // ---- load profile on mount
+  // ---- load profile on mount (for display only). Voice Chat goes straight into
+  // a due-words session via the auto-begin effect — no onboarding step.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const { profile: p } = await getProfile();
-        if (!alive) return;
-        setProfile(p);
-        // With a profile we go straight into a due-words session (see auto-begin
-        // effect); first-timers do a one-time onboarding, then the same.
-        if (!p) setStage('onboarding');
+        if (alive) setProfile(p);
       } catch {
-        if (alive) setStage('onboarding');
+        /* ignore — the session starts regardless of profile */
       }
     })();
     return () => {
@@ -588,14 +585,14 @@ export function ConverseV2Page(
     setStage('start');
   }, [onBack]);
 
-  // Auto-start the due-words session once a profile is available. This replaces
-  // the old start/topic menu so Voice Chat lands directly in the conversation.
+  // Auto-start the due-words session on entry (no onboarding/start/topic menu) so
+  // Voice Chat lands directly in the conversation, with or without a profile.
   useEffect(() => {
-    if (profile && !dueAutoBegun.current && stage !== 'chat' && stage !== 'empty') {
+    if (!dueAutoBegun.current && stage !== 'chat' && stage !== 'empty') {
       dueAutoBegun.current = true;
       beginSession('due');
     }
-  }, [profile, stage, beginSession]);
+  }, [stage, beginSession]);
 
   // ------------------------------------------------------------------------
   // Chat actions
@@ -785,8 +782,6 @@ export function ConverseV2Page(
       {stage === 'empty' && (
         <PracticeEmptyState onNavigate={(p) => onNavigate?.(p)} />
       )}
-
-      {stage === 'onboarding' && <Onboarding onDone={finishOnboarding} />}
 
       {stage === 'start' && (
         <StartScreen

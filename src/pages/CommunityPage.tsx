@@ -13,7 +13,6 @@ import {
   ChevronUp,
   X,
   Trash2,
-  RefreshCw,
   LogOut,
   FileText,
 } from 'lucide-react';
@@ -65,7 +64,6 @@ export function CommunityPage() {
   const [publicGroups, setPublicGroups] = useState<CommunityGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterLanguage, setFilterLanguage] = useState<string>(language);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -89,13 +87,6 @@ export function CommunityPage() {
   const [expandedListId, setExpandedListId] = useState<number | null>(null);
   const [expandedListWords, setExpandedListWords] = useState<VocabWord[]>([]);
   const [isLoadingLists, setIsLoadingLists] = useState(false);
-
-  // Sync state
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ words: number; groups: number } | null>(null);
-
-  // Seed state
-  const [isSeeding, setIsSeeding] = useState(false);
 
   // Copy invite code
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -126,7 +117,8 @@ export function CommunityPage() {
     if (!token) return;
     try {
       const params = new URLSearchParams();
-      if (filterLanguage) params.set('language', filterLanguage);
+      // Only show communities for the currently selected learning language.
+      if (language) params.set('language', language);
       if (searchQuery) params.set('search', searchQuery);
 
       const res = await fetch(`${API_BASE_URL}/community/groups?${params}`, {
@@ -139,7 +131,7 @@ export function CommunityPage() {
     } catch (err) {
       console.error('Error fetching public groups:', err);
     }
-  }, [token, filterLanguage, searchQuery]);
+  }, [token, language, searchQuery]);
 
   // Initial load
   useEffect(() => {
@@ -156,7 +148,7 @@ export function CommunityPage() {
     if (activeTab === 'discover') {
       fetchPublicGroups();
     }
-  }, [activeTab, filterLanguage, searchQuery, fetchPublicGroups]);
+  }, [activeTab, language, searchQuery, fetchPublicGroups]);
 
   // Fetch group lists when group is selected
   useEffect(() => {
@@ -341,60 +333,11 @@ export function CommunityPage() {
     }
   };
 
-  // Sync community vocab
-  const handleSync = async () => {
-    if (!token) return;
-    setIsSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await fetch(`${API_BASE_URL}/community/sync`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSyncResult({ words: data.words_synced, groups: data.groups_synced });
-        fetchMyGroups();
-        setTimeout(() => setSyncResult(null), 5000);
-      }
-    } catch (err) {
-      console.error('Error syncing:', err);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   // Copy invite code
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  // Seed Korean 3 community group
-  const handleSeedKorean3 = async () => {
-    if (!token) return;
-    setIsSeeding(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/community/seed-korean3`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        alert(`Created: ${data.message}\nLists: ${data.lists_created}, Words: ${data.words_added}`);
-        fetchMyGroups();
-        fetchPublicGroups();
-      } else {
-        const data = await res.json();
-        alert(data.detail || data.message || 'Failed to seed');
-      }
-    } catch (err) {
-      console.error('Error seeding:', err);
-      alert('Failed to seed Korean 3 group');
-    } finally {
-      setIsSeeding(false);
-    }
   };
 
   // Add vocab list to group
@@ -442,6 +385,7 @@ export function CommunityPage() {
   const languageFlags: Record<string, string> = {
     ko: '🇰🇷',
     uk: '🇺🇦',
+    es: '🇪🇸',
   };
 
   if (isLoading) {
@@ -701,57 +645,29 @@ export function CommunityPage() {
         <p className="text-secondary">Discover and share vocabulary with others</p>
       </div>
 
-      {/* Sync notification */}
-      <AnimatePresence>
-        {syncResult && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-6 bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3"
-          >
-            <Check className="w-5 h-5 text-green-500" />
-            <span className="text-green-400">
-              Synced {syncResult.words} words from {syncResult.groups} groups
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Tabs and actions */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('my-groups')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'my-groups'
-                ? 'bg-accent text-app'
-                : 'bg-surface text-secondary hover:text-primary'
-            }`}
-          >
-            My Groups
-          </button>
-          <button
-            onClick={() => setActiveTab('discover')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'discover'
-                ? 'bg-accent text-app'
-                : 'bg-surface text-secondary hover:text-primary'
-            }`}
-          >
-            Discover
-          </button>
+      <div className="flex items-end justify-between border-b border-white/10 mb-6">
+        <div className="flex gap-7">
+          {([['my-groups', 'My Groups'], ['discover', 'Discover']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`relative pb-3 text-sm font-semibold transition-colors ${
+                activeTab === id ? 'text-primary' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              {label}
+              {activeTab === id && (
+                <motion.span
+                  layoutId="community-tab-underline"
+                  className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-accent"
+                />
+              )}
+            </button>
+          ))}
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface text-secondary hover:text-primary transition-colors border border-white/5"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            Sync
-          </button>
+        <div className="flex gap-2 pb-2">
           <button
             onClick={() => setShowJoinModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface text-secondary hover:text-primary transition-colors border border-white/5"
@@ -766,16 +682,6 @@ export function CommunityPage() {
             <Plus className="w-4 h-4" />
             Create
           </button>
-          {/* Seed Korean 3 - only shows if group doesn't exist */}
-          {!myGroups.some(g => g.name === 'Korean 3 황선생님') && !publicGroups.some(g => g.name === 'Korean 3 황선생님') && (
-            <button
-              onClick={handleSeedKorean3}
-              disabled={isSeeding}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700 transition-colors"
-            >
-              {isSeeding ? 'Seeding...' : 'Seed Korean 3'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -783,26 +689,12 @@ export function CommunityPage() {
       {activeTab === 'my-groups' && (
         <div className="space-y-4">
           {myGroups.length === 0 ? (
-            <div className="bg-surface border border-white/5 rounded-2xl p-12 text-center">
+            <div className="rounded-2xl p-12 text-center">
               <Users className="w-16 h-16 text-muted mx-auto mb-4" />
               <h3 className="text-xl font-bold text-primary mb-2">No groups yet</h3>
-              <p className="text-secondary mb-6">
+              <p className="text-secondary">
                 Join a public group or create your own to start sharing vocabulary
               </p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setActiveTab('discover')}
-                  className="px-6 py-3 rounded-lg bg-surface border border-white/10 text-primary font-medium hover:bg-surface-hover transition-colors"
-                >
-                  Browse Public Groups
-                </button>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 rounded-lg bg-accent text-app font-bold hover:bg-accent-hover transition-colors"
-                >
-                  Create Group
-                </button>
-              </div>
             </div>
           ) : (
             myGroups.map(group => (
@@ -860,7 +752,7 @@ export function CommunityPage() {
       {/* Discover Tab */}
       {activeTab === 'discover' && (
         <div className="space-y-4">
-          {/* Search and filter */}
+          {/* Search (groups are filtered to the currently selected language) */}
           <div className="flex gap-3 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
@@ -872,19 +764,10 @@ export function CommunityPage() {
                 className="w-full bg-surface border border-white/10 rounded-xl pl-10 pr-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50"
               />
             </div>
-            <select
-              value={filterLanguage}
-              onChange={e => setFilterLanguage(e.target.value)}
-              className="bg-surface border border-white/10 rounded-xl px-4 py-3 text-primary focus:outline-none focus:border-accent/50"
-            >
-              <option value="">All Languages</option>
-              <option value="ko">Korean</option>
-              <option value="uk">Ukrainian</option>
-            </select>
           </div>
 
           {publicGroups.length === 0 ? (
-            <div className="bg-surface border border-white/5 rounded-2xl p-12 text-center">
+            <div className="rounded-2xl p-12 text-center">
               <Globe className="w-16 h-16 text-muted mx-auto mb-4" />
               <h3 className="text-xl font-bold text-primary mb-2">No public groups found</h3>
               <p className="text-secondary">
@@ -977,7 +860,7 @@ export function CommunityPage() {
                 <div>
                   <label className="text-sm text-secondary mb-1 block">Language</label>
                   <div className="flex gap-2">
-                    {['ko', 'uk'].map(lang => (
+                    {['ko', 'uk', 'es'].map(lang => (
                       <button
                         key={lang}
                         onClick={() => setNewGroupLanguage(lang)}

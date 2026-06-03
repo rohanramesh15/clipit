@@ -107,7 +107,7 @@ export function VideoPage() {
     netflix: videos.filter(v => v.video_id.startsWith('netflix_')).length,
   }), [videos]);
 
-  async function fetchVideos() {
+  async function fetchVideos(silent: boolean = false) {
     try {
       const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -118,12 +118,23 @@ export function VideoPage() {
       setVideos(vids);
       setLoadState(vids.length ? 'loaded' : 'empty');
     } catch {
-      setLoadState('error');
+      // On a background poll, keep showing the current list instead of flipping
+      // to the error screen on a transient blip.
+      if (!silent) setLoadState('error');
     }
   }
 
   useEffect(() => {
     fetchVideos();
+  }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh: silently re-fetch every 10s (only when the tab is visible) so
+  // newly captured videos appear without clicking Refresh.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchVideos(true);
+    }, 10000);
+    return () => clearInterval(id);
   }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleRefresh() {
@@ -180,46 +191,29 @@ export function VideoPage() {
       </div>
 
       {/* Platform Tabs */}
-      <div id="section-platform-tabs" className="flex gap-2 mb-6">
-        <button
-          onClick={() => setPlatformFilter('all')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-            platformFilter === 'all'
-              ? 'bg-accent text-app'
-              : 'bg-surface border border-white/5 text-secondary hover:text-primary hover:border-white/10'
-          }`}>
-          <Tv className="w-4 h-4" />
-          All
-          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-            platformFilter === 'all' ? 'bg-app/20' : 'bg-white/5'
-          }`}>{counts.all}</span>
-        </button>
-        <button
-          onClick={() => setPlatformFilter('youtube')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-            platformFilter === 'youtube'
-              ? 'bg-accent text-app'
-              : 'bg-surface border border-white/5 text-secondary hover:text-primary hover:border-white/10'
-          }`}>
-          <Youtube className="w-4 h-4" />
-          YouTube
-          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-            platformFilter === 'youtube' ? 'bg-app/20' : 'bg-white/5'
-          }`}>{counts.youtube}</span>
-        </button>
-        <button
-          onClick={() => setPlatformFilter('netflix')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-            platformFilter === 'netflix'
-              ? 'bg-accent text-app'
-              : 'bg-surface border border-white/5 text-secondary hover:text-primary hover:border-white/10'
-          }`}>
-          <Film className="w-4 h-4" />
-          Netflix
-          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-            platformFilter === 'netflix' ? 'bg-app/20' : 'bg-white/5'
-          }`}>{counts.netflix}</span>
-        </button>
+      <div id="section-platform-tabs" className="flex gap-7 border-b border-white/10 mb-6">
+        {([
+          { id: 'all', label: 'All', Icon: Tv, count: counts.all },
+          { id: 'youtube', label: 'YouTube', Icon: Youtube, count: counts.youtube },
+          { id: 'netflix', label: 'Netflix', Icon: Film, count: counts.netflix },
+        ] as const).map(({ id, label, Icon, count }) => (
+          <button
+            key={id}
+            onClick={() => setPlatformFilter(id)}
+            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
+              platformFilter === id ? 'text-primary' : 'text-secondary hover:text-primary'
+            }`}>
+            <Icon className="w-4 h-4" />
+            {label}
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/5 text-muted">{count}</span>
+            {platformFilter === id && (
+              <motion.span
+                layoutId="history-tab-underline"
+                className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-accent"
+              />
+            )}
+          </button>
+        ))}
       </div>
 
       {/* States */}
