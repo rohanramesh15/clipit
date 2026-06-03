@@ -1,6 +1,15 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from app.services import ukrainian_lemmatizer
+
+
+def lemmatize_for_language(word: str, language: str) -> Optional[str]:
+    """Return a base-form lemma for languages that need it, else None."""
+    if language == 'uk':
+        return ukrainian_lemmatizer.lemmatize_word(word)
+    return None
+
 LANGUAGE_PARTICLES = {
     'ko': ['이', '가', '을', '를', '에', '에서', '와', '과', '의', '로', '으로', '도', '만', '은', '는'],
     'uk': ['і', 'й', 'та', 'що', 'як', 'але', 'або', 'це', 'не', 'на', 'в', 'у', 'з', 'до', 'за'],
@@ -45,14 +54,34 @@ def filter_vocabulary(
     frequency_map: Dict[str, int],
     language: str = 'ko'
 ) -> List[Dict]:
-    """Return all words found in the frequency list, excluding very common particles."""
+    """Return all words found in the frequency list, excluding very common particles.
+
+    For inflected languages (e.g. Ukrainian) the frequency list is keyed by
+    lemma, while subtitle words are surface forms. We therefore try a direct
+    match first and fall back to the word's lemma, deduping by lemma so an
+    inflected form and its base form don't both produce a card.
+    """
     filtered = []
-    for word in set(words):
+    seen = set()
+    for word in words:
         rank = frequency_map.get(word)
+        dedup_key = word
+
+        if rank is None:
+            lemma = lemmatize_for_language(word, language)
+            if lemma and lemma != word:
+                lemma_rank = frequency_map.get(lemma)
+                if lemma_rank is not None:
+                    rank = lemma_rank
+                    dedup_key = lemma
+
         if rank is None:
             continue
         if is_common_particle(word, rank, language):
             continue
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
         filtered.append({
             'word': word,
             'rank': rank,

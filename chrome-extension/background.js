@@ -8,7 +8,7 @@
 console.log('[ClipIt] Service worker starting...');
 // Import subtitle fetcher
 importScripts('subtitle-fetcher.js');
-const API = 'https://project-deadbird-backend.onrender.com/api';
+const API = 'https://project-deadbird-backend.fly.dev/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 const LANGUAGE_CONFIGS = {
@@ -26,7 +26,16 @@ const LANGUAGE_CONFIGS = {
     statusPath: 'status/ukrainian',
     statusBodyKey: 'has_ukrainian',
   },
+  es: {
+    code: 'es',
+    name: 'Spanish',
+    subtitleKey: 'spanish',
+    statusPath: 'status/spanish',
+    statusBodyKey: 'has_spanish',
+  },
 };
+
+const SUPPORTED_LANGUAGES = ['ko', 'uk', 'es'];
 
 function getLanguageConfig(lang = 'ko') {
   return LANGUAGE_CONFIGS[lang] || {
@@ -47,6 +56,7 @@ function buildSubtitleUploadFlags(lang, hasTargetLanguage) {
   const flags = {
     has_korean: false,
     has_ukrainian: false,
+    has_spanish: false,
   };
   const key = getLanguageConfig(lang).statusBodyKey;
   if (key in flags) {
@@ -62,7 +72,7 @@ async function getAuthToken() {
 
 async function getPreferredLanguage() {
   const result = await chrome.storage.local.get('language');
-  return result.language === 'uk' ? 'uk' : 'ko';
+  return SUPPORTED_LANGUAGES.includes(result.language) ? result.language : 'ko';
 }
 
 async function getActiveTrackingLanguage(requestedLang) {
@@ -487,7 +497,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // YouTube subtitles from content script (client-side fetch)
   if (msg.type === 'YOUTUBE_SUBTITLES') {
-    console.log(`[ClipIt] YOUTUBE_SUBTITLES received: ${msg.videoId} (lang: ${msg.subtitles?.targetLanguage || 'ko'}, target: ${(msg.subtitles?.korean || msg.subtitles?.ukrainian || []).length}, en: ${msg.subtitles?.english?.length || 0})`);
+    console.log(`[ClipIt] YOUTUBE_SUBTITLES received: ${msg.videoId} (lang: ${msg.subtitles?.targetLanguage || 'ko'}, target: ${(msg.subtitles?.korean || msg.subtitles?.ukrainian || msg.subtitles?.spanish || []).length}, en: ${msg.subtitles?.english?.length || 0})`);
     processYouTubeSubtitles(msg.videoId, msg.subtitles).then(sendResponse);
     return true;
   }
@@ -502,6 +512,7 @@ function detectSubtitleLanguage(url, content) {
   // Common Netflix URL patterns for language
   if (urlLower.includes('ko') || urlLower.includes('korean')) return 'ko';
   if (urlLower.includes('uk') || urlLower.includes('ukrainian')) return 'uk';
+  if (urlLower.includes('es') || urlLower.includes('spanish')) return 'es';
   if (urlLower.includes('en') || urlLower.includes('english')) return 'en';
 
   // Try to detect from content
@@ -512,6 +523,9 @@ function detectSubtitleLanguage(url, content) {
 
   // Check for Ukrainian characters (Cyrillic with Ukrainian-specific letters)
   if (/[\u0400-\u04FF]/.test(contentSample) && /[іїєґ]/i.test(contentSample)) return 'uk';
+
+  // Check for Spanish characters (Latin + Spanish-specific diacritics/punctuation)
+  if (/[ñáéíóúü¿¡]/i.test(contentSample)) return 'es';
 
   // Check for mostly ASCII (likely English)
   if (/^[\x00-\x7F\s]+$/.test(contentSample.replace(/<[^>]*>/g, ''))) return 'en';
@@ -627,7 +641,7 @@ async function trackNetflix(videoId, title, audioLang, episodeInfo) {
     const data = await res.json();
 
     // Use shared updateStatus helper for language marking
-    if (audioLang === 'ko' || audioLang === 'uk') {
+    if (audioLang === 'ko' || audioLang === 'uk' || audioLang === 'es') {
       await updateStatus(`netflix_${videoId}`, audioLang, true);
       console.log(`[ClipIt] Marked video as having ${audioLang} (audio detected)`);
     }
@@ -655,7 +669,7 @@ async function updateNetflixTitle(videoId, title) {
 }
 
 async function updateNetflixAudioLanguage(videoId, audioLang) {
-  if (audioLang === 'ko' || audioLang === 'uk') {
+  if (audioLang === 'ko' || audioLang === 'uk' || audioLang === 'es') {
     await updateStatus(`netflix_${videoId}`, audioLang, true);
     console.log(`[ClipIt] Updated: ${audioLang} audio detected`);
   }
@@ -707,6 +721,7 @@ async function processYouTubeSubtitles(videoId, subtitles) {
         video_id: videoId,
         korean: targetLanguage === 'ko' ? targetSubtitles : [],
         ukrainian: targetLanguage === 'uk' ? targetSubtitles : [],
+        spanish: targetLanguage === 'es' ? targetSubtitles : [],
         english: subtitles.english || [],
       }),
     });

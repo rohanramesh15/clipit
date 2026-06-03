@@ -21,6 +21,14 @@ function getLanguageConfig(lang = 'ko') {
       availabilityKey: 'has_korean',
     };
   }
+  if (lang === 'es') {
+    return {
+      code: 'es',
+      name: 'Spanish',
+      subtitleKey: 'spanish',
+      availabilityKey: 'has_spanish',
+    };
+  }
   return {
     code: lang,
     name: lang,
@@ -33,6 +41,7 @@ function makeAvailabilityFlags(lang, available) {
   const flags = {
     has_korean: false,
     has_ukrainian: false,
+    has_spanish: false,
   };
   const config = getLanguageConfig(lang);
   if (config.availabilityKey in flags) {

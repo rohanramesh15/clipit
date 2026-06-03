@@ -26,19 +26,26 @@ let preferredLanguage = 'ko';
 const LANGUAGE_CONFIGS = {
   ko: { code: 'ko', subtitleKey: 'korean' },
   uk: { code: 'uk', subtitleKey: 'ukrainian' },
+  es: { code: 'es', subtitleKey: 'spanish' },
 };
+
+const SUPPORTED_LANGUAGES = ['ko', 'uk', 'es'];
 
 function getLanguageConfig(lang = 'ko') {
   return LANGUAGE_CONFIGS[lang] || { code: lang, subtitleKey: lang };
 }
 
+function normalizeLanguage(lang) {
+  return SUPPORTED_LANGUAGES.includes(lang) ? lang : 'ko';
+}
+
 chrome.storage.local.get('language').then(result => {
-  preferredLanguage = result.language === 'uk' ? 'uk' : 'ko';
+  preferredLanguage = normalizeLanguage(result.language);
 }).catch(() => {});
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.language) {
-    preferredLanguage = changes.language.newValue === 'uk' ? 'uk' : 'ko';
+    preferredLanguage = normalizeLanguage(changes.language.newValue);
   }
 });
 

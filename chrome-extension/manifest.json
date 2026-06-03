@@ -7,8 +7,13 @@
   "host_permissions": [
     "*://www.youtube.com/*",
     "*://www.netflix.com/*",
+    "https://project-deadbird-backend.fly.dev/*",
+    "https://project-deadbird-frontend.fly.dev/*",
     "https://project-deadbird-backend.onrender.com/*",
-    "https://theclipitapp.com/*"
+    "https://theclipitapp.com/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:5176/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -25,7 +30,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://theclipitapp.com/*"],
+      "matches": ["https://project-deadbird-frontend.fly.dev/*", "https://theclipitapp.com/*", "http://localhost:5176/*"],
       "js": ["token-bridge.js"],
       "run_at": "document_idle"
     }

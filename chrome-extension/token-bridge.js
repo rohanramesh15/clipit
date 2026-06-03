@@ -50,7 +50,8 @@ function syncPreferences() {
   try {
     if (!extensionStorageAvailable()) return;
     const theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
-    const language = localStorage.getItem('deadbird_language') === 'uk' ? 'uk' : 'ko';
+    const storedLanguage = localStorage.getItem('deadbird_language');
+    const language = ['ko', 'uk', 'es'].includes(storedLanguage) ? storedLanguage : 'ko';
 
     const updates = {};
     if (theme !== lastTheme) {

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_spanish
 from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.services.vocab_service import load_frequency_map
+from app.services import ukrainian_lemmatizer
 from app.services.deepl_service import translate, translate_word_in_context
 from app.api.routes.vocabulary import get_frequency_map
 
@@ -385,7 +386,10 @@ async def get_flashcard_data(request: dict = Body(...)):
 
         if language == 'uk':
             sentence_data = find_sentence_for_word_ukrainian(word, subtitles, skipped)
-            possible_forms = [word]
+            # Include the lemma so the rank + dictionary form resolve against the
+            # lemma-based Ukrainian frequency list.
+            uk_lemma = ukrainian_lemmatizer.lemmatize_word(word)
+            possible_forms = [word, uk_lemma] if uk_lemma != word else [word]
         elif language == 'es':
             sentence_data = find_sentence_for_word_spanish(word, subtitles, skipped)
             possible_forms = [word]

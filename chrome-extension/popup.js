@@ -1,5 +1,5 @@
-const API = 'https://project-deadbird-backend.onrender.com/api';
-const APP_URL = 'https://theclipitapp.com';
+const API = 'https://project-deadbird-backend.fly.dev/api';
+const APP_URL = 'https://project-deadbird-frontend.fly.dev';
 const root = document.getElementById('root');
 
 // ─── State ────────────────────────────────────────────
@@ -12,17 +12,23 @@ let state = {
   isYouTubeTab: false,
   audioEnabled: false,
   hideSubtitles: false, // hide subtitles while still capturing them
-  lang: 'ko',        // 'ko' | 'uk'
+  lang: 'ko',        // 'ko' | 'uk' | 'es'
   deleteConfirm: null, // { video_id, title } | null
   isDeleting: false,
   theme: 'dark',     // 'dark' | 'light'
 };
 
+// Supported learning languages and their display metadata.
+const SUPPORTED_LANGUAGES = ['ko', 'uk', 'es'];
+const LANG_NAMES = { ko: 'Korean', uk: 'Ukrainian', es: 'Spanish' };
+const LANG_BADGES = { ko: 'KO', uk: 'UK', es: 'ES' };
+const normalizeLang = (l) => (SUPPORTED_LANGUAGES.includes(l) ? l : 'ko');
+
 // ─── Boot ─────────────────────────────────────────────
 (async function init() {
   // Load persisted preferences
   const stored = await chrome.storage.local.get(['language', 'theme', 'hideSubtitles']);
-  state.lang = stored.language === 'uk' ? 'uk' : 'ko';
+  state.lang = normalizeLang(stored.language);
   state.theme = stored.theme === 'light' ? 'light' : 'dark';
   state.hideSubtitles = stored.hideSubtitles === true;
 
@@ -38,7 +44,7 @@ let state = {
       document.body.classList.toggle('light', state.theme === 'light');
     }
     if (changes.language) {
-      state.lang = changes.language.newValue === 'uk' ? 'uk' : 'ko';
+      state.lang = normalizeLang(changes.language.newValue);
       state.selected = null;
       state.words = null;
       shouldRefetch = true;
@@ -299,7 +305,7 @@ function tmplNotLoggedIn() {
 }
 
 function tmplEmpty() {
-  const langName = state.lang === 'uk' ? 'Ukrainian' : 'Korean';
+  const langName = LANG_NAMES[state.lang] || 'Korean';
   return `
     ${header({ dot: 'green', right: '<span class="count-badge">0 videos</span>' })}
     <div class="body">
@@ -415,7 +421,7 @@ function tmplDetail() {
       </div>
     `;
   } else if (words === 'no-words') {
-    const langName = state.lang === 'uk' ? 'Ukrainian' : 'Korean';
+    const langName = LANG_NAMES[state.lang] || 'Korean';
     body = `
       <div class="center-state">
         <div class="icon">🈚</div>
@@ -485,7 +491,7 @@ function header({ dot, right }) {
       ${state.hideSubtitles ? 'Show Subtitles' : 'Hide Subtitles'}
     </button>
   ` : '';
-  const langBadge = state.lang === 'uk' ? 'UK' : 'KO';
+  const langBadge = LANG_BADGES[state.lang] || 'KO';
   return `
     <div class="header">
       <div class="header-brand">
