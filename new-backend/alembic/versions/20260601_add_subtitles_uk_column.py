@@ -18,7 +18,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('tracked_videos', sa.Column('subtitles_uk', sa.JSON(), nullable=True))
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name='tracked_videos' AND column_name='subtitles_uk'"
+    ))
+    if result.fetchone() is None:
+        op.add_column('tracked_videos', sa.Column('subtitles_uk', sa.JSON(), nullable=True))
 
 
 def downgrade() -> None:

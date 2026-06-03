@@ -18,10 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        'chat_session',
-        sa.Column('mode', sa.String(length=20), nullable=False, server_default='free'),
-    )
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name='chat_session' AND column_name='mode'"
+    ))
+    if result.fetchone() is None:
+        op.add_column(
+            'chat_session',
+            sa.Column('mode', sa.String(length=20), nullable=False, server_default='free'),
+        )
 
 
 def downgrade() -> None:

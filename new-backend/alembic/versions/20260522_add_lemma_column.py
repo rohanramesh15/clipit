@@ -18,15 +18,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        'user_flashcard_progress',
-        sa.Column('lemma', sa.String(), nullable=True),
-    )
-    op.create_index(
-        'ix_user_flashcard_progress_lemma',
-        'user_flashcard_progress',
-        ['lemma'],
-    )
+    conn = op.get_bind()
+    # Check if column exists
+    result = conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name='user_flashcard_progress' AND column_name='lemma'"
+    ))
+    if result.fetchone() is None:
+        op.add_column(
+            'user_flashcard_progress',
+            sa.Column('lemma', sa.String(), nullable=True),
+        )
+    # Check if index exists
+    result = conn.execute(sa.text(
+        "SELECT indexname FROM pg_indexes WHERE indexname='ix_user_flashcard_progress_lemma'"
+    ))
+    if result.fetchone() is None:
+        op.create_index(
+            'ix_user_flashcard_progress_lemma',
+            'user_flashcard_progress',
+            ['lemma'],
+        )
 
 
 def downgrade() -> None:
