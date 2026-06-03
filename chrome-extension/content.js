@@ -23,6 +23,15 @@
 
 let preferredLanguage = 'ko';
 
+const LANGUAGE_CONFIGS = {
+  ko: { code: 'ko', subtitleKey: 'korean' },
+  uk: { code: 'uk', subtitleKey: 'ukrainian' },
+};
+
+function getLanguageConfig(lang = 'ko') {
+  return LANGUAGE_CONFIGS[lang] || { code: lang, subtitleKey: lang };
+}
+
 chrome.storage.local.get('language').then(result => {
   preferredLanguage = result.language === 'uk' ? 'uk' : 'ko';
 }).catch(() => {});
@@ -80,7 +89,7 @@ window.addEventListener('message', (event) => {
       console.log('[ClipIt] Sending intercepted subtitles to backend:', videoId);
       console.log('[ClipIt] Target:', interceptedSubtitles.lang, interceptedSubtitles.target.length, 'English:', interceptedSubtitles.en?.length || 0);
       subtitlesSentForVideo = videoId;
-      const targetKey = interceptedSubtitles.lang === 'uk' ? 'ukrainian' : 'korean';
+      const targetKey = getLanguageConfig(interceptedSubtitles.lang).subtitleKey;
       try {
         chrome.runtime.sendMessage({
           type: 'YOUTUBE_SUBTITLES',
@@ -89,8 +98,6 @@ window.addEventListener('message', (event) => {
             targetLanguage: interceptedSubtitles.lang,
             [targetKey]: interceptedSubtitles.target,
             english: interceptedSubtitles.en || [],
-            hasKorean: interceptedSubtitles.lang === 'ko',
-            hasUkrainian: interceptedSubtitles.lang === 'uk',
             hasEnglish: (interceptedSubtitles.en?.length || 0) > 0
           }
         }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
@@ -447,13 +454,11 @@ async function fetchYouTubeSubtitles(videoId, targetLang = preferredLanguage) {
 
     console.log(`[ClipIt] Fetched ${targetSubs.length} ${targetLang} and ${enSubs.length} English subtitles`);
 
-    const targetKey = targetLang === 'uk' ? 'ukrainian' : 'korean';
+    const targetKey = getLanguageConfig(targetLang).subtitleKey;
     return {
       targetLanguage: targetLang,
       [targetKey]: targetSubs,
       english: enSubs,
-      hasKorean: targetLang === 'ko' && targetSubs.length > 0,
-      hasUkrainian: targetLang === 'uk' && targetSubs.length > 0,
       hasEnglish: enSubs.length > 0
     };
   } catch (e) {
@@ -861,7 +866,8 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
   // Method 2: Fall back to manual fetch attempts
   console.log('[ClipIt] Interceptor did not capture subtitles, trying manual fetch...');
   const subtitles = await fetchYouTubeSubtitles(videoId, targetLang);
-  if (subtitles && (subtitles.hasKorean || subtitles.hasUkrainian)) {
+  const targetKey = getLanguageConfig(targetLang).subtitleKey;
+  if (subtitles?.[targetKey]?.length > 0) {
     try {
       chrome.runtime.sendMessage({
         type: 'YOUTUBE_SUBTITLES',

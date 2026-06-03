@@ -11,6 +11,50 @@ importScripts('subtitle-fetcher.js');
 const API = 'https://project-deadbird-backend.onrender.com/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
+const LANGUAGE_CONFIGS = {
+  ko: {
+    code: 'ko',
+    name: 'Korean',
+    subtitleKey: 'korean',
+    statusPath: 'status',
+    statusBodyKey: 'has_korean',
+  },
+  uk: {
+    code: 'uk',
+    name: 'Ukrainian',
+    subtitleKey: 'ukrainian',
+    statusPath: 'status/ukrainian',
+    statusBodyKey: 'has_ukrainian',
+  },
+};
+
+function getLanguageConfig(lang = 'ko') {
+  return LANGUAGE_CONFIGS[lang] || {
+    code: lang,
+    name: lang,
+    subtitleKey: lang,
+    statusPath: null,
+    statusBodyKey: `has_${lang}`,
+  };
+}
+
+function getSubtitleListForLanguage(subtitles, lang) {
+  const config = getLanguageConfig(lang);
+  return subtitles?.[config.subtitleKey] || [];
+}
+
+function buildSubtitleUploadFlags(lang, hasTargetLanguage) {
+  const flags = {
+    has_korean: false,
+    has_ukrainian: false,
+  };
+  const key = getLanguageConfig(lang).statusBodyKey;
+  if (key in flags) {
+    flags[key] = hasTargetLanguage;
+  }
+  return flags;
+}
+
 async function getAuthToken() {
   const result = await chrome.storage.local.get('deadbird_token');
   return result.deadbird_token || null;
@@ -19,6 +63,11 @@ async function getAuthToken() {
 async function getPreferredLanguage() {
   const result = await chrome.storage.local.get('language');
   return result.language === 'uk' ? 'uk' : 'ko';
+}
+
+async function getActiveTrackingLanguage(requestedLang) {
+  const storedLang = await getPreferredLanguage();
+  return requestedLang || storedLang;
 }
 
 function authHeaders(token, extra = {}) {
@@ -343,11 +392,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           body: JSON.stringify({ title: msg.title }),
         }).catch(() => {});
       }
-      sendResponse({ success: true, is_new: false });
+      // The first tab-navigation track can run before the content script has the
+      // app-selected language. Still run the requested language pipeline here so
+      // switching to Ukrainian does not get swallowed by the dedupe guard.
+      getActiveTrackingLanguage(msg.lang)
+        .then(lang => runVocabPipeline(msg.videoId, lang))
+        .then(() => sendResponse({ success: true, is_new: false }));
     } else {
       recentlyTracked.set(msg.videoId, Date.now());
-      getPreferredLanguage()
-        .then(lang => trackAndPrefetch(msg.videoId, msg.title, msg.lang || lang))
+      getActiveTrackingLanguage(msg.lang)
+        .then(lang => trackAndPrefetch(msg.videoId, msg.title, lang))
         .then(sendResponse);
     }
     return true;
@@ -641,25 +695,28 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
 
 async function processYouTubeSubtitles(videoId, subtitles) {
   console.log(`[ClipIt] Processing YouTube subtitles for ${videoId}`);
-  const targetLanguage = subtitles.targetLanguage === 'uk' ? 'uk' : 'ko';
+  const targetLanguage = await getActiveTrackingLanguage(subtitles.targetLanguage);
+  const config = getLanguageConfig(targetLanguage);
+  const targetSubtitles = getSubtitleListForLanguage(subtitles, targetLanguage);
+  const uploadFlags = buildSubtitleUploadFlags(targetLanguage, targetSubtitles.length > 0);
   try {
     const res = await fetch(`${API}/youtube/subtitles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         video_id: videoId,
-        korean: subtitles.korean || [],
-        ukrainian: subtitles.ukrainian || [],
+        korean: targetLanguage === 'ko' ? targetSubtitles : [],
+        ukrainian: targetLanguage === 'uk' ? targetSubtitles : [],
         english: subtitles.english || [],
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      console.log(`[ClipIt] YouTube subtitles saved: ${videoId} (has_korean: ${data.has_korean})`);
+      console.log(`[ClipIt] YouTube subtitles saved: ${videoId} (${config.statusBodyKey}: ${uploadFlags[config.statusBodyKey] || false})`);
 
       // Now run vocab pipeline for the app-selected language only.
-      if ((targetLanguage === 'ko' && data.has_korean) || (targetLanguage === 'uk' && data.has_ukrainian)) {
+      if (targetSubtitles.length > 0) {
         runVocabPipeline(videoId, targetLanguage);
       }
 
@@ -728,7 +785,8 @@ async function runVocabPipeline(videoId, lang = 'ko') {
   try {
     // Step 1: fetch subtitles (skip for Netflix - already captured)
     if (!videoId.startsWith('netflix_')) {
-      console.log(`[Deadbird] Fetching subtitles for ${videoId} (${lang})`);
+      const config = getLanguageConfig(lang);
+      console.log(`[Deadbird] Fetching subtitles for ${videoId} (${config.name})`);
 
       // Fetch subtitles directly from YouTube using the user's browser
       const subtitleData = await fetchAllSubtitles(videoId, lang);
@@ -754,8 +812,7 @@ async function runVocabPipeline(videoId, lang = 'ko') {
             video_id: videoId,
             lang: lang,
             subtitles,
-            has_korean: subtitleData?.has_korean || false,
-            has_ukrainian: subtitleData?.has_ukrainian || false
+            ...buildSubtitleUploadFlags(lang, subtitles.length > 0),
           }),
         });
 
@@ -834,19 +891,16 @@ async function runVocabPipeline(videoId, lang = 'ko') {
 }
 
 async function updateStatus(videoId, lang, value) {
-  if (lang === 'uk') {
-    await fetch(`${API}/videos/${videoId}/status/ukrainian`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ has_ukrainian: value }),
-    }).catch(() => {});
-  } else {
-    await fetch(`${API}/videos/${videoId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ has_korean: value }),
-    }).catch(() => {});
+  const config = getLanguageConfig(lang);
+  if (!config.statusPath) {
+    console.warn(`[ClipIt] No backend status endpoint configured for language: ${lang}`);
+    return;
   }
+  await fetch(`${API}/videos/${videoId}/${config.statusPath}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [config.statusBodyKey]: value }),
+  }).catch(() => {});
 }
 
 async function getCachedVocab(videoId, lang = 'ko') {
