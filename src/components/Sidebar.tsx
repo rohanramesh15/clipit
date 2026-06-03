@@ -11,7 +11,8 @@ import {
   Check,
   Globe,
   Settings as SettingsIcon,
-  MessageSquare } from
+  MessageSquare,
+  Users } from
 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +23,7 @@ type Page =
 'video' |
 'practice' |
 'flashcards' |
+'community' |
 'analytics' |
 'vocabulary' |
 'converse-v2' |
@@ -85,6 +87,11 @@ export function Sidebar({
     id: 'analytics',
     icon: BarChart3,
     label: 'Progress'
+  },
+  {
+    id: 'community',
+    icon: Users,
+    label: 'Community'
   },
   {
     id: 'video',

@@ -16,6 +16,7 @@ import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { ConverseV2Page } from './pages/ConverseV2Page';
 import { PracticePage } from './pages/PracticePage';
 import { MadlibsPage } from './pages/MadlibsPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -26,6 +27,7 @@ type Page =
 'video' |
 'practice' |
 'flashcards' |
+'community' |
 'analytics' |
 'vocabulary' |
 'converse-v2' |
@@ -48,6 +50,14 @@ function AppInner() {
     const newValue = !isSidebarCollapsed;
     setIsSidebarCollapsed(newValue);
     localStorage.setItem('sidebar_collapsed', String(newValue));
+  };
+
+  const toggleTheme = () => {
+    setIsDark(prev => {
+      const next = !prev;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      return next;
+    });
   };
 
   // Check URL for reset token and privacy page on mount
@@ -91,6 +101,17 @@ function AppInner() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
+
+  useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (event.key === 'theme') {
+        setIsDark(event.newValue !== 'light');
+      }
+    }
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
   const renderPage = () => {
     switch (activePage) {
       case 'video':
@@ -101,6 +122,8 @@ function AppInner() {
         return <FlashcardsPage onNavigate={setActivePage} />;
       case 'madlibs':
         return <MadlibsPage onNavigate={setActivePage} />;
+      case 'community':
+        return <CommunityPage />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'vocabulary':
@@ -156,7 +179,7 @@ function AppInner() {
           activePage={activePage}
           onNavigate={setActivePage}
           isDark={isDark}
-          onToggleTheme={() => setIsDark(!isDark)}
+          onToggleTheme={toggleTheme}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapsed={toggleSidebarCollapsed} />
 

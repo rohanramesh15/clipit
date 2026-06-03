@@ -48,14 +48,6 @@ interface VocabList {
   word_count: number;
 }
 
-interface VocabListDetail {
-  id: number;
-  name: string;
-  language: string;
-  word_count: number;
-  words: { word: string; translation: string }[];
-}
-
 const flashcardsPageTips: HelpTip[] = [
   {
     id: 'deck-select',
@@ -410,8 +402,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     recordCardReview,
     extendSession,
     resetSession,
+    setCardsReviewedToday,
     getGoalLabel,
-    getRemainingCards,
   } = useReviewSession();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [cards, setCards] = useState<FlashCard[]>([]);
@@ -455,6 +447,24 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
+
+  const cleanupYouTubePlayer = useCallback(() => {
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy();
+      } catch {
+        // The iframe API can race with React unmounts while cards change.
+      }
+      playerRef.current = null;
+    }
+    if (playerContainerRef.current) {
+      playerContainerRef.current.replaceChildren();
+    }
+  }, []);
 
   // Play text using Web Speech API
   const playTTS = useCallback((text: string) => {
@@ -767,19 +777,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Destroy player when deck changes to force recreation
   useEffect(() => {
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch (e) {
-        // Player might already be destroyed
-      }
-      playerRef.current = null;
-    }
-    if (loopIntervalRef.current) {
-      clearInterval(loopIntervalRef.current);
-      loopIntervalRef.current = null;
-    }
-  }, [selectedVideoId]);
+    cleanupYouTubePlayer();
+  }, [selectedVideoId, cleanupYouTubePlayer]);
 
   // Check if a video is from Netflix
   const isNetflixVideo = (videoId: string) => videoId.startsWith('netflix_');
@@ -787,26 +786,23 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Create/update YouTube player when card changes (skip for Netflix)
   useEffect(() => {
     const card = dueCards[currentIndex];
-    if (loadState !== 'loaded' || !card) return;
-    if (!playerContainerRef.current) return;
-
-    // Skip YouTube player for TTS cards (no video) and Netflix videos
-    if (!card.video_id || isNetflixVideo(card.video_id)) {
-      // Destroy any existing YouTube player
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch (e) {
-          // Ignore destruction errors
-        }
-        playerRef.current = null;
-      }
+    if (loadState !== 'loaded' || !card) {
+      cleanupYouTubePlayer();
       return;
     }
+
+    const shouldUseYouTube = card.card_type === 'video' && card.video_id && !isNetflixVideo(card.video_id);
+    if (!shouldUseYouTube || !playerContainerRef.current) {
+      cleanupYouTubePlayer();
+      return;
+    }
+
+    cleanupYouTubePlayer();
 
     // Add 3 seconds buffer to end timestamp (timestamp is guaranteed non-null here since we have video_id)
     const startTime = card.timestamp ?? 0;
     const endTime = (card.end_timestamp || startTime + 5) + 3;
+    let isCancelled = false;
 
     const setupLooping = (player: any) => {
       if (loopIntervalRef.current) {
@@ -825,20 +821,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     };
 
     const initPlayer = () => {
-      // If player already exists, just load new video
-      if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
-        playerRef.current.loadVideoById({
-          videoId: card.video_id,
-          startSeconds: startTime,
-        });
-        setupLooping(playerRef.current);
-        return;
-      }
-
+      if (isCancelled) return;
       // Create new player
       if (!playerContainerRef.current) return;
 
-      playerRef.current = new (window as any).YT.Player(playerContainerRef.current, {
+      const playerMount = document.createElement('div');
+      playerMount.className = 'w-full h-full';
+      playerContainerRef.current.replaceChildren(playerMount);
+
+      playerRef.current = new (window as any).YT.Player(playerMount, {
         videoId: card.video_id,
         playerVars: {
           start: startTime,
@@ -856,6 +847,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
     // Wait for YT API to be ready
     const waitForYT = () => {
+      if (isCancelled) return;
       if ((window as any).YT && (window as any).YT.Player) {
         initPlayer();
       } else {
@@ -866,11 +858,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     waitForYT();
 
     return () => {
+      isCancelled = true;
       if (loopIntervalRef.current) {
         clearInterval(loopIntervalRef.current);
       }
     };
-  }, [currentIndex, loadState, dueCards]);
+  }, [currentIndex, loadState, dueCards, cleanupYouTubePlayer]);
 
   // Check if a Netflix screenshot exists for a given video/timestamp
   const checkScreenshotExists = async (videoId: string, timestamp: number): Promise<boolean> => {
@@ -885,7 +878,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
     try {
-      await fetch(`${API_BASE_URL}/subtitles/${videoId}`);
+      await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
 
       const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
       if (!vocabRes.ok) return [];
@@ -906,6 +899,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       vocab.vocabulary.forEach((v: { word: string; rank: number }) => { rankMap[v.word] = v.rank; });
       let cards = (fc.flashcards || []).map((card: FlashCard) => ({
         ...card,
+        card_type: 'video',
+        video_id: card.video_id || videoId,
         rank: rankMap[card.target_word],
       }));
 
@@ -961,12 +956,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     if (dueCardsFiltered.length === 0 && sortedCards.length > 0) {
       // No cards due - show completion screen
       setLoadState('session-complete');
+    } else if (!session.isExtended && session.cardsReviewed >= session.sessionCap) {
+      setLoadState('time-gated-complete');
     } else {
       setLoadState('loaded');
       // Start the review session timer
       startSession();
     }
-  }, [startSession]);
+  }, [session.cardsReviewed, session.isExtended, session.sessionCap, startSession]);
 
   // Load cards for "All Videos" mode
   const loadAllVideos = useCallback(async (videoList: TrackedVideo[]) => {
@@ -1022,55 +1019,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     prepareCardsForReview(videoCards);
   }, [fetchCardsForVideo, prepareCardsForReview]);
 
-  // Load flashcards filtered by a vocabulary list
-  const loadVocabListFlashcards = useCallback(async (listId: number, listName: string) => {
-    setLoadState('loading');
-    setLoadingMsg(`Loading flashcards from "${listName}"...`);
-    setCards([]);
-    setDueCards([]);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setSelectedVideoId(`vocablist_${listId}`);
-    setSelectedVideoTitle(listName);
-    setSelectedVocabListId(listId);
-    setSelectedVocabListName(listName);
-    setLastRatingInfo(null);
-
-    // Fetch the list's words
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/lists/${listId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Failed to fetch list');
-      const listDetail: VocabListDetail = await res.json();
-      const listWords = new Set(listDetail.words.map(w => w.word.toLowerCase()));
-      setSelectedVocabListWords(listWords);
-
-      // Load all cards from all videos
-      const allCards: FlashCard[] = [];
-      for (const video of videos) {
-        setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
-        const videoCards = await fetchCardsForVideo(video.video_id);
-        allCards.push(...videoCards);
-      }
-
-      // Filter to only cards whose word is in the vocab list
-      const filteredCards = allCards.filter(card => {
-        const word = (card.dictionary_form || card.target_word).toLowerCase();
-        return listWords.has(word);
-      });
-
-      if (!filteredCards.length) {
-        setLoadState('no-vocab');
-        return;
-      }
-      prepareCardsForReview(filteredCards);
-    } catch (err) {
-      console.error('Failed to load vocab list flashcards:', err);
-      setLoadState('error');
-    }
-  }, [videos, token, fetchCardsForVideo, prepareCardsForReview]);
-
   // Load TTS-only flashcards from user vocabulary lists (no video required)
   const loadVocabTTSCards = useCallback(async (listId?: number) => {
     setLoadState('loading');
@@ -1101,7 +1049,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       if (!res.ok) throw new Error('Failed to fetch vocab flashcards');
 
       const data = await res.json();
-      let ttsCards: FlashCard[] = data.flashcards;
+      let ttsCards: FlashCard[] = data.flashcards.map((card: FlashCard) => ({
+        ...card,
+        card_type: 'tts',
+        video_id: null,
+        timestamp: null,
+        end_timestamp: null,
+      }));
 
       // Filter out deleted cards
       const deletedCards = getDeletedCards(language);
@@ -1165,6 +1119,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     async function bootstrap() {
       try {
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        if (token) {
+          const tzOffset = new Date().getTimezoneOffset();
+          const todayRes = await fetch(`${API_BASE_URL}/fsrs/reviews/today?tz_offset_minutes=${tzOffset}`, { headers });
+          if (todayRes.ok) {
+            const todayData = await todayRes.json();
+            setCardsReviewedToday(todayData.count || 0);
+          }
+        }
+
         const filteredRes = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers });
 
         if (!filteredRes.ok) throw new Error();
@@ -1184,10 +1147,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       }
     }
     bootstrap();
-  }, [language, token]);
+  }, [language, token, setCardsReviewedToday]);
 
   const currentCard = dueCards[currentIndex];
   const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;
+  const deckProgressTotal = dueCards.length;
+  const deckProgressReviewed = Math.min(session.sessionReviewed, deckProgressTotal);
+  const dailyGoalReviewed = Math.min(session.cardsReviewed, session.sessionCap);
 
   // Filter and sort videos based on search query and selected option
   const filteredAndSortedVideos = [...videos]
@@ -1223,6 +1189,26 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       : 5;
     const { nextDue } = rateCard(currentCard.dictionary_form || currentCard.target_word, rating, clipDuration);
     const nextDueStr = formatNextReview(nextDue);
+    const reviewedWord = currentCard.dictionary_form || currentCard.target_word;
+
+    if (token) {
+      fetch(`${API_BASE_URL}/fsrs/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          word: reviewedWord,
+          language,
+          rating,
+          clip_duration: clipDuration,
+          reviewed_at: new Date().toISOString(),
+        }),
+      }).catch((error) => {
+        console.error('Failed to record review history:', error);
+      });
+    }
 
     // Record card review and check if cap was just reached
     const capJustReached = recordCardReview();
@@ -1238,7 +1224,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       [ratingKey]: prev[ratingKey] + 1,
     }));
 
-    setLastRatingInfo({ word: currentCard.dictionary_form || currentCard.target_word, nextDue: nextDueStr });
+    setLastRatingInfo({ word: reviewedWord, nextDue: nextDueStr });
     setIsFlipped(false);
 
     setTimeout(() => {
@@ -1445,18 +1431,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Go back to deck selection
   async function handleBackToDecks() {
     // Destroy YouTube player first to prevent DOM conflicts
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch (e) {
-        // Player might already be destroyed
-      }
-      playerRef.current = null;
-    }
-    if (loopIntervalRef.current) {
-      clearInterval(loopIntervalRef.current);
-      loopIntervalRef.current = null;
-    }
+    cleanupYouTubePlayer();
 
     setCards([]);
     setDueCards([]);
@@ -1741,24 +1716,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               className="px-6 py-4 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors"
             >
               Study
-            </button>
-          </div>
-          {/* Join/Leave Class Links */}
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-secondary">Taking a class?</span>
-              <button
-                onClick={() => setShowJoinClass(true)}
-                className="text-accent hover:text-accent/80 font-medium transition-colors"
-              >
-                Join a class →
-              </button>
-            </div>
-            <button
-              onClick={() => openLeaveClassModal()}
-              className="text-muted hover:text-red-400 font-medium transition-colors"
-            >
-              Leave a class
             </button>
           </div>
         </div>
@@ -2566,7 +2523,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         </div>
 
         <p className="text-muted text-xs text-center max-w-xs">
-          Upload your own vocab list or use Clip It to learn from {languageName} videos. You can also join a class with a code.
+          Join a community group, upload your own vocab list, or use Clip It to learn from {languageName} videos.
         </p>
 
         {/* Join Class Modal */}
@@ -2880,65 +2837,69 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div className="w-full flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2 min-w-0 flex-1 mr-4">
-          <button
-            onClick={() => handleBackToDecks()}
-            aria-label="Back to decks"
-            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div id="section-deck-select" className="min-w-0">
-            <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
+      <div className="w-full grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 mb-5">
+        <button
+          onClick={() => handleBackToDecks()}
+          aria-label="Back to decks"
+          className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div id="section-deck-select" className="min-w-0">
+          <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
           <button
             type="button"
             onClick={() => handleBackToDecks()}
-            className="flex items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group cursor-pointer">
+            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs text-secondary hover:text-accent transition-colors mt-0.5 group cursor-pointer w-full max-w-full">
             {selectedVideoId === 'all' ? (
               <>
                 <Layers className="w-3 h-3 shrink-0 mr-0.5" />
-                <span>All Videos</span>
+                <span className="truncate min-w-0">All Videos</span>
               </>
             ) : selectedVideoId.startsWith('folder_') ? (
               <>
                 <Folder className="w-3 h-3 shrink-0 mr-0.5" />
-                <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+                <span className="truncate min-w-0">{selectedVideoTitle}</span>
               </>
             ) : selectedVideoId.startsWith('vocablist_') ? (
               <>
                 <BookOpen className="w-3 h-3 shrink-0 mr-0.5" />
-                <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+                <span className="truncate min-w-0">{selectedVideoTitle}</span>
               </>
             ) : (
-              <span className="truncate max-w-[220px]">{selectedVideoTitle}</span>
+              <>
+                <span className="w-3 h-3 mr-0.5" />
+                <span className="truncate min-w-0">{selectedVideoTitle}</span>
+              </>
             )}
-            <span className="text-muted ml-1">· Change deck</span>
+            <span className="text-muted whitespace-nowrap">· Change deck</span>
           </button>
-          </div>
         </div>
-        <div className="text-right shrink-0">
+        <div className="text-right shrink-0 w-[112px]">
           {session.isExtended ? (
             <>
               <div className="text-2xl font-bold text-accent">
-                {getRemainingCards(dueCards.length - currentIndex)}
+                {Math.max(0, deckProgressTotal - currentIndex)}
                 <span className="text-muted text-lg"> left</span>
               </div>
               <div className="text-xs text-secondary mt-1">
-                {sessionStats.reviewed} reviewed
+                Today: {dailyGoalReviewed} / {session.sessionCap}
               </div>
             </>
           ) : (
             <>
               <div className="text-2xl font-bold text-accent">
-                {session.cardsReviewed}
-                <span className="text-muted text-lg"> / {session.sessionCap}</span>
+                {deckProgressReviewed}
+                <span className="text-muted text-lg"> / {deckProgressTotal}</span>
               </div>
               <div className="w-24 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
                 <motion.div
                   className="h-full bg-accent"
-                  animate={{ width: `${Math.min(100, (session.cardsReviewed / session.sessionCap) * 100)}%` }}
+                  animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
                   transition={{ duration: 0.3 }}
                 />
+              </div>
+              <div className="text-xs text-secondary mt-1">
+                Today: {dailyGoalReviewed} / {session.sessionCap}
               </div>
             </>
           )}
@@ -2949,7 +2910,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <div className="w-full space-y-4">
         {/* Video clip (YouTube), Netflix placeholder, or TTS card */}
         <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 bg-black">
-          {currentCard && !currentCard.video_id ? (
+          {currentCard && currentCard.card_type !== 'video' ? (
             // TTS-only card (no video context)
             <TTSCardPlaceholder
               word={currentCard.target_word}
