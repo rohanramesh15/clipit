@@ -35,13 +35,14 @@ import {
 } from '../services/converseV2';
 import { VoiceSession, VoiceEvent } from '../lib/voiceSession';
 import { useAuth } from '../context/AuthContext';
+import { PracticeEmptyState, type NavPage } from '../components/PracticeEmptyState';
 import './converseV2.css';
 
 // --------------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------------
 
-type Stage = 'loading' | 'onboarding' | 'start' | 'topic' | 'chat';
+type Stage = 'loading' | 'onboarding' | 'start' | 'topic' | 'chat' | 'empty';
 type Seed = 'due' | 'topic' | 'free';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
 
@@ -264,7 +265,9 @@ function VoiceCTA({ status, onToggle }: { status: VoiceStatus; onToggle: () => v
 // Main page
 // --------------------------------------------------------------------------
 
-export function ConverseV2Page() {
+export function ConverseV2Page(
+  { onBack, onNavigate }: { onBack?: () => void; onNavigate?: (page: NavPage) => void } = {},
+) {
   const { user } = useAuth();
   const firstName = (user?.full_name?.trim().split(/\s+/)[0]) || (user?.email?.split('@')[0]) || '';
   const [stage, setStage] = useState<Stage>('loading');
@@ -318,6 +321,8 @@ export function ConverseV2Page() {
   const vUserId = useRef<string | null>(null);
   const vAsstId = useRef<string | null>(null);
   const voiceAutoStarted = useRef(false);
+  // Voice Chat is a single-purpose flow: land straight in a due-words conversation.
+  const dueAutoBegun = useRef(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -330,7 +335,9 @@ export function ConverseV2Page() {
         const { profile: p } = await getProfile();
         if (!alive) return;
         setProfile(p);
-        setStage(p ? 'start' : 'onboarding');
+        // With a profile we go straight into a due-words session (see auto-begin
+        // effect); first-timers do a one-time onboarding, then the same.
+        if (!p) setStage('onboarding');
       } catch {
         if (alive) setStage('onboarding');
       }
@@ -491,7 +498,8 @@ export function ConverseV2Page() {
     } catch {
       setProfile(req); // optimistic
     }
-    setStage('start');
+    // Hand off to the auto-begin effect, which starts the due-words session.
+    setStage('loading');
   }, []);
 
   const changeProfile = useCallback(async (p: Profile) => {
@@ -517,6 +525,12 @@ export function ConverseV2Page() {
           seed_type: SEED_TYPE[s],
           seed_label: opts?.seedLabel,
         });
+        // Voice Chat only does due-words practice — if nothing is due, show the
+        // shared empty state instead of opening an empty conversation.
+        if (s === 'due' && (result.due_words?.length ?? 0) === 0) {
+          setStage('empty');
+          return;
+        }
         setSeed(s);
         setTopicCtx(opts?.context || null);
         setSessionId(result.session_id);
@@ -570,8 +584,18 @@ export function ConverseV2Page() {
     setNudge(null);
     setHowtoOpen(false);
     setHowtoResult(null);
+    if (onBack) { onBack(); return; }
     setStage('start');
-  }, []);
+  }, [onBack]);
+
+  // Auto-start the due-words session once a profile is available. This replaces
+  // the old start/topic menu so Voice Chat lands directly in the conversation.
+  useEffect(() => {
+    if (profile && !dueAutoBegun.current && stage !== 'chat' && stage !== 'empty') {
+      dueAutoBegun.current = true;
+      beginSession('due');
+    }
+  }, [profile, stage, beginSession]);
 
   // ------------------------------------------------------------------------
   // Chat actions
@@ -715,10 +739,51 @@ export function ConverseV2Page() {
 
   return (
     <div className="cv2-root">
+      {onBack && stage !== 'chat' && (
+        <button
+          onClick={onBack}
+          aria-label="Back to Practice"
+          style={{
+            position: 'absolute', top: 18, left: 18, zIndex: 10,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 38, height: 38, borderRadius: 11,
+            color: 'var(--ink-soft)', background: 'transparent',
+          }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+      )}
+
       {stage === 'loading' && (
-        <div className="cv2-center">
-          <Loader2 className="cv2-spin" size={30} />
-        </div>
+        chatError ? (
+          <div className="cv2-center">
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+              <p style={{ color: 'var(--ink-soft)', maxWidth: 280 }}>{chatError}</p>
+              <button
+                onClick={() => { dueAutoBegun.current = false; setChatError(null); beginSession('due'); }}
+                style={{
+                  padding: '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600,
+                  color: '#fff', background: 'var(--accent)',
+                }}
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 760, margin: '0 auto', padding: '60px 32px 30px', gap: 26 }}>
+            <div className="skeleton" style={{ height: 30, width: '72%', borderRadius: 12 }} />
+            <div className="skeleton" style={{ height: 30, width: '54%', borderRadius: 12 }} />
+            <div className="skeleton" style={{ height: 20, width: '40%', borderRadius: 10 }} />
+            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'center' }}>
+              <div className="skeleton" style={{ height: 76, width: 76, borderRadius: 999 }} />
+            </div>
+          </div>
+        )
+      )}
+
+      {stage === 'empty' && (
+        <PracticeEmptyState onNavigate={(p) => onNavigate?.(p)} />
       )}
 
       {stage === 'onboarding' && <Onboarding onDone={finishOnboarding} />}

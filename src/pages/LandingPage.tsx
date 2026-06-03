@@ -18,7 +18,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
   return (
     <div className="light min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app overflow-x-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-app border-b border-white/5">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-app">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center">
             <img src={clipitLogo} alt="ClipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />

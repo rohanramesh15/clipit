@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 declare function gtag(...args: unknown[]): void;
 import { motion, AnimatePresence } from 'framer-motion';
+import { Skeleton } from '../components/Skeleton';
 import {
+  ArrowLeft,
   RotateCw,
   RotateCcw,
   Check,
@@ -392,7 +394,7 @@ function addDeletedCard(language: string, word: string) {
   }
 }
 
-type Page = 'video' | 'flashcards' | 'dictionary' | 'analytics' | 'vocabulary' | 'settings';
+type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 
 interface FlashcardsPageProps {
   onNavigate?: (page: Page) => void;
@@ -1493,12 +1495,28 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Get preview times for rating buttons
   const previewTimes = currentCard ? previewNextReviews(currentCard.dictionary_form || currentCard.target_word) : null;
 
-  // ── Loading ──────────────────────────────────────────────────
+  // ── Loading (skeleton mirrors the review layout) ──────────────
   if (loadState === 'loading') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-5">
-        <div className="w-10 h-10 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
-        <p className="text-secondary text-sm">{loadingMsg}</p>
+      <div className="min-h-screen flex flex-col items-center max-w-md mx-auto px-4 py-8 md:py-10 w-full">
+        <div className="w-full flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2 flex-1">
+            <Skeleton className="w-9 h-9 rounded-lg" />
+            <div className="flex-1">
+              <Skeleton className="h-5 w-32 rounded-md mb-2" />
+              <Skeleton className="h-3 w-24 rounded" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-16 rounded-lg" />
+        </div>
+        <Skeleton className="h-1.5 w-full rounded-full mb-6" />
+        <Skeleton className="w-full mb-6" style={{ height: 320, borderRadius: 24 }} />
+        <div className="grid grid-cols-4 gap-2 w-full">
+          <Skeleton className="h-12 rounded-xl" />
+          <Skeleton className="h-12 rounded-xl" />
+          <Skeleton className="h-12 rounded-xl" />
+          <Skeleton className="h-12 rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -1618,7 +1636,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <div className="min-h-screen pb-20 max-w-4xl mx-auto px-4 sm:px-6 pt-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-heading font-bold text-primary mb-2">Practice</h1>
+          <button
+            onClick={() => onNavigate?.('practice')}
+            aria-label="Back to Practice"
+            className="mb-4 w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-4xl font-heading font-bold text-primary mb-2">Flashcards</h1>
           <p className="text-secondary">Select a deck to start reviewing flashcards.</p>
         </div>
 
@@ -2504,35 +2529,27 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4">
+      <div className="relative min-h-screen flex flex-col items-center justify-center gap-6 px-4">
+        <button
+          onClick={() => onNavigate?.('practice')}
+          aria-label="Back to Practice"
+          className="absolute top-6 left-4 sm:left-6 w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
         <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
           <BookOpen className="w-8 h-8 text-accent" />
         </div>
         <div className="text-center">
           <p className="text-xl text-primary font-semibold mb-2">Ready to start learning?</p>
           <p className="text-secondary text-sm max-w-sm">
-            Get started by joining a class or watching videos.
+            Add some words to start practicing.
           </p>
         </div>
 
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button
-            onClick={() => setShowJoinClass(true)}
-            className="w-full px-6 py-3 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-          >
-            <BookOpen className="w-5 h-5" />
-            Join a Class
-          </button>
-          <button
-            onClick={() => openLeaveClassModal()}
-            className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-red-500/50 text-primary hover:text-red-400 font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
-          >
-            <LogOut className="w-5 h-5" />
-            Leave a Class
-          </button>
-          <button
             onClick={() => onNavigate?.('vocabulary')}
-            className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-white/20 text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full px-6 py-3 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Upload Your Own List
@@ -2549,7 +2566,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         </div>
 
         <p className="text-muted text-xs text-center max-w-xs">
-          Join a class, upload your own vocab list, or use Clip It to learn from {languageName} videos.
+          Upload your own vocab list or use Clip It to learn from {languageName} videos. You can also join a class with a code.
         </p>
 
         {/* Join Class Modal */}
@@ -2864,8 +2881,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
       {/* Header stats */}
       <div className="w-full flex items-center justify-between mb-5">
-        <div id="section-deck-select" className="min-w-0 flex-1 mr-4">
-          <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
+        <div className="flex items-center gap-2 min-w-0 flex-1 mr-4">
+          <button
+            onClick={() => handleBackToDecks()}
+            aria-label="Back to decks"
+            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div id="section-deck-select" className="min-w-0">
+            <h1 className="text-xl font-heading font-bold text-primary">Daily Review</h1>
           <button
             type="button"
             onClick={() => handleBackToDecks()}
@@ -2890,6 +2914,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             )}
             <span className="text-muted ml-1">· Change deck</span>
           </button>
+          </div>
         </div>
         <div className="text-right shrink-0">
           {session.isExtended ? (

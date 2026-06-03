@@ -4,8 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import {
-  Bell,
-  Shield,
   LogOut,
   Trash2,
   ChevronRight,
@@ -31,12 +29,6 @@ const settingsPageTips: HelpTip[] = [
     id: 'learning',
     text: 'Set your target language, motivation, daily goal, and new cards per day.',
     targetId: 'section-learning',
-    position: 'right',
-  },
-  {
-    id: 'notifications',
-    text: 'Toggle daily reminders to stay on track with your learning.',
-    targetId: 'section-notifications',
     position: 'right',
   },
   {
@@ -121,7 +113,6 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
   const [dailyGoal, setDailyGoal] = useState(() => {
     return localStorage.getItem('daily_goal') || '15';
   });
-  const [notifications, setNotifications] = useState(true);
   const [newCardsPerDay, setNewCardsPerDay] = useState(10);
   const [isSavingNewCards, setIsSavingNewCards] = useState(false);
   const [defaultStudyMode, setDefaultStudyMode] = useState(() => {
@@ -410,9 +401,7 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                isDark ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-500'
-              }`}>
+              <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
                 {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </div>
               <div>
@@ -438,53 +427,15 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
           </div>
         </section>
 
-        {/* Notifications */}
-        <section id="section-notifications">
-          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
-            Notifications
-          </h2>
-          <div className="bg-surface border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
-                <Bell className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-semibold text-primary">Daily Reminders</p>
-                <p className="text-xs text-secondary mt-0.5">
-                  Get nudged to hit your daily study goal
-                </p>
-              </div>
-            </div>
-            <button
-              role="switch"
-              aria-checked={notifications}
-              onClick={() => setNotifications(!notifications)}
-              className={`relative w-12 h-7 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 shrink-0 ${
-                notifications ? 'bg-accent' : 'bg-white/10'
-              }`}>
-              <span
-                className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                  notifications ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </section>
-
         {/* Account */}
         <section id="section-account">
           <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
             Account
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl divide-y divide-white/5">
-            <button className="w-full flex items-center gap-4 p-5 text-secondary hover:text-primary hover:bg-white/5 transition-all text-sm font-medium text-left rounded-t-2xl">
-              <Shield className="w-5 h-5 shrink-0" />
-              Privacy & Security
-              <ChevronRight className="w-4 h-4 ml-auto" />
-            </button>
             <button
               onClick={logout}
-              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-accent hover:bg-accent/5 transition-all text-sm font-medium text-left">
+              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-accent hover:bg-accent/5 transition-all text-sm font-medium text-left rounded-t-2xl">
               <LogOut className="w-5 h-5 shrink-0" />
               Log Out
             </button>

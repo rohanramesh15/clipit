@@ -3,7 +3,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Sidebar } from './components/Sidebar';
 import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
-import { DictionaryPage } from './pages/DictionaryPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -15,6 +14,8 @@ import { PrivacyPage } from './pages/PrivacyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { ConverseV2Page } from './pages/ConverseV2Page';
+import { PracticePage } from './pages/PracticePage';
+import { MadlibsPage } from './pages/MadlibsPage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -23,11 +24,12 @@ import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { GOOGLE_CLIENT_ID } from './config';
 type Page =
 'video' |
+'practice' |
 'flashcards' |
-'dictionary' |
 'analytics' |
 'vocabulary' |
 'converse-v2' |
+'madlibs' |
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
@@ -93,16 +95,18 @@ function AppInner() {
     switch (activePage) {
       case 'video':
         return <VideoPage />;
+      case 'practice':
+        return <PracticePage onNavigate={setActivePage} />;
       case 'flashcards':
         return <FlashcardsPage onNavigate={setActivePage} />;
-      case 'dictionary':
-        return <DictionaryPage />;
+      case 'madlibs':
+        return <MadlibsPage onNavigate={setActivePage} />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'vocabulary':
-        return <VocabularyUploadPage />;
+        return <VocabularyUploadPage onBack={() => setActivePage('practice')} />;
       case 'converse-v2':
-        return <ConverseV2Page />;
+        return <ConverseV2Page onBack={() => setActivePage('practice')} onNavigate={setActivePage} />;
       case 'settings':
         return (
           <SettingsPage

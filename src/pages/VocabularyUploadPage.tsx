@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import {
+  ArrowLeft,
   Upload,
   FileText,
   Trash2,
@@ -17,6 +18,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { Skeleton } from '../components/Skeleton';
 
 const uploadPageTips: HelpTip[] = [
   {
@@ -84,7 +86,7 @@ const PRIORITY_MODES = [
   },
 ];
 
-export function VocabularyUploadPage() {
+export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
   const { token } = useAuth();
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -342,9 +344,15 @@ export function VocabularyUploadPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center"
+        className="min-h-screen pb-20 max-w-3xl mx-auto px-4 pt-8"
       >
-        <div className="w-10 h-10 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
+        <Skeleton className="h-9 w-48 rounded-lg mb-3" />
+        <Skeleton className="h-5 w-72 rounded mb-10" />
+        <div className="space-y-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+          ))}
+        </div>
       </motion.div>
     );
   }
@@ -360,6 +368,15 @@ export function VocabularyUploadPage() {
 
       {/* Header */}
       <div className="mb-10">
+        {onBack && (
+          <button
+            onClick={onBack}
+            aria-label="Back"
+            className="mb-4 w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
         <h1 className="text-3xl font-heading font-bold text-primary mb-2">
           My Vocabulary
         </h1>

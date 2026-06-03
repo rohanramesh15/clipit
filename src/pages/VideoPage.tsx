@@ -17,6 +17,7 @@ import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { Skeleton } from '../components/Skeleton';
 
 const videoPageTips: HelpTip[] = [
   {
@@ -24,12 +25,6 @@ const videoPageTips: HelpTip[] = [
     text: 'Filter by YouTube or Netflix to find specific videos.',
     targetId: 'section-platform-tabs',
     position: 'right',
-  },
-  {
-    id: 'stats-cards',
-    text: 'Track your watching progress and vocabulary growth.',
-    targetId: 'section-stats',
-    position: 'bottom',
   },
   {
     id: 'video-grid',
@@ -162,7 +157,7 @@ export function VideoPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20 max-w-6xl mx-auto px-4 pt-8">
+    <div className="pb-8 max-w-6xl mx-auto px-4 pt-8">
       <HelpOverlay tips={videoPageTips} />
 
       {/* Header */}
@@ -227,43 +222,6 @@ export function VideoPage() {
         </button>
       </div>
 
-      {/* Stats Bar */}
-      <div id="section-stats" className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
-        <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <Play className="w-6 h-6 text-accent" />
-          <div>
-            <div className="text-2xl font-bold text-primary">
-              {loadState === 'loading' ? '—' : filteredVideos.length}
-            </div>
-            <div className="text-xs text-secondary uppercase tracking-wider">
-              Videos Tracked
-            </div>
-          </div>
-        </div>
-        <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <Clock className="w-6 h-6 text-accent" />
-          <div>
-            <div className="text-2xl font-bold text-primary">
-              {loadState === 'loading' ? '—' : '0'}
-            </div>
-            <div className="text-xs text-secondary uppercase tracking-wider">
-              Hours Watched
-            </div>
-          </div>
-        </div>
-        <div className="bg-surface border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <BookOpen className="w-6 h-6 text-accent" />
-          <div>
-            <div className="text-2xl font-bold text-primary">
-              {loadState === 'loading' ? '—' : '0'}
-            </div>
-            <div className="text-xs text-secondary uppercase tracking-wider">
-              Words Extracted
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* States */}
       <AnimatePresence mode="wait">
         {loadState === 'loading' && (
@@ -272,9 +230,16 @@ export function VideoPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-8 h-8 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
-            <p className="text-secondary text-sm">Loading watch history…</p>
+            className="space-y-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-surface border border-white/5 rounded-xl p-3 flex flex-col sm:flex-row gap-4">
+                <Skeleton className="w-full sm:w-48 aspect-video rounded-lg shrink-0" />
+                <div className="flex-1 py-1 flex flex-col justify-center gap-3">
+                  <Skeleton className="h-5 w-3/4 rounded-md" />
+                  <Skeleton className="h-4 w-1/3 rounded" />
+                </div>
+              </div>
+            ))}
           </motion.div>
         )}
 
