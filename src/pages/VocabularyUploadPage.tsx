@@ -86,6 +86,18 @@ const PRIORITY_MODES = [
   },
 ];
 
+// Small (i) icon that reveals extra detail on hover — keeps the page clean.
+function InfoTip({ text }: { text: React.ReactNode }) {
+  return (
+    <span className="relative inline-flex group align-middle ml-1.5">
+      <Info className="w-4 h-4 text-muted cursor-help" />
+      <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-lg bg-primary text-app text-xs leading-relaxed px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-xl text-left font-normal normal-case tracking-normal">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -378,10 +390,10 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
           </button>
         )}
         <h1 className="text-3xl font-heading font-bold text-primary mb-2">
-          My Vocabulary
+          Add your own cards
         </h1>
         <p className="text-secondary">
-          Upload your own word lists and choose how they're used when studying.
+          Bring in your own words from a CSV or an Anki deck.
         </p>
       </div>
 
@@ -408,16 +420,9 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
             Word Source
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start gap-3 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <Info className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-semibold text-primary">Choose your word source</p>
-                <p className="text-xs text-secondary mt-0.5">
-                  This controls which words are extracted when you watch videos
-                </p>
-              </div>
+            <div className="flex items-center gap-1.5 mb-5">
+              <p className="font-semibold text-primary">Choose your word source</p>
+              <InfoTip text="Controls which words are extracted when you watch videos." />
               {isSavingSettings && (
                 <Loader2 className="w-5 h-5 text-accent animate-spin ml-auto" />
               )}
@@ -465,50 +470,17 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
             CSV Format
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-semibold text-primary">File Requirements</p>
-                <p className="text-xs text-secondary mt-0.5">
-                  Your CSV file should follow one of these formats
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-app/50 rounded-xl p-4 font-mono text-sm mb-4">
-              <p className="text-muted mb-2"># Basic format (word + translation):</p>
-              <p className="text-secondary">word,translation</p>
-              <p className="text-primary">안녕하세요,Hello</p>
-              <p className="text-primary">감사합니다,Thank you</p>
+            <div className="flex items-center gap-1.5 mb-4">
+              <p className="font-semibold text-primary">CSV format</p>
+              <InfoTip text="Columns 1–2: word, translation (required). Columns 3–4: example sentence + its translation (optional). A header row is optional (auto-detected). UTF-8 encoding supported." />
             </div>
 
             <div className="bg-app/50 rounded-xl p-4 font-mono text-sm">
-              <p className="text-muted mb-2"># With example sentences (optional):</p>
+              <p className="text-muted mb-2"># word, translation (example + its translation optional)</p>
               <p className="text-secondary">word,translation,example,example_translation</p>
-              <p className="text-primary">사랑해요,I love you,나는 너를 사랑해요,I love you</p>
+              <p className="text-primary">안녕하세요,Hello</p>
               <p className="text-primary">먹다,to eat,밥을 먹어요,I eat rice</p>
             </div>
-
-            <ul className="mt-4 space-y-2 text-sm text-secondary">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
-                Columns 1-2: Word and translation (required)
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
-                Columns 3-4: Example sentence and translation (optional)
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
-                Header row is optional (auto-detected)
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
-                UTF-8 encoding supported
-              </li>
-            </ul>
           </div>
         </section>
 
@@ -553,16 +525,9 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
             Import from Anki
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
-                <Layers className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-semibold text-primary">Import Anki Deck</p>
-                <p className="text-xs text-secondary mt-0.5">
-                  Upload your .apkg file to import cards with their review progress
-                </p>
-              </div>
+            <div className="flex items-center gap-1.5 mb-4">
+              <p className="font-semibold text-primary">Import Anki deck</p>
+              <InfoTip text="Upload a .apkg file. Imports front/back cards, preserves review history and due dates, and converts Anki scheduling to FSRS." />
             </div>
 
             <input

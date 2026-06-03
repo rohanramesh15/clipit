@@ -1,65 +1,41 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mic,
-  MicOff,
-  Keyboard,
-  Send,
-  X,
-  ArrowLeft,
-  ArrowRight,
-  Lightbulb,
-  HelpCircle,
-  Settings,
-  Loader2,
-  Layers,
-  Compass,
-  MessageCircle,
+  Mic, MicOff, Keyboard, Send, X, ArrowLeft, Lightbulb, HelpCircle,
+  Loader2, ChevronRight, Film, Check, MessageCircle,
 } from 'lucide-react';
 import {
-  getProfile,
-  saveOnboarding,
-  createSession,
-  sendTurn,
-  getHint,
-  howDoISay,
-  translate,
-  correctionFeedback,
-  voiceWsUrl,
-  type Profile,
-  type Level,
-  type Reason,
-  type EnglishSupport,
-  type DueWord,
-  type Correction,
-  type SuggestedReply,
+  getProfile, createSession, sendTurn, getHint, howDoISay, translate,
+  correctionFeedback, voiceWsUrl,
+  type Profile, type DueWord, type Correction, type SuggestedReply,
 } from '../services/converseV2';
+import {
+  fetchTrackedVideos, fetchVideoCards,
+  type TrackedVideo, type FlashCard,
+} from '../services/madlibs';
 import { VoiceSession, VoiceEvent } from '../lib/voiceSession';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { PracticeEmptyState, type NavPage } from '../components/PracticeEmptyState';
-import './converseV2.css';
+import { Skeleton } from '../components/Skeleton';
+import { Persona, type PersonaState } from '../components/ai-elements/persona';
 
-// --------------------------------------------------------------------------
-// Types
-// --------------------------------------------------------------------------
+// App accent (matches --accent in index.css).
+const ACCENT = '#C4625A';
+// Voice Chat card color — used for non-button accents so the page echoes its card.
+const PAGE = '#D98A6E';
+const hexA = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
 
-type Stage = 'loading' | 'onboarding' | 'start' | 'topic' | 'chat' | 'empty';
-type Seed = 'due' | 'topic' | 'free';
+type Phase = 'deck' | 'loading' | 'chat' | 'empty';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
 
-interface TopicDef {
-  id: string;
-  emoji: string;
-  label: string;
-  blurb: string;
-  custom?: boolean;
-  why: { q: string; options?: string[]; placeholder?: string };
-  detail: { q: string; placeholder: string };
-}
-
-interface TopicContext {
-  topic: TopicDef;
-  why: string;
-  detail: string;
+interface TargetWord {
+  lemma: string;    // dictionary form (sent to the backend, shown on the pill)
+  gloss: string;    // English meaning
+  surface: string;  // the form as it appeared in the video (helps detect usage)
 }
 
 interface ChatMessage {
@@ -73,136 +49,55 @@ interface ChatMessage {
   targets?: string[];
 }
 
-const SEED_TYPE: Record<Seed, 'due_words' | 'topic' | 'free'> = {
-  due: 'due_words',
-  topic: 'topic',
-  free: 'free',
-};
+// Target-language display names (used in UI copy + matching tweaks).
+const LANG_NAMES: Record<string, string> = { es: 'Spanish', uk: 'Ukrainian', ko: 'Korean', en: 'English' };
 
-const SEED_COLORS: Record<Seed, string> = {
-  due: '#a8694f',
-  topic: '#4c817b',
-  free: '#7a6593',
-};
-
-// --------------------------------------------------------------------------
-// Onboarding steps (mirrors the design; values mapped to the backend contract)
-// --------------------------------------------------------------------------
-
-interface OnbOption {
-  val: string;
-  emoji: string;
-  main: string;
-  meta?: string;
-}
-interface OnbStep {
-  key: 'level' | 'reason' | 'support';
-  kicker: string;
-  q: string;
-  sub: string;
-  options: OnbOption[];
-  allowOther?: boolean;
+// ── word-usage matching ───────────────────────────────────────────────────────
+// Strip combining marks + punctuation, lowercase. Keeps ALL letters (Latin,
+// Cyrillic, Hangul) so Korean/Ukrainian words match, not just Spanish.
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
-const ONB_STEPS: OnbStep[] = [
-  {
-    key: 'level',
-    kicker: 'Step 1 of 3',
-    q: 'How much Spanish do you have?',
-    sub: 'This sets how complex the conversation gets, and how fast.',
-    options: [
-      { val: 'beginner', emoji: '🌱', main: 'Just starting', meta: 'A1 · beginner' },
-      { val: 'intermediate', emoji: '🌿', main: 'Getting there', meta: 'A2–B1 · intermediate' },
-      { val: 'advanced', emoji: '🌳', main: 'Pretty comfortable', meta: 'B1–B2 · advanced' },
-    ],
-  },
-  {
-    key: 'reason',
-    kicker: 'Step 2 of 3',
-    q: 'What are you learning for?',
-    sub: "We'll lean the topics and vocabulary your way.",
-    options: [
-      { val: 'travel', emoji: '✈️', main: 'Travel' },
-      { val: 'work', emoji: '💼', main: 'Work' },
-      { val: 'family', emoji: '🏡', main: 'Family' },
-      { val: 'partner', emoji: '💛', main: 'A partner' },
-      { val: 'show', emoji: '🎬', main: 'Shows & music' },
-      { val: 'general', emoji: '🧭', main: 'Just generally' },
-      { val: 'other', emoji: '✍️', main: 'Something else' },
-    ],
-    allowOther: true,
-  },
-  {
-    key: 'support',
-    kicker: 'Step 3 of 3',
-    q: 'How much English should we use?',
-    sub: "When you're stuck, how much should we lean on English to help?",
-    options: [
-      { val: 'lots', emoji: '🪢', main: 'Lots, please', meta: 'Translate freely, explain in English' },
-      { val: 'some', emoji: '⚖️', main: 'Some', meta: 'English when I really need it' },
-      { val: 'minimal', emoji: '🌊', main: 'Keep it minimal', meta: 'Stay in Spanish, push me' },
-    ],
-  },
-];
+// Does a single user token count as a use of this target word?
+function tokenMatches(token: string, t: TargetWord): boolean {
+  const tok = norm(token);
+  if (!tok) return false;
+  for (const form of [t.lemma, t.surface]) {
+    const f = norm(form);
+    if (!f) continue;
+    if (tok === f) return true;
+    // Share a long common prefix → likely the same word, different inflection.
+    const min = Math.min(tok.length, f.length);
+    if (min >= 4) {
+      let i = 0;
+      while (i < min && tok[i] === f[i]) i++;
+      if (i >= Math.max(4, f.length - 2)) return true;
+    }
+  }
+  return false;
+}
 
-// --------------------------------------------------------------------------
-// Topic areas (ported from the design's data.js)
-// --------------------------------------------------------------------------
+function lemmasUsedIn(text: string, targets: TargetWord[]): string[] {
+  const tokens = text.split(/\s+/);
+  const hit: string[] = [];
+  for (const t of targets) {
+    if (tokens.some((tk) => tokenMatches(tk, t))) hit.push(t.lemma);
+  }
+  return hit;
+}
 
-const TOPICS: TopicDef[] = [
-  {
-    id: 'travel', emoji: '✈️', label: 'Travel', blurb: 'Trips, directions, getting around',
-    why: { q: "What's prompting this?", options: ['Planning a trip', 'Booking something now', 'Just got back', 'Practicing for someday'] },
-    detail: { q: 'Anywhere specific in mind?', placeholder: 'e.g. Madrid, a beach town, anywhere' },
-  },
-  {
-    id: 'food', emoji: '🍽️', label: 'Food & dining', blurb: 'Ordering, cooking, favorites',
-    why: { q: "What's the setting?", options: ['Ordering at a restaurant', 'At a market', 'Cooking at home', 'Talking favorites'] },
-    detail: { q: 'Any dish or cuisine on your mind?', placeholder: 'e.g. tapas, paella, breakfast' },
-  },
-  {
-    id: 'work', emoji: '💼', label: 'Work', blurb: 'Meetings, your job, intros',
-    why: { q: "What's the context?", options: ['Introducing myself', 'Talking about my job', 'A meeting', 'A job interview'] },
-    detail: { q: 'What field are you in?', placeholder: 'e.g. design, healthcare, sales' },
-  },
-  {
-    id: 'people', emoji: '🏡', label: 'Family & friends', blurb: 'Relationships, plans, catching up',
-    why: { q: "Who's on your mind?", options: ['My family', 'A partner', 'Friends', 'Meeting new people'] },
-    detail: { q: "What's the occasion?", placeholder: 'e.g. a visit, a birthday, just catching up' },
-  },
-  {
-    id: 'hobbies', emoji: '🎨', label: 'Hobbies', blurb: 'Sports, music, shows, games',
-    why: { q: 'What kind?', options: ['Sports', 'Music', 'Movies & shows', 'Reading', 'Games'] },
-    detail: { q: 'Which one, specifically?', placeholder: 'e.g. fútbol, jazz, a series you love' },
-  },
-  {
-    id: 'other', emoji: '✨', label: 'Something else', blurb: 'Pick your own subject', custom: true,
-    why: { q: 'What do you want to talk about?', placeholder: 'e.g. el cine, mi mascota, las noticias' },
-    detail: { q: 'Anything specific to set the scene?', placeholder: 'optional' },
-  },
-];
-
-const REASON_OPTS: { val: string; label: string }[] = [
-  { val: 'travel', label: 'Travel' },
-  { val: 'work', label: 'Work' },
-  { val: 'family', label: 'Family' },
-  { val: 'partner', label: 'A partner' },
-  { val: 'show', label: 'Shows & music' },
-  { val: 'general', label: 'Just generally' },
-];
-
-// --------------------------------------------------------------------------
-// Tappable Spanish text — tap any word for its meaning (popover above word)
-// --------------------------------------------------------------------------
-
+// ── Tappable Spanish text — tap any word for its meaning ──────────────────────
 function stripPunct(word: string): string {
   return word.replace(/^[¿?¡!.,;:"'()«»…]+|[¿?¡!.,;:"'()«»…]+$/gu, '');
 }
 
 function TappableText({
-  text,
-  targets = [],
-  onWordTap,
+  text, targets = [], onWordTap,
 }: {
   text: string;
   targets?: string[];
@@ -220,8 +115,12 @@ function TappableText({
         return (
           <span
             key={i}
-            className={'tw' + (isTarget ? ' target' : '')}
             onClick={(e) => onWordTap(clean, e)}
+            className={
+              'cursor-pointer rounded-md px-1 py-0.5 transition-colors hover:bg-black/5 ' +
+              (isTarget ? 'font-semibold' : '')
+            }
+            style={isTarget ? { color: PAGE } : undefined}
           >
             {tk}
           </span>
@@ -231,57 +130,75 @@ function TappableText({
   );
 }
 
-// --------------------------------------------------------------------------
-// Voice CTA — circular primary action button with the design's halo states.
-// --------------------------------------------------------------------------
+// ── Voice persona — Vercel's official Rive Persona (ai-elements), driven by the
+// live voice state, with an audio-reactive halo behind it that scales with the
+// REAL audio level (mic while you speak, speaker while the tutor speaks).
+const STATUS_TO_PERSONA: Record<VoiceStatus, PersonaState> = {
+  off: 'idle',
+  connecting: 'thinking',
+  listening: 'listening',
+  speaking: 'speaking',
+};
 
-function VoiceCTA({ status, onToggle }: { status: VoiceStatus; onToggle: () => void }) {
+function VoicePersona({ status, level, onToggle }: { status: VoiceStatus; level: number; onToggle: () => void }) {
   const active = status !== 'off';
-  const cls =
-    'voice-cta' +
-    (status === 'listening' ? ' live listening' : status === 'speaking' ? ' aispeaking' : '');
+  const lvl = Math.max(0, Math.min(1, level));
   return (
     <button
       type="button"
-      className={cls}
       onClick={onToggle}
       disabled={status === 'connecting'}
-      title={active ? 'End call' : 'Start voice call'}
-      aria-label={active ? 'End call' : 'Start voice call'}
+      title={active ? 'End call' : 'Start voice'}
+      aria-label={active ? 'End call' : 'Start voice'}
+      className="relative inline-flex items-center justify-center w-[96px] h-[96px] shrink-0 transition-transform active:scale-95 disabled:opacity-70"
     >
-      <span className="halo" />
-      {status === 'connecting' ? (
-        <Loader2 className="cv2-spin" size={28} />
-      ) : active ? (
-        <MicOff size={28} />
-      ) : (
-        <Mic size={28} />
+      {/* audio-reactive halo behind the Rive orb */}
+      {active && (
+        <span
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background: hexA(PAGE, status === 'speaking' ? 0.22 : 0.16),
+            transform: `scale(${0.62 + lvl * 0.55})`,
+            opacity: 0.7,
+            transition: 'transform 90ms ease-out, opacity 120ms linear',
+          }}
+        />
       )}
+      <Persona
+        state={STATUS_TO_PERSONA[status]}
+        variant="obsidian"
+        className="size-20 relative pointer-events-none"
+      />
     </button>
   );
 }
 
-// --------------------------------------------------------------------------
+// ==============================================================================
 // Main page
-// --------------------------------------------------------------------------
+// ==============================================================================
 
 export function ConverseV2Page(
   { onBack, onNavigate }: { onBack?: () => void; onNavigate?: (page: NavPage) => void } = {},
 ) {
   const { user } = useAuth();
-  const firstName = (user?.full_name?.trim().split(/\s+/)[0]) || (user?.email?.split('@')[0]) || '';
-  const [stage, setStage] = useState<Stage>('loading');
+  const { language } = useLanguage();
+  const { token } = useAuth();
+  const langName = LANG_NAMES[language] || 'Spanish';
+
+  const [phase, setPhase] = useState<Phase>('deck');
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // chat session
-  const [seed, setSeed] = useState<Seed>('due');
-  const [topicCtx, setTopicCtx] = useState<TopicContext | null>(null);
-  const [sessionId, setSessionId] = useState<number | null>(null);
-  const [dueWords, setDueWords] = useState<DueWord[]>([]);
+  // deck picker
+  const [videos, setVideos] = useState<TrackedVideo[] | null>(null);
+
+  // active session
+  const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
+  const [targetWords, setTargetWords] = useState<TargetWord[]>([]);
   const [usedLemmas, setUsedLemmas] = useState<Set<string>>(new Set());
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [starting, setStarting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // text composer / scaffolding
   const [composerOpen, setComposerOpen] = useState(false);
@@ -291,7 +208,7 @@ export function ConverseV2Page(
   const [revealedCorrections, setRevealedCorrections] = useState<Set<string>>(new Set());
   const [correctionVerdicts, setCorrectionVerdicts] = useState<Record<string, 'fine' | 'wrong'>>({});
 
-  // ladder + pace
+  // ladder
   const [nudge, setNudge] = useState<string | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [howtoOpen, setHowtoOpen] = useState(false);
@@ -303,54 +220,62 @@ export function ConverseV2Page(
   // word popover
   const [pop, setPop] = useState<{ word: string; text: string; loading: boolean; x: number; y: number } | null>(null);
 
-  // chat settings popover (voice speed / word difficulty / accent)
-  const [chatSetOpen, setChatSetOpen] = useState(false);
-  const [chatPrefs, setChatPrefs] = useState(() => {
-    try {
-      const s = localStorage.getItem('cv2_chat_prefs');
-      return s ? JSON.parse(s) : { speed: 'Normal', difficulty: 'Normal', accent: 'es-ES' };
-    } catch {
-      return { speed: 'Normal', difficulty: 'Normal', accent: 'es-ES' };
-    }
-  });
-
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceLevel, setVoiceLevel] = useState(0); // 0..1 live audio level for the persona
+  const speakingRef = useRef(false);
   const voiceRef = useRef<VoiceSession | null>(null);
   const vUserId = useRef<string | null>(null);
   const vAsstId = useRef<string | null>(null);
   const voiceAutoStarted = useRef(false);
-  // Voice Chat is a single-purpose flow: land straight in a due-words conversation.
-  const dueAutoBegun = useRef(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // ---- load profile on mount (for display only). Voice Chat goes straight into
-  // a due-words session via the auto-begin effect — no onboarding step.
+  // ── load profile (display only) + tracked videos for the deck ───────────────
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const { profile: p } = await getProfile();
         if (alive) setProfile(p);
-      } catch {
-        /* ignore — the session starts regardless of profile */
-      }
+      } catch { /* ignore */ }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
-  // ---- auto-scroll transcript
+  useEffect(() => {
+    let alive = true;
+    setVideos(null);
+    fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
+    return () => { alive = false; };
+  }, [language, token]);
+
+  // ── auto-scroll transcript ──────────────────────────────────────────────────
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages, composerOpen, nudge, howtoOpen, sending]);
 
-  // ---- close popover on scroll / outside click / escape
+  // ── mark target words as used whenever the learner uses them ────────────────
+  // Covers both typed turns and live voice transcripts.
+  useEffect(() => {
+    if (!targetWords.length) return;
+    setUsedLemmas((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const m of messages) {
+        if (m.role !== 'user') continue;
+        for (const lemma of lemmasUsedIn(m.text, targetWords)) {
+          if (!next.has(lemma)) { next.add(lemma); changed = true; }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [messages, targetWords]);
+
+  // ── close popover on scroll / outside click / escape ────────────────────────
   useEffect(() => {
     if (!pop) return;
     const close = () => setPop(null);
@@ -366,19 +291,7 @@ export function ConverseV2Page(
     };
   }, [pop]);
 
-  // ---- persist chat prefs
-  useEffect(() => {
-    try {
-      localStorage.setItem('cv2_chat_prefs', JSON.stringify(chatPrefs));
-    } catch {
-      /* ignore */
-    }
-  }, [chatPrefs]);
-
-  // ------------------------------------------------------------------------
-  // Voice wiring (real mic -> Gemini Live, restyled into the design's dock)
-  // ------------------------------------------------------------------------
-
+  // ── voice wiring ────────────────────────────────────────────────────────────
   const appendVoiceChunk = useCallback((role: 'user' | 'assistant', chunk: string) => {
     const ref = role === 'user' ? vUserId : vAsstId;
     setMessages((prev) => {
@@ -391,50 +304,32 @@ export function ConverseV2Page(
     });
   }, []);
 
-  const handleVoiceEvent = useCallback(
-    (e: VoiceEvent) => {
-      switch (e.type) {
-        case 'connecting':
-          setVoiceStatus('connecting');
-          setStatus('Connecting your mic…');
-          return;
-        case 'ready':
-          setVoiceStatus('listening');
-          setStatus('Listening… just talk');
-          return;
-        case 'speaking_changed':
-          setVoiceStatus(e.speaking ? 'speaking' : 'listening');
-          setStatus(e.speaking ? 'Tutor is speaking…' : 'Your turn. Just talk');
-          return;
-        case 'user_transcript':
-          return appendVoiceChunk('user', e.text);
-        case 'assistant_transcript':
-          return appendVoiceChunk('assistant', e.text);
-        case 'interrupted':
-          if (vAsstId.current) {
-            const id = vAsstId.current;
-            setMessages((prev) => prev.filter((m) => m.id !== id));
-            vAsstId.current = null;
-          }
-          return;
-        case 'turn_complete':
-          vUserId.current = null;
+  const handleVoiceEvent = useCallback((e: VoiceEvent) => {
+    switch (e.type) {
+      case 'connecting': setVoiceStatus('connecting'); setStatus('Connecting your mic…'); return;
+      case 'ready': speakingRef.current = false; setVoiceLevel(0); setVoiceStatus('listening'); setStatus('Listening… just talk'); return;
+      case 'speaking_changed':
+        speakingRef.current = e.speaking;
+        setVoiceLevel(0);
+        setVoiceStatus(e.speaking ? 'speaking' : 'listening');
+        setStatus(e.speaking ? 'Tutor is speaking…' : 'Your turn — just talk');
+        return;
+      case 'mic_level': if (!speakingRef.current) setVoiceLevel(e.level); return;
+      case 'speaker_level': if (speakingRef.current) setVoiceLevel(e.level); return;
+      case 'user_transcript': return appendVoiceChunk('user', e.text);
+      case 'assistant_transcript': return appendVoiceChunk('assistant', e.text);
+      case 'interrupted':
+        if (vAsstId.current) {
+          const id = vAsstId.current;
+          setMessages((prev) => prev.filter((m) => m.id !== id));
           vAsstId.current = null;
-          return;
-        case 'error':
-          setVoiceError(e.message);
-          setVoiceStatus('off');
-          setStatus('');
-          return;
-        case 'closed':
-          vUserId.current = null;
-          vAsstId.current = null;
-          setVoiceStatus('off');
-          return;
-      }
-    },
-    [appendVoiceChunk],
-  );
+        }
+        return;
+      case 'turn_complete': vUserId.current = null; vAsstId.current = null; return;
+      case 'error': speakingRef.current = false; setVoiceLevel(0); setVoiceError(e.message); setVoiceStatus('off'); setStatus(''); return;
+      case 'closed': vUserId.current = null; vAsstId.current = null; speakingRef.current = false; setVoiceLevel(0); setVoiceStatus('off'); return;
+    }
+  }, [appendVoiceChunk]);
 
   const startVoice = useCallback(async () => {
     if (!sessionId || voiceStatus !== 'off') return;
@@ -443,128 +338,101 @@ export function ConverseV2Page(
     vs.on(handleVoiceEvent);
     voiceRef.current = vs;
     try {
-      await vs.start(voiceWsUrl(sessionId));
+      await vs.start(voiceWsUrl(sessionId, language));
     } catch (e: any) {
       setVoiceError(e?.message || 'Could not start voice');
       setVoiceStatus('off');
     }
-  }, [sessionId, voiceStatus, handleVoiceEvent]);
+  }, [sessionId, voiceStatus, handleVoiceEvent, language]);
 
   const stopVoice = useCallback(() => {
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
     vAsstId.current = null;
+    speakingRef.current = false;
+    setVoiceLevel(0);
     setVoiceStatus('off');
     setStatus('Tap the mic to talk, or the keyboard to type');
   }, []);
 
   const toggleVoice = useCallback(() => {
-    if (voiceStatus === 'off') startVoice();
-    else stopVoice();
+    if (voiceStatus === 'off') startVoice(); else stopVoice();
   }, [voiceStatus, startVoice, stopVoice]);
 
-  // tear down voice on unmount
-  useEffect(() => {
-    return () => {
-      voiceRef.current?.stop();
-      voiceRef.current = null;
-    };
-  }, []);
+  useEffect(() => () => { voiceRef.current?.stop(); voiceRef.current = null; }, []);
 
-  // voice-first: auto-start the call once per session on entering chat
+  // auto-start the call once we land in chat
   useEffect(() => {
-    if (stage !== 'chat' || !sessionId || voiceAutoStarted.current) return;
+    if (phase !== 'chat' || !sessionId || voiceAutoStarted.current) return;
     voiceAutoStarted.current = true;
     startVoice();
-  }, [stage, sessionId, startVoice]);
+  }, [phase, sessionId, startVoice]);
 
-  // ------------------------------------------------------------------------
-  // Onboarding
-  // ------------------------------------------------------------------------
-
-  const finishOnboarding = useCallback(async (answers: Record<string, string>) => {
-    const req: Profile = {
-      level: (answers.level || 'intermediate') as Level,
-      reason: (answers.reason || 'general') as Reason,
-      english_support: (answers.support || 'some') as EnglishSupport,
-    };
+  // ── start a session from a chosen video ─────────────────────────────────────
+  const startFromVideo = useCallback(async (video: TrackedVideo) => {
+    setDeck({ id: video.video_id, title: video.title });
+    setPhase('loading');
+    setChatError(null);
     try {
-      const { profile: p } = await saveOnboarding(req);
-      setProfile(p);
-    } catch {
-      setProfile(req); // optimistic
-    }
-    // Hand off to the auto-begin effect, which starts the due-words session.
-    setStage('loading');
-  }, []);
-
-  const changeProfile = useCallback(async (p: Profile) => {
-    setProfile(p);
-    try {
-      await saveOnboarding(p);
-    } catch {
-      /* keep optimistic */
-    }
-  }, []);
-
-  // ------------------------------------------------------------------------
-  // Session lifecycle
-  // ------------------------------------------------------------------------
-
-  const beginSession = useCallback(
-    async (s: Seed, opts?: { seedLabel?: string; context?: TopicContext }) => {
-      if (starting) return;
-      setStarting(true);
-      setChatError(null);
-      try {
-        const result = await createSession({
-          seed_type: SEED_TYPE[s],
-          seed_label: opts?.seedLabel,
-        });
-        // Voice Chat only does due-words practice — if nothing is due, show the
-        // shared empty state instead of opening an empty conversation.
-        if (s === 'due' && (result.due_words?.length ?? 0) === 0) {
-          setStage('empty');
-          return;
-        }
-        setSeed(s);
-        setTopicCtx(opts?.context || null);
-        setSessionId(result.session_id);
-        setDueWords(result.due_words || []);
-        setUsedLemmas(new Set());
-        setShownTranslations(new Set());
-        setRevealedCorrections(new Set());
-        setCorrectionVerdicts({});
-        setNudge(null);
-        setHowtoOpen(false);
-        setHowtoResult(null);
-        setComposerOpen(false);
-        setComposerText('');
-        voiceAutoStarted.current = false;
-        setVoiceStatus('off');
-        setVoiceError(null);
-        setStatus('Connecting your mic…');
-        setMessages([
-          {
-            id: `a-${result.opening.turn_id}`,
-            role: 'assistant',
-            text: result.opening.reply,
-            translation: result.opening.reply_translation,
-            turnId: result.opening.turn_id,
-          },
-        ]);
-        setStage('chat');
-      } catch {
-        setChatError('Could not start a session. Please try again.');
-      } finally {
-        setStarting(false);
+      const cards: FlashCard[] = await fetchVideoCards(video.video_id, language);
+      // Build the target words (dictionary form + gloss + surface), dedup by lemma.
+      const seen = new Set<string>();
+      const words: TargetWord[] = [];
+      for (const c of cards) {
+        const lemma = (c.dictionary_form || c.target_word || '').trim();
+        if (!lemma) continue;
+        const key = lemma.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        words.push({ lemma, gloss: c.english || '', surface: (c.target_word || lemma).trim() });
+        if (words.length >= 8) break;
       }
-    },
-    [starting],
-  );
 
-  const backToStart = useCallback(() => {
+      const result = await createSession({
+        seed_type: 'video',
+        video_id: video.video_id,
+        seed_label: video.title,
+        language,
+        seed_words: words.map((w) => ({ lemma: w.lemma, gloss: w.gloss })),
+      });
+
+      // Prefer the words we built (they carry surface forms for usage detection);
+      // fall back to whatever the backend echoed.
+      const finalWords: TargetWord[] = words.length
+        ? words
+        : (result.due_words || []).map((d: DueWord) => ({ lemma: d.lemma, gloss: d.gloss, surface: d.lemma }));
+
+      setTargetWords(finalWords);
+      setUsedLemmas(new Set());
+      setShownTranslations(new Set());
+      setRevealedCorrections(new Set());
+      setCorrectionVerdicts({});
+      setNudge(null);
+      setHowtoOpen(false);
+      setHowtoResult(null);
+      setComposerOpen(false);
+      setComposerText('');
+      voiceAutoStarted.current = false;
+      setVoiceStatus('off');
+      setVoiceError(null);
+      setSessionId(result.session_id);
+      setStatus('Connecting your mic…');
+      setMessages([{
+        id: `a-${result.opening.turn_id}`,
+        role: 'assistant',
+        text: result.opening.reply,
+        translation: result.opening.reply_translation,
+        turnId: result.opening.turn_id,
+      }]);
+      setPhase('chat');
+    } catch {
+      setChatError('Could not start the conversation. Please try again.');
+      setPhase('deck');
+    }
+  }, [language]);
+
+  const leaveChat = useCallback(() => {
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
@@ -574,104 +442,73 @@ export function ConverseV2Page(
     setVoiceError(null);
     setSessionId(null);
     setMessages([]);
-    setDueWords([]);
+    setTargetWords([]);
     setUsedLemmas(new Set());
     setComposerOpen(false);
     setComposerText('');
     setNudge(null);
     setHowtoOpen(false);
     setHowtoResult(null);
-    if (onBack) { onBack(); return; }
-    setStage('start');
-  }, [onBack]);
+    setShowLeaveConfirm(false);
+    setPhase('deck');
+  }, []);
 
-  // Auto-start the due-words session on entry (no onboarding/start/topic menu) so
-  // Voice Chat lands directly in the conversation, with or without a profile.
-  useEffect(() => {
-    if (!dueAutoBegun.current && stage !== 'chat' && stage !== 'empty') {
-      dueAutoBegun.current = true;
-      beginSession('due');
+  // ── chat actions ────────────────────────────────────────────────────────────
+  const sendTextTurn = useCallback(async (override?: string) => {
+    const text = (override ?? composerText).trim();
+    if (!text || sending || sessionId == null) return;
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text };
+    setMessages((prev) => [...prev, userMsg]);
+    setComposerText('');
+    setNudge(null);
+    setSending(true);
+    setStatus('Tutor is writing…');
+    try {
+      const result = await sendTurn(sessionId, text, language);
+      setMessages((prev) => [...prev, {
+        id: `a-${result.turn_id}`,
+        role: 'assistant',
+        text: result.reply,
+        translation: result.reply_translation,
+        correction: result.correction,
+        turnId: result.turn_id,
+        suggestedReplies: result.suggested_replies,
+        targets: result.used_target_words || [],
+      }]);
+      setStatus('Tap a word for its meaning · pick a suggested reply below');
+    } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      setComposerText(text);
+      setChatError('Message failed to send. Try again.');
+    } finally {
+      setSending(false);
     }
-  }, [stage, beginSession]);
-
-  // ------------------------------------------------------------------------
-  // Chat actions
-  // ------------------------------------------------------------------------
-
-  const sendTextTurn = useCallback(
-    async (override?: string) => {
-      const text = (override ?? composerText).trim();
-      if (!text || sending || sessionId == null) return;
-      const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text };
-      setMessages((prev) => [...prev, userMsg]);
-      setComposerText('');
-      setNudge(null);
-      setSending(true);
-      setStatus('Tutor is writing…');
-      try {
-        const result = await sendTurn(sessionId, text);
-        const used = result.used_target_words || [];
-        if (used.length) {
-          setUsedLemmas((prev) => {
-            const next = new Set(prev);
-            used.forEach((w) => next.add(w));
-            return next;
-          });
-        }
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `a-${result.turn_id}`,
-            role: 'assistant',
-            text: result.reply,
-            translation: result.reply_translation,
-            correction: result.correction,
-            turnId: result.turn_id,
-            suggestedReplies: result.suggested_replies,
-            targets: used,
-          },
-        ]);
-        setStatus('Tap a word for its meaning · pick a suggested reply below');
-      } catch {
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-        setComposerText(text);
-        setChatError('Message failed to send. Try again.');
-      } finally {
-        setSending(false);
-      }
-    },
-    [composerText, sending, sessionId],
-  );
+  }, [composerText, sending, sessionId, language]);
 
   const handleWordTap = useCallback(async (word: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const r = (e.target as HTMLElement).getBoundingClientRect();
-    const x = r.left + r.width / 2;
-    const y = r.top;
-    setPop({ word, text: '', loading: true, x, y });
+    setPop({ word, text: '', loading: true, x: r.left + r.width / 2, y: r.top });
     try {
-      const t = await translate(word);
+      const t = await translate(word, language);
       setPop((cur) => (cur && cur.word === word ? { ...cur, text: t, loading: false } : cur));
     } catch {
       setPop((cur) => (cur && cur.word === word ? { ...cur, text: '—', loading: false } : cur));
     }
-  }, []);
+  }, [language]);
 
   const handleHint = useCallback(async () => {
-    if (sessionId == null) {
-      setNudge("Try saying where you'd like to go, or what you'd do there. You don't need the perfect words.");
-      return;
-    }
+    if (sessionId == null) return;
     setHintLoading(true);
     try {
-      const { hint_en } = await getHint(sessionId);
+      const { hint_en } = await getHint(sessionId, language);
       setNudge(hint_en);
     } catch {
       setNudge('Try answering with one short sentence — even a few words helps.');
     } finally {
       setHintLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, language]);
 
   const runHowto = useCallback(async () => {
     if (sessionId == null) return;
@@ -680,38 +517,22 @@ export function ConverseV2Page(
     setHowtoLoading(true);
     setHowtoResult(null);
     try {
-      const result = await howDoISay(sessionId, english);
-      setHowtoResult(result);
+      setHowtoResult(await howDoISay(sessionId, english, language));
     } catch {
       setHowtoResult({ spanish: '', note_en: "Couldn't fetch a phrasing." });
     } finally {
       setHowtoLoading(false);
     }
-  }, [sessionId, howtoInput]);
+  }, [sessionId, howtoInput, language]);
 
-  const handleCorrectionFb = useCallback(
-    async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
-      if (turnId == null || correctionVerdicts[messageId]) return;
-      setCorrectionVerdicts((prev) => ({ ...prev, [messageId]: verdict }));
-      try {
-        await correctionFeedback(turnId, verdict);
-      } catch {
-        /* keep optimistic */
-      }
-    },
-    [correctionVerdicts],
-  );
+  const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
+    if (turnId == null || correctionVerdicts[messageId]) return;
+    setCorrectionVerdicts((prev) => ({ ...prev, [messageId]: verdict }));
+    try { await correctionFeedback(turnId, verdict); } catch { /* keep optimistic */ }
+  }, [correctionVerdicts]);
 
-  const openComposer = () => {
-    setComposerOpen(true);
-    setNudge(null);
-    setTimeout(() => taRef.current?.focus(), 60);
-  };
-  const pickSuggestion = (es: string) => {
-    setComposerOpen(true);
-    setComposerText(es);
-    setTimeout(() => taRef.current?.focus(), 60);
-  };
+  const openComposer = () => { setComposerOpen(true); setNudge(null); setTimeout(() => taRef.current?.focus(), 60); };
+  const pickSuggestion = (es: string) => { setComposerOpen(true); setComposerText(es); setTimeout(() => taRef.current?.focus(), 60); };
 
   const translationShownByDefault = profile?.english_support === 'lots';
   const isTransVisible = (id: string) =>
@@ -723,915 +544,455 @@ export function ConverseV2Page(
       return next;
     });
 
-  const lastAssistantId = (() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'assistant') return messages[i].id;
-    }
+  const lastAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === 'assistant') return messages[i].id;
     return null;
-  })();
+  }, [messages]);
 
-  // ========================================================================
-  // Render
-  // ========================================================================
+  const usedCount = usedLemmas.size;
 
-  return (
-    <div className="cv2-root">
-      {onBack && stage !== 'chat' && (
-        <button
-          onClick={onBack}
-          aria-label="Back to Practice"
-          style={{
-            position: 'absolute', top: 18, left: 18, zIndex: 10,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 38, height: 38, borderRadius: 11,
-            color: 'var(--ink-soft)', background: 'transparent',
-          }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-      )}
-
-      {stage === 'loading' && (
-        chatError ? (
-          <div className="cv2-center">
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
-              <p style={{ color: 'var(--ink-soft)', maxWidth: 280 }}>{chatError}</p>
-              <button
-                onClick={() => { dueAutoBegun.current = false; setChatError(null); beginSession('due'); }}
-                style={{
-                  padding: '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600,
-                  color: '#fff', background: 'var(--accent)',
-                }}
-              >
-                Try again
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 760, margin: '0 auto', padding: '60px 32px 30px', gap: 26 }}>
-            <div className="skeleton" style={{ height: 30, width: '72%', borderRadius: 12 }} />
-            <div className="skeleton" style={{ height: 30, width: '54%', borderRadius: 12 }} />
-            <div className="skeleton" style={{ height: 20, width: '40%', borderRadius: 10 }} />
-            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'center' }}>
-              <div className="skeleton" style={{ height: 76, width: 76, borderRadius: 999 }} />
-            </div>
-          </div>
-        )
-      )}
-
-      {stage === 'empty' && (
-        <PracticeEmptyState onNavigate={(p) => onNavigate?.(p)} />
-      )}
-
-      {stage === 'start' && (
-        <StartScreen
-          profile={profile}
-          greetingName={firstName}
-          starting={starting}
-          error={chatError}
-          onDue={() => beginSession('due')}
-          onTopic={() => setStage('topic')}
-          onFree={() => beginSession('free')}
-          onChangeProfile={changeProfile}
-        />
-      )}
-
-      {stage === 'topic' && (
-        <TopicFlow
-          onBack={() => setStage('start')}
-          onStart={(ctx, label) => beginSession('topic', { context: ctx, seedLabel: label })}
-        />
-      )}
-
-      {stage === 'chat' && (
-        <ChatView
-          seed={seed}
-          topicCtx={topicCtx}
-          dueWords={dueWords}
-          usedLemmas={usedLemmas}
-          messages={messages}
-          status={status}
-          voiceStatus={voiceStatus}
-          voiceError={voiceError}
-          chatError={chatError}
-          sending={sending}
-          lastAssistantId={lastAssistantId}
-          composerOpen={composerOpen}
-          composerText={composerText}
-          nudge={nudge}
-          hintLoading={hintLoading}
-          howtoOpen={howtoOpen}
-          howtoInput={howtoInput}
-          howtoLoading={howtoLoading}
-          howtoResult={howtoResult}
-          pop={pop}
-          revealedCorrections={revealedCorrections}
-          correctionVerdicts={correctionVerdicts}
-          chatSetOpen={chatSetOpen}
-          chatPrefs={chatPrefs}
-          isTransVisible={isTransVisible}
-          taRef={taRef}
-          scrollRef={scrollRef}
-          onBack={backToStart}
-          onToggleVoice={toggleVoice}
-          onOpenComposer={openComposer}
-          onCloseComposer={() => {
-            setComposerOpen(false);
-            setComposerText('');
-          }}
-          onComposerChange={setComposerText}
-          onSend={() => sendTextTurn()}
-          onWordTap={handleWordTap}
-          onToggleTrans={toggleTrans}
-          onRevealCorrection={(id) => setRevealedCorrections((prev) => new Set(prev).add(id))}
-          onCorrectionFb={handleCorrectionFb}
-          onPickSuggestion={pickSuggestion}
-          onHint={handleHint}
-          onToggleHowto={() => setHowtoOpen((v) => !v)}
-          onHowtoInput={setHowtoInput}
-          onRunHowto={runHowto}
-          onCloseHowto={() => {
-            setHowtoOpen(false);
-            setHowtoInput('');
-            setHowtoResult(null);
-          }}
-          onDismissNudge={() => setNudge(null)}
-          onToggleChatSet={() => setChatSetOpen((v) => !v)}
-          onCloseChatSet={() => setChatSetOpen(false)}
-          onChatPref={(k, v) => setChatPrefs((p: any) => ({ ...p, [k]: v }))}
-        />
-      )}
+  // ============================================================================
+  // Deck picker
+  // ============================================================================
+  const header = (back: () => void, label: string) => (
+    <div className="flex items-center gap-3 mb-6">
+      <button
+        onClick={back}
+        aria-label={label}
+        className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+      <h1 className="font-heading font-bold text-xl text-primary">Voice Chat</h1>
     </div>
   );
-}
 
-// ==========================================================================
-// Onboarding
-// ==========================================================================
-
-function Onboarding({ onDone }: { onDone: (answers: Record<string, string>) => void }) {
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [otherText, setOtherText] = useState<Record<string, string>>({});
-  const cur = ONB_STEPS[step];
-  const picked = answers[cur.key];
-  const otherActive = !!cur.allowOther && picked === 'other';
-  const otherVal = (otherText[cur.key] || '').trim();
-  const canContinue = !!picked && (!otherActive || otherVal.length > 0);
-
-  const next = () => {
-    const final = { ...answers };
-    ONB_STEPS.forEach((s) => {
-      if (s.allowOther && final[s.key] === 'other' && (otherText[s.key] || '').trim()) {
-        final[s.key] = otherText[s.key].trim();
-      }
-    });
-    if (step < ONB_STEPS.length - 1) setStep(step + 1);
-    else onDone(final);
-  };
-
-  return (
-    <div className="onb">
-      <div className="onb-card" key={step}>
-        <div className="onb-progress">
-          {ONB_STEPS.map((_, i) => (
-            <div key={i} className={'onb-dot' + (i === step ? ' on' : i < step ? ' done' : '')} />
-          ))}
-        </div>
-
-        <div className="fade-up">
-          <div className="onb-kicker">{cur.kicker}</div>
-          <h1 className="onb-q" style={{ marginTop: 12 }}>{cur.q}</h1>
-          <p className="onb-sub">{cur.sub}</p>
-        </div>
-
-        <div className="onb-opts">
-          {cur.options.map((o, i) => (
-            <button
-              key={o.val}
-              className={'onb-opt fade-up' + (picked === o.val ? ' sel' : '')}
-              style={{ animationDelay: `${0.05 + i * 0.04}s` }}
-              onClick={() => setAnswers((a) => ({ ...a, [cur.key]: o.val }))}
-            >
-              <span className="onb-opt-emoji">{o.emoji}</span>
-              <span>
-                <span className="onb-opt-main">{o.main}</span>
-                {o.meta && <span className="onb-opt-meta">{o.meta}</span>}
-              </span>
-              <span className="onb-opt-radio" />
-            </button>
-          ))}
-        </div>
-
-        {otherActive && (
-          <input
-            className="onb-other"
-            autoFocus
-            placeholder="Tell me. For example, &ldquo;preparing for a move to Mexico&rdquo;"
-            value={otherText[cur.key] || ''}
-            onChange={(e) => setOtherText((o) => ({ ...o, [cur.key]: e.target.value }))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canContinue) next();
-            }}
-          />
-        )}
-
-        <div className="onb-foot">
-          <button
-            className="btn btn-ghost"
-            onClick={() => step > 0 && setStep(step - 1)}
-            title="Back"
-            aria-label="Back"
-            style={{ visibility: step > 0 ? 'visible' : 'hidden' }}
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <button className="btn btn-primary" disabled={!canContinue} onClick={next}>
-            {step === ONB_STEPS.length - 1 ? 'Start learning' : 'Continue'}
-            <ArrowRight size={18} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================================================
-// Start screen
-// ==========================================================================
-
-function StartScreen({
-  profile,
-  greetingName,
-  starting,
-  error,
-  onDue,
-  onTopic,
-  onFree,
-  onChangeProfile,
-}: {
-  profile: Profile | null;
-  greetingName: string;
-  starting: boolean;
-  error: string | null;
-  onDue: () => void;
-  onTopic: () => void;
-  onFree: () => void;
-  onChangeProfile: (p: Profile) => void;
-}) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const cards = [
-    { key: 'due', color: SEED_COLORS.due, Icon: Layers, title: 'Practice due words', desc: "Your due words are ready. We'll weave them into the chat naturally.", action: onDue },
-    { key: 'topic', color: SEED_COLORS.topic, Icon: Compass, title: 'Pick a topic', desc: "Choose an area to talk about and we'll set the scene.", action: onTopic },
-    { key: 'free', color: SEED_COLORS.free, Icon: MessageCircle, title: 'Just chat', desc: "No agenda. Open with anything and we'll take it from there.", action: onFree },
-  ];
-
-  return (
-    <div className="start">
-      <div className="start-stage">
-        <div className="start-hero fade-up">
-          <h1 className="start-hi">¡Hola{greetingName ? `, ${greetingName}` : ''}! Ready to talk?</h1>
-          <p className="start-sub">Practice real Spanish by voice or text, with help whenever you get stuck.</p>
-        </div>
-
-        {error && <p className="cv2-error">{error}</p>}
-
-        <div className="cards">
-          {cards.map((c, i) => (
-            <button
-              key={c.key}
-              className="card fade-up"
-              style={{ animationDelay: `${0.08 + i * 0.07}s`, backgroundColor: c.color }}
-              onClick={c.action}
-              disabled={starting}
-            >
-              <div className="card-top">
-                <div className="card-glyph">
-                  <c.Icon size={30} color="#fff" strokeWidth={1.8} />
-                </div>
-              </div>
-              <div className="card-title">{c.title}</div>
-              <div className="card-desc">{c.desc}</div>
-            </button>
-          ))}
-        </div>
-
-        {starting && (
-          <div className="dock-status">
-            <Loader2 className="cv2-spin" size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-            Starting…
-          </div>
-        )}
-      </div>
-
-      <div className="settings-anchor settings-corner">
-        <button className="icon-btn settings-btn" onClick={() => setSettingsOpen((o) => !o)} title="Settings">
-          <Settings size={20} />
-        </button>
-        {settingsOpen && profile && (
-          <SettingsPopover profile={profile} onChange={onChangeProfile} onClose={() => setSettingsOpen(false)} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SettingsPopover({
-  profile,
-  onChange,
-  onClose,
-}: {
-  profile: Profile;
-  onChange: (p: Profile) => void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reasonKnown = REASON_OPTS.some((o) => o.val === profile.reason);
-  const [otherMode, setOtherMode] = useState(!reasonKnown && !!profile.reason);
-
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0);
-    document.addEventListener('keydown', onEsc);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onEsc);
-    };
-  }, [onClose]);
-
-  const set = (key: keyof Profile, val: string) => onChange({ ...profile, [key]: val } as Profile);
-
-  const fields: { key: keyof Profile; label: string; options: { val: string; label: string }[] }[] = [
-    { key: 'level', label: 'Spanish level', options: [
-      { val: 'beginner', label: 'Beginner' }, { val: 'intermediate', label: 'Intermediate' }, { val: 'advanced', label: 'Advanced' },
-    ] },
-    { key: 'english_support', label: 'English support', options: [
-      { val: 'lots', label: 'Lots' }, { val: 'some', label: 'Some' }, { val: 'minimal', label: 'Minimal' },
-    ] },
-  ];
-
-  return (
-    <div className="settings-pop" ref={ref}>
-      <div className="settings-head">
-        <h4>Your preferences</h4>
-        <button className="icon-btn" onClick={onClose} title="Close"><X size={18} /></button>
-      </div>
-
-      {fields.map((f) => (
-        <div className="settings-field" key={f.key}>
-          <div className="settings-flabel">{f.label}</div>
-          <div className="seg">
-            {f.options.map((o) => (
-              <button
-                key={o.val}
-                className={'seg-btn' + (profile[f.key] === o.val ? ' on' : '')}
-                onClick={() => set(f.key, o.val)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <div className="settings-field">
-        <div className="settings-flabel">Learning for</div>
-        <select
-          className="settings-select"
-          value={otherMode ? '__other' : profile.reason}
-          onChange={(e) => {
-            if (e.target.value === '__other') setOtherMode(true);
-            else {
-              setOtherMode(false);
-              set('reason', e.target.value);
-            }
-          }}
-        >
-          {REASON_OPTS.map((o) => (
-            <option key={o.val} value={o.val}>{o.label}</option>
-          ))}
-          <option value="__other">Other…</option>
-        </select>
-        {otherMode && (
-          <input
-            className="settings-select"
-            style={{ marginTop: 8 }}
-            autoFocus
-            placeholder="Type your reason"
-            value={reasonKnown ? '' : (profile.reason as string) || ''}
-            onChange={(e) => set('reason', e.target.value)}
-          />
-        )}
-      </div>
-
-      <div className="settings-note">Changes apply right away.</div>
-    </div>
-  );
-}
-
-// ==========================================================================
-// Topic flow
-// ==========================================================================
-
-function TopicFlow({
-  onBack,
-  onStart,
-}: {
-  onBack: () => void;
-  onStart: (ctx: TopicContext, seedLabel: string) => void;
-}) {
-  const [topic, setTopic] = useState<TopicDef | null>(null);
-  const [why, setWhy] = useState<string | null>(null);
-  const [detail, setDetail] = useState('');
-
-  if (!topic) {
+  if (phase === 'deck') {
     return (
-      <div className="topic">
-        <div className="topic-inner">
-          <button className="icon-btn settings-btn topic-back" onClick={onBack} title="Back" aria-label="Back">
-            <ArrowLeft size={20} />
-          </button>
-          <div className="topic-head fade-up">
-            <h1 className="topic-q">What do you want to talk about?</h1>
+      <div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+        {header(() => onNavigate?.('practice'), 'Back to Practice')}
+        <p className="text-secondary mb-8">
+          Pick a video to talk about — we'll weave the words it taught you into the conversation.
+        </p>
+
+        {chatError && (
+          <div className="mb-4 text-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
+        )}
+
+        {videos === null ? (
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}
           </div>
-          <div className="topic-grid">
-            {TOPICS.map((t, i) => (
-              <button
-                key={t.id}
-                className="topic-card fade-up"
-                style={{ animationDelay: `${0.05 + i * 0.04}s` }}
-                onClick={() => {
-                  setTopic(t);
-                  setWhy(null);
-                  setDetail('');
-                }}
-              >
-                <span className="topic-emoji">{t.emoji}</span>
-                <span className="topic-label">{t.label}</span>
-                <span className="topic-blurb">{t.blurb}</span>
-              </button>
-            ))}
+        ) : videos.length === 0 ? (
+          <PracticeEmptyState onNavigate={(p) => onNavigate?.(p)} />
+        ) : (
+          <div className="space-y-3">
+            {videos.map((v, i) => {
+              const isNetflix = v.video_id.startsWith('netflix_');
+              return (
+                <motion.button
+                  key={v.video_id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                  onClick={() => startFromVideo(v)}
+                  className="group w-full flex items-center gap-5 bg-surface rounded-2xl p-5 text-left hover:bg-surface-hover transition-colors"
+                >
+                  <span className="relative w-32 aspect-video shrink-0 rounded-lg overflow-hidden bg-black/5 flex items-center justify-center">
+                    {isNetflix ? (
+                      <Film className="w-5 h-5" style={{ color: ACCENT }} />
+                    ) : (
+                      <img
+                        src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-medium text-primary truncate">{v.title}</span>
+                    <span className="block text-xs text-muted">Talk through its words by voice</span>
+                  </span>
+                  <ChevronRight className="w-5 h-5 shrink-0 text-muted group-hover:text-accent transition-colors" />
+                </motion.button>
+              );
+            })}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // Loading a session
+  // ============================================================================
+  if (phase === 'loading') {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] max-w-2xl mx-auto">
+        {header(leaveChat, 'Back to videos')}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-7 w-20 rounded-full" />)}
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-16 w-3/4 rounded-2xl" />
+          <Skeleton className="h-12 w-1/2 rounded-2xl ml-auto" />
+          <Skeleton className="h-16 w-2/3 rounded-2xl" />
+        </div>
+        <div className="mt-10 flex justify-center">
+          <Skeleton className="h-[68px] w-[68px] rounded-full" />
         </div>
       </div>
     );
   }
 
-  const ready = topic.custom ? !!(why && why.trim()) : !!why;
-  const start = () => {
-    if (!ready) return;
-    if (topic.custom) {
-      const label = (why || '').trim();
-      const ctx: TopicContext = { topic: { ...topic, label }, why: '', detail: detail.trim() };
-      const seedLabel = [label, detail.trim()].filter(Boolean).join(' · ');
-      onStart(ctx, seedLabel);
-    } else {
-      const ctx: TopicContext = { topic, why: why as string, detail: detail.trim() };
-      const seedLabel = [topic.label, why, detail.trim()].filter(Boolean).join(' · ');
-      onStart(ctx, seedLabel);
-    }
-  };
-
+  // ============================================================================
+  // Chat
+  // ============================================================================
   return (
-    <div className="topic">
-      <div className="topic-inner narrow">
-        <button className="icon-btn settings-btn topic-back" onClick={() => setTopic(null)} title="Back to topics" aria-label="Back to topics">
-          <ArrowLeft size={20} />
-        </button>
-
-        <div className="topic-chosen fade-up">
-          <span className="topic-chosen-emoji">{topic.emoji}</span>
-          <div>
-            <div className="topic-chosen-label">{topic.label}</div>
-            <div className="topic-chosen-blurb">{topic.blurb}</div>
-          </div>
-        </div>
-
-        <div className="topic-qblock fade-up" style={{ animationDelay: '.05s' }}>
-          <div className="topic-qlabel">{topic.why.q}</div>
-          {topic.custom ? (
-            <input
-              className="topic-input"
-              autoFocus
-              value={why || ''}
-              placeholder={topic.why.placeholder}
-              onChange={(e) => setWhy(e.target.value)}
-            />
-          ) : (
-            <div className="topic-chips">
-              {topic.why.options?.map((o) => (
-                <button key={o} className={'topic-chip' + (why === o ? ' sel' : '')} onClick={() => setWhy(o)}>
-                  {o}
-                </button>
-              ))}
+    <div className="flex flex-col h-[calc(100vh-6rem)] max-w-2xl mx-auto">
+      {/* header + word tracker */}
+      <div className="shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              aria-label="Back to videos"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-heading font-bold text-base text-primary truncate">
+                {deck?.title || 'Voice Chat'}
+              </h1>
             </div>
+          </div>
+          {targetWords.length > 0 && (
+            <span className="text-xs font-medium text-secondary tabular-nums shrink-0">
+              {usedCount} / {targetWords.length} used
+            </span>
           )}
         </div>
 
-        {ready && (
-          <div className="topic-qblock fade-up">
-            <div className="topic-qlabel">
-              {topic.detail.q} <span className="topic-opt">optional</span>
-            </div>
-            <input
-              className="topic-input"
-              autoFocus={!topic.custom}
-              value={detail}
-              placeholder={topic.detail.placeholder}
-              onChange={(e) => setDetail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') start();
-              }}
-            />
-          </div>
-        )}
-
-        <div className="topic-foot">
-          <button className="btn btn-primary" disabled={!ready} onClick={start}>
-            Start talking <ArrowRight size={18} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================================================
-// Chat view
-// ==========================================================================
-
-interface ChatViewProps {
-  seed: Seed;
-  topicCtx: TopicContext | null;
-  dueWords: DueWord[];
-  usedLemmas: Set<string>;
-  messages: ChatMessage[];
-  status: string;
-  voiceStatus: VoiceStatus;
-  voiceError: string | null;
-  chatError: string | null;
-  sending: boolean;
-  lastAssistantId: string | null;
-  composerOpen: boolean;
-  composerText: string;
-  nudge: string | null;
-  hintLoading: boolean;
-  howtoOpen: boolean;
-  howtoInput: string;
-  howtoLoading: boolean;
-  howtoResult: { spanish: string; note_en: string } | null;
-  pop: { word: string; text: string; loading: boolean; x: number; y: number } | null;
-  revealedCorrections: Set<string>;
-  correctionVerdicts: Record<string, 'fine' | 'wrong'>;
-  chatSetOpen: boolean;
-  chatPrefs: { speed: string; difficulty: string; accent: string };
-  isTransVisible: (id: string) => boolean;
-  taRef: React.RefObject<HTMLTextAreaElement>;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  onBack: () => void;
-  onToggleVoice: () => void;
-  onOpenComposer: () => void;
-  onCloseComposer: () => void;
-  onComposerChange: (v: string) => void;
-  onSend: () => void;
-  onWordTap: (word: string, e: React.MouseEvent) => void;
-  onToggleTrans: (id: string) => void;
-  onRevealCorrection: (id: string) => void;
-  onCorrectionFb: (id: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => void;
-  onPickSuggestion: (es: string) => void;
-  onHint: () => void;
-  onToggleHowto: () => void;
-  onHowtoInput: (v: string) => void;
-  onRunHowto: () => void;
-  onCloseHowto: () => void;
-  onDismissNudge: () => void;
-  onToggleChatSet: () => void;
-  onCloseChatSet: () => void;
-  onChatPref: (k: string, v: string) => void;
-}
-
-const ACCENT_OPTS: [string, string][] = [
-  ['es-ES', 'Spain (Castilian)'],
-  ['es-MX', 'Mexico'],
-  ['es-AR', 'Argentina'],
-  ['es-CO', 'Colombia'],
-  ['es-419', 'Neutral Latin American'],
-];
-
-function ChatView(p: ChatViewProps) {
-  const optColor = SEED_COLORS[p.seed];
-  const seedLabel =
-    p.seed === 'topic' && p.topicCtx ? p.topicCtx.topic.label : p.seed === 'due' ? 'Practice due words' : 'Just chat';
-
-  return (
-    <div className="chat">
-      {/* header */}
-      <div className="chat-head">
-        <button className="icon-btn settings-btn" onClick={p.onBack} title="Back" aria-label="Back">
-          <ArrowLeft size={20} />
-        </button>
-        <div className="head-right">
-          {p.seed === 'due' && p.dueWords.length > 0 && (
-            <div className="duerow">
-              <span className="duerow-label">due words</span>
-              {p.dueWords.map((w) => (
-                <span key={w.lemma} className={'duepill' + (p.usedLemmas.has(w.lemma) ? ' used' : '')} title={w.gloss}>
+        {targetWords.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {targetWords.map((w) => {
+              const used = usedLemmas.has(w.lemma);
+              return (
+                <span
+                  key={w.lemma}
+                  title={w.gloss}
+                  className={
+                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all ' +
+                    (used ? 'text-white' : 'bg-surface text-secondary')
+                  }
+                  style={used ? { background: PAGE } : undefined}
+                >
+                  {used && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
                   {w.lemma}
                 </span>
-              ))}
-            </div>
-          )}
-          <div className="opt-chip" style={{ color: optColor }}>
-            {p.seed === 'topic' && p.topicCtx ? (
-              <span className="opt-chip-emoji">{p.topicCtx.topic.emoji}</span>
-            ) : (
-              <span className="opt-chip-dot" style={{ background: optColor }} />
-            )}
-            <div className="opt-chip-text">
-              <div className="opt-chip-label">{seedLabel}</div>
-              {p.seed === 'topic' && p.topicCtx && (p.topicCtx.why || p.topicCtx.detail) && (
-                <div className="opt-chip-sub">
-                  {p.topicCtx.why}
-                  {p.topicCtx.detail ? ` · ${p.topicCtx.detail}` : ''}
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
       {/* transcript */}
-      <div className="transcript-wrap" ref={p.scrollRef}>
-        <div className="transcript">
-          {p.messages.map((m) => {
-            if (m.role === 'user') {
-              return (
-                <div key={m.id} className="turn you">
-                  <div className="turn-text">
-                    <TappableText text={m.text} onWordTap={p.onWordTap} />
-                  </div>
-                </div>
-              );
-            }
-            const transVisible = isTransVisibleSafe(p, m);
-            const revealed = p.revealedCorrections.has(m.id);
-            const verdict = p.correctionVerdicts[m.id];
-            const isLast = m.id === p.lastAssistantId;
+      <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-1 px-1 py-2 space-y-4">
+        {messages.map((m) => {
+          if (m.role === 'user') {
             return (
-              <div key={m.id} className="turn ai">
-                <div className="turn-text">
-                  <TappableText text={m.text} targets={m.targets} onWordTap={p.onWordTap} />
-                </div>
-
-                <div className="scaffold">
-                  {m.translation && (
-                    <div className="scaffold-row">
-                      <button className={'minilink' + (transVisible ? ' on' : '')} onClick={() => p.onToggleTrans(m.id)}>
-                        {transVisible ? 'Hide English' : 'Show in English'}
-                      </button>
-                    </div>
-                  )}
-                  {m.translation && transVisible && <div className="translation">{m.translation}</div>}
-
-                  {m.correction &&
-                    (!revealed ? (
-                      <div className="scaffold-row">
-                        <button className="minilink" onClick={() => p.onRevealCorrection(m.id)}>
-                          <Lightbulb size={14} /> A better way to say that
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="correction">
-                        <div className="correction-h">A better way to say that</div>
-                        <div className="correction-fix">{m.correction.correct}</div>
-                        <div className="correction-why">{m.correction.why_en}</div>
-                        <div className="correction-fb">
-                          <button
-                            className={'fb-btn' + (verdict === 'fine' ? ' picked' : '')}
-                            disabled={!!verdict}
-                            onClick={() => p.onCorrectionFb(m.id, m.turnId, 'fine')}
-                          >
-                            That was fine
-                          </button>
-                          <button
-                            className={'fb-btn' + (verdict === 'wrong' ? ' picked' : '')}
-                            disabled={!!verdict}
-                            onClick={() => p.onCorrectionFb(m.id, m.turnId, 'wrong')}
-                          >
-                            Not right
-                          </button>
-                          {verdict && <span className="fb-thanks">thanks</span>}
-                        </div>
-                      </div>
-                    ))}
-
-                  {isLast && m.suggestedReplies && m.suggestedReplies.length > 0 && (
-                    <div className="suggests">
-                      <div className="suggests-h">Suggested replies</div>
-                      {m.suggestedReplies.slice(0, 3).map((s, i) => (
-                        <button key={i} className="suggest" onClick={() => p.onPickSuggestion(s.es)}>
-                          <div className="s-es">{s.es}</div>
-                          {s.en && <div className="s-en">{s.en}</div>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+              <div key={m.id} className="flex justify-end">
+                <div className="max-w-[85%] text-xl leading-relaxed text-secondary text-right">
+                  {m.text}
                 </div>
               </div>
             );
-          })}
+          }
+          const transVisible = isTransVisible(m.id);
+          const revealed = revealedCorrections.has(m.id);
+          const verdict = correctionVerdicts[m.id];
+          const isLast = m.id === lastAssistantId;
+          return (
+            <div key={m.id} className="flex flex-col items-start gap-2">
+              <div className="max-w-[90%] text-xl leading-relaxed text-primary font-medium">
+                <TappableText text={m.text} targets={m.targets} onWordTap={handleWordTap} />
+              </div>
 
-          {p.sending && <div className="dock-status">Lía is writing…</div>}
-        </div>
+              <div className="flex flex-col gap-2 w-full">
+                {m.translation && (
+                  <button
+                    onClick={() => toggleTrans(m.id)}
+                    className="self-start text-xs font-medium text-muted hover:text-secondary transition-colors"
+                  >
+                    {transVisible ? 'Hide English' : 'Show in English'}
+                  </button>
+                )}
+                {m.translation && transVisible && (
+                  <div className="text-sm text-secondary italic -mt-1">{m.translation}</div>
+                )}
+
+                {m.correction && (!revealed ? (
+                  <button
+                    onClick={() => setRevealedCorrections((prev) => new Set(prev).add(m.id))}
+                    className="self-start inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-secondary transition-colors"
+                  >
+                    <Lightbulb className="w-3.5 h-3.5" /> A better way to say that
+                  </button>
+                ) : (
+                  <div className="rounded-xl bg-black/5 p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">A better way to say that</div>
+                    <div className="text-[15px] font-medium text-primary" style={{ color: PAGE }}>{m.correction.correct}</div>
+                    <div className="text-sm text-secondary mt-1">{m.correction.why_en}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-white' : 'bg-surface text-secondary hover:text-primary')}
+                        style={verdict === 'fine' ? { background: ACCENT } : undefined}
+                        disabled={!!verdict}
+                        onClick={() => handleCorrectionFb(m.id, m.turnId, 'fine')}
+                      >
+                        Mine was fine
+                      </button>
+                      <button
+                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-white' : 'bg-surface text-secondary hover:text-primary')}
+                        style={verdict === 'wrong' ? { background: ACCENT } : undefined}
+                        disabled={!!verdict}
+                        onClick={() => handleCorrectionFb(m.id, m.turnId, 'wrong')}
+                      >
+                        Not right
+                      </button>
+                      {verdict && <span className="text-xs text-muted">thanks</span>}
+                    </div>
+                  </div>
+                ))}
+
+                {isLast && m.suggestedReplies && m.suggestedReplies.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-1">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Suggested replies</div>
+                    {m.suggestedReplies.slice(0, 3).map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => pickSuggestion(s.es)}
+                        className="text-left rounded-xl bg-surface hover:bg-surface-hover transition-colors px-3 py-2"
+                      >
+                        <div className="text-sm text-primary">{s.es}</div>
+                        {s.en && <div className="text-xs text-muted mt-0.5">{s.en}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {sending && <div className="text-sm text-muted">Tutor is writing…</div>}
       </div>
 
       {/* dock */}
-      <div className="dock">
-        <div className="dock-float">
-          {p.nudge && (
-            <div className="nudge">
-              <span className="nudge-icon"><Lightbulb size={18} /></span>
-              <span className="nudge-text">{p.nudge}</span>
-              <button className="nudge-x" onClick={p.onDismissNudge}><X size={16} /></button>
-            </div>
+      <div className="shrink-0 pt-3">
+        <AnimatePresence>
+          {nudge && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+              className="flex items-start gap-2 rounded-xl bg-surface p-3 mb-3"
+            >
+              <Lightbulb className="w-4 h-4 mt-0.5 shrink-0" style={{ color: PAGE }} />
+              <span className="flex-1 text-sm text-secondary">{nudge}</span>
+              <button onClick={() => setNudge(null)} className="text-muted hover:text-primary"><X className="w-4 h-4" /></button>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {p.howtoOpen && (
-            <div className="howto">
-              <div className="howto-head">
-                <h4>How do I say…?</h4>
-                <button className="icon-btn" onClick={p.onCloseHowto} title="Close"><X size={18} /></button>
+        <AnimatePresence>
+          {howtoOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+              className="rounded-xl bg-surface p-3 mb-3"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-primary">How do I say…?</h4>
+                <button onClick={() => { setHowtoOpen(false); setHowtoInput(''); setHowtoResult(null); }} className="text-muted hover:text-primary"><X className="w-4 h-4" /></button>
               </div>
-              <div className="howto-input">
+              <div className="flex gap-2">
                 <input
                   autoFocus
-                  value={p.howtoInput}
+                  value={howtoInput}
                   placeholder="Say it in English…"
-                  onChange={(e) => p.onHowtoInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      p.onRunHowto();
-                    }
-                  }}
+                  onChange={(e) => setHowtoInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runHowto(); } }}
+                  className="flex-1 rounded-lg bg-app px-3 py-2 text-sm text-primary placeholder:text-muted outline-none"
                 />
-                <button className="btn btn-primary" disabled={p.howtoLoading || !p.howtoInput.trim()} onClick={p.onRunHowto}>
-                  {p.howtoLoading ? <Loader2 className="cv2-spin" size={16} /> : 'Translate'}
+                <button
+                  onClick={runHowto}
+                  disabled={howtoLoading || !howtoInput.trim()}
+                  className="px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: ACCENT }}
+                >
+                  {howtoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Translate'}
                 </button>
               </div>
-              {p.howtoResult && p.howtoResult.spanish && (
-                <div className="howto-result">
-                  <div className="howto-es">{p.howtoResult.spanish}</div>
-                  {p.howtoResult.note_en && <div className="howto-note">{p.howtoResult.note_en}</div>}
-                  <div className="howto-actions">
-                    <button className="fb-btn picked" onClick={() => p.onPickSuggestion(p.howtoResult!.spanish)}>
-                      Use this
-                    </button>
-                  </div>
+              {howtoResult && howtoResult.spanish && (
+                <div className="mt-3 rounded-lg bg-app p-3">
+                  <div className="text-sm font-medium text-primary">{howtoResult.spanish}</div>
+                  {howtoResult.note_en && <div className="text-xs text-muted mt-1">{howtoResult.note_en}</div>}
+                  <button
+                    onClick={() => pickSuggestion(howtoResult!.spanish)}
+                    className="mt-2 text-xs font-semibold px-2.5 py-1 rounded-lg text-white"
+                    style={{ background: ACCENT }}
+                  >
+                    Use this
+                  </button>
                 </div>
               )}
-              {p.howtoResult && !p.howtoResult.spanish && p.howtoResult.note_en && (
-                <div className="howto-result"><div className="howto-note">{p.howtoResult.note_en}</div></div>
+              {howtoResult && !howtoResult.spanish && howtoResult.note_en && (
+                <div className="mt-2 text-xs text-muted">{howtoResult.note_en}</div>
               )}
-            </div>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {p.composerOpen && (
-            <div className="composer">
-              <button className="comp-x" onClick={p.onCloseComposer} title="Close"><X size={18} /></button>
+        <AnimatePresence>
+          {composerOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+              className="flex items-end gap-2 rounded-2xl bg-surface p-2 mb-3"
+            >
+              <button
+                onClick={() => { setComposerOpen(false); setComposerText(''); }}
+                title="Close"
+                aria-label="Close typing"
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-muted hover:text-primary hover:bg-black/5 shrink-0 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
               <textarea
-                ref={p.taRef}
+                ref={taRef}
                 rows={1}
-                value={p.composerText}
-                placeholder="Type in Spanish…"
+                value={composerText}
+                placeholder={`Type in ${langName}…`}
                 onChange={(e) => {
-                  p.onComposerChange(e.target.value);
+                  setComposerText(e.target.value);
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    p.onSend();
-                  }
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
+                className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-primary placeholder:text-muted outline-none max-h-32"
               />
-              <button className="comp-send" disabled={!p.composerText.trim() || p.sending} onClick={p.onSend}>
-                {p.sending ? <Loader2 className="cv2-spin" size={18} /> : <Send size={18} />}
+              <button
+                onClick={() => sendTextTurn()}
+                disabled={!composerText.trim() || sending}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-white disabled:opacity-40 shrink-0"
+                style={{ background: ACCENT }}
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </button>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
 
-        <div className="controls-row">
-          <button className="aux-pill" onClick={p.onHint} disabled={p.hintLoading}>
-            {p.hintLoading ? <Loader2 className="cv2-spin" size={15} /> : <Lightbulb size={15} />} Stuck?
+        <div className="flex items-center justify-center gap-3 mt-10">
+          <button
+            onClick={handleHint}
+            disabled={hintLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-surface text-sm font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors"
+          >
+            {hintLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />}
+            <span className="hidden sm:inline">Stuck?</span>
           </button>
 
-          <VoiceCTA status={p.voiceStatus} onToggle={p.onToggleVoice} />
+          <VoicePersona status={voiceStatus} level={voiceLevel} onToggle={toggleVoice} />
 
           <button
-            className={'ghost-btn' + (p.composerOpen ? ' active' : '')}
-            onClick={() => (p.composerOpen ? p.onCloseComposer() : p.onOpenComposer())}
+            onClick={() => (composerOpen ? (setComposerOpen(false), setComposerText('')) : openComposer())}
             title="Type instead"
+            className={
+              'w-11 h-11 flex items-center justify-center rounded-full transition-colors ' +
+              (composerOpen ? 'text-white' : 'bg-surface text-secondary hover:text-primary hover:bg-surface-hover')
+            }
+            style={composerOpen ? { background: ACCENT } : undefined}
           >
-            <Keyboard size={22} />
+            <Keyboard className="w-5 h-5" />
           </button>
 
-          <button className={'aux-pill' + (p.howtoOpen ? ' on' : '')} onClick={p.onToggleHowto}>
-            <HelpCircle size={15} /> How do I say…?
+          <button
+            onClick={() => setHowtoOpen((v) => !v)}
+            className={
+              'inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-colors ' +
+              (howtoOpen ? 'text-white' : 'bg-surface text-secondary hover:text-primary hover:bg-surface-hover')
+            }
+            style={howtoOpen ? { background: ACCENT } : undefined}
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">How do I say…?</span>
           </button>
         </div>
 
-        <div className="dock-status">
-          {p.voiceError ? <span className="cv2-error">{p.voiceError}</span> : p.chatError ? <span className="cv2-error">{p.chatError}</span> : p.status}
+        <div className="text-center text-xs text-muted mt-2 h-4">
+          {voiceError ? <span style={{ color: ACCENT }}>{voiceError}</span>
+            : chatError ? <span style={{ color: ACCENT }}>{chatError}</span>
+            : status}
         </div>
       </div>
 
-      {/* chat settings popover */}
-      <div className="settings-anchor settings-corner">
-        <button className="icon-btn settings-btn" onClick={p.onToggleChatSet} title="Settings"><Settings size={20} /></button>
-        {p.chatSetOpen && (
-          <ChatSettings prefs={p.chatPrefs} onPref={p.onChatPref} onClose={p.onCloseChatSet} />
+      {/* leave-chat confirmation */}
+      <AnimatePresence>
+        {showLeaveConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowLeaveConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-primary mb-2">Leave this conversation?</h3>
+              <p className="text-sm text-secondary mb-6">
+                Going back will end and delete this conversation. This can't be undone.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={leaveChat}
+                  className="w-full px-4 py-2.5 rounded-xl text-white font-semibold text-sm"
+                  style={{ background: ACCENT }}
+                >
+                  Leave & delete
+                </button>
+                <button
+                  onClick={() => setShowLeaveConfirm(false)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-app text-secondary hover:text-primary font-semibold text-sm transition-colors"
+                >
+                  Keep talking
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      {/* word popover */}
-      {p.pop && (
-        <span className="wordpop" style={{ left: p.pop.x, top: p.pop.y }} onClick={(e) => e.stopPropagation()}>
-          <span className="es">{p.pop.word}</span>
-          {p.pop.loading ? '…' : p.pop.text || '—'}
+      {/* word popover — tapped word + its English meaning */}
+      {pop && (
+        <span
+          className="fixed z-50 -translate-x-1/2 -translate-y-full rounded-xl bg-primary text-app shadow-xl pointer-events-none"
+          style={{ left: pop.x, top: pop.y - 10, maxWidth: 260 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="block px-3 py-2">
+            <span className="block text-sm font-bold">{pop.word}</span>
+            <span className="block text-[11px] uppercase tracking-wide opacity-60 mt-1">English meaning</span>
+            <span className="block text-sm opacity-90">
+              {pop.loading ? 'Translating…' : (pop.text || '—')}
+            </span>
+          </span>
         </span>
       )}
-    </div>
-  );
-}
-
-function isTransVisibleSafe(p: ChatViewProps, m: ChatMessage): boolean {
-  return p.isTransVisible(m.id);
-}
-
-function ChatSettings({
-  prefs,
-  onPref,
-  onClose,
-}: {
-  prefs: { speed: string; difficulty: string; accent: string };
-  onPref: (k: string, v: string) => void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0);
-    document.addEventListener('keydown', onEsc);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onEsc);
-    };
-  }, [onClose]);
-
-  const seg = (key: string, val: string, opts: string[]) => (
-    <div className="seg">
-      {opts.map((o) => (
-        <button key={o} className={'seg-btn' + (val === o ? ' on' : '')} onClick={() => onPref(key, o)}>
-          {o}
-        </button>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="settings-pop" ref={ref}>
-      <div className="settings-head">
-        <h4>Conversation settings</h4>
-        <button className="icon-btn" onClick={onClose} title="Close"><X size={18} /></button>
-      </div>
-      <div className="settings-field">
-        <div className="settings-flabel">Voice speed</div>
-        {seg('speed', prefs.speed, ['Slower', 'Normal', 'Faster'])}
-      </div>
-      <div className="settings-field">
-        <div className="settings-flabel">Word difficulty</div>
-        {seg('difficulty', prefs.difficulty, ['Easier', 'Normal', 'Harder'])}
-      </div>
-      <div className="settings-field">
-        <div className="settings-flabel">Tutor accent</div>
-        <select className="settings-select" value={prefs.accent} onChange={(e) => onPref('accent', e.target.value)}>
-          {ACCENT_OPTS.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </div>
-      <div className="settings-note">Preferences are saved on this device.</div>
     </div>
   );
 }

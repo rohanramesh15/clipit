@@ -87,7 +87,7 @@ export function Sidebar({
   {
     id: 'community',
     icon: Users,
-    label: 'Community'
+    label: 'Communities'
   },
   {
     id: 'analytics',
@@ -102,7 +102,8 @@ export function Sidebar({
   const;
   return (
     <motion.nav
-      className={`fixed left-0 top-0 h-full bg-app border-r border-white/5 flex flex-col z-50`}
+      className={`fixed left-0 top-0 h-full bg-app flex flex-col z-50`}
+      style={{ borderRight: '1px solid var(--border-medium)' }}
       animate={{ width: isCollapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
       {/* Logo Area */}
@@ -276,7 +277,15 @@ export function Sidebar({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
+              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[220px]">
+              {/* Identity header: avatar + name + email */}
+              <div className="flex items-center gap-3 p-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                <Avatar user={user} size={36} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-primary truncate">{displayName}</p>
+                  <p className="text-xs text-secondary truncate">{user?.email ?? ''}</p>
+                </div>
+              </div>
               <div className="p-2 space-y-1">
                 <button
                   onClick={() => { setIsProfileOpen(false); onNavigate('settings'); }}

@@ -35,10 +35,17 @@ type Page =
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
+// Per-page loading-skeleton tints, matching each Practice mode's card color.
+const SKELETON_TINTS: Partial<Record<Page, string>> = {
+  flashcards: 'rgba(196, 98, 90, 0.16)',     // #C4625A terracotta
+  'converse-v2': 'rgba(217, 138, 110, 0.16)', // #D98A6E salmon
+  madlibs: 'rgba(166, 80, 73, 0.16)',        // #A65049 brick
+};
+
 function AppInner() {
   const { user, isLoading } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
-  const [activePage, setActivePage] = useState<Page>('video');
+  const [activePage, setActivePage] = useState<Page>('practice');
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const [resetToken, setResetToken] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -85,7 +92,14 @@ function AppInner() {
   useEffect(() => {
     if (isLoading) return;
     if (user) {
-      setAppView((v) => (v === 'landing' || v === 'login' || v === 'signup' ? 'app' : v));
+      setAppView((v) => {
+        if (v === 'landing' || v === 'login' || v === 'signup') {
+          // First page after logging in is Practice.
+          setActivePage('practice');
+          return 'app';
+        }
+        return v;
+      });
     } else {
       setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
@@ -158,7 +172,7 @@ function AppInner() {
     return <SignupPage onNavigate={setAppView} />;
   }
   if (appView === 'onboarding') {
-    return <OnboardingPage onComplete={() => setAppView('app')} />;
+    return <OnboardingPage onComplete={() => { setActivePage('practice'); setAppView('app'); }} />;
   }
   if (appView === 'forgot-password') {
     return <ForgotPasswordPage onNavigate={setAppView} />;
@@ -207,6 +221,7 @@ function AppInner() {
                 duration: 0.3,
                 ease: 'easeInOut'
               }}
+              style={{ ['--skeleton-tint' as any]: SKELETON_TINTS[activePage] }}
               className="w-full max-w-7xl mx-auto">
 
               {renderPage()}

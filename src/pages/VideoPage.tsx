@@ -18,6 +18,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { Skeleton } from '../components/Skeleton';
+import { SegmentedTabs } from '../components/SegmentedTabs';
 
 const videoPageTips: HelpTip[] = [
   {
@@ -191,29 +192,17 @@ export function VideoPage() {
       </div>
 
       {/* Platform Tabs */}
-      <div id="section-platform-tabs" className="flex gap-7 border-b border-white/10 mb-6">
-        {([
-          { id: 'all', label: 'All', Icon: Tv, count: counts.all },
-          { id: 'youtube', label: 'YouTube', Icon: Youtube, count: counts.youtube },
-          { id: 'netflix', label: 'Netflix', Icon: Film, count: counts.netflix },
-        ] as const).map(({ id, label, Icon, count }) => (
-          <button
-            key={id}
-            onClick={() => setPlatformFilter(id)}
-            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
-              platformFilter === id ? 'text-primary' : 'text-secondary hover:text-primary'
-            }`}>
-            <Icon className="w-4 h-4" />
-            {label}
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/5 text-muted">{count}</span>
-            {platformFilter === id && (
-              <motion.span
-                layoutId="history-tab-underline"
-                className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-accent"
-              />
-            )}
-          </button>
-        ))}
+      <div id="section-platform-tabs" className="mb-6">
+        <SegmentedTabs
+          layoutId="history-tab-pill"
+          active={platformFilter}
+          onChange={setPlatformFilter}
+          tabs={[
+            { id: 'all', label: 'All', Icon: Tv, count: counts.all },
+            { id: 'youtube', label: 'YouTube', Icon: Youtube, count: counts.youtube },
+            { id: 'netflix', label: 'Netflix', Icon: Film, count: counts.netflix },
+          ]}
+        />
       </div>
 
       {/* States */}

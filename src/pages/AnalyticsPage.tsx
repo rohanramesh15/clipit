@@ -113,7 +113,7 @@ export function AnalyticsPage() {
 
   // Generate heatmap data and streak from backend review history
   const { heatmapData, calculatedStreak } = useMemo(() => {
-    const result: { date: string; intensity: number; isFuture: boolean; isPlaceholder: boolean }[] = [];
+    const result: { date: string; count: number; intensity: number; isFuture: boolean; isPlaceholder: boolean }[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -162,7 +162,7 @@ export function AnalyticsPage() {
 
     // Add placeholder entries for days before January 1st
     for (let i = 0; i < mondayFirstIndex; i++) {
-      result.push({ date: '', intensity: 0, isFuture: false, isPlaceholder: true });
+      result.push({ date: '', count: 0, intensity: 0, isFuture: false, isPlaceholder: true });
     }
 
     // Iterate from Jan 1 to Dec 31
@@ -174,7 +174,7 @@ export function AnalyticsPage() {
 
       // Normalize to 0-4 intensity (future days get 0)
       const intensity = isFuture ? 0 : (count > 0 ? Math.min(4, Math.ceil((count / maxReviews) * 4)) : 0);
-      result.push({ date: dateStr, intensity, isFuture, isPlaceholder: false });
+      result.push({ date: dateStr, count, intensity, isFuture, isPlaceholder: false });
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -197,6 +197,37 @@ export function AnalyticsPage() {
   // GitHub-style layout (7 rows x N columns)
   const weeksCount = Math.ceil(heatmapData.length / 7);
 
+  // Hovered day → show its date + how much was reviewed that day.
+  const [hoverCell, setHoverCell] = useState<{ date: string; count: number; x: number; y: number } | null>(null);
+
+  // Month labels across the top: place an abbreviation on the first week column
+  // where each new month begins, so cells can be located by date.
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabels: string[] = [];
+  let lastLabeledMonth = -1;
+  for (let w = 0; w < weeksCount; w++) {
+    let label = '';
+    for (let d = 0; d < 7; d++) {
+      const cell = heatmapData[w * 7 + d];
+      if (cell && !cell.isPlaceholder && cell.date) {
+        const m = new Date(cell.date + 'T00:00:00').getMonth();
+        if (m !== lastLabeledMonth) {
+          label = MONTHS[m];
+          lastLabeledMonth = m;
+        }
+        break;
+      }
+    }
+    monthLabels.push(label);
+  }
+
+  const formatHoverDate = (date: string) =>
+    new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
   return (
     <div className="min-h-screen pb-20 max-w-6xl mx-auto px-4 pt-8">
       <HelpOverlay tips={analyticsPageTips} />
@@ -214,13 +245,13 @@ export function AnalyticsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * index + 0.3 }}
-              className="bg-surface border border-white/5 rounded-2xl p-6 flex items-start justify-between hover:bg-surface-hover transition-colors group"
+              className="bg-surface border border-white/5 rounded-2xl p-6 flex items-start justify-between"
             >
               <div>
                 <p className="text-secondary text-sm font-medium mb-1">
                   {stat.label}
                 </p>
-                <h3 className="text-3xl font-bold text-primary group-hover:text-accent transition-colors">
+                <h3 className="text-3xl font-bold text-primary">
                   {stat.value}
                 </h3>
               </div>
@@ -244,45 +275,65 @@ export function AnalyticsPage() {
             </div>
 
             {/* Heatmap Grid - GitHub-style: 7 rows (days) x N columns (weeks) */}
-            <div className="flex-1 flex gap-[2px]">
-              {/* Day labels */}
-              <div className="flex flex-col gap-[2px] shrink-0 pr-1 justify-between py-[2px]">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                  <div
-                    key={i}
-                    className="text-[8px] text-muted font-medium flex items-center"
-                  >
-                    {i % 2 === 0 ? day : ''}
-                  </div>
-                ))}
+            <div className="flex-1 flex flex-col">
+              {/* Month labels across the top, aligned to the week columns */}
+              <div className="flex gap-[2px] mb-1">
+                {/* spacer matching the day-label column */}
+                <div className="shrink-0 pr-1 text-[8px] font-medium invisible">M</div>
+                <div className="flex-1 flex gap-[2px]">
+                  {monthLabels.map((m, i) => (
+                    <div key={i} className="flex-1 text-[8px] text-muted font-medium whitespace-nowrap overflow-visible">
+                      {m}
+                    </div>
+                  ))}
+                </div>
               </div>
-              {/* Weeks as columns - flex to fill space */}
+
               <div className="flex-1 flex gap-[2px]">
-                {Array.from({ length: weeksCount }).map((_, weekIdx) => (
-                  <div key={weekIdx} className="flex-1 flex flex-col gap-[2px]">
-                    {Array.from({ length: 7 }).map((_, dayIdx) => {
-                      const dataIdx = weekIdx * 7 + dayIdx;
-                      if (dataIdx >= heatmapData.length) {
-                        return <div key={dayIdx} className="flex-1 min-h-0" />;
-                      }
-                      const dayData = heatmapData[dataIdx];
-                      // Placeholder cells are invisible (before Jan 1st)
-                      if (dayData.isPlaceholder) {
-                        return <div key={dayIdx} className="flex-1 min-h-0" />;
-                      }
-                      return (
-                        <motion.div
-                          key={dayIdx}
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: Math.min(weekIdx * 0.005, 0.3) }}
-                          className={`flex-1 min-h-0 rounded-sm ${getIntensityColor(dayData.intensity)} hover:ring-1 ring-accent/50 transition-all cursor-pointer`}
-                          title={`${dayData.date}: ${dayData.intensity > 0 ? 'Active' : 'No activity'}`}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+                {/* Day labels */}
+                <div className="flex flex-col gap-[2px] shrink-0 pr-1 justify-between py-[2px]">
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                    <div
+                      key={i}
+                      className="text-[8px] text-muted font-medium flex items-center"
+                    >
+                      {i % 2 === 0 ? day : ''}
+                    </div>
+                  ))}
+                </div>
+                {/* Weeks as columns - flex to fill space */}
+                <div className="flex-1 flex gap-[2px]">
+                  {Array.from({ length: weeksCount }).map((_, weekIdx) => (
+                    <div key={weekIdx} className="flex-1 flex flex-col gap-[2px]">
+                      {Array.from({ length: 7 }).map((_, dayIdx) => {
+                        const dataIdx = weekIdx * 7 + dayIdx;
+                        if (dataIdx >= heatmapData.length) {
+                          return <div key={dayIdx} className="flex-1 min-h-0" />;
+                        }
+                        const dayData = heatmapData[dataIdx];
+                        // Placeholder cells are invisible (before Jan 1st)
+                        if (dayData.isPlaceholder) {
+                          return <div key={dayIdx} className="flex-1 min-h-0" />;
+                        }
+                        return (
+                          <motion.div
+                            key={dayIdx}
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: Math.min(weekIdx * 0.005, 0.3) }}
+                            className={`flex-1 min-h-0 rounded-sm ${getIntensityColor(dayData.intensity)} hover:ring-1 ring-accent/50 transition-all cursor-pointer`}
+                            onMouseEnter={(e) => {
+                              if (dayData.isFuture) return;
+                              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setHoverCell({ date: dayData.date, count: dayData.count, x: r.left + r.width / 2, y: r.top });
+                            }}
+                            onMouseLeave={() => setHoverCell(null)}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -304,6 +355,22 @@ export function AnalyticsPage() {
             </div>
         </motion.div>
       </div>
+
+      {/* Day hover tooltip — date + how much was reviewed that day */}
+      {hoverCell && (
+        <div
+          className="fixed z-50 -translate-x-1/2 -translate-y-full pointer-events-none rounded-lg bg-primary text-app text-xs px-2.5 py-1.5 shadow-lg whitespace-nowrap"
+          style={{ left: hoverCell.x, top: hoverCell.y - 8 }}
+        >
+          <span className="font-semibold">{formatHoverDate(hoverCell.date)}</span>
+          <span className="opacity-80">
+            {' · '}
+            {hoverCell.count > 0
+              ? `${hoverCell.count} review${hoverCell.count === 1 ? '' : 's'}`
+              : 'No reviews'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

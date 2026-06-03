@@ -48,6 +48,18 @@ export async function fetchTrackedVideos(
   }
 }
 
+// ── Lightweight: how many practiceable words a video has (for deck badges) ────
+export async function fetchVideoWordCount(videoId: string, language: string): Promise<number> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=1&lang=${language}`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.total_words || 0;
+  } catch {
+    return 0;
+  }
+}
+
 // ── Fetch the extracted words + example sentences for one video ───────────────
 // Mirrors the Flash Cards loader (subtitles → vocabulary → flashcard-data).
 export async function fetchVideoCards(videoId: string, language: string): Promise<FlashCard[]> {

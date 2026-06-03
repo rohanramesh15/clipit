@@ -4,8 +4,8 @@ import { buildWsUrl } from '../lib/voiceSession';
 
 const BASE = `${API_BASE_URL}/converse2`;
 
-export const voiceWsUrl = (sessionId: number) =>
-  buildWsUrl('/converse2/voice/ws', { session_id: sessionId });
+export const voiceWsUrl = (sessionId: number, language: string = 'es') =>
+  buildWsUrl('/converse2/voice/ws', { session_id: sessionId, language });
 
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 // Known reasons; a custom "Something else" reason is also allowed as free text.
@@ -82,20 +82,25 @@ export const saveOnboarding = (req: Profile) =>
 
 export const listVideos = () => getJson<{ videos: MockVideo[] }>('/videos');
 
-export const createSession = (req: { seed_type: SeedType; video_id?: string; seed_label?: string }) =>
-  postJson<CreateSessionResult>('/session', req);
+export const createSession = (req: {
+  seed_type: SeedType;
+  video_id?: string;
+  seed_label?: string;
+  language?: string;
+  seed_words?: { lemma: string; gloss: string }[];
+}) => postJson<CreateSessionResult>('/session', req);
 
-export const sendTurn = (sessionId: number, text: string) =>
-  postJson<TurnResult>(`/session/${sessionId}/turn`, { text });
+export const sendTurn = (sessionId: number, text: string, language: string = 'es') =>
+  postJson<TurnResult>(`/session/${sessionId}/turn`, { text, language });
 
-export const getHint = (sessionId: number) =>
-  postJson<{ hint_en: string }>(`/session/${sessionId}/hint`);
+export const getHint = (sessionId: number, language: string = 'es') =>
+  postJson<{ hint_en: string }>(`/session/${sessionId}/hint?language=${encodeURIComponent(language)}`);
 
-export const howDoISay = (sessionId: number, english: string) =>
-  postJson<{ spanish: string; note_en: string }>(`/session/${sessionId}/how-do-i-say`, { english });
+export const howDoISay = (sessionId: number, english: string, language: string = 'es') =>
+  postJson<{ spanish: string; note_en: string }>(`/session/${sessionId}/how-do-i-say`, { english, language });
 
-export const translate = async (text: string): Promise<string> => {
-  const { translation } = await postJson<{ translation: string }>('/translate', { text });
+export const translate = async (text: string, language: string = 'es'): Promise<string> => {
+  const { translation } = await postJson<{ translation: string }>('/translate', { text, language });
   return translation;
 };
 

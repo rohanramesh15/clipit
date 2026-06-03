@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import { Skeleton } from '../components/Skeleton';
+import { SegmentedTabs } from '../components/SegmentedTabs';
 
 interface CommunityGroup {
   id: number;
@@ -227,11 +228,11 @@ export function CommunityPage() {
         fetchPublicGroups();
       } else {
         const data = await res.json();
-        alert(data.detail || 'Failed to create group');
+        alert(data.detail || 'Failed to create community');
       }
     } catch (err) {
       console.error('Error creating group:', err);
-      alert('Failed to create group');
+      alert('Failed to create community');
     } finally {
       setIsCreating(false);
     }
@@ -256,11 +257,11 @@ export function CommunityPage() {
         fetchMyGroups();
       } else {
         const data = await res.json();
-        alert(data.detail || 'Failed to join group');
+        alert(data.detail || 'Failed to join community');
       }
     } catch (err) {
       console.error('Error joining group:', err);
-      alert('Failed to join group');
+      alert('Failed to join community');
     } finally {
       setIsJoining(false);
     }
@@ -283,7 +284,7 @@ export function CommunityPage() {
         fetchPublicGroups();
       } else {
         const data = await res.json();
-        alert(data.detail || 'Failed to join group');
+        alert(data.detail || 'Failed to join community');
       }
     } catch (err) {
       console.error('Error joining group:', err);
@@ -293,7 +294,7 @@ export function CommunityPage() {
   // Leave group
   const handleLeaveGroup = async (groupId: number) => {
     if (!token) return;
-    if (!confirm('Are you sure you want to leave this group?')) return;
+    if (!confirm('Are you sure you want to leave this community?')) return;
     try {
       const res = await fetch(`${API_BASE_URL}/community/leave?group_id=${groupId}`, {
         method: 'POST',
@@ -304,7 +305,7 @@ export function CommunityPage() {
         setSelectedGroup(null);
       } else {
         const data = await res.json();
-        alert(data.detail || 'Failed to leave group');
+        alert(data.detail || 'Failed to leave community');
       }
     } catch (err) {
       console.error('Error leaving group:', err);
@@ -314,7 +315,7 @@ export function CommunityPage() {
   // Delete group
   const handleDeleteGroup = async (groupId: number) => {
     if (!token) return;
-    if (!confirm('Are you sure you want to delete this group? This cannot be undone.')) return;
+    if (!confirm('Are you sure you want to delete this community? This cannot be undone.')) return;
     try {
       const res = await fetch(`${API_BASE_URL}/community/groups/${groupId}`, {
         method: 'DELETE',
@@ -326,7 +327,7 @@ export function CommunityPage() {
         setSelectedGroup(null);
       } else {
         const data = await res.json();
-        alert(data.detail || 'Failed to delete group');
+        alert(data.detail || 'Failed to delete community');
       }
     } catch (err) {
       console.error('Error deleting group:', err);
@@ -414,7 +415,7 @@ export function CommunityPage() {
           className="flex items-center gap-2 text-secondary hover:text-primary transition-colors mb-6"
         >
           <ChevronRight className="w-4 h-4 rotate-180" />
-          Back to Community
+          Back to Communities
         </button>
 
         {/* Group header */}
@@ -473,8 +474,7 @@ export function CommunityPage() {
                 onClick={() => handleDeleteGroup(selectedGroup.id)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
-                Delete Group
+                <Trash2 className="w-4 h-4" />Delete Community
               </button>
             ) : isMember(selectedGroup.id) ? (
               <button
@@ -482,7 +482,7 @@ export function CommunityPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-secondary hover:bg-white/5 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                Leave Group
+                Leave Community
               </button>
             ) : (
               <button
@@ -490,7 +490,7 @@ export function CommunityPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-app font-bold hover:bg-accent-hover transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Join Group
+                Join Community
               </button>
             )}
           </div>
@@ -641,33 +641,23 @@ export function CommunityPage() {
     <div className="max-w-6xl mx-auto px-4 pt-8 pb-20">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-primary mb-2">Community</h1>
+        <h1 className="text-3xl font-heading font-bold text-primary mb-2">Communities</h1>
         <p className="text-secondary">Discover and share vocabulary with others</p>
       </div>
 
       {/* Tabs and actions */}
-      <div className="flex items-end justify-between border-b border-white/10 mb-6">
-        <div className="flex gap-7">
-          {([['my-groups', 'My Groups'], ['discover', 'Discover']] as const).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`relative pb-3 text-sm font-semibold transition-colors ${
-                activeTab === id ? 'text-primary' : 'text-secondary hover:text-primary'
-              }`}
-            >
-              {label}
-              {activeTab === id && (
-                <motion.span
-                  layoutId="community-tab-underline"
-                  className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-accent"
-                />
-              )}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <SegmentedTabs
+          layoutId="community-tab-pill"
+          active={activeTab}
+          onChange={setActiveTab}
+          tabs={[
+            { id: 'my-groups', label: 'My Communities' },
+            { id: 'discover', label: 'Discover' },
+          ]}
+        />
 
-        <div className="flex gap-2 pb-2">
+        <div className="flex gap-2">
           <button
             onClick={() => setShowJoinModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface text-secondary hover:text-primary transition-colors border border-white/5"
@@ -691,9 +681,9 @@ export function CommunityPage() {
           {myGroups.length === 0 ? (
             <div className="rounded-2xl p-12 text-center">
               <Users className="w-16 h-16 text-muted mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-primary mb-2">No groups yet</h3>
+              <h3 className="text-xl font-bold text-primary mb-2">No communities yet</h3>
               <p className="text-secondary">
-                Join a public group or create your own to start sharing vocabulary
+                Join a public community or create your own to start sharing vocabulary
               </p>
             </div>
           ) : (
@@ -758,7 +748,7 @@ export function CommunityPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
               <input
                 type="text"
-                placeholder="Search groups..."
+                placeholder="Search communities..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full bg-surface border border-white/10 rounded-xl pl-10 pr-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50"
@@ -769,9 +759,9 @@ export function CommunityPage() {
           {publicGroups.length === 0 ? (
             <div className="rounded-2xl p-12 text-center">
               <Globe className="w-16 h-16 text-muted mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-primary mb-2">No public groups found</h3>
+              <h3 className="text-xl font-bold text-primary mb-2">No public communities found</h3>
               <p className="text-secondary">
-                Be the first to create a public group for others to discover
+                Be the first to create a public community for others to discover
               </p>
             </div>
           ) : (
@@ -810,7 +800,7 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Create Group Modal */}
+      {/* Create Community Modal */}
       <AnimatePresence>
         {showCreateModal && (
           <motion.div
@@ -828,7 +818,7 @@ export function CommunityPage() {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-primary">Create Group</h2>
+                <h2 className="text-xl font-bold text-primary">Create Community</h2>
                 <button onClick={() => setShowCreateModal(false)} className="text-muted hover:text-primary">
                   <X className="w-5 h-5" />
                 </button>
@@ -836,10 +826,10 @@ export function CommunityPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-secondary mb-1 block">Group Name</label>
+                  <label className="text-sm text-secondary mb-1 block">Community Name</label>
                   <input
                     type="text"
-                    placeholder="e.g., Kpop Vocab, Study Group"
+                    placeholder="e.g., Kpop Vocab, Study Community"
                     value={newGroupName}
                     onChange={e => setNewGroupName(e.target.value)}
                     className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50"
@@ -849,7 +839,7 @@ export function CommunityPage() {
                 <div>
                   <label className="text-sm text-secondary mb-1 block">Description (optional)</label>
                   <textarea
-                    placeholder="What's this group about?"
+                    placeholder="What's this community about?"
                     value={newGroupDescription}
                     onChange={e => setNewGroupDescription(e.target.value)}
                     rows={2}
@@ -936,7 +926,7 @@ export function CommunityPage() {
                 disabled={!newGroupName.trim() || isCreating}
                 className="w-full mt-6 bg-accent text-app font-bold py-3 rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50"
               >
-                {isCreating ? 'Creating...' : 'Create Group'}
+                {isCreating ? 'Creating...' : 'Create Community'}
               </button>
             </motion.div>
           </motion.div>
@@ -973,7 +963,7 @@ export function CommunityPage() {
                 value={joinCode}
                 onChange={e => setJoinCode(e.target.value.toUpperCase())}
                 maxLength={6}
-                className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50 font-mono text-center text-2xl tracking-widest mb-6"
+                className="w-full bg-app border border-white/10 rounded-xl px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-accent/50 font-mono text-center text-base tracking-wider mb-6"
               />
 
               <button
@@ -981,7 +971,7 @@ export function CommunityPage() {
                 disabled={joinCode.length !== 6 || isJoining}
                 className="w-full bg-accent text-app font-bold py-3 rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50"
               >
-                {isJoining ? 'Joining...' : 'Join Group'}
+                {isJoining ? 'Joining...' : 'Join Community'}
               </button>
             </motion.div>
           </motion.div>

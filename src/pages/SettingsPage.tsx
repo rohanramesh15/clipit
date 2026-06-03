@@ -6,7 +6,6 @@ import { API_BASE_URL } from '../config';
 import {
   LogOut,
   Trash2,
-  ChevronRight,
   Crown,
   Layers,
   AlertTriangle,
@@ -45,15 +44,6 @@ const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' | 'es' }[] = 
   { label: 'Spanish', flag: '🇪🇸', value: 'es' },
 ];
 
-const MOTIVATIONS = [
-  { label: 'Pop Culture', value: 'pop_culture' },
-  { label: 'Travel', value: 'travel' },
-  { label: 'Family', value: 'family' },
-  { label: 'Work', value: 'work' },
-  { label: 'Romance', value: 'romance' },
-  { label: 'Heritage', value: 'heritage' }
-];
-
 const DAILY_GOALS = [
   { label: '5 min', value: '5' },
   { label: '15 min', value: '15' },
@@ -61,10 +51,11 @@ const DAILY_GOALS = [
   { label: '1 hour+', value: '60' }
 ];
 
-const STUDY_MODES = [
-  { label: 'My Words', value: 'my-words', description: 'Study all vocab from your lists' },
-  { label: 'All Videos', value: 'all-videos', description: 'Study words from watched videos' }
-];
+// Daily time (minutes) → realistic daily flashcard target.
+function goalCards(minutes: string): number {
+  const m = parseInt(minutes, 10);
+  return m === 5 ? 10 : m === 30 ? 60 : m === 60 ? 120 : 30;
+}
 
 interface SettingsPageProps {
   onEditProfile?: () => void;
@@ -107,17 +98,11 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
 
   const { language, setLanguage } = useLanguage();
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
-  const [motivation, setMotivation] = useState(() => {
-    return localStorage.getItem('user_motivation') || 'pop_culture';
-  });
   const [dailyGoal, setDailyGoal] = useState(() => {
     return localStorage.getItem('daily_goal') || '15';
   });
   const [newCardsPerDay, setNewCardsPerDay] = useState(10);
   const [isSavingNewCards, setIsSavingNewCards] = useState(false);
-  const [defaultStudyMode, setDefaultStudyMode] = useState(() => {
-    return localStorage.getItem('default_study_mode') || 'my-words';
-  });
   const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
   const [ttsVoice, setTtsVoice] = useState(() => localStorage.getItem('tts_voice') || 'Kore');
 
@@ -208,11 +193,6 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
                 <span className="text-xs font-bold text-accent">Member</span>
               </div>
             </div>
-            <button
-              onClick={onEditProfile}
-              className="text-sm font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 shrink-0 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/5">
-              Edit Profile <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
         </section>
 
@@ -246,36 +226,7 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
               </div>
             </div>
 
-            <div className="border-t border-white/5" />
-
-            {/* Motivation */}
-            <div>
-              <label className="text-sm font-semibold text-primary mb-1 block">
-                Motivation
-              </label>
-              <p className="text-xs text-secondary mb-3">
-                Why are you learning the language?
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {MOTIVATIONS.map((m) => (
-                  <button
-                    key={m.value}
-                    onClick={() => {
-                      setMotivation(m.value);
-                      localStorage.setItem('user_motivation', m.value);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
-                      motivation === m.value
-                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
-                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
-                    }`}>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-white/5" />
+            <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
             {/* Daily Goal */}
             <div>
@@ -283,7 +234,8 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
                 Daily Goal
               </label>
               <p className="text-xs text-secondary mb-3">
-                How much time can you dedicate daily?
+                How much time can you dedicate daily? This sets your daily card target —
+                currently <span className="font-semibold text-primary">≈ {goalCards(dailyGoal)} cards</span>.
               </p>
               <div className="flex gap-2 flex-wrap">
                 {DAILY_GOALS.map((g) => (
@@ -301,7 +253,7 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
               </div>
             </div>
 
-            <div className="border-t border-white/5" />
+            <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
             {/* New Cards Per Day */}
             <div>
@@ -332,35 +284,6 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
               <p className="text-xs text-muted mt-2">
                 Set to 0 to only review existing cards
               </p>
-            </div>
-
-            <div className="border-t border-white/5" />
-
-            {/* Default Study Mode */}
-            <div>
-              <label className="text-sm font-semibold text-primary mb-1 block">
-                Default Study Mode
-              </label>
-              <p className="text-xs text-secondary mb-3">
-                What should be selected by default on the Practice page?
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {STUDY_MODES.map((mode) => (
-                  <button
-                    key={mode.value}
-                    onClick={() => {
-                      setDefaultStudyMode(mode.value);
-                      localStorage.setItem('default_study_mode', mode.value);
-                    }}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${
-                      defaultStudyMode === mode.value
-                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
-                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
-                    }`}>
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </section>

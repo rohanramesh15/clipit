@@ -31,6 +31,7 @@ import {
   ChevronRight,
   MoreVertical,
   FolderOpen,
+  Upload,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
@@ -39,6 +40,7 @@ import { useReviewSession } from '../context/ReviewSessionContext';
 import { API_BASE_URL } from '../config';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { Sparkles, BookOpen, LogOut } from 'lucide-react';
+import { fetchVideoWordCount } from '../services/madlibs';
 
 // Vocabulary list types
 interface VocabList {
@@ -409,6 +411,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [dueCards, setDueCards] = useState<FlashCard[]>([]);
   const [videos, setVideos] = useState<TrackedVideo[]>([]);
+  const [wordCounts, setWordCounts] = useState<Record<string, number>>({}); // video_id -> # words
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
   const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -1157,6 +1160,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     bootstrap();
   }, [language, token, setCardsReviewedToday]);
 
+  // Fetch per-video word counts so the deck can show counts / "no words yet".
+  useEffect(() => {
+    if (!videos.length) return;
+    let alive = true;
+    Promise.all(
+      videos.map(async (v) => [v.video_id, await fetchVideoWordCount(v.video_id, language)] as const),
+    ).then((entries) => { if (alive) setWordCounts(Object.fromEntries(entries)); });
+    return () => { alive = false; };
+  }, [videos, language]);
+
   const currentCard = dueCards[currentIndex];
   const progress = dueCards.length ? ((currentIndex + 1) / dueCards.length) * 100 : 0;
   const deckProgressTotal = dueCards.length;
@@ -1548,10 +1561,10 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           <div className="flex items-center">
             <button
               onClick={() => loadFlashcards(video.video_id, video.title)}
-              className="flex-1 flex items-center gap-4 p-4 text-left"
+              className="flex-1 flex items-center gap-5 p-5 text-left"
             >
               {/* Thumbnail */}
-              <div className="w-24 h-14 rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
+              <div className="w-32 h-[72px] rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
                 {isNetflix ? (
                   <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
                     <Film className="w-6 h-6 text-[#B20710]" />
@@ -1575,9 +1588,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 <h3 className="font-medium text-primary text-base line-clamp-1 group-hover:text-accent transition-colors">
                   {video.title}
                 </h3>
-                <span className="text-xs text-muted">
-                  {new Date(video.tracked_at * 1000).toLocaleDateString()}
-                </span>
+                {(() => {
+                  const c = wordCounts[video.video_id];
+                  if (c === undefined) return <span className="text-xs text-muted">Counting words…</span>;
+                  if (c === 0) return <span className="text-xs italic text-muted">No words to practice yet</span>;
+                  return <span className="text-xs text-accent">{c} {c === 1 ? 'word' : 'words'} to practice</span>;
+                })()}
               </div>
 
               <Play className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -1630,59 +1646,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           <p className="text-secondary">Select a deck to start reviewing flashcards.</p>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative mb-5">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
-          <input
-            type="text"
-            placeholder="Search videos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface border border-white/10 rounded-xl pl-12 pr-4 py-3.5 text-base text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-muted hover:text-primary transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Sort & Create Folder */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2.5">
-            <ArrowUpDown className="w-4 h-4 text-muted" />
-            {[
-              { value: 'recent' as SortOption, label: 'Recent' },
-              { value: 'alphabetical' as SortOption, label: 'A-Z' },
-              { value: 'oldest' as SortOption, label: 'Oldest' },
-            ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setSortOption(option.value)}
-                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  sortOption === option.value
-                    ? 'bg-accent text-app'
-                    : 'bg-surface border border-white/10 text-secondary hover:text-primary'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setShowCreateFolder(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-white/10 text-secondary hover:text-primary hover:border-white/20 text-sm font-medium transition-all"
-          >
-            <FolderPlus className="w-4 h-4" />
-            New Folder
-          </button>
-        </div>
-
-        {/* Study Mode Dropdown */}
-        <div className="mb-6">
+        {/* Primary action: choose what to study, then Study */}
+        <div className="bg-surface rounded-2xl p-5 mb-8">
           <label className="block text-sm font-medium text-secondary mb-2">Choose what to study</label>
           <div className="flex gap-3">
             <select
@@ -1697,7 +1662,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                   setSelectedVocabListId(parseInt(val));
                 }
               }}
-              className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary text-lg font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
+              className="flex-1 min-w-0 bg-app border border-white/10 rounded-xl px-4 py-4 text-primary text-lg font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all appearance-none cursor-pointer hover:border-white/20"
               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '44px' }}
             >
               <option value="all-videos">All Videos ({videos.length} videos)</option>
@@ -1721,11 +1686,72 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                   loadVocabTTSCards(selectedVocabListId);
                 }
               }}
-              className="px-6 py-4 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors"
+              className="px-6 py-4 bg-accent hover:bg-accent-hover text-app font-semibold rounded-xl transition-colors shrink-0"
             >
               Study
             </button>
           </div>
+          <button
+            onClick={() => onNavigate?.('vocabulary')}
+            className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-secondary hover:text-accent transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Add your own cards (upload Anki or a CSV)
+          </button>
+        </div>
+
+        {/* Your videos toolbar */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-sm font-bold text-muted uppercase tracking-wider">Your videos</h2>
+          <button
+            onClick={() => setShowCreateFolder(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-white/10 text-secondary hover:text-primary hover:border-white/20 text-sm font-medium transition-all"
+          >
+            <FolderPlus className="w-4 h-4" />
+            New Folder
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+          <input
+            type="text"
+            placeholder="Search videos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-surface border border-white/10 rounded-xl pl-12 pr-4 py-3.5 text-base text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-muted hover:text-primary transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Sort */}
+        <div className="flex items-center gap-2.5 mb-5">
+          <ArrowUpDown className="w-4 h-4 text-muted" />
+          {[
+            { value: 'recent' as SortOption, label: 'Recent' },
+            { value: 'alphabetical' as SortOption, label: 'A-Z' },
+            { value: 'oldest' as SortOption, label: 'Oldest' },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setSortOption(option.value)}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                sortOption === option.value
+                  ? 'bg-accent text-app'
+                  : 'bg-surface border border-white/10 text-secondary hover:text-primary'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
 
         {/* Folders Section */}

@@ -6,7 +6,7 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  fetchTrackedVideos, fetchVideoCards, buildMadlibItems,
+  fetchTrackedVideos, fetchVideoCards, buildMadlibItems, fetchVideoWordCount,
   type MadlibItem, type TrackedVideo,
 } from '../services/madlibs';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
@@ -22,6 +22,8 @@ interface MadlibsPageProps {
 
 // App accent (matches --accent in index.css, identical in light/dark).
 const ACCENT = '#C4625A';
+// Mad Libs card color — used for non-button accents so the page echoes its card.
+const PAGE = '#A65049';
 const hexA = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
@@ -35,6 +37,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
   const [phase, setPhase] = useState<Phase>('deck');
   const [videos, setVideos] = useState<TrackedVideo[] | null>(null); // null = loading list
+  const [wordCounts, setWordCounts] = useState<Record<string, number>>({}); // video_id -> # words
   const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
 
   const [items, setItems] = useState<MadlibItem[]>([]);
@@ -48,9 +51,20 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   useEffect(() => {
     let alive = true;
     setVideos(null);
+    setWordCounts({});
     fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
     return () => { alive = false; };
   }, [language, token]);
+
+  // Fetch how many words each video has, so the deck can show counts / "no words".
+  useEffect(() => {
+    if (!videos || videos.length === 0) return;
+    let alive = true;
+    Promise.all(
+      videos.map(async (v) => [v.video_id, await fetchVideoWordCount(v.video_id, language)] as const),
+    ).then((entries) => { if (alive) setWordCounts(Object.fromEntries(entries)); });
+    return () => { alive = false; };
+  }, [videos, language]);
 
   const startDeck = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
@@ -96,10 +110,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   );
 
   const title = (
-    <div className="flex items-center gap-2">
-      <PenLine className="w-5 h-5" style={{ color: ACCENT }} />
-      <h1 className="font-heading font-bold text-xl text-primary">Mad Libs</h1>
-    </div>
+    <h1 className="font-heading font-bold text-xl text-primary">Mad Libs</h1>
   );
 
   // ── Deck picker ───────────────────────────────────────────
@@ -131,9 +142,9 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   onClick={() => startDeck(v)}
-                  className="group w-full flex items-center gap-4 bg-surface border border-white/5 rounded-2xl p-3 text-left hover:bg-surface-hover transition-colors"
+                  className="group w-full flex items-center gap-5 bg-surface border border-white/5 rounded-2xl p-5 text-left hover:bg-surface-hover transition-colors"
                 >
-                  <span className="relative w-24 aspect-video shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
+                  <span className="relative w-32 aspect-video shrink-0 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
                     {isNetflix ? (
                       <Film className="w-5 h-5" style={{ color: ACCENT }} />
                     ) : (
@@ -147,7 +158,12 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block font-medium text-primary truncate">{v.title}</span>
-                    <span className="block text-xs text-muted">Fill-in-the-blank practice</span>
+                    {(() => {
+                      const c = wordCounts[v.video_id];
+                      if (c === undefined) return <span className="block text-xs text-muted">Counting words…</span>;
+                      if (c === 0) return <span className="block text-xs italic text-muted">No words yet</span>;
+                      return <span className="block text-xs" style={{ color: PAGE }}>{c} {c === 1 ? 'word' : 'words'} to practice</span>;
+                    })()}
                   </span>
                   <ChevronRight className="w-5 h-5 shrink-0 text-muted group-hover:text-accent transition-colors" />
                 </motion.button>
@@ -179,7 +195,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
       <div className="min-h-[calc(100vh-4rem)] max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">{backTo('deck')}{title}</div>
         <div className="flex flex-col items-center justify-center text-center gap-4 py-16">
-          <span className="inline-flex w-14 h-14 items-center justify-center rounded-2xl" style={{ background: hexA(ACCENT, 0.14), color: ACCENT }}>
+          <span className="inline-flex w-14 h-14 items-center justify-center rounded-2xl" style={{ background: hexA(PAGE, 0.14), color: PAGE }}>
             <PenLine className="w-7 h-7" />
           </span>
           <h2 className="font-heading font-bold text-xl text-primary">Not enough words here yet</h2>
@@ -209,7 +225,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
             initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 16 }}
             className="inline-flex w-20 h-20 items-center justify-center rounded-3xl"
-            style={{ background: hexA(ACCENT, 0.16), color: ACCENT }}
+            style={{ background: hexA(PAGE, 0.16), color: PAGE }}
           >
             <Sparkles className="w-9 h-9" />
           </motion.span>
@@ -254,7 +270,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-10">
         <motion.div
           className="h-full rounded-full"
-          style={{ background: ACCENT }}
+          style={{ background: PAGE }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
         />
@@ -354,7 +370,7 @@ function BlankSlot({ revealed, answer, correct }: { revealed: boolean; answer: s
     return (
       <span
         className="inline-block align-baseline mx-1 rounded-md"
-        style={{ minWidth: '5ch', borderBottom: `3px solid ${hexA(ACCENT, 0.5)}` }}
+        style={{ minWidth: '5ch', borderBottom: `3px solid ${hexA(PAGE, 0.5)}` }}
       >
         &nbsp;
       </span>

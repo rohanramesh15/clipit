@@ -482,10 +482,10 @@ const quizQuestions = [
     grid: true,
     columns: 2,
     options: [
-      { label: "5 min", description: "Just getting started", value: "5", icon: Sprout },
-      { label: "15 min", description: "Building a habit", value: "15", icon: Clock },
-      { label: "30 min", description: "Serious learner", value: "30", icon: Target },
-      { label: "1 hour+", description: "Full immersion", value: "60", icon: Trophy }
+      { label: "5 min", description: "≈ 10 cards a day", value: "5", icon: Sprout },
+      { label: "15 min", description: "≈ 30 cards a day", value: "15", icon: Clock },
+      { label: "30 min", description: "≈ 60 cards a day", value: "30", icon: Target },
+      { label: "1 hour+", description: "≈ 120 cards a day", value: "60", icon: Trophy }
     ]
   },
   {
