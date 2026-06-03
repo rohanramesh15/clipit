@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
+import { Skeleton } from '../components/Skeleton';
 
 interface CommunityGroup {
   id: number;
@@ -445,8 +446,16 @@ export function CommunityPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      <div className="max-w-6xl mx-auto px-4 pt-8 pb-20">
+        <Skeleton className="h-9 w-44 rounded-lg mb-3" />
+        <Skeleton className="h-5 w-72 rounded mb-8" />
+        <div className="flex gap-3 mb-8">
+          <Skeleton className="h-10 w-40 rounded-lg" />
+          <Skeleton className="h-10 w-32 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
+        </div>
       </div>
     );
   }

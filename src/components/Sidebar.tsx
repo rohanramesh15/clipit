@@ -286,8 +286,8 @@ export function Sidebar({
                 </button>
                 <button
                   onClick={() => { setIsProfileOpen(false); logout(); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/5 text-primary hover:text-accent transition-colors">
-                  <LogOut className="w-4 h-4 shrink-0 text-secondary" />
+                  className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-primary hover:bg-red-500/10 hover:text-red-500 transition-colors">
+                  <LogOut className="w-4 h-4 shrink-0 text-secondary group-hover:text-red-500 transition-colors" />
                   <span className="font-medium text-sm text-left">Log out</span>
                 </button>
                 <a
