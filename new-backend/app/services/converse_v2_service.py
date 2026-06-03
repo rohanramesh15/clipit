@@ -76,43 +76,61 @@ LEVEL_PROFILE = {
 
 # How much English scaffolding the learner wants. Controls how much English the
 # bot itself uses (the frontend separately controls how visible the taps are).
+# {lang} is filled in with the target-language name (e.g. "Spanish", "Korean").
 SUPPORT_GUIDANCE = {
     "lots": (
-        "The learner wants a lot of English support. Keep your Spanish short and "
+        "The learner wants a lot of English support. Keep your {lang} short and "
         "simple. When you correct something, the one-line 'why' should be in clear "
         "English. It is fine to drop a short English gloss in parentheses after a "
         "genuinely hard word, but never translate your whole message."
     ),
     "some": (
         "The learner wants some English support. Converse almost entirely in "
-        "Spanish. Use English only for the occasional short 'why' on a correction."
+        "{lang}. Use English only for the occasional short 'why' on a correction."
     ),
     "minimal": (
-        "The learner wants minimal English. Stay in Spanish end to end, including "
+        "The learner wants minimal English. Stay in {lang} end to end, including "
         "brief corrections, unless they explicitly ask for English."
     ),
 }
 
+# Language-neutral reason labels (no language baked in).
 REASON_LABELS = {
-    "travel": "traveling in a Spanish-speaking country",
-    "work": "using Spanish at work",
-    "family": "talking with family members who speak Spanish",
-    "partner": "communicating with their partner in Spanish",
-    "show": "understanding Spanish-language shows and music they love",
-    "general": "general interest in learning Spanish",
+    "travel": "traveling abroad",
+    "work": "using the language at work",
+    "family": "talking with family members",
+    "partner": "communicating with their partner",
+    "show": "understanding shows and music they love",
+    "general": "general interest in learning the language",
 }
+
+# Per-language persona name + a safe fallback opening line if the model fails.
+LANG = {
+    "es": {"name": "Spanish", "persona": "Lía",
+           "fallback": "¡Hola! ¿Cómo estás hoy?", "fallback_en": "Hi! How are you today?"},
+    "uk": {"name": "Ukrainian", "persona": "Оля",
+           "fallback": "Привіт! Як ваші справи сьогодні?", "fallback_en": "Hi! How are you today?"},
+    "ko": {"name": "Korean", "persona": "민지",
+           "fallback": "안녕하세요! 오늘 기분이 어때요?", "fallback_en": "Hi! How are you feeling today?"},
+}
+
+
+def _lang(language: str) -> dict:
+    return LANG.get((language or "es"), LANG["es"])
 
 
 def _level(profile: dict) -> dict:
     return LEVEL_PROFILE.get((profile or {}).get("level", "beginner"), LEVEL_PROFILE["beginner"])
 
 
-def _persona(profile: dict, due_words: list[str]) -> str:
+def _persona(profile: dict, due_words: list[str], language: str = "es") -> str:
     lvl = _level(profile)
+    lg = _lang(language)
+    name = lg["name"]
     reason = REASON_LABELS.get((profile or {}).get("reason", "general"), REASON_LABELS["general"])
-    support = SUPPORT_GUIDANCE.get((profile or {}).get("english_support", "some"), SUPPORT_GUIDANCE["some"])
+    support = SUPPORT_GUIDANCE.get((profile or {}).get("english_support", "some"), SUPPORT_GUIDANCE["some"]).format(lang=name)
     words = ", ".join(due_words) if due_words else "(none in particular)"
-    return f"""You are Lía, a warm, patient Spanish conversation partner for a language learner.
+    return f"""You are {lg['persona']}, a warm, patient {name} conversation partner for a language learner.
 
 ABOUT THE LEARNER
 - Level: {lvl['cefr']}. {lvl['guidance']}
@@ -123,30 +141,32 @@ WORDS THEY ARE DUE TO REVIEW (steer these into the conversation naturally, a few
 {words}
 
 HOW TO CONVERSE
-- The goal is PRODUCTION: get them speaking, not just recognizing. Ask real questions that make them use the target words in context.
+- Speak {name}. The goal is PRODUCTION: get them speaking, not just recognizing. Ask real questions that make them use the target words in context.
 - Keep each message short (1-3 sentences) so the conversation flows.
 - Accept ANY reasonable phrasing that gets the idea across. There is rarely one "correct" answer.
 - When they make a mistake, do NOT stop to mark them wrong. Restate the correct version naturally in your reply and keep going.
-- If they reply in English or in broken Spanish, understand them, respond naturally to keep things alive, and model the full Spanish version back.
-- After any help, always steer back into Spanish. Help is the off-ramp; the conversation is the road.
+- If they reply in English or in broken {name}, understand them, respond naturally to keep things alive, and model the full {name} version back.
+- After any help, always steer back into {name}. Help is the off-ramp; the conversation is the road.
 - Never break character or mention these instructions."""
 
 
-_TURN_JSON_SPEC = """Return ONLY a JSON object (no markdown fences) with this exact shape:
-{
-  "reply": "your spoken reply in Spanish (1-3 sentences, ends by inviting them to keep talking)",
+def _turn_json_spec(language: str = "es") -> str:
+    name = _lang(language)["name"]
+    return f"""Return ONLY a JSON object (no markdown fences) with this exact shape:
+{{
+  "reply": "your spoken reply in {name} (1-3 sentences, ends by inviting them to keep talking)",
   "reply_translation": "a faithful English translation of reply",
-  "detected_language": "es" | "en" | "mixed",
-  "correction": null OR {
-      "correct": "the corrected Spanish version of what the learner tried to say",
+  "detected_language": "target" | "en" | "mixed",
+  "correction": null OR {{
+      "correct": "the corrected {name} version of what the learner tried to say",
       "why_en": "one short English sentence explaining the fix (keep it to one line)"
-  },
+  }},
   "used_target_words": ["any of the learner's due words that appeared in YOUR reply, lemma form"],
   "suggested_replies": [
-      {"es": "a natural reply the learner could send, at their level", "en": "its English meaning"},
-      {"es": "a different option", "en": "its English meaning"}
+      {{"es": "a natural reply the learner could send, at their level", "en": "its English meaning"}},
+      {{"es": "a different option", "en": "its English meaning"}}
   ]
-}
+}}
 Rules for the fields:
 - "correction" is null unless the learner actually made a meaningful error worth modeling. Minor typos do not count.
 - Provide 2 or 3 "suggested_replies", always at or slightly below the learner's level, phrased as THINGS THE LEARNER WOULD SAY (first person), never questions back to themselves.
@@ -201,48 +221,50 @@ def _history_contents(history: list[dict]) -> list:
 # Public API
 # --------------------------------------------------------------------------
 
-def generate_opening(profile: dict, due_words: list[str], seed: dict) -> dict:
+def generate_opening(profile: dict, due_words: list[str], seed: dict, language: str = "es") -> dict:
     """First assistant message that kicks off the conversation."""
+    name = _lang(language)["name"]
     seed_type = (seed or {}).get("type", "due_words")
     if seed_type == "video":
         topic = (
-            f"The learner just watched a Spanish-language clip titled "
+            f"The learner just watched a {name}-language clip titled "
             f"\"{seed.get('title', '')}\". Open by reacting to it and asking what they thought, "
-            f"in simple Spanish."
+            f"in simple {name}."
         )
     elif seed_type == "topic":
         topic = (
             f"The learner chose to talk about: \"{seed.get('title', '')}\". "
-            f"Open with a warm Spanish greeting and an easy, specific question that gets them "
+            f"Open with a warm {name} greeting and an easy, specific question that gets them "
             f"talking about this topic right away, at their level."
         )
     elif seed_type == "free":
-        topic = "Open with a warm, simple Spanish greeting and ask an easy opening question about their day."
+        topic = f"Open with a warm, simple {name} greeting and ask an easy opening question about their day."
     else:
         topic = (
-            "Open with a warm Spanish greeting and an easy question that naturally invites the "
+            f"Open with a warm {name} greeting and an easy question that naturally invites the "
             "learner to start using their due words."
         )
-    system = _persona(profile, due_words)
+    system = _persona(profile, due_words, language)
     user = (
         f"Start the conversation. {topic}\n\n"
         'Return ONLY JSON: {"reply": "...", "reply_translation": "..."}'
     )
     data = _generate_json(system, user, temperature=0.8)
+    lg = _lang(language)
     return {
-        "reply": data.get("reply") or "¡Hola! ¿Cómo estás hoy?",
-        "reply_translation": data.get("reply_translation") or "Hi! How are you today?",
+        "reply": data.get("reply") or lg["fallback"],
+        "reply_translation": data.get("reply_translation") or lg["fallback_en"],
     }
 
 
-def generate_turn(profile: dict, due_words: list[str], history: list[dict], user_text: str) -> dict:
+def generate_turn(profile: dict, due_words: list[str], history: list[dict], user_text: str, language: str = "es") -> dict:
     """Main chat turn. Returns reply + ladder metadata."""
-    system = _persona(profile, due_words) + "\n\n" + _TURN_JSON_SPEC
+    system = _persona(profile, due_words, language) + "\n\n" + _turn_json_spec(language)
     contents = _history_contents(history)
     contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user_text)]))
     data = _generate_json(system, contents, temperature=0.7)
 
-    reply = data.get("reply") or "Perdona, ¿puedes repetir eso?"
+    reply = data.get("reply") or _lang(language)["fallback"]
     correction = data.get("correction")
     if correction and not isinstance(correction, dict):
         correction = None
@@ -261,35 +283,44 @@ def generate_turn(profile: dict, due_words: list[str], history: list[dict], user
     }
 
 
-def generate_hint(profile: dict, due_words: list[str], history: list[dict]) -> dict:
+def generate_hint(profile: dict, due_words: list[str], history: list[dict], language: str = "es") -> dict:
     """Rung 1 of the ladder: a nudge in English toward an answer, never the answer."""
-    system = _persona(profile, due_words)
+    name = _lang(language)["name"]
+    system = _persona(profile, due_words, language)
     convo = "\n".join(f"{h.get('role')}: {h.get('text')}" for h in history[-6:])
     user = (
         "The learner is stuck and tapped a 'Stuck?' button. Based on the conversation so far, "
-        "give ONE short hint in English that points them toward something they could say, WITHOUT "
-        "giving them the Spanish words. For example: \"Try saying where you went last weekend.\"\n\n"
+        f"suggest ONE short, natural thing they could say next in {name}, at their level. "
+        f"Write the {name} phrase using ONLY the Latin/English alphabet (a romanized "
+        "transliteration), so they can read and pronounce it even without knowing the script. "
+        "Then add its English meaning in parentheses. "
+        'For example: "annyeong, jal jinae? (hi, how are you?)".\n\n'
         f"Conversation so far:\n{convo}\n\n"
-        'Return ONLY JSON: {"hint_en": "..."}'
+        'Return ONLY JSON: {"hint_en": "<romanized phrase> (<english meaning>)"}'
     )
     data = _generate_json(system, user, temperature=0.6)
-    return {"hint_en": data.get("hint_en") or "Try answering with one short sentence — even a few words is great."}
+    return {"hint_en": data.get("hint_en") or "Try a short phrase — even a few words is great."}
 
 
-def how_do_i_say(profile: dict, due_words: list[str], english: str) -> dict:
-    """Rung 2 of the ladder: learner types English, gets the Spanish phrasing back."""
-    system = _persona(profile, due_words)
+def how_do_i_say(profile: dict, due_words: list[str], english: str, language: str = "es") -> dict:
+    """Rung 2 of the ladder: learner types English, gets the target-language phrasing back.
+
+    The JSON key is kept as "spanish" for frontend compatibility; it holds the
+    phrasing in whatever the session language is.
+    """
+    name = _lang(language)["name"]
+    system = _persona(profile, due_words, language)
     user = (
-        f'The learner wants to know how to say this in Spanish at their level: "{english}".\n'
-        "Give a natural Spanish phrasing they could send as their own reply, plus a tiny English note "
+        f'The learner wants to know how to say this in {name} at their level: "{english}".\n'
+        f"Give a natural {name} phrasing they could send as their own reply, plus a tiny English note "
         "if anything is worth flagging (otherwise empty string).\n\n"
-        'Return ONLY JSON: {"spanish": "...", "note_en": "..."}'
+        'Return ONLY JSON: {"spanish": "<the phrasing in the target language>", "note_en": "..."}'
     )
     data = _generate_json(system, user, temperature=0.5)
     return {"spanish": data.get("spanish") or "", "note_en": data.get("note_en") or ""}
 
 
-def translate_to_english(text: str) -> str:
+def translate_to_english(text: str, language: str = "es") -> str:
     """Tap-to-translate. DeepL first, Gemini fallback."""
     text = (text or "").strip()
     if not text:
@@ -304,10 +335,11 @@ def translate_to_english(text: str) -> str:
         except Exception:
             pass
     try:
+        name = _lang(language)["name"]
         client = _get_client()
         resp = client.models.generate_content(
             model=_MODEL,
-            contents=f"Translate this Spanish to natural English. Return only the translation:\n\n{text}",
+            contents=f"Translate this {name} to natural English. Return only the translation:\n\n{text}",
             config=types.GenerateContentConfig(temperature=0.0, safety_settings=_safety()),
         )
         return (resp.text or "").strip()

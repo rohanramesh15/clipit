@@ -168,22 +168,35 @@ class OnboardingRequest(BaseModel):
     english_support: str = "some"
 
 
+class SeedWord(BaseModel):
+    lemma: str
+    gloss: str = ""
+
+
 class SessionRequest(BaseModel):
     seed_type: str = "due_words"          # due_words | video | free | topic
     video_id: str | None = None
     seed_label: str | None = None         # for seed_type == "topic": the topic + context line
+    language: str = "es"                   # target language: es | uk | ko
+    # For seed_type == "video": the actual words extracted from the chosen video.
+    # When provided these become the session's target words (woven + tracked),
+    # replacing the themed mock list. lemma = dictionary form, gloss = English.
+    seed_words: list[SeedWord] | None = None
 
 
 class TurnRequest(BaseModel):
     text: str
+    language: str = "es"
 
 
 class HowDoISayRequest(BaseModel):
     english: str
+    language: str = "es"
 
 
 class TranslateRequest(BaseModel):
     text: str
+    language: str = "es"
 
 
 class SessionFeedbackRequest(BaseModel):
@@ -233,21 +246,39 @@ def list_videos():
 def create_session(req: SessionRequest, db: Session = Depends(get_db)):
     _ensure_tables()
     prow = _get_profile_row(db)
-    if prow is None:
-        raise HTTPException(status_code=400, detail="Complete onboarding first.")
-    profile = _profile_dict(prow)
+    # Voice Chat skips onboarding, so a profile may not exist yet — fall back to
+    # sensible defaults rather than blocking the session.
+    profile = _profile_dict(prow) or {
+        "level": "beginner",
+        "reason": "general",
+        "english_support": "some",
+    }
     due_words = _due_words_for(profile["reason"])
 
     seed = {"type": req.seed_type}
     seed_label = None
     seed_video_id = None
     if req.seed_type == "video":
-        video = next((v for v in _MOCK_VIDEOS if v["video_id"] == req.video_id), None)
-        if not video:
-            raise HTTPException(status_code=404, detail="Unknown video.")
-        seed = {"type": "video", "title": video["title"]}
-        seed_label = video["title"]
-        seed_video_id = video["video_id"]
+        # The frontend now sends the real words extracted from the chosen video.
+        # Use those as the session's target words (woven into the chat + tracked),
+        # and the video title as the seed label. Fall back to the mock gallery
+        # only when no explicit words/title were provided (legacy callers).
+        title = (req.seed_label or "").strip()
+        # Use the video's real words; an empty list is fine (better than injecting
+        # wrong-language themed defaults for ko/uk).
+        due_words = [
+            {"lemma": w.lemma, "gloss": w.gloss}
+            for w in (req.seed_words or [])
+            if (w.lemma or "").strip()
+        ][:8]
+        if not title:
+            video = next((v for v in _MOCK_VIDEOS if v["video_id"] == req.video_id), None)
+            if not video:
+                raise HTTPException(status_code=404, detail="Unknown video.")
+            title = video["title"]
+        seed = {"type": "video", "title": title}
+        seed_label = title
+        seed_video_id = req.video_id
     elif req.seed_type == "topic":
         label = (req.seed_label or "").strip()
         if not label:
@@ -270,7 +301,7 @@ def create_session(req: SessionRequest, db: Session = Depends(get_db)):
     db.refresh(sess)
 
     lemmas = [w["lemma"] for w in due_words]
-    opening = svc.generate_opening(profile, lemmas, seed)
+    opening = svc.generate_opening(profile, lemmas, seed, req.language)
 
     turn = m.CV2Turn(
         session_id=sess.id,
@@ -330,7 +361,7 @@ def chat_turn(session_id: int, req: TurnRequest, db: Session = Depends(get_db)):
     db.add(user_turn)
     db.commit()
 
-    result = svc.generate_turn(profile, due_words, history, req.text)
+    result = svc.generate_turn(profile, due_words, history, req.text, req.language)
 
     assistant_turn = m.CV2Turn(
         session_id=session_id,
@@ -355,12 +386,12 @@ def chat_turn(session_id: int, req: TurnRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/session/{session_id}/hint")
-def hint(session_id: int, db: Session = Depends(get_db)):
+def hint(session_id: int, language: str = "es", db: Session = Depends(get_db)):
     _ensure_tables()
     sess = _load_session(db, session_id)
     profile = {"level": sess.level, "reason": sess.reason, "english_support": sess.english_support}
     due_words = [w["lemma"] for w in json.loads(sess.due_words_json or "[]")]
-    return svc.generate_hint(profile, due_words, _history(db, session_id))
+    return svc.generate_hint(profile, due_words, _history(db, session_id), language)
 
 
 @router.post("/session/{session_id}/how-do-i-say")
@@ -369,12 +400,12 @@ def how_do_i_say(session_id: int, req: HowDoISayRequest, db: Session = Depends(g
     sess = _load_session(db, session_id)
     profile = {"level": sess.level, "reason": sess.reason, "english_support": sess.english_support}
     due_words = [w["lemma"] for w in json.loads(sess.due_words_json or "[]")]
-    return svc.how_do_i_say(profile, due_words, req.english)
+    return svc.how_do_i_say(profile, due_words, req.english, req.language)
 
 
 @router.post("/translate")
 def translate(req: TranslateRequest):
-    return {"translation": svc.translate_to_english(req.text)}
+    return {"translation": svc.translate_to_english(req.text, req.language)}
 
 
 # --------------------------------------------------------------------------
@@ -418,12 +449,14 @@ def _get_live_client() -> genai.Client:
     return _live_client
 
 
-def _voice_system_instruction(profile: dict, due_words: list[str], seed_label: Optional[str]) -> str:
+def _voice_system_instruction(profile: dict, due_words: list[str], seed_label: Optional[str], language: str = "es") -> str:
     """Adapt the cv2 text persona for the voice channel: drop JSON instructions,
     add voice-specific brevity / pacing hints."""
-    base = svc._persona(profile, due_words)
+    lang_name = svc._lang(language)["name"]
+    base = svc._persona(profile, due_words, language)
     voice_addendum = (
         "\n\nYOU ARE SPEAKING ALOUD — NOT TYPING."
+        f"\n- Speak {lang_name}."
         "\n- Keep each spoken turn to 1-2 short sentences."
         "\n- Speak naturally. Pause briefly after questions so the learner can answer."
         "\n- Never say things like 'in this prompt', 'as an AI', or read out JSON."
@@ -437,6 +470,7 @@ def _voice_system_instruction(profile: dict, due_words: list[str], seed_label: O
 async def voice_ws(
     websocket: WebSocket,
     session_id: int = Query(..., description="cv2 session id from POST /session"),
+    language: str = Query("es", description="target language: es | uk | ko"),
 ):
     """Browser ↔ Gemini Live relay for a cv2 sandbox session.
 
@@ -462,7 +496,7 @@ async def voice_ws(
             "english_support": sess.english_support,
         }
         due_words = [w.get("lemma", "") for w in json.loads(sess.due_words_json or "[]")]
-        system_instruction = _voice_system_instruction(profile, due_words, sess.seed_label)
+        system_instruction = _voice_system_instruction(profile, due_words, sess.seed_label, language)
 
         live_config = {
             "response_modalities": ["AUDIO"],
