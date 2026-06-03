@@ -314,11 +314,11 @@ interface VideoFolder {
 }
 
 // Folder persistence helpers
-const FOLDERS_KEY = 'lipit_video_folders';
+const FOLDERS_KEY_PREFIX = 'lipit_video_folders';
 
-function getFolders(): VideoFolder[] {
+function getFolders(language: string): VideoFolder[] {
   try {
-    const stored = localStorage.getItem(FOLDERS_KEY);
+    const stored = localStorage.getItem(`${FOLDERS_KEY_PREFIX}_${language}`);
     if (!stored) return [];
     return JSON.parse(stored);
   } catch {
@@ -326,9 +326,9 @@ function getFolders(): VideoFolder[] {
   }
 }
 
-function saveFolders(folders: VideoFolder[]) {
+function saveFolders(folders: VideoFolder[], language: string) {
   try {
-    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+    localStorage.setItem(`${FOLDERS_KEY_PREFIX}_${language}`, JSON.stringify(folders));
   } catch {
     // Ignore storage errors
   }
@@ -447,6 +447,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
+  const hasAppliedDefaultStudyMode = useRef(false);
 
   const cleanupYouTubePlayer = useCallback(() => {
     if (loopIntervalRef.current) {
@@ -495,12 +496,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     });
   }, []);
 
-  // Load folders from localStorage on mount
+  // Load folders from localStorage, scoped to current language
   useEffect(() => {
-    setFolders(getFolders());
-  }, []);
+    setFolders(getFolders(language));
+  }, [language]);
 
-  // Fetch vocabulary lists
+  // Fetch vocabulary lists, filtered to the current language
   const fetchVocabLists = useCallback(async () => {
     if (!token) return;
     try {
@@ -509,12 +510,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       });
       if (res.ok) {
         const lists = await res.json();
-        setVocabLists(lists);
+        setVocabLists(lists.filter((l: VocabList) => l.language === language));
       }
     } catch (err) {
       console.error('Failed to fetch vocab lists:', err);
     }
-  }, [token]);
+  }, [token, language]);
 
   // Fetch vocabulary lists on mount and sync enrolled classes
   useEffect(() => {
@@ -523,15 +524,22 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     syncEnrolledClasses();
   }, [fetchVocabLists]);
 
-  // Set default to "my words" if user has vocab lists and setting is enabled
+  // Reset vocab list selection when language changes
   useEffect(() => {
-    if (vocabLists.length > 0 && selectedVocabListId === null) {
+    setSelectedVocabListId(null);
+    hasAppliedDefaultStudyMode.current = false;
+  }, [language]);
+
+  // Set default to "my words" once when vocab lists first load for this language
+  useEffect(() => {
+    if (vocabLists.length > 0 && !hasAppliedDefaultStudyMode.current) {
+      hasAppliedDefaultStudyMode.current = true;
       const defaultMode = localStorage.getItem('default_study_mode') || 'my-words';
       if (defaultMode === 'my-words') {
         setSelectedVocabListId(-1);
       }
     }
-  }, [vocabLists, selectedVocabListId]);
+  }, [vocabLists]);
 
   // Join a class to get pre-made vocab lists
   async function handleJoinClass() {
@@ -673,7 +681,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     };
     const updatedFolders = [...folders, newFolder];
     setFolders(updatedFolders);
-    saveFolders(updatedFolders);
+    saveFolders(updatedFolders, language);
     setNewFolderName('');
     setShowCreateFolder(false);
   }
@@ -687,7 +695,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return f;
     });
     setFolders(updatedFolders);
-    saveFolders(updatedFolders);
+    saveFolders(updatedFolders, language);
     setAddingToFolder(null);
   }
 
@@ -700,14 +708,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return f;
     });
     setFolders(updatedFolders);
-    saveFolders(updatedFolders);
+    saveFolders(updatedFolders, language);
   }
 
   // Delete folder
   function handleDeleteFolder(folderId: string) {
     const updatedFolders = folders.filter(f => f.id !== folderId);
     setFolders(updatedFolders);
-    saveFolders(updatedFolders);
+    saveFolders(updatedFolders, language);
     setEditingFolder(null);
   }
 
@@ -721,7 +729,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return f;
     });
     setFolders(updatedFolders);
-    saveFolders(updatedFolders);
+    saveFolders(updatedFolders, language);
     setEditingFolder(null);
   }
 
