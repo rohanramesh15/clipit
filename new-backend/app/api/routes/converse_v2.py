@@ -244,7 +244,10 @@ def list_videos():
 
 @router.post("/session")
 def create_session(req: SessionRequest, db: Session = Depends(get_db)):
-    _ensure_tables()
+    try:
+        _ensure_tables()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database setup failed: {str(e)}")
     prow = _get_profile_row(db)
     # Voice Chat skips onboarding, so a profile may not exist yet — fall back to
     # sensible defaults rather than blocking the session.

@@ -1,6 +1,7 @@
 # Deploy trigger: 2026-05-28
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.models.user import User  # noqa: F401 — registers model with Base
@@ -103,6 +104,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch unhandled exceptions and return JSON with proper CORS headers."""
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth_router, prefix="/api", tags=["auth"])
