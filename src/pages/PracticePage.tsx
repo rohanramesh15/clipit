@@ -51,7 +51,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   const modes: Mode[] = [
     {
       id: 'flashcards',
-      label: 'Flashcards',
+      label: 'Flash Cards',
       description: 'Review your words with spaced repetition.',
       meta: dueCount > 0 ? `${dueCount} due now` : 'All caught up',
       Icon: Layers,
@@ -65,7 +65,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
     },
     {
       id: 'madlibs',
-      label: 'Madlibs',
+      label: 'Mad Libs',
       description: 'Drop your words into living sentences.',
       meta: 'Fill the blanks',
       Icon: PenLine,
@@ -78,7 +78,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   ].filter(Boolean).join('  ·  ');
 
   return (
-    <div className="pt-2">
+    <div className="max-w-6xl mx-auto px-4 pt-8">
       <h1 className="text-3xl font-heading font-bold text-primary mb-1">Practice</h1>
       <p className="text-secondary mb-8">
         {greeting()}{firstName ? `, ${firstName}` : ''}.  ·  {subtitle}

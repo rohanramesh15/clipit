@@ -1618,7 +1618,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-4xl font-heading font-bold text-primary mb-2">Flashcards</h1>
+          <h1 className="text-4xl font-heading font-bold text-primary mb-2">Flash Cards</h1>
           <p className="text-secondary">Select a deck to start reviewing flashcards.</p>
         </div>
 

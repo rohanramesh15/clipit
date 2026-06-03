@@ -11,6 +11,7 @@ import {
   Check,
   Globe,
   Settings as SettingsIcon,
+  LogOut,
   MessageSquare,
   Users } from
 'lucide-react';
@@ -48,7 +49,7 @@ export function Sidebar({
   isCollapsed,
   onToggleCollapsed,
 }: SidebarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -84,14 +85,14 @@ export function Sidebar({
     label: 'Practice'
   },
   {
-    id: 'analytics',
-    icon: BarChart3,
-    label: 'Progress'
-  },
-  {
     id: 'community',
     icon: Users,
     label: 'Community'
+  },
+  {
+    id: 'analytics',
+    icon: BarChart3,
+    label: 'Progress'
   },
   {
     id: 'video',
@@ -101,7 +102,7 @@ export function Sidebar({
   const;
   return (
     <motion.nav
-      className={`fixed left-0 top-0 h-full bg-surface border-r border-white/5 flex flex-col z-50`}
+      className={`fixed left-0 top-0 h-full bg-app border-r border-white/5 flex flex-col z-50`}
       animate={{ width: isCollapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
       {/* Logo Area */}
@@ -114,7 +115,7 @@ export function Sidebar({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.2 }}
-              className="flex items-center justify-center absolute inset-0 pr-4">
+              className="flex items-center justify-start absolute inset-0 pl-6">
               <img src={clipitLogo} alt="ClipIt" className="w-16 h-16 object-contain shrink-0 -mt-2" />
               <span className="text-5xl tracking-tight hidden md:block" style={{
                 fontFamily: "'Love Ya Like A Sister', cursive",
@@ -282,6 +283,12 @@ export function Sidebar({
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-primary transition-colors">
                   <SettingsIcon className="w-4 h-4 shrink-0 text-secondary" />
                   <span className="font-medium text-sm text-left">Account settings</span>
+                </button>
+                <button
+                  onClick={() => { setIsProfileOpen(false); logout(); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/5 text-primary hover:text-accent transition-colors">
+                  <LogOut className="w-4 h-4 shrink-0 text-secondary" />
+                  <span className="font-medium text-sm text-left">Log out</span>
                 </button>
                 <a
                   href={FEEDBACK_URL}

@@ -1,15 +1,8 @@
-// Data layer for the Madlibs (fill-in-the-blank) practice mode.
+// Data layer for the Mad Libs (fill-in-the-blank) practice mode.
 //
-// Madlibs is the written counterpart to Converse: it weaves the learner's
-// spaced-repetition words into short, living sentences with one word removed,
-// and — once the due set is exhausted — keeps going with the next words by
-// priority so the user can always keep practicing.
-//
-// Backend contract (to implement): POST /converse2/madlibs
-//   request:  { language: string, count: number }
-//   response: { items: MadlibItem[] }
-// Until that endpoint exists this module returns a clearly-labelled SAMPLE
-// round (isSample: true) so the feature is fully usable and reviewable.
+// Mad Libs reuses the SAME per-video data as Flash Cards: for a tracked video we
+// load its extracted words + example sentences, then turn each into a cloze by
+// blanking the word out of its real sentence and offering multiple choices.
 
 import { API_BASE_URL } from '../config';
 
@@ -18,94 +11,117 @@ export interface MadlibItem {
   before: string;       // sentence text before the blank
   after: string;        // sentence text after the blank
   answer: string;       // the target-language word that fills the blank
-  gloss: string;        // English meaning of the answer (used as an optional hint)
-  translation: string;  // full English translation of the completed sentence
+  gloss: string;        // English meaning of the answer (optional hint)
+  translation: string;  // full English translation of the sentence
   options: string[];    // 3–4 target-language choices, including the answer
-  isSample?: boolean;   // true when served from the local fallback set
 }
 
-// A small, hand-authored Spanish set so the mode works end-to-end before the
-// backend endpoint lands. Each item mirrors the real MadlibItem shape.
-const SAMPLE_ES: Omit<MadlibItem, 'isSample'>[] = [
-  {
-    id: 's1',
-    before: 'Todos los días ',
-    after: ' café por la mañana.',
-    answer: 'tomo',
-    gloss: 'I drink / take',
-    translation: 'Every day I drink coffee in the morning.',
-    options: ['tomo', 'como', 'vivo', 'hablo'],
-  },
-  {
-    id: 's2',
-    before: 'Mi hermana ',
-    after: ' en una oficina grande.',
-    answer: 'trabaja',
-    gloss: 'works',
-    translation: 'My sister works in a big office.',
-    options: ['trabaja', 'camina', 'duerme', 'lee'],
-  },
-  {
-    id: 's3',
-    before: '¿Puedes ',
-    after: ' más despacio, por favor?',
-    answer: 'hablar',
-    gloss: 'to speak',
-    translation: 'Can you speak more slowly, please?',
-    options: ['hablar', 'comer', 'correr', 'abrir'],
-  },
-  {
-    id: 's4',
-    before: 'Ayer ',
-    after: ' una película muy buena.',
-    answer: 'vi',
-    gloss: 'I saw',
-    translation: 'Yesterday I saw a very good movie.',
-    options: ['vi', 'fui', 'comí', 'leí'],
-  },
-  {
-    id: 's5',
-    before: 'Necesito ',
-    after: ' al supermercado hoy.',
-    answer: 'ir',
-    gloss: 'to go',
-    translation: 'I need to go to the supermarket today.',
-    options: ['ir', 'ver', 'dar', 'ser'],
-  },
-  {
-    id: 's6',
-    before: 'Nosotros ',
-    after: ' en la playa todo el verano.',
-    answer: 'estuvimos',
-    gloss: 'we were',
-    translation: 'We were at the beach all summer.',
-    options: ['estuvimos', 'fuimos', 'tenemos', 'vamos'],
-  },
-];
-
-function sampleItems(language: string): MadlibItem[] {
-  // Only Spanish sample content exists; other languages fall through to the
-  // empty state until the backend endpoint provides localized items.
-  if (language !== 'es') return [];
-  return SAMPLE_ES.map((it) => ({ ...it, isSample: true }));
+export interface TrackedVideo {
+  video_id: string;
+  title: string;
+  tracked_at: number;
+  building?: boolean;
 }
 
-export async function fetchMadlibItems(
+export interface FlashCard {
+  target_word: string;
+  dictionary_form: string;
+  english: string;
+  sentence: string | null;
+  sentence_translation: string | null;
+}
+
+// ── Fetch the user's tracked videos for a language ────────────────────────────
+export async function fetchTrackedVideos(
   language: string,
-  count = 8,
-): Promise<MadlibItem[]> {
+  token?: string | null,
+): Promise<TrackedVideo[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/converse2/madlibs`, {
+    const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.videos || [];
+  } catch {
+    return [];
+  }
+}
+
+// ── Fetch the extracted words + example sentences for one video ───────────────
+// Mirrors the Flash Cards loader (subtitles → vocabulary → flashcard-data).
+export async function fetchVideoCards(videoId: string, language: string): Promise<FlashCard[]> {
+  try {
+    // Ensure subtitles are processed (best-effort).
+    await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`).catch(() => {});
+
+    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=30&lang=${language}`);
+    if (!vocabRes.ok) return [];
+    const vocab = await vocabRes.json();
+    if (!vocab.total_words) return [];
+
+    const wordList = (vocab.vocabulary || []).map((v: { word: string }) => v.word);
+    if (wordList.length === 0) return [];
+
+    const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language, count }),
+      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
     });
-    if (!res.ok) throw new Error(`madlibs failed: ${res.status}`);
-    const data: { items?: MadlibItem[] } = await res.json();
-    if (data.items && data.items.length > 0) return data.items;
-    return sampleItems(language);
+    if (!fcRes.ok) return [];
+    const fc = await fcRes.json();
+    return (fc.flashcards || []) as FlashCard[];
   } catch {
-    // Network/endpoint not available yet → labelled sample round.
-    return sampleItems(language);
+    return [];
   }
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── Turn flashcards into cloze (fill-the-blank) items ─────────────────────────
+// For each card we locate the word inside its sentence and blank it; other words
+// from the same video become distractor options.
+export function buildMadlibItems(cards: FlashCard[], max = 12): MadlibItem[] {
+  const allWords = Array.from(
+    new Set(cards.map((c) => (c.target_word || '').trim()).filter(Boolean)),
+  );
+
+  const items: MadlibItem[] = [];
+  for (const card of cards) {
+    const sentence = (card.sentence || '').trim();
+    const word = (card.target_word || '').trim();
+    if (!sentence || !word) continue;
+
+    const idx = sentence.toLowerCase().indexOf(word.toLowerCase());
+    if (idx === -1) continue; // word not literally in the sentence — can't blank it
+
+    const matched = sentence.slice(idx, idx + word.length);
+    const before = sentence.slice(0, idx);
+    const after = sentence.slice(idx + word.length);
+
+    const distractors = shuffle(
+      allWords.filter((w) => w.toLowerCase() !== word.toLowerCase()),
+    ).slice(0, 3);
+    if (distractors.length === 0) continue; // need at least one alternative
+
+    items.push({
+      id: `${card.dictionary_form || word}-${items.length}`,
+      before,
+      after,
+      answer: matched,
+      gloss: card.english || '',
+      translation: card.sentence_translation || '',
+      options: shuffle([matched, ...distractors]),
+    });
+    if (items.length >= max) break;
+  }
+
+  return shuffle(items);
 }

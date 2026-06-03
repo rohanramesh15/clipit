@@ -454,11 +454,7 @@ export function CommunityPage() {
   // Group detail view
   if (selectedGroup) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl mx-auto px-4 pt-8 pb-20"
-      >
+      <div className="max-w-6xl mx-auto px-4 pt-8 pb-20">
         {/* Back button */}
         <button
           onClick={() => setSelectedGroup(null)}
@@ -683,17 +679,13 @@ export function CommunityPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
     );
   }
 
   // Main community view
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto px-4 pt-8 pb-20"
-    >
+    <div className="max-w-6xl mx-auto px-4 pt-8 pb-20">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold text-primary mb-2">Community</h1>
@@ -1103,6 +1095,6 @@ export function CommunityPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
