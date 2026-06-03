@@ -19,7 +19,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('tracked_videos', sa.Column('has_spanish', sa.Boolean(), nullable=True))
+    # Check if column already exists before adding
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name='tracked_videos' AND column_name='has_spanish'"
+    ))
+    if result.fetchone() is None:
+        op.add_column('tracked_videos', sa.Column('has_spanish', sa.Boolean(), nullable=True))
 
 
 def downgrade() -> None:
