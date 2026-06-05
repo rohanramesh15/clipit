@@ -1,5 +1,5 @@
-const API = 'https://project-deadbird-backend.fly.dev/api';
-const APP_URL = 'https://project-deadbird-frontend.fly.dev';
+const API = 'https://project-deadbird-backend.onrender.com/api';
+const APP_URL = 'https://theclipitapp.com';
 const root = document.getElementById('root');
 
 // ─── State ────────────────────────────────────────────
