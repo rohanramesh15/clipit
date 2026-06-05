@@ -61,7 +61,6 @@ export function Sidebar({
   const languages = [
     { code: 'ko', flag: '🇰🇷', name: 'Korean' },
     { code: 'uk', flag: '🇺🇦', name: 'Ukrainian' },
-    { code: 'es', flag: '🇪🇸', name: 'Spanish' },
   ];
 
   const currentLang = languages.find(l => l.code === language) || languages[0];
@@ -226,7 +225,7 @@ export function Sidebar({
                   <button
                     key={lang.code}
                     onClick={() => {
-                      setLanguage(lang.code as 'ko' | 'uk' | 'es' | 'en');
+                      setLanguage(lang.code as 'ko' | 'uk');
                       setIsLanguageOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
