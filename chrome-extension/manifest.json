@@ -1,16 +1,15 @@
 {
   "manifest_version": 3,
   "name": "ClipIt",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Learn languages from YouTube and Netflix videos you love",
   "permissions": ["storage", "scripting", "tabCapture", "offscreen", "activeTab"],
   "host_permissions": [
     "*://www.youtube.com/*",
     "*://www.netflix.com/*",
-    "https://project-deadbird-backend.fly.dev/*",
-    "https://project-deadbird-frontend.fly.dev/*",
     "https://project-deadbird-backend.onrender.com/*",
     "https://theclipitapp.com/*",
+    "https://www.theclipitapp.com/*",
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*",
     "http://localhost:5176/*"
@@ -30,7 +29,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://project-deadbird-frontend.fly.dev/*", "https://theclipitapp.com/*", "https://www.theclipitapp.com/*", "http://localhost:5176/*"],
+      "matches": ["https://theclipitapp.com/*", "https://www.theclipitapp.com/*", "http://localhost:5176/*"],
       "js": ["token-bridge.js"],
       "run_at": "document_idle"
     }
