@@ -115,7 +115,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             ))}
           </div>
           <p className="text-sm text-muted mt-12">
-            Korean · Ukrainian · Spanish &nbsp;·&nbsp; Bring your own Anki decks &nbsp;·&nbsp; Shared community lists &nbsp;·&nbsp; Streaks &amp; progress
+            Korean · Ukrainian &nbsp;·&nbsp; Bring your own Anki decks &nbsp;·&nbsp; Shared community lists &nbsp;·&nbsp; Streaks &amp; progress
           </p>
         </section>
 

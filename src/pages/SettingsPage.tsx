@@ -38,10 +38,9 @@ const settingsPageTips: HelpTip[] = [
   },
 ];
 
-const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' | 'es' }[] = [
+const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' }[] = [
   { label: 'Korean', flag: '🇰🇷', value: 'ko' },
   { label: 'Ukrainian', flag: '🇺🇦', value: 'uk' },
-  { label: 'Spanish', flag: '🇪🇸', value: 'es' },
 ];
 
 const DAILY_GOALS = [
