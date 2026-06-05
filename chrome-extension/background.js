@@ -8,7 +8,7 @@
 console.log('[ClipIt] Service worker starting...');
 // Import subtitle fetcher
 importScripts('subtitle-fetcher.js');
-const API = 'https://project-deadbird-backend.onrender.com/api';
+const API = 'https://project-deadbird-backend.fly.dev/api';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 const LANGUAGE_CONFIGS = {
