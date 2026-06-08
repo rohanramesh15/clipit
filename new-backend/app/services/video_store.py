@@ -52,7 +52,6 @@ def get_all_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
-                "has_spanish": r.has_spanish,
                 "has_english": r.has_english,
                 "season": r.season,
                 "episode": r.episode,
@@ -159,7 +158,6 @@ def get_filtered_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
-                "has_spanish": r.has_spanish,
                 "has_english": r.has_english,
                 "season": r.season,
                 "episode": r.episode,
@@ -197,16 +195,6 @@ def update_ukrainian_status(video_id: str, has_ukrainian: bool) -> None:
         db.close()
 
 
-def update_spanish_status(video_id: str, has_spanish: bool) -> None:
-    db = _db()
-    try:
-        db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).update(
-            {"has_spanish": has_spanish}
-        )
-        db.commit()
-    finally:
-        db.close()
-
 
 def update_english_status(video_id: str, has_english: bool) -> None:
     db = _db()
@@ -237,7 +225,6 @@ def get_ukrainian_filtered_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
-                "has_spanish": r.has_spanish,
                 "has_english": r.has_english,
                 "season": r.season,
                 "episode": r.episode,
@@ -264,51 +251,6 @@ def get_unchecked_ukrainian_videos() -> list[dict]:
         db.close()
 
 
-def get_spanish_filtered_videos() -> list[dict]:
-    """Return only videos confirmed to have Spanish vocabulary."""
-    db = _db()
-    try:
-        rows = (
-            db.query(TrackedVideo)
-            .filter(TrackedVideo.has_spanish == True)
-            .order_by(TrackedVideo.tracked_at.desc())
-            .all()
-        )
-        return [
-            {
-                "video_id": r.video_id,
-                "title": r.title,
-                "youtube_url": r.youtube_url,
-                "tracked_at": r.tracked_at,
-                "has_korean": r.has_korean,
-                "has_ukrainian": r.has_ukrainian,
-                "has_spanish": r.has_spanish,
-                "has_english": r.has_english,
-                "season": r.season,
-                "episode": r.episode,
-                "episode_title": r.episode_title,
-            }
-            for r in rows
-        ]
-    finally:
-        db.close()
-
-
-def get_unchecked_spanish_videos() -> list[dict]:
-    """Return videos where Spanish subtitle availability hasn't been checked yet."""
-    db = _db()
-    try:
-        rows = (
-            db.query(TrackedVideo)
-            .filter(TrackedVideo.has_spanish == None)
-            .order_by(TrackedVideo.tracked_at.desc())
-            .all()
-        )
-        return [{"video_id": r.video_id, "title": r.title, "tracked_at": r.tracked_at} for r in rows]
-    finally:
-        db.close()
-
-
 def get_english_filtered_videos() -> list[dict]:
     """Return only videos confirmed to have English vocabulary."""
     db = _db()
@@ -327,7 +269,6 @@ def get_english_filtered_videos() -> list[dict]:
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
-                "has_spanish": r.has_spanish,
                 "has_english": r.has_english,
                 "season": r.season,
                 "episode": r.episode,
@@ -421,8 +362,6 @@ def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> lis
     # Filter to show videos with language = True OR NULL (not False)
     if lang == "uk":
         query = query.filter((TrackedVideo.has_ukrainian == True) | (TrackedVideo.has_ukrainian == None))
-    elif lang == "es":
-        query = query.filter((TrackedVideo.has_spanish == True) | (TrackedVideo.has_spanish == None))
     elif lang == "en":
         query = query.filter((TrackedVideo.has_english == True) | (TrackedVideo.has_english == None))
     else:
@@ -464,10 +403,6 @@ def get_user_building_videos(db: Session, user_id: int, lang: str = "ko") -> lis
         query = query.filter(
             (TrackedVideo.has_ukrainian == None) | (TrackedVideo.has_ukrainian == False)
         )
-    elif lang == "es":
-        query = query.filter(
-            (TrackedVideo.has_spanish == None) | (TrackedVideo.has_spanish == False)
-        )
     elif lang == "en":
         query = query.filter(
             (TrackedVideo.has_english == None) | (TrackedVideo.has_english == False)
@@ -500,8 +435,6 @@ def get_user_unchecked_videos(db: Session, user_id: int, lang: str = "ko") -> li
     query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
     if lang == "uk":
         query = query.filter(TrackedVideo.has_ukrainian == None)
-    elif lang == "es":
-        query = query.filter(TrackedVideo.has_spanish == None)
     elif lang == "en":
         query = query.filter(TrackedVideo.has_english == None)
     else:
@@ -529,8 +462,6 @@ def get_total_watch_time(db: Session, user_id: int, lang: str = "ko") -> dict:
     query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
     if lang == "uk":
         query = query.filter(TrackedVideo.has_ukrainian == True)
-    elif lang == "es":
-        query = query.filter(TrackedVideo.has_spanish == True)
     elif lang == "en":
         query = query.filter(TrackedVideo.has_english == True)
     else:

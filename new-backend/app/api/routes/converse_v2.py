@@ -177,7 +177,7 @@ class SessionRequest(BaseModel):
     seed_type: str = "due_words"          # due_words | video | free | topic
     video_id: str | None = None
     seed_label: str | None = None         # for seed_type == "topic": the topic + context line
-    language: str = "es"                   # target language: es | uk | ko
+    language: str = "ko"                   # target language: es | uk | ko
     # For seed_type == "video": the actual words extracted from the chosen video.
     # When provided these become the session's target words (woven + tracked),
     # replacing the themed mock list. lemma = dictionary form, gloss = English.
@@ -186,17 +186,26 @@ class SessionRequest(BaseModel):
 
 class TurnRequest(BaseModel):
     text: str
-    language: str = "es"
+    language: str = "ko"
 
 
 class HowDoISayRequest(BaseModel):
     english: str
-    language: str = "es"
+    language: str = "ko"
 
 
 class TranslateRequest(BaseModel):
     text: str
-    language: str = "es"
+    language: str = "ko"
+
+
+class RomanizeRequest(BaseModel):
+    text: str
+    language: str = "ko"
+
+
+class LangBody(BaseModel):
+    language: str = "ko"
 
 
 class SessionFeedbackRequest(BaseModel):
@@ -388,8 +397,66 @@ def chat_turn(session_id: int, req: TurnRequest, db: Session = Depends(get_db)):
     return {"turn_id": assistant_turn.id, **result}
 
 
+@router.post("/session/{session_id}/regenerate")
+def regenerate(session_id: int, req: LangBody, db: Session = Depends(get_db)):
+    """Produce a different assistant reply to the most recent learner turn,
+    replacing the last assistant message in place."""
+    _ensure_tables()
+    sess = _load_session(db, session_id)
+    profile = {"level": sess.level, "reason": sess.reason, "english_support": sess.english_support}
+    due_words = [w["lemma"] for w in json.loads(sess.due_words_json or "[]")]
+
+    turns = (
+        db.query(m.CV2Turn).filter(m.CV2Turn.session_id == session_id).order_by(m.CV2Turn.idx.asc()).all()
+    )
+    last_asst = next((t for t in reversed(turns) if t.role == "assistant"), None)
+    if last_asst is None:
+        raise HTTPException(status_code=400, detail="Nothing to regenerate.")
+    prior = [t for t in turns if t.idx < last_asst.idx]
+    last_user = next((t for t in reversed(prior) if t.role == "user"), None)
+    if last_user is None:
+        raise HTTPException(status_code=400, detail="Nothing to regenerate.")
+    history = [{"role": t.role, "text": t.text} for t in prior if t.idx < last_user.idx]
+
+    result = svc.generate_turn(profile, due_words, history, last_user.text, req.language)
+    last_asst.text = result["reply"]
+    last_asst.meta_json = json.dumps(
+        {
+            "reply_translation": result["reply_translation"],
+            "correction": result["correction"],
+            "used_target_words": result["used_target_words"],
+            "suggested_replies": result["suggested_replies"],
+            "detected_language": result["detected_language"],
+        }
+    )
+    db.commit()
+    db.refresh(last_asst)
+    return {"turn_id": last_asst.id, **result}
+
+
+@router.post("/session/{session_id}/suggest")
+def suggest(session_id: int, req: LangBody, db: Session = Depends(get_db)):
+    """Suggest a few things the learner could say next."""
+    _ensure_tables()
+    sess = _load_session(db, session_id)
+    profile = {"level": sess.level, "reason": sess.reason, "english_support": sess.english_support}
+    due_words = [w["lemma"] for w in json.loads(sess.due_words_json or "[]")]
+    return svc.generate_suggestions(profile, due_words, _history(db, session_id), req.language)
+
+
+@router.post("/session/{session_id}/coach")
+def coach(session_id: int, req: HowDoISayRequest, db: Session = Depends(get_db)):
+    """The learner replied in English — return the corrected target-language
+    message + explanation + advanced grammar feedback (for the right panel)."""
+    _ensure_tables()
+    sess = _load_session(db, session_id)
+    profile = {"level": sess.level, "reason": sess.reason, "english_support": sess.english_support}
+    due_words = [w["lemma"] for w in json.loads(sess.due_words_json or "[]")]
+    return svc.coach_english(profile, due_words, _history(db, session_id), req.english, req.language)
+
+
 @router.post("/session/{session_id}/hint")
-def hint(session_id: int, language: str = "es", db: Session = Depends(get_db)):
+def hint(session_id: int, language: str = "ko", db: Session = Depends(get_db)):
     _ensure_tables()
     sess = _load_session(db, session_id)
     profile = {"level": sess.level, "reason": sess.reason, "english_support": sess.english_support}
@@ -409,6 +476,11 @@ def how_do_i_say(session_id: int, req: HowDoISayRequest, db: Session = Depends(g
 @router.post("/translate")
 def translate(req: TranslateRequest):
     return {"translation": svc.translate_to_english(req.text, req.language)}
+
+
+@router.post("/romanize")
+def romanize(req: RomanizeRequest):
+    return {"romanized": svc.romanize(req.text, req.language)}
 
 
 # --------------------------------------------------------------------------
@@ -452,7 +524,7 @@ def _get_live_client() -> genai.Client:
     return _live_client
 
 
-def _voice_system_instruction(profile: dict, due_words: list[str], seed_label: Optional[str], language: str = "es") -> str:
+def _voice_system_instruction(profile: dict, due_words: list[str], seed_label: Optional[str], language: str = "ko") -> str:
     """Adapt the cv2 text persona for the voice channel: drop JSON instructions,
     add voice-specific brevity / pacing hints."""
     lang_name = svc._lang(language)["name"]
@@ -473,7 +545,7 @@ def _voice_system_instruction(profile: dict, due_words: list[str], seed_label: O
 async def voice_ws(
     websocket: WebSocket,
     session_id: int = Query(..., description="cv2 session id from POST /session"),
-    language: str = Query("es", description="target language: es | uk | ko"),
+    language: str = Query("ko", description="target language: uk | ko"),
 ):
     """Browser ↔ Gemini Live relay for a cv2 sandbox session.
 

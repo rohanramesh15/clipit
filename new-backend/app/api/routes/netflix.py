@@ -9,11 +9,10 @@ from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import Response
 from app.core.config import settings
-from app.services.video_store import update_video_duration, update_korean_status, update_ukrainian_status, update_spanish_status
+from app.services.video_store import update_video_duration, update_korean_status, update_ukrainian_status
 from app.services.vocab_service import load_frequency_map, is_common_particle
 from app.services.korean_tokenizer import extract_korean_words
 from app.services.ukrainian_tokenizer import extract_ukrainian_words
-from app.services.spanish_tokenizer import extract_spanish_words
 from app.services.image_store import save_image, get_image
 
 router = APIRouter()
@@ -21,20 +20,15 @@ router = APIRouter()
 # Cache frequency maps in memory
 _FREQUENCY_MAP_KO: dict | None = None
 _FREQUENCY_MAP_UK: dict | None = None
-_FREQUENCY_MAP_ES: dict | None = None
 
 
 def get_frequency_map_cached(lang: str = 'ko') -> dict:
     """Get cached frequency map for a language."""
-    global _FREQUENCY_MAP_KO, _FREQUENCY_MAP_UK, _FREQUENCY_MAP_ES
+    global _FREQUENCY_MAP_KO, _FREQUENCY_MAP_UK
     if lang == 'uk':
         if _FREQUENCY_MAP_UK is None:
             _FREQUENCY_MAP_UK = load_frequency_map('uk')
         return _FREQUENCY_MAP_UK
-    elif lang == 'es':
-        if _FREQUENCY_MAP_ES is None:
-            _FREQUENCY_MAP_ES = load_frequency_map('es')
-        return _FREQUENCY_MAP_ES
     else:
         if _FREQUENCY_MAP_KO is None:
             _FREQUENCY_MAP_KO = load_frequency_map('ko')
@@ -64,9 +58,6 @@ def extract_keyword_timestamps(subtitles: List[dict], language: str) -> List[int
     if language == 'uk':
         extract_fn = extract_ukrainian_words
         text_key = 'ukrainian'
-    elif language == 'es':
-        extract_fn = extract_spanish_words
-        text_key = 'spanish'
     else:
         extract_fn = extract_korean_words
         text_key = 'korean'
@@ -148,7 +139,6 @@ async def save_netflix_subtitles(request: dict = Body(...)):
         "total_subtitles": len(clean_subtitles),
         "has_korean": language == "ko",
         "has_ukrainian": language == "uk",
-        "has_spanish": language == "es",
         "subtitles": clean_subtitles,
     }
 
@@ -172,8 +162,6 @@ async def save_netflix_subtitles(request: dict = Body(...)):
             update_korean_status(video_id, True)
         elif language == "uk":
             update_ukrainian_status(video_id, True)
-        elif language == "es":
-            update_spanish_status(video_id, True)
         print(f"[Netflix] Marked {video_id} as having {language} subtitles")
     except Exception as e:
         print(f"[Netflix] Failed to update language status: {e}")

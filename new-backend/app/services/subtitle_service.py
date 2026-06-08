@@ -396,155 +396,6 @@ def load_cached_subtitles_ukrainian(video_id: str) -> dict | None:
     return get_subtitles_ukrainian(video_id)
 
 
-# ── Spanish support ───────────────────────────────────────────────────────────
-
-def _cache_path_es(video_id: str) -> Path:
-    cache_dir = Path(settings.SUBTITLES_CACHE_DIR)
-    cache_dir.mkdir(exist_ok=True)
-    return cache_dir / f"subtitles_es_{video_id}.json"
-
-
-def merge_subtitles_spanish(english_subs: list, spanish_subs: list) -> list:
-    """Merge Spanish (primary) with matching English."""
-    merged = []
-    for es_sub in spanish_subs:
-        if not es_sub['text'] or not es_sub['text'].strip():
-            continue
-        es_start = es_sub['start']
-        matching_eng = None
-        for en_sub in english_subs:
-            if abs(es_start - en_sub['start']) < 1.0:
-                matching_eng = en_sub
-                break
-        if matching_eng and matching_eng['text'].strip():
-            merged.append({
-                'start': es_start,
-                'duration': es_sub['duration'],
-                'end': es_start + es_sub['duration'],
-                'english': matching_eng['text'],
-                'spanish': es_sub['text'],
-            })
-    return merged
-
-
-def _fetch_spanish_translation(transcript_list) -> list:
-    """Try to get Spanish via YouTube's auto-translation of English."""
-    try:
-        en_transcript = transcript_list.find_transcript(['en'])
-        return _snippets_to_list(en_transcript.translate('es').fetch())
-    except Exception:
-        pass
-
-    try:
-        en_transcript = transcript_list.find_generated_transcript(['en'])
-        return _snippets_to_list(en_transcript.translate('es').fetch())
-    except Exception:
-        pass
-
-    return []
-
-
-def fetch_and_cache_subtitles_spanish(video_id: str) -> dict:
-    """Fetch Spanish+English subtitles, merge, cache to disk, return data."""
-    cache_file = _cache_path_es(video_id)
-
-    if cache_file.exists():
-        with open(cache_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-
-    api = YouTubeTranscriptApi()
-    transcript_list = api.list(video_id)
-
-    # ── Spanish (native first, then translation fallback) ───────────
-    spanish_subs = []
-    es_transcript = None
-    try:
-        es_transcript = transcript_list.find_transcript(['es'])
-        spanish_subs = _snippets_to_list(es_transcript.fetch())
-    except Exception:
-        pass
-
-    if not spanish_subs:
-        spanish_subs = _fetch_spanish_translation(transcript_list)
-
-    # ── English (best effort) ────────────────────────────────────────
-    english_subs = _fetch_english(transcript_list, es_transcript)
-
-    if not spanish_subs and not english_subs:
-        raise Exception(f"No subtitles available for {video_id}")
-
-    # ── Merge ────────────────────────────────────────────────────────
-    if spanish_subs and english_subs:
-        merged = merge_subtitles_spanish(english_subs, spanish_subs)
-    elif spanish_subs:
-        merged = [
-            {
-                'start': s['start'], 'duration': s['duration'],
-                'end': s['start'] + s['duration'],
-                'english': s['text'], 'spanish': s['text'],
-            }
-            for s in spanish_subs
-            if s['text'] and s['text'].strip()
-        ]
-    else:
-        merged = [
-            {
-                'start': s['start'], 'duration': s['duration'],
-                'end': s['start'] + s['duration'],
-                'english': s['text'], 'spanish': '',
-            }
-            for s in english_subs
-            if s['text'] and s['text'].strip()
-        ]
-
-    data = {
-        'video_id': video_id,
-        'total_subtitles': len(merged),
-        'has_spanish': len(spanish_subs) > 0,
-        'subtitles': merged,
-    }
-
-    with open(cache_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    # Calculate and save video duration from last subtitle
-    if merged:
-        last_sub = merged[-1]
-        duration_seconds = int(last_sub.get('end', last_sub['start'] + last_sub['duration']))
-        try:
-            update_video_duration(video_id, duration_seconds)
-        except Exception:
-            pass
-
-    return data
-
-
-def check_spanish_available(video_id: str) -> bool:
-    """Quick check if Spanish subtitles exist (uses cache if available)."""
-    cache_file = _cache_path_es(video_id)
-    if cache_file.exists():
-        with open(cache_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data.get('has_spanish', False)
-
-    try:
-        api = YouTubeTranscriptApi()
-        transcript_list = api.list(video_id)
-        transcript_list.find_transcript(['es'])
-        return True
-    except Exception:
-        return False
-
-
-def load_cached_subtitles_spanish(video_id: str) -> dict | None:
-    """Load Spanish subtitle cache from disk, then Neon fallback."""
-    cache_file = _cache_path_es(video_id)
-    if cache_file.exists():
-        with open(cache_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return get_subtitles(video_id)
-
-
 # ── English support ───────────────────────────────────────────────────────────
 # English is special: it's the target language for English-learners but also
 # the universal translation pair for other-language videos. The cache here is
@@ -625,7 +476,7 @@ def load_cached_subtitles_english(video_id: str) -> dict | None:
     return get_subtitles(video_id)
 
 
-def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has_korean: bool = False, has_ukrainian: bool = False, has_spanish: bool = False, has_english: bool = False) -> bool:
+def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has_korean: bool = False, has_ukrainian: bool = False, has_english: bool = False) -> bool:
     """
     Save subtitles that were fetched by the extension (in the user's browser).
     This avoids YouTube IP blocking issues.
@@ -634,8 +485,6 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
         # Determine which cache file to use
         if lang == 'uk':
             cache_file = _cache_path_uk(video_id)
-        elif lang == 'es':
-            cache_file = _cache_path_es(video_id)
         elif lang == 'en':
             cache_file = _cache_path_en(video_id)
         else:
@@ -647,7 +496,6 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
             'total_subtitles': len(subtitles),
             'has_korean': has_korean,
             'has_ukrainian': has_ukrainian,
-            'has_spanish': has_spanish,
             'has_english': has_english,
             'subtitles': subtitles,
         }
@@ -668,12 +516,10 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
                 pass
 
         # Update video language status in database
-        from app.services.video_store import update_korean_status, update_ukrainian_status, update_spanish_status, update_english_status
+        from app.services.video_store import update_korean_status, update_ukrainian_status, update_english_status
         try:
             if lang == 'uk':
                 update_ukrainian_status(video_id, has_ukrainian)
-            elif lang == 'es':
-                update_spanish_status(video_id, has_spanish)
             elif lang == 'en':
                 update_english_status(video_id, has_english)
             else:
@@ -682,7 +528,7 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
             print(f"Failed to update video status: {e}")
 
         # Auto-embed target-language subtitles into pgvector (fire-and-forget)
-        target_has = (lang == 'es' and has_spanish) or (lang == 'en' and has_english)
+        target_has = (lang == 'en' and has_english)
         if target_has and subtitles:
             try:
                 import threading

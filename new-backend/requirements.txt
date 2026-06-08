@@ -28,7 +28,7 @@ google-genai==2.7.0
 # pgvector ORM support
 pgvector==0.3.6
 
-# Spanish lemmatization
+# General lemmatizer (spaCy) used by the legacy chat/embedding subsystem
 spacy==3.7.6
 
 # Ukrainian lemmatization (maps inflected subtitle words to base-form lemmas)

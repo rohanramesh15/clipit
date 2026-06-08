@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import List, Set
 from fastapi import APIRouter, HTTPException, Body
-from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_spanish
+from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
 from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.services.vocab_service import load_frequency_map
 from app.services import ukrainian_lemmatizer
@@ -239,62 +239,6 @@ def find_sentence_for_word(word: str, subtitles: list, skipped_sentences: Set[st
     return {'sentence': word, 'translation': 'No translation available', 'timestamp': 0, 'end_timestamp': 5, 'matched_form': word}
 
 
-def find_sentence_for_word_spanish(word: str, subtitles: list, skipped_sentences: Set[str] = None) -> dict:
-    """Find a subtitle sentence containing the Spanish word."""
-    if skipped_sentences is None:
-        skipped_sentences = set()
-
-    boundary_chars = [' ', ',', '.', '?', '!', ':', ';', '—', '-', '(', ')', '¿', '¡']
-
-    word_lower = word.lower()
-
-    for sub in subtitles:
-        spanish = sub.get('spanish', '')
-        if not spanish:
-            continue
-        spanish_lower = spanish.lower()
-        if word_lower not in spanish_lower:
-            continue
-        if spanish in skipped_sentences:
-            continue
-        if is_music_placeholder(spanish):
-            continue
-
-        idx = spanish_lower.find(word_lower)
-        while idx != -1:
-            end_idx = idx + len(word_lower)
-            after = spanish[end_idx:] if end_idx < len(spanish) else ''
-            before_ok = idx == 0 or spanish[idx - 1] in boundary_chars
-            after_ok = not after or after[0] in boundary_chars
-            if before_ok and after_ok:
-                start = sub.get('start', 0)
-                end = sub.get('end', start + 5)
-                return {
-                    'sentence': spanish,
-                    'translation': sub.get('english', 'No translation available'),
-                    'timestamp': int(start),
-                    'end_timestamp': int(end) + 1,
-                    'matched_form': word,
-                }
-            idx = spanish_lower.find(word_lower, end_idx)
-
-    # Fallback: any substring match
-    for sub in subtitles:
-        spanish = sub.get('spanish', '')
-        if spanish and word_lower in spanish.lower() and spanish not in skipped_sentences and not is_music_placeholder(spanish):
-            start = sub.get('start', 0)
-            end = sub.get('end', start + 5)
-            return {
-                'sentence': spanish,
-                'translation': sub.get('english', 'No translation available'),
-                'timestamp': int(start),
-                'end_timestamp': int(end) + 1,
-                'matched_form': word,
-            }
-
-    return {'sentence': word, 'translation': 'No translation available', 'timestamp': 0, 'end_timestamp': 5, 'matched_form': word}
-
-
 def find_sentence_for_word_ukrainian(word: str, subtitles: list, skipped_sentences: Set[str] = None) -> dict:
     """Find a subtitle sentence containing the Ukrainian word."""
     if skipped_sentences is None:
@@ -365,8 +309,6 @@ async def get_flashcard_data(request: dict = Body(...)):
         subtitle_data = load_cached_netflix_subtitles(video_id, language)
     elif language == 'uk':
         subtitle_data = load_cached_subtitles_ukrainian(video_id)
-    elif language == 'es':
-        subtitle_data = load_cached_subtitles_spanish(video_id)
     else:
         subtitle_data = load_cached_subtitles(video_id)
 
@@ -378,7 +320,7 @@ async def get_flashcard_data(request: dict = Body(...)):
     definitions = load_definitions()
     user_definitions = load_user_definitions()
 
-    deepl_source_lang = {'uk': 'UK', 'es': 'ES', 'ko': 'KO'}.get(language, 'KO')
+    deepl_source_lang = {'uk': 'UK', 'ko': 'KO'}.get(language, 'KO')
 
     flashcards = []
     for word in words:
@@ -390,9 +332,6 @@ async def get_flashcard_data(request: dict = Body(...)):
             # lemma-based Ukrainian frequency list.
             uk_lemma = ukrainian_lemmatizer.lemmatize_word(word)
             possible_forms = [word, uk_lemma] if uk_lemma != word else [word]
-        elif language == 'es':
-            sentence_data = find_sentence_for_word_spanish(word, subtitles, skipped)
-            possible_forms = [word]
         else:
             sentence_data = find_sentence_for_word(word, subtitles, skipped)
             possible_forms = strip_korean_particles(word)

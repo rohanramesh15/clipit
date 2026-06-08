@@ -26,10 +26,9 @@ let preferredLanguage = 'ko';
 const LANGUAGE_CONFIGS = {
   ko: { code: 'ko', subtitleKey: 'korean' },
   uk: { code: 'uk', subtitleKey: 'ukrainian' },
-  es: { code: 'es', subtitleKey: 'spanish' },
 };
 
-const SUPPORTED_LANGUAGES = ['ko', 'uk', 'es'];
+const SUPPORTED_LANGUAGES = ['ko', 'uk'];
 
 function getLanguageConfig(lang = 'ko') {
   return LANGUAGE_CONFIGS[lang] || { code: lang, subtitleKey: lang };

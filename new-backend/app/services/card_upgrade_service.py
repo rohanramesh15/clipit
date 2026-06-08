@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.user_flashcard_progress import UserFlashcardProgress
 from app.models.user_vocabulary_list import UserVocabularyList
 from app.models.user_vocabulary_word import UserVocabularyWord
-from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_spanish, load_cached_subtitles_english
+from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian, load_cached_subtitles_english
 from app.api.routes.netflix import load_cached_netflix_subtitles
 
 
@@ -41,8 +41,6 @@ def find_sentence_for_word_simple(word: str, subtitles: list, language: str = 'k
     # Get the right subtitle key based on language
     if language == 'uk':
         sub_key = 'ukrainian'
-    elif language == 'es':
-        sub_key = 'spanish'
     elif language == 'en':
         sub_key = 'english'
     else:
@@ -118,8 +116,6 @@ def auto_upgrade_tts_cards(
         subtitle_data = load_cached_netflix_subtitles(video_id, language)
     elif language == 'uk':
         subtitle_data = load_cached_subtitles_ukrainian(video_id)
-    elif language == 'es':
-        subtitle_data = load_cached_subtitles_spanish(video_id)
     elif language == 'en':
         subtitle_data = load_cached_subtitles_english(video_id)
     else:

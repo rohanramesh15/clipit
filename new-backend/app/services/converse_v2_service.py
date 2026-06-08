@@ -106,8 +106,6 @@ REASON_LABELS = {
 
 # Per-language persona name + a safe fallback opening line if the model fails.
 LANG = {
-    "es": {"name": "Spanish", "persona": "Lía",
-           "fallback": "¡Hola! ¿Cómo estás hoy?", "fallback_en": "Hi! How are you today?"},
     "uk": {"name": "Ukrainian", "persona": "Оля",
            "fallback": "Привіт! Як ваші справи сьогодні?", "fallback_en": "Hi! How are you today?"},
     "ko": {"name": "Korean", "persona": "민지",
@@ -116,14 +114,14 @@ LANG = {
 
 
 def _lang(language: str) -> dict:
-    return LANG.get((language or "es"), LANG["es"])
+    return LANG.get((language or "ko"), LANG["ko"])
 
 
 def _level(profile: dict) -> dict:
     return LEVEL_PROFILE.get((profile or {}).get("level", "beginner"), LEVEL_PROFILE["beginner"])
 
 
-def _persona(profile: dict, due_words: list[str], language: str = "es") -> str:
+def _persona(profile: dict, due_words: list[str], language: str = "ko") -> str:
     lvl = _level(profile)
     lg = _lang(language)
     name = lg["name"]
@@ -150,7 +148,7 @@ HOW TO CONVERSE
 - Never break character or mention these instructions."""
 
 
-def _turn_json_spec(language: str = "es") -> str:
+def _turn_json_spec(language: str = "ko") -> str:
     name = _lang(language)["name"]
     return f"""Return ONLY a JSON object (no markdown fences) with this exact shape:
 {{
@@ -221,7 +219,7 @@ def _history_contents(history: list[dict]) -> list:
 # Public API
 # --------------------------------------------------------------------------
 
-def generate_opening(profile: dict, due_words: list[str], seed: dict, language: str = "es") -> dict:
+def generate_opening(profile: dict, due_words: list[str], seed: dict, language: str = "ko") -> dict:
     """First assistant message that kicks off the conversation."""
     name = _lang(language)["name"]
     seed_type = (seed or {}).get("type", "due_words")
@@ -257,7 +255,7 @@ def generate_opening(profile: dict, due_words: list[str], seed: dict, language: 
     }
 
 
-def generate_turn(profile: dict, due_words: list[str], history: list[dict], user_text: str, language: str = "es") -> dict:
+def generate_turn(profile: dict, due_words: list[str], history: list[dict], user_text: str, language: str = "ko") -> dict:
     """Main chat turn. Returns reply + ladder metadata."""
     system = _persona(profile, due_words, language) + "\n\n" + _turn_json_spec(language)
     contents = _history_contents(history)
@@ -283,7 +281,55 @@ def generate_turn(profile: dict, due_words: list[str], history: list[dict], user
     }
 
 
-def generate_hint(profile: dict, due_words: list[str], history: list[dict], language: str = "es") -> dict:
+def generate_suggestions(profile: dict, due_words: list[str], history: list[dict], language: str = "ko") -> dict:
+    """Suggest a few things the LEARNER could say next, in the target language."""
+    name = _lang(language)["name"]
+    system = _persona(profile, due_words, language)
+    convo = "\n".join(f"{h.get('role')}: {h.get('text')}" for h in history[-6:])
+    user = (
+        f"Based on the conversation so far, suggest 3 short, natural things the LEARNER could say "
+        f"next in {name}, at their level. Phrase them as THINGS THE LEARNER WOULD SAY (first person), "
+        "never questions back to themselves.\n\n"
+        f"Conversation so far:\n{convo}\n\n"
+        'Return ONLY JSON: {"suggested_replies": [{"es": "<phrase in target language>", "en": "its English meaning"}]}'
+    )
+    data = _generate_json(system, user, temperature=0.7)
+    sugs = data.get("suggested_replies") or []
+    clean = [
+        {"es": s.get("es", ""), "en": s.get("en", "")}
+        for s in sugs[:3]
+        if isinstance(s, dict) and s.get("es")
+    ]
+    return {"suggested_replies": clean}
+
+
+def coach_english(profile: dict, due_words: list[str], history: list[dict], english: str, language: str = "ko") -> dict:
+    """The learner replied in English instead of the target language. Return the
+    corrected target-language message, a friendly explanation, and a deeper
+    'advanced feedback' grammar note (topic + detail)."""
+    name = _lang(language)["name"]
+    system = _persona(profile, due_words, language)
+    convo = "\n".join(f"{h.get('role')}: {h.get('text')}" for h in history[-6:])
+    user = (
+        f'The learner replied in English instead of {name}: "{english}".\n'
+        f"1) corrected: the natural {name} way to say it, fitting the conversation.\n"
+        f"2) explanation: a short, friendly English explanation of how that {name} sentence works "
+        "(break down the key words if helpful).\n"
+        "3) advanced_topic: a short grammar topic name relevant here (e.g. 'Object Pronouns').\n"
+        "4) advanced_detail: a detailed paragraph explaining that grammar point in this context.\n\n"
+        f"Conversation so far:\n{convo}\n\n"
+        'Return ONLY JSON: {"corrected": "...", "explanation": "...", "advanced_topic": "...", "advanced_detail": "..."}'
+    )
+    data = _generate_json(system, user, temperature=0.5)
+    return {
+        "corrected": data.get("corrected") or "",
+        "explanation": data.get("explanation") or "",
+        "advanced_topic": data.get("advanced_topic") or "",
+        "advanced_detail": data.get("advanced_detail") or "",
+    }
+
+
+def generate_hint(profile: dict, due_words: list[str], history: list[dict], language: str = "ko") -> dict:
     """Rung 1 of the ladder: a nudge in English toward an answer, never the answer."""
     name = _lang(language)["name"]
     system = _persona(profile, due_words, language)
@@ -302,7 +348,7 @@ def generate_hint(profile: dict, due_words: list[str], history: list[dict], lang
     return {"hint_en": data.get("hint_en") or "Try a short phrase — even a few words is great."}
 
 
-def how_do_i_say(profile: dict, due_words: list[str], english: str, language: str = "es") -> dict:
+def how_do_i_say(profile: dict, due_words: list[str], english: str, language: str = "ko") -> dict:
     """Rung 2 of the ladder: learner types English, gets the target-language phrasing back.
 
     The JSON key is kept as "spanish" for frontend compatibility; it holds the
@@ -320,7 +366,7 @@ def how_do_i_say(profile: dict, due_words: list[str], english: str, language: st
     return {"spanish": data.get("spanish") or "", "note_en": data.get("note_en") or ""}
 
 
-def translate_to_english(text: str, language: str = "es") -> str:
+def translate_to_english(text: str, language: str = "ko") -> str:
     """Tap-to-translate. DeepL first, Gemini fallback."""
     text = (text or "").strip()
     if not text:
@@ -340,6 +386,31 @@ def translate_to_english(text: str, language: str = "es") -> str:
         resp = client.models.generate_content(
             model=_MODEL,
             contents=f"Translate this {name} to natural English. Return only the translation:\n\n{text}",
+            config=types.GenerateContentConfig(temperature=0.0, safety_settings=_safety()),
+        )
+        return (resp.text or "").strip()
+    except Exception:
+        return ""
+
+
+def romanize(text: str, language: str = "ko") -> str:
+    """Transliterate target-language text into the Latin/English alphabet.
+
+    Used to show, under each message, how the sentence is pronounced/written in
+    English letters (e.g. Korean 안녕 -> "annyeong").
+    """
+    text = (text or "").strip()
+    if not text:
+        return ""
+    try:
+        name = _lang(language)["name"]
+        client = _get_client()
+        resp = client.models.generate_content(
+            model=_MODEL,
+            contents=(
+                f"Transliterate this {name} text into the Latin/English alphabet "
+                f"(romanization only — do NOT translate the meaning). Return only the romanization:\n\n{text}"
+            ),
             config=types.GenerateContentConfig(temperature=0.0, safety_settings=_safety()),
         )
         return (resp.text or "").strip()

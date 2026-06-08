@@ -13,7 +13,6 @@ def lemmatize_for_language(word: str, language: str) -> Optional[str]:
 LANGUAGE_PARTICLES = {
     'ko': ['이', '가', '을', '를', '에', '에서', '와', '과', '의', '로', '으로', '도', '만', '은', '는'],
     'uk': ['і', 'й', 'та', 'що', 'як', 'але', 'або', 'це', 'не', 'на', 'в', 'у', 'з', 'до', 'за'],
-    'es': ['de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'se', 'del', 'las', 'un', 'por', 'con', 'no', 'una', 'su', 'para', 'es', 'al', 'lo', 'como', 'pero', 'sus', 'le', 'ya', 'me', 'si', 'o'],
     'en': ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an'],
 }
 
@@ -25,7 +24,6 @@ def load_frequency_map(language: str = 'ko', custom_path: Optional[str] = None) 
     default_paths = {
         'ko': _DATA_DIR / 'frequency_lists' / 'korean_freq_topik.txt',
         'uk': _DATA_DIR / 'frequency_lists' / 'ukrainian_freq.txt',
-        'es': _DATA_DIR / 'frequency_lists' / 'spanish_freq.txt',
         'en': _DATA_DIR / 'frequency_lists' / 'english_freq.txt',
     }
     full_path = Path(custom_path) if custom_path else default_paths.get(language)

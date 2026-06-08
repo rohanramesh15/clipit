@@ -77,9 +77,7 @@ _WILDCARDS = [
 
 
 def _most_recent_video_for_lang(db: Session, user_id: int, language: str) -> Optional[TrackedVideo]:
-    if language == "es":
-        cond = TrackedVideo.has_spanish.is_(True)
-    elif language == "en":
+    if language == "en":
         cond = TrackedVideo.has_english.is_(True)
     else:
         return None

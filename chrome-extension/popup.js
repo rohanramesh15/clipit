@@ -12,16 +12,16 @@ let state = {
   isYouTubeTab: false,
   audioEnabled: false,
   hideSubtitles: false, // hide subtitles while still capturing them
-  lang: 'ko',        // 'ko' | 'uk' | 'es'
+  lang: 'ko',        // 'ko' | 'uk'
   deleteConfirm: null, // { video_id, title } | null
   isDeleting: false,
   theme: 'dark',     // 'dark' | 'light'
 };
 
 // Supported learning languages and their display metadata.
-const SUPPORTED_LANGUAGES = ['ko', 'uk', 'es'];
-const LANG_NAMES = { ko: 'Korean', uk: 'Ukrainian', es: 'Spanish' };
-const LANG_BADGES = { ko: 'KO', uk: 'UK', es: 'ES' };
+const SUPPORTED_LANGUAGES = ['ko', 'uk'];
+const LANG_NAMES = { ko: 'Korean', uk: 'Ukrainian' };
+const LANG_BADGES = { ko: 'KO', uk: 'UK' };
 const normalizeLang = (l) => (SUPPORTED_LANGUAGES.includes(l) ? l : 'ko');
 
 // ─── Boot ─────────────────────────────────────────────
