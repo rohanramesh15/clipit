@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import {
   LogOut,
   Trash2,
-  Crown,
   Layers,
   AlertTriangle,
   X,
@@ -36,11 +34,6 @@ const settingsPageTips: HelpTip[] = [
     targetId: 'section-account',
     position: 'right',
   },
-];
-
-const LANGUAGES: { label: string; flag: string; value: 'ko' | 'uk' }[] = [
-  { label: 'Korean', flag: '🇰🇷', value: 'ko' },
-  { label: 'Ukrainian', flag: '🇺🇦', value: 'uk' },
 ];
 
 const DAILY_GOALS = [
@@ -95,7 +88,6 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
     }
   };
 
-  const { language, setLanguage } = useLanguage();
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
   const [dailyGoal, setDailyGoal] = useState(() => {
     return localStorage.getItem('daily_goal') || '15';
@@ -187,10 +179,6 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
             <div className="flex-1 min-w-0">
               <p className="font-bold text-primary text-lg">{displayName}</p>
               <p className="text-sm text-secondary">{user?.email ?? ''}</p>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <Crown className="w-3.5 h-3.5 text-accent" />
-                <span className="text-xs font-bold text-accent">Member</span>
-              </div>
             </div>
           </div>
         </section>
@@ -201,32 +189,6 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
             Learning
           </h2>
           <div className="bg-surface border border-white/5 rounded-2xl p-6 space-y-6">
-            {/* Language */}
-            <div>
-              <label className="text-sm font-semibold text-primary mb-1 block">
-                Language
-              </label>
-              <p className="text-xs text-secondary mb-3">
-                What language are you learning?
-              </p>
-              <div className="flex gap-2">
-                {LANGUAGES.map((l) => (
-                  <button
-                    key={l.value}
-                    onClick={() => setLanguage(l.value)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 ${
-                      language === l.value
-                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
-                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
-                    }`}>
-                    <span>{l.flag}</span> {l.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
-
             {/* Daily Goal */}
             <div>
               <label className="text-sm font-semibold text-primary mb-1 block">

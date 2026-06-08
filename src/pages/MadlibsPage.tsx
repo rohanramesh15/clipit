@@ -165,7 +165,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                     )}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block font-medium text-primary truncate">{v.title}</span>
+                    <span className="block text-sm font-medium text-primary truncate">{v.title}</span>
                     {(() => {
                       const c = wordCounts[v.video_id];
                       if (c === undefined) return <span className="block text-xs text-muted">Counting words…</span>;

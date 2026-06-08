@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { GalleryVerticalEnd, AudioLines, WandSparkles, ArrowRight, Target, Flame, Trophy } from 'lucide-react';
+import { GalleryVerticalEnd, AudioLines, RectangleEllipsis, ArrowRight, Target, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loadCardData, getAnalyticsSummary } from '../services/fsrs';
 import { API_BASE_URL } from '../config';
@@ -19,6 +19,7 @@ interface Mode {
   description: string;
   Icon: typeof ArrowRight;
   color: string;
+  text: string;
 }
 
 const hexA = (hex: string, a: number) => {
@@ -129,24 +130,27 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   const modes: Mode[] = [
     {
       id: 'flashcards',
-      label: 'Flash Cards',
+      label: 'Flash cards',
       description: 'Review your words with spaced repetition.',
       Icon: GalleryVerticalEnd,
-      color: '#A84F49', // deep terracotta
+      color: 'var(--card-fc-bg)',
+      text: 'var(--card-fc-text)',
     },
     {
       id: 'converse-v2',
-      label: 'Voice Chat',
+      label: 'Voice chat',
       description: 'Talk with an AI partner that uses your words.',
       Icon: AudioLines,
-      color: '#9E5A3C', // deep clay
+      color: 'var(--card-vc-bg)',
+      text: 'var(--card-vc-text)',
     },
     {
       id: 'madlibs',
-      label: 'Mad Libs',
+      label: 'Mad libs',
       description: 'Fill in blanks in a sentence.',
-      Icon: WandSparkles,
-      color: '#8C4640', // deep brick
+      Icon: RectangleEllipsis,
+      color: 'var(--card-ml-bg)',
+      text: 'var(--card-ml-text)',
     },
   ];
 
@@ -157,8 +161,8 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   ].filter(Boolean).join('  ·  ');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-8">
-      <h1 className="text-3xl sm:text-4xl font-heading font-bold text-primary mb-3">
+    <div className="max-w-3xl mx-auto px-4 pt-8">
+      <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-3 text-secondary">
         {greeting}{firstName ? `, ${firstName}` : ''}.
       </h1>
       {subtitle ? (
@@ -167,32 +171,32 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
         <div className="mb-10" />
       )}
 
-      <GoalProgress reviewed={reviewedToday} goal={goal} />
-
-      <h2 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">Practice options</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="space-y-5">
         {modes.map((m, i) => (
           <motion.button
             key={m.id}
             type="button"
             onClick={() => onNavigate(m.id)}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * i + 0.1 }}
-            whileHover={{ y: -4 }}
+            transition={{ delay: 0.08 * i + 0.05 }}
+            whileHover={{ y: -2 }}
             style={{ backgroundColor: m.color }}
-            className="group flex flex-col text-left rounded-2xl p-7 min-h-[260px] shadow-sm"
+            className="group w-full flex items-start gap-5 text-left rounded-2xl px-6 py-10 shadow-sm"
           >
-            <m.Icon className="w-9 h-9 mb-6" strokeWidth={1.75} style={{ color: '#fff' }} />
-            <h3 className="font-heading font-bold text-2xl mb-2" style={{ color: '#fff' }}>
-              {m.label}
-            </h3>
-            <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.92)' }}>
-              {m.description}
-            </p>
-            <div className="flex items-center justify-end mt-auto pt-6">
-              <ArrowRight className="w-5 h-5" style={{ color: '#fff' }} />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-heading font-bold text-3xl mb-2" style={{ color: m.text }}>
+                {m.label}
+              </h3>
+              <p className="text-lg leading-relaxed opacity-80" style={{ color: m.text }}>
+                {m.description}
+              </p>
             </div>
+            <m.Icon
+              className="w-20 h-20 shrink-0 self-center transition-transform group-hover:scale-105"
+              strokeWidth={1.5}
+              style={{ color: m.text }}
+            />
           </motion.button>
         ))}
       </div>

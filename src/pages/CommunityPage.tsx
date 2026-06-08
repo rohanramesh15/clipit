@@ -386,7 +386,6 @@ export function CommunityPage() {
   const languageFlags: Record<string, string> = {
     ko: '🇰🇷',
     uk: '🇺🇦',
-    es: '🇪🇸',
   };
 
   if (isLoading) {
@@ -850,7 +849,7 @@ export function CommunityPage() {
                 <div>
                   <label className="text-sm text-secondary mb-1 block">Language</label>
                   <div className="flex gap-2">
-                    {['ko', 'uk', 'es'].map(lang => (
+                    {['ko', 'uk'].map(lang => (
                       <button
                         key={lang}
                         onClick={() => setNewGroupLanguage(lang)}

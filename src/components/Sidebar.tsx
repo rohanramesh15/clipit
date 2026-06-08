@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
-  Dumbbell,
+  Speech,
   BarChart3,
   History,
   Sun,
   Moon,
   ChevronDown,
+  ChevronRight,
   PanelLeft,
   Check,
   Globe,
@@ -80,7 +81,7 @@ export function Sidebar({
   const navItems = [
   {
     id: 'practice',
-    icon: Dumbbell,
+    icon: Speech,
     label: 'Practice'
   },
   {
@@ -188,66 +189,12 @@ export function Sidebar({
 
       {/* Theme Toggle + User Profile */}
       <div className={`p-4 space-y-3 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
-        {/* Language Selector */}
-        <div className="relative" ref={languageRef}>
-          <button
-            onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-            className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors text-secondary hover:text-primary ${isCollapsed ? 'justify-center' : 'w-full'}`}>
-            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 text-lg">
-              {currentLang.flag}
-            </div>
-            <AnimatePresence>
-              {!isCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="hidden md:flex items-center flex-1">
-                  <span className="text-sm font-medium flex-1 text-left whitespace-nowrap">
-                    {currentLang.name}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </button>
-
-          {/* Popup */}
-          {isLanguageOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
-              <div className="p-2 space-y-1">
-                {languages.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => {
-                      setLanguage(lang.code as 'ko' | 'uk');
-                      setIsLanguageOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                      language === lang.code
-                        ? 'bg-accent/10 text-accent'
-                        : 'hover:bg-white/5 text-primary'
-                    }`}>
-                    <span className="text-lg">{lang.flag}</span>
-                    <span className="font-medium flex-1 text-left whitespace-nowrap">{lang.name}</span>
-                    {language === lang.code && <Check className="w-4 h-4" />}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </div>
 
         {/* User Profile — click to open account menu */}
         <div className="relative" ref={profileRef}>
           <button
-            onClick={() => setIsProfileOpen((v) => !v)}
-            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isCollapsed ? 'justify-center' : 'w-full'} ${activePage === 'settings' || isProfileOpen ? 'bg-white/5' : 'hover:bg-white/5'}`}>
+            onClick={() => { setIsProfileOpen((v) => !v); setIsLanguageOpen(false); }}
+            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isCollapsed ? 'justify-center' : 'w-full'} ${isProfileOpen ? 'bg-white/5' : 'hover:bg-white/5'}`}>
 
             <Avatar user={user} size={32} />
             <AnimatePresence>
@@ -276,7 +223,7 @@ export function Sidebar({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[220px]">
+              className="absolute bottom-full left-0 right-0 mb-2 bg-app border border-white/10 rounded-xl shadow-xl z-50 min-w-[220px]">
               {/* Identity header: avatar + name + email */}
               <div className="flex items-center gap-3 p-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                 <Avatar user={user} size={36} />
@@ -286,11 +233,44 @@ export function Sidebar({
                 </div>
               </div>
               <div className="p-2 space-y-1">
+                {/* Language you're learning — opens a flyout to pick another */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsLanguageOpen((v) => !v)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-primary transition-colors ${isLanguageOpen ? 'bg-white/5' : 'hover:bg-white/5'}`}>
+                    <span className="text-lg leading-none">{currentLang.flag}</span>
+                    <span className="font-medium text-sm text-left flex-1 whitespace-nowrap">{currentLang.name}</span>
+                    <ChevronRight className="w-4 h-4 shrink-0 text-secondary" />
+                  </button>
+                  {isLanguageOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="absolute left-full top-0 ml-2 w-44 bg-app border border-white/10 rounded-xl shadow-xl p-2 space-y-1 z-50">
+                      {languages.map((lang) => (
+                        <button
+                          key={lang.code}
+                          onClick={() => {
+                            setLanguage(lang.code as 'ko' | 'uk' | 'en');
+                            setIsLanguageOpen(false);
+                            setIsProfileOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                            language === lang.code ? 'bg-accent/10 text-accent' : 'hover:bg-white/5 text-primary'
+                          }`}>
+                          <span className="text-lg leading-none">{lang.flag}</span>
+                          <span className="font-medium flex-1 text-left whitespace-nowrap text-sm">{lang.name}</span>
+                          {language === lang.code && <Check className="w-4 h-4 shrink-0" />}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
                 <button
                   onClick={() => { setIsProfileOpen(false); onNavigate('settings'); }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-primary transition-colors">
                   <SettingsIcon className="w-4 h-4 shrink-0 text-secondary" />
-                  <span className="font-medium text-sm text-left">Account settings</span>
+                  <span className="font-medium text-sm text-left">Settings</span>
                 </button>
                 <a
                   href={FEEDBACK_URL}

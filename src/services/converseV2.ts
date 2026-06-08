@@ -93,6 +93,22 @@ export const createSession = (req: {
 export const sendTurn = (sessionId: number, text: string, language: string = 'es') =>
   postJson<TurnResult>(`/session/${sessionId}/turn`, { text, language });
 
+export const regenerateTurn = (sessionId: number, language: string = 'ko') =>
+  postJson<TurnResult>(`/session/${sessionId}/regenerate`, { language });
+
+export const suggestReplies = (sessionId: number, language: string = 'ko') =>
+  postJson<{ suggested_replies: SuggestedReply[] }>(`/session/${sessionId}/suggest`, { language });
+
+export interface CoachResult {
+  corrected: string;
+  explanation: string;
+  advanced_topic: string;
+  advanced_detail: string;
+}
+
+export const coachEnglish = (sessionId: number, english: string, language: string = 'ko') =>
+  postJson<CoachResult>(`/session/${sessionId}/coach`, { english, language });
+
 export const getHint = (sessionId: number, language: string = 'es') =>
   postJson<{ hint_en: string }>(`/session/${sessionId}/hint?language=${encodeURIComponent(language)}`);
 
@@ -102,6 +118,11 @@ export const howDoISay = (sessionId: number, english: string, language: string =
 export const translate = async (text: string, language: string = 'es'): Promise<string> => {
   const { translation } = await postJson<{ translation: string }>('/translate', { text, language });
   return translation;
+};
+
+export const romanize = async (text: string, language: string = 'ko'): Promise<string> => {
+  const { romanized } = await postJson<{ romanized: string }>('/romanize', { text, language });
+  return romanized;
 };
 
 export const sessionFeedback = (sessionId: number, kind: 'too_easy' | 'too_hard') =>

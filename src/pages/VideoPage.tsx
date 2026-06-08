@@ -62,7 +62,6 @@ interface TrackedVideo {
   tracked_at: number;
   has_korean: number | null;
   has_ukrainian: number | null;
-  has_spanish: number | null;
   has_english: number | null;
   season?: number | null;
   episode?: number | null;
@@ -356,9 +355,9 @@ export function VideoPage() {
                         )}
                       </div>
                       {/* Language badge */}
-                      {(language === 'uk' ? video.has_ukrainian : language === 'es' ? video.has_spanish : language === 'en' ? video.has_english : video.has_korean) === 1 && (
+                      {(language === 'uk' ? video.has_ukrainian : language === 'en' ? video.has_english : video.has_korean) === 1 && (
                         <div className="absolute top-2 right-2 bg-accent/90 px-1.5 py-0.5 rounded text-[10px] font-bold text-app">
-                          {language === 'uk' ? 'UK' : language === 'es' ? 'ES' : language === 'en' ? 'EN' : 'KO'} + EN
+                          {language === 'uk' ? 'UK' : language === 'en' ? 'EN' : 'KO'} + EN
                         </div>
                       )}
                       {/* Hover play link */}
@@ -420,13 +419,13 @@ export function VideoPage() {
                           <Clock className="w-3.5 h-3.5" />
                           {formatTrackedAt(video.tracked_at)}
                         </div>
-                        {(language === 'uk' ? video.has_ukrainian : language === 'es' ? video.has_spanish : language === 'en' ? video.has_english : video.has_korean) === 1 && (
+                        {(language === 'uk' ? video.has_ukrainian : language === 'en' ? video.has_english : video.has_korean) === 1 && (
                           <div className="flex items-center gap-1.5 text-xs text-accent/80 bg-accent/5 px-2 py-0.5 rounded border border-accent/10">
                             <BookOpen className="w-3 h-3" />
                             {languageName} subtitles
                           </div>
                         )}
-                        {(language === 'uk' ? video.has_ukrainian : language === 'es' ? video.has_spanish : language === 'en' ? video.has_english : video.has_korean) === 0 && (
+                        {(language === 'uk' ? video.has_ukrainian : language === 'en' ? video.has_english : video.has_korean) === 0 && (
                           <div className="text-xs text-muted/60 bg-white/3 px-2 py-0.5 rounded border border-white/5">
                             No {languageName} subs
                           </div>

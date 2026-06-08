@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, ArrowLeft, Lightbulb, HelpCircle,
-  Loader2, ChevronRight, Film, Check, MessageCircle,
+  Loader2, ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy,
 } from 'lucide-react';
 import {
-  getProfile, createSession, sendTurn, getHint, howDoISay, translate,
-  correctionFeedback, voiceWsUrl,
+  getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
+  correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   type Profile, type DueWord, type Correction, type SuggestedReply,
 } from '../services/converseV2';
+import { Sparkles, RotateCcw, MessageSquarePlus } from 'lucide-react';
 import {
   fetchTrackedVideos, fetchVideoCards,
   type TrackedVideo, type FlashCard,
@@ -19,6 +20,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { PracticeEmptyState, type NavPage } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { Persona, type PersonaState } from '../components/ai-elements/persona';
+import { SpeechInput } from '../components/ai-elements/speech-input';
 
 // App accent (matches --accent in index.css).
 const ACCENT = '#C4625A';
@@ -50,7 +52,19 @@ interface ChatMessage {
 }
 
 // Target-language display names (used in UI copy + matching tweaks).
-const LANG_NAMES: Record<string, string> = { es: 'Spanish', uk: 'Ukrainian', ko: 'Korean', en: 'English' };
+const LANG_NAMES: Record<string, string> = { uk: 'Ukrainian', ko: 'Korean', en: 'English' };
+
+// Treat a learner utterance as English vs the target language (whichever is
+// closest): if it contains no target-script characters but has Latin letters,
+// it's English.
+function isLikelyEnglish(text: string, language: string): boolean {
+  const hasTarget =
+    language === 'ko' ? /[가-힯]/.test(text)
+    : language === 'uk' ? /[Ѐ-ӿ]/.test(text)
+    : false;
+  const hasLatin = /[a-z]/i.test(text);
+  return !hasTarget && hasLatin;
+}
 
 // ── word-usage matching ───────────────────────────────────────────────────────
 // Strip combining marks + punctuation, lowercase. Keeps ALL letters (Latin,
@@ -183,7 +197,7 @@ export function ConverseV2Page(
   const { user } = useAuth();
   const { language } = useLanguage();
   const { token } = useAuth();
-  const langName = LANG_NAMES[language] || 'Spanish';
+  const langName = LANG_NAMES[language] || 'Korean';
 
   const [phase, setPhase] = useState<Phase>('deck');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -199,6 +213,7 @@ export function ConverseV2Page(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [headerExpanded, setHeaderExpanded] = useState(false);
 
   // text composer / scaffolding
   const [composerOpen, setComposerOpen] = useState(false);
@@ -220,6 +235,26 @@ export function ConverseV2Page(
   // word popover
   const [pop, setPop] = useState<{ word: string; text: string; loading: boolean; x: number; y: number } | null>(null);
 
+  // per-AI-message actions: on-demand translation + copy feedback + romanization
+  const [msgTrans, setMsgTrans] = useState<Record<string, { text?: string; loading: boolean; visible: boolean }>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [msgRoman, setMsgRoman] = useState<Record<string, string>>({}); // id -> romanized text
+  const romanReqRef = useRef<Set<string>>(new Set());
+
+  // When the learner speaks/types ENGLISH, the right panel shows the corrected
+  // target-language message + explanation + advanced grammar feedback.
+  interface Coaching {
+    id: string; english: string; corrected: string; explanation: string;
+    advancedTopic: string; advancedDetail: string; loading: boolean;
+  }
+  const [coachings, setCoachings] = useState<Coaching[]>([]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const coachReqRef = useRef<Set<string>>(new Set());
+  // Another response / Suggest reply
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestVisibleId, setSuggestVisibleId] = useState<string | null>(null); // show suggestions only after the user asks
+
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -232,6 +267,7 @@ export function ConverseV2Page(
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const bottomInputRef = useRef<HTMLInputElement>(null);
 
   // ── load profile (display only) + tracked videos for the deck ───────────────
   useEffect(() => {
@@ -274,6 +310,110 @@ export function ConverseV2Page(
       return changed ? next : prev;
     });
   }, [messages, targetWords]);
+
+  // ── romanize each AI message (target text written in English letters) ────────
+  useEffect(() => {
+    for (const m of messages) {
+      if (m.role !== 'assistant') continue;
+      const text = m.text.trim();
+      if (!text || romanReqRef.current.has(m.id) || msgRoman[m.id] !== undefined) continue;
+      romanReqRef.current.add(m.id);
+      romanize(text, language)
+        .then((r) => setMsgRoman((prev) => ({ ...prev, [m.id]: r })))
+        .catch(() => setMsgRoman((prev) => ({ ...prev, [m.id]: '' })));
+    }
+  }, [messages, language, msgRoman]);
+
+  // Detect English learner turns → coach how to say them in the target language.
+  useEffect(() => {
+    if (sessionId == null) return;
+    for (const m of messages) {
+      if (m.role !== 'user') continue;
+      const text = m.text.trim();
+      if (text.length < 2 || coachReqRef.current.has(m.id)) continue;
+      if (!isLikelyEnglish(text, language)) continue;
+      coachReqRef.current.add(m.id);
+      setCoachings((prev) => [...prev, { id: m.id, english: text, corrected: '', explanation: '', advancedTopic: '', advancedDetail: '', loading: true }]);
+      setAdvancedOpen(false);
+      coachEnglish(sessionId, text, language)
+        .then((r) => setCoachings((prev) => prev.map((c) => (c.id === m.id ? { ...c, corrected: r.corrected, explanation: r.explanation, advancedTopic: r.advanced_topic, advancedDetail: r.advanced_detail, loading: false } : c))))
+        .catch(() => setCoachings((prev) => prev.map((c) => (c.id === m.id ? { ...c, loading: false } : c))));
+    }
+  }, [messages, language, sessionId]);
+
+  // Speak a message aloud in the target language (Web Speech).
+  const speak = useCallback((text: string) => {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR';
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    } catch { /* ignore */ }
+  }, [language]);
+
+  const copyMsg = useCallback((id: string, text: string) => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+    }).catch(() => {});
+  }, []);
+
+  // Toggle/lazy-load the English translation for one message.
+  const toggleMsgTrans = useCallback((id: string, text: string, precomputed?: string) => {
+    setMsgTrans((prev) => {
+      const cur = prev[id];
+      if (cur) return { ...prev, [id]: { ...cur, visible: !cur.visible } };
+      return { ...prev, [id]: { text: precomputed, loading: !precomputed, visible: true } };
+    });
+    if (!msgTrans[id] && !precomputed) {
+      translate(text, language)
+        .then((t) => setMsgTrans((prev) => ({ ...prev, [id]: { text: t, loading: false, visible: true } })))
+        .catch(() => setMsgTrans((prev) => ({ ...prev, [id]: { text: '—', loading: false, visible: true } })));
+    }
+  }, [msgTrans, language]);
+
+  // Another response — regenerate the latest AI reply.
+  const handleAnotherResponse = useCallback(async () => {
+    if (sessionId == null || regenLoading) return;
+    let targetId: string | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') { targetId = messages[i].id; break; }
+    }
+    if (!targetId) return;
+    setRegenLoading(true);
+    try {
+      const r = await regenerateTurn(sessionId, language);
+      const id = targetId;
+      setMessages((prev) => prev.map((mm) => (mm.id === id ? {
+        ...mm, text: r.reply, translation: r.reply_translation, correction: r.correction,
+        turnId: r.turn_id, suggestedReplies: r.suggested_replies, targets: r.used_target_words || [],
+      } : mm)));
+      // clear caches so the new text re-romanizes / re-translates
+      setMsgRoman((p) => { const n = { ...p }; delete n[id]; return n; });
+      romanReqRef.current.delete(id);
+      setMsgTrans((p) => { const n = { ...p }; delete n[id]; return n; });
+    } catch {
+      setChatError('Could not regenerate. Try again.');
+    } finally {
+      setRegenLoading(false);
+    }
+  }, [sessionId, language, regenLoading, messages]);
+
+  // Suggest reply — fetch things the learner could say next.
+  const handleSuggestReply = useCallback(async () => {
+    if (sessionId == null || suggestLoading) return;
+    setSuggestLoading(true);
+    try {
+      const r = await suggestReplies(sessionId, language);
+      let li: string | null = null;
+      for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === 'assistant') { li = messages[i].id; break; } }
+      setMessages((prev) => prev.map((mm) => (mm.id === li ? { ...mm, suggestedReplies: r.suggested_replies } : mm)));
+      setSuggestVisibleId(li);
+    } catch { /* ignore */ } finally {
+      setSuggestLoading(false);
+    }
+  }, [sessionId, language, suggestLoading, messages]);
 
   // ── close popover on scroll / outside click / escape ────────────────────────
   useEffect(() => {
@@ -362,12 +502,8 @@ export function ConverseV2Page(
 
   useEffect(() => () => { voiceRef.current?.stop(); voiceRef.current = null; }, []);
 
-  // auto-start the call once we land in chat
-  useEffect(() => {
-    if (phase !== 'chat' || !sessionId || voiceAutoStarted.current) return;
-    voiceAutoStarted.current = true;
-    startVoice();
-  }, [phase, sessionId, startVoice]);
+  // Voice input is now Vercel's SpeechInput (speech → text → turn), so we do NOT
+  // auto-start the live Gemini call. (Live-voice helpers are kept but unused.)
 
   // ── start a session from a chosen video ─────────────────────────────────────
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
@@ -405,6 +541,9 @@ export function ConverseV2Page(
 
       setTargetWords(finalWords);
       setUsedLemmas(new Set());
+      setCoachings([]); coachReqRef.current = new Set();
+      setMsgRoman({}); romanReqRef.current = new Set();
+      setMsgTrans({}); setCopiedId(null);
       setShownTranslations(new Set());
       setRevealedCorrections(new Set());
       setCorrectionVerdicts({});
@@ -417,7 +556,7 @@ export function ConverseV2Page(
       setVoiceStatus('off');
       setVoiceError(null);
       setSessionId(result.session_id);
-      setStatus('Connecting your mic…');
+      setStatus('Tap the mic and speak, or type');
       setMessages([{
         id: `a-${result.opening.turn_id}`,
         role: 'assistant',
@@ -532,7 +671,7 @@ export function ConverseV2Page(
   }, [correctionVerdicts]);
 
   const openComposer = () => { setComposerOpen(true); setNudge(null); setTimeout(() => taRef.current?.focus(), 60); };
-  const pickSuggestion = (es: string) => { setComposerOpen(true); setComposerText(es); setTimeout(() => taRef.current?.focus(), 60); };
+  const pickSuggestion = (es: string) => { setComposerText(es); setTimeout(() => bottomInputRef.current?.focus(), 60); };
 
   const translationShownByDefault = profile?.english_support === 'lots';
   const isTransVisible = (id: string) =>
@@ -550,6 +689,7 @@ export function ConverseV2Page(
   }, [messages]);
 
   const usedCount = usedLemmas.size;
+  const latestCoaching = coachings.length ? coachings[coachings.length - 1] : null;
 
   // ============================================================================
   // Deck picker
@@ -619,7 +759,7 @@ export function ConverseV2Page(
                     )}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block font-medium text-primary truncate">{v.title}</span>
+                    <span className="block text-sm font-medium text-primary truncate">{v.title}</span>
                     <span className="block text-xs text-muted">Talk through its words by voice</span>
                   </span>
                   <ChevronRight className="w-5 h-5 shrink-0 text-muted group-hover:text-accent transition-colors" />
@@ -658,52 +798,105 @@ export function ConverseV2Page(
   // Chat
   // ============================================================================
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] max-w-2xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-2xl mx-auto">
       {/* header + word tracker */}
       <div className="shrink-0">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => setShowLeaveConfirm(true)}
-              aria-label="Back to videos"
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="font-heading font-bold text-base text-primary truncate">
-                {deck?.title || 'Voice Chat'}
-              </h1>
-            </div>
-          </div>
-          {targetWords.length > 0 && (
-            <span className="text-xs font-medium text-secondary tabular-nums shrink-0">
-              {usedCount} / {targetWords.length} used
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            aria-label="Back to videos"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          {/* Clickable summary line — expands the video header below. */}
+          <button
+            onClick={() => setHeaderExpanded((v) => !v)}
+            className="group flex flex-1 items-center justify-between gap-3 min-w-0 rounded-lg px-2 py-1 -mx-2 hover:bg-black/5 transition-colors"
+          >
+            <h1 className="font-heading font-semibold text-xs text-secondary truncate">
+              {deck?.title || 'Voice Chat'}
+            </h1>
+            <span className="flex items-center gap-1.5 shrink-0">
+              {targetWords.length > 0 && (
+                <span className="text-xs font-medium text-secondary tabular-nums">
+                  {usedCount} / {targetWords.length} words used
+                </span>
+              )}
+              <ChevronDown
+                className={
+                  'w-4 h-4 text-muted transition-transform group-hover:text-secondary ' +
+                  (headerExpanded ? 'rotate-180' : '')
+                }
+              />
             </span>
-          )}
+          </button>
         </div>
 
-        {targetWords.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {targetWords.map((w) => {
-              const used = usedLemmas.has(w.lemma);
-              return (
-                <span
-                  key={w.lemma}
-                  title={w.gloss}
-                  className={
-                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all ' +
-                    (used ? 'text-white' : 'bg-surface text-secondary')
-                  }
-                  style={used ? { background: PAGE } : undefined}
-                >
-                  {used && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                  {w.lemma}
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {/* Expandable video header: thumbnail, name, words to practice. */}
+        <AnimatePresence initial={false}>
+          {headerExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-surface rounded-2xl p-4 mb-4">
+                <div className="flex items-center gap-4">
+                  <span className="relative w-28 aspect-video shrink-0 rounded-lg overflow-hidden bg-black/5 flex items-center justify-center">
+                    {deck?.id.startsWith('netflix_') ? (
+                      <Film className="w-5 h-5" style={{ color: ACCENT }} />
+                    ) : deck?.id ? (
+                      <img
+                        src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : null}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-heading font-semibold text-sm text-primary leading-snug line-clamp-2">
+                      {deck?.title || 'Voice Chat'}
+                    </p>
+                    {targetWords.length > 0 && (
+                      <p className="text-xs text-muted mt-1">
+                        {usedCount} of {targetWords.length} words used
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {targetWords.length > 0 && (
+                  <>
+                    <p className="text-xs uppercase tracking-wide text-muted mt-4 mb-2">Words to practice</p>
+                    <div className="flex flex-wrap gap-2">
+                      {targetWords.map((w) => {
+                        const used = usedLemmas.has(w.lemma);
+                        return (
+                          <span
+                            key={w.lemma}
+                            title={w.gloss}
+                            className={
+                              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all ' +
+                              (used ? 'text-white' : 'bg-app text-secondary')
+                            }
+                            style={used ? { background: PAGE } : undefined}
+                          >
+                            {used && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                            {w.lemma}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* transcript */}
@@ -727,18 +920,73 @@ export function ConverseV2Page(
               <div className="max-w-[90%] text-xl leading-relaxed text-primary font-medium">
                 <TappableText text={m.text} targets={m.targets} onWordTap={handleWordTap} />
               </div>
+              {/* romanization — the sentence written in the English alphabet */}
+              {msgRoman[m.id] ? (
+                <div className="max-w-[90%] text-xl leading-relaxed text-muted">{msgRoman[m.id]}</div>
+              ) : null}
 
               <div className="flex flex-col gap-2 w-full">
-                {m.translation && (
-                  <button
-                    onClick={() => toggleTrans(m.id)}
-                    className="self-start text-xs font-medium text-muted hover:text-secondary transition-colors"
-                  >
-                    {transVisible ? 'Hide English' : 'Show in English'}
-                  </button>
-                )}
-                {m.translation && transVisible && (
-                  <div className="text-sm text-secondary italic -mt-1">{m.translation}</div>
+                {/* per-message actions */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="relative group">
+                    <button
+                      onClick={() => toggleMsgTrans(m.id, m.text, m.translation)}
+                      aria-label="Translate"
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${msgTrans[m.id]?.visible ? 'bg-black/5 text-primary' : 'text-muted hover:text-primary hover:bg-black/5'}`}
+                    >
+                      <Languages className="w-4 h-4" />
+                    </button>
+                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                      Translate
+                    </span>
+                  </span>
+                  <span className="relative group">
+                    <button
+                      onClick={() => speak(m.text)}
+                      aria-label="Listen"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </button>
+                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                      Listen
+                    </span>
+                  </span>
+                  {isLast && (
+                    <>
+                      <span className="relative group">
+                        <button
+                          onClick={handleAnotherResponse}
+                          disabled={regenLoading}
+                          aria-label="Another response"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors disabled:opacity-60"
+                        >
+                          {regenLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                        </button>
+                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                          Another response
+                        </span>
+                      </span>
+                      <span className="relative group">
+                        <button
+                          onClick={handleSuggestReply}
+                          disabled={suggestLoading}
+                          aria-label="Suggest reply"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors disabled:opacity-60"
+                        >
+                          {suggestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquarePlus className="w-4 h-4" />}
+                        </button>
+                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                          Suggest reply
+                        </span>
+                      </span>
+                    </>
+                  )}
+                </div>
+                {msgTrans[m.id]?.visible && (
+                  <div className="text-sm text-secondary italic">
+                    {msgTrans[m.id]?.loading ? 'Translating…' : (msgTrans[m.id]?.text || m.translation || '—')}
+                  </div>
                 )}
 
                 {m.correction && (!revealed ? (
@@ -775,7 +1023,7 @@ export function ConverseV2Page(
                   </div>
                 ))}
 
-                {isLast && m.suggestedReplies && m.suggestedReplies.length > 0 && (
+                {isLast && suggestVisibleId === m.id && m.suggestedReplies && m.suggestedReplies.length > 0 && (
                   <div className="flex flex-col gap-2 mt-1">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Suggested replies</div>
                     {m.suggestedReplies.slice(0, 3).map((s, i) => (
@@ -861,80 +1109,36 @@ export function ConverseV2Page(
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
-          {composerOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-              className="flex items-end gap-2 rounded-2xl bg-surface p-2 mb-3"
+        <div className="flex items-center gap-3 mt-32">
+          <SpeechInput
+            lang={language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR'}
+            onTranscriptionChange={(t) => { const x = (t || '').trim(); if (x) sendTextTurn(x); }}
+            title="Speak"
+            aria-label="Speak"
+            className="w-14 h-14 p-0 rounded-full bg-accent text-app hover:bg-accent shadow-lg shrink-0"
+          />
+
+          <div className="relative flex-1">
+            <input
+              ref={bottomInputRef}
+              value={composerText}
+              onChange={(e) => setComposerText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
+              placeholder={`Type in ${langName}…`}
+              aria-label="Type a message"
+              className="w-full h-14 rounded-full bg-surface pl-5 pr-16 text-[15px] text-primary placeholder:text-muted outline-none focus:ring-2 focus:ring-accent/40"
+            />
+            <button
+              onClick={() => sendTextTurn()}
+              disabled={!composerText.trim() || sending}
+              title="Send"
+              aria-label="Send"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full disabled:opacity-40 transition-opacity"
+              style={{ background: ACCENT, color: '#fff' }}
             >
-              <button
-                onClick={() => { setComposerOpen(false); setComposerText(''); }}
-                title="Close"
-                aria-label="Close typing"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-muted hover:text-primary hover:bg-black/5 shrink-0 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <textarea
-                ref={taRef}
-                rows={1}
-                value={composerText}
-                placeholder={`Type in ${langName}…`}
-                onChange={(e) => {
-                  setComposerText(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
-                className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-primary placeholder:text-muted outline-none max-h-32"
-              />
-              <button
-                onClick={() => sendTextTurn()}
-                disabled={!composerText.trim() || sending}
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-white disabled:opacity-40 shrink-0"
-                style={{ background: ACCENT }}
-              >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="flex items-center justify-center gap-3 mt-10">
-          <button
-            onClick={handleHint}
-            disabled={hintLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-surface text-sm font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors"
-          >
-            {hintLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />}
-            <span className="hidden sm:inline">Stuck?</span>
-          </button>
-
-          <VoicePersona status={voiceStatus} level={voiceLevel} onToggle={toggleVoice} />
-
-          <button
-            onClick={() => (composerOpen ? (setComposerOpen(false), setComposerText('')) : openComposer())}
-            title="Type instead"
-            className={
-              'w-11 h-11 flex items-center justify-center rounded-full transition-colors ' +
-              (composerOpen ? 'text-white' : 'bg-surface text-secondary hover:text-primary hover:bg-surface-hover')
-            }
-            style={composerOpen ? { background: ACCENT } : undefined}
-          >
-            <Keyboard className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={() => setHowtoOpen((v) => !v)}
-            className={
-              'inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-colors ' +
-              (howtoOpen ? 'text-white' : 'bg-surface text-secondary hover:text-primary hover:bg-surface-hover')
-            }
-            style={howtoOpen ? { background: ACCENT } : undefined}
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">How do I say…?</span>
-          </button>
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         <div className="text-center text-xs text-muted mt-2 h-4">
@@ -1001,6 +1205,47 @@ export function ConverseV2Page(
           </span>
         </span>
       )}
+
+      {/* Right-margin panel: when you speak English, how to say it in the target language */}
+      <aside className="hidden xl:block fixed right-6 top-28 w-80 max-h-[calc(100vh-10rem)] overflow-y-auto pr-1 z-20">
+        {latestCoaching ? (
+          <div key={latestCoaching.id}>
+            <p className="text-xs uppercase tracking-wide text-muted mb-1">Corrected message</p>
+            <p className="text-2xl font-heading font-bold text-primary mb-4">
+              {latestCoaching.loading ? '…' : (latestCoaching.corrected || '—')}
+            </p>
+
+            {!latestCoaching.loading && latestCoaching.explanation && (
+              <div className="rounded-2xl p-5" style={{ background: PAGE }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  Explanation
+                </p>
+                <p className="text-base leading-relaxed" style={{ color: '#fff' }}>
+                  {latestCoaching.explanation}
+                </p>
+                {latestCoaching.advancedDetail && (
+                  <button
+                    onClick={() => setAdvancedOpen((v) => !v)}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-sm font-semibold"
+                    style={{ color: PAGE }}
+                  >
+                    <Sparkles className="w-4 h-4" /> Advanced feedback
+                  </button>
+                )}
+              </div>
+            )}
+
+            {advancedOpen && latestCoaching.advancedDetail && (
+              <div className="mt-5 pt-5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                {latestCoaching.advancedTopic && (
+                  <h4 className="font-heading font-bold mb-3" style={{ color: PAGE }}>{latestCoaching.advancedTopic}</h4>
+                )}
+                <p className="text-sm leading-relaxed text-primary">{latestCoaching.advancedDetail}</p>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </aside>
     </div>
   );
 }

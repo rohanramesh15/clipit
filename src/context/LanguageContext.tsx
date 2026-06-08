@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState } from 'react';
 // 'en' is retained as an internal language code because English is the
 // universal translation/gloss layer for other languages. It is intentionally
 // NOT offered as a selectable learning language in any UI selector.
-export type Language = 'ko' | 'uk' | 'es' | 'en';
+export type Language = 'ko' | 'uk' | 'en';
 
 interface LanguageContextValue {
   language: Language;
@@ -17,7 +17,6 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const LANGUAGE_NAMES: Record<Language, string> = {
   ko: 'Korean',
   uk: 'Ukrainian',
-  es: 'Spanish',
   en: 'English',
 };
 
@@ -25,7 +24,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const stored = localStorage.getItem('deadbird_language');
     if (stored === 'uk') return 'uk';
-    if (stored === 'es') return 'es';
     return 'ko';
   });
 
