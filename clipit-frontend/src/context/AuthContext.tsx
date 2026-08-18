@@ -12,10 +12,15 @@ export interface AuthUser {
   is_active: boolean;
 }
 
+interface MeResponse extends AuthUser {
+  is_new_user: boolean;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
+  isNewUser: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   loginWithGoogle: (credential?: string, mode?: 'signin' | 'signup') => Promise<{ isNewUser: boolean }>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
@@ -28,8 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Sticky within a session: once any request reports this login just created
+  // the account, stays true even if a racing duplicate fetch reports false.
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  const fetchMe = useCallback(async (accessToken: string): Promise<AuthUser> => {
+  const fetchMe = useCallback(async (accessToken: string): Promise<MeResponse> => {
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -44,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!accessToken) {
         setUser(null);
         setToken(null);
+        setIsNewUser(false);
         setIsLoading(false);
         return;
       }
@@ -52,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (active) {
           setUser(me);
           setToken(accessToken);
+          if (me.is_new_user) setIsNewUser(true);
         }
       } catch {
         if (active) {
@@ -82,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const me = await fetchMe(data.session.access_token);
     setToken(data.session.access_token);
     setUser(me);
+    if (me.is_new_user) setIsNewUser(true);
   };
 
   const loginWithGoogle = async (): Promise<{ isNewUser: boolean }> => {
@@ -106,16 +117,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const me = await fetchMe(data.session.access_token);
     setToken(data.session.access_token);
     setUser(me);
+    setIsNewUser(true);
   };
 
   const logout = () => {
     void supabase.auth.signOut();
     setToken(null);
     setUser(null);
+    setIsNewUser(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, loginWithGoogle, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isNewUser, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

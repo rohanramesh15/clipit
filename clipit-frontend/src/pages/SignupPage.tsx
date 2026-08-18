@@ -38,7 +38,10 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
     setIsLoading(true);
     try {
       await register(fullName, email, password);
-      onNavigate('onboarding');
+      // App's central auth-state effect routes new accounts to onboarding —
+      // it also has to handle Google's redirect flow, which discards any
+      // page-local navigation like this, so email signup goes through the
+      // same path for consistency rather than navigating here directly.
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

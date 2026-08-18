@@ -34,7 +34,7 @@ type Page =
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
 function AppInner() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isNewUser } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('practice');
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
@@ -83,7 +83,10 @@ function AppInner() {
     if (user) {
       setAppView((v) => {
         if (v === 'landing' || v === 'login' || v === 'signup') {
-          // First page after logging in is Practice.
+          // Newly-created accounts (including Google's redirect flow, which
+          // discards any page-local navigation state) go through onboarding
+          // once; everyone else lands straight on Practice.
+          if (isNewUser) return 'onboarding';
           setActivePage('practice');
           return 'app';
         }
@@ -92,7 +95,7 @@ function AppInner() {
     } else {
       setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
-  }, [isLoading, user]);
+  }, [isLoading, user, isNewUser]);
   // Apply theme class to <html> so it cascades to everything including fixed elements and body.
   // Persist to localStorage so the choice survives refreshes.
   useEffect(() => {
