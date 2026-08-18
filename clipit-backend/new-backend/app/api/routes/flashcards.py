@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Body
 from app.services.subtitle_service import load_cached_subtitles, load_cached_subtitles_ukrainian
 from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.services.vocab_service import load_frequency_map
+from app.services import ukrainian_lemmatizer
 from app.services.deepl_service import translate, translate_word_in_context
 from app.api.routes.vocabulary import get_frequency_map
 
@@ -319,7 +320,7 @@ async def get_flashcard_data(request: dict = Body(...)):
     definitions = load_definitions()
     user_definitions = load_user_definitions()
 
-    deepl_source_lang = 'UK' if language == 'uk' else 'KO'
+    deepl_source_lang = {'uk': 'UK', 'ko': 'KO'}.get(language, 'KO')
 
     flashcards = []
     for word in words:
@@ -327,7 +328,10 @@ async def get_flashcard_data(request: dict = Body(...)):
 
         if language == 'uk':
             sentence_data = find_sentence_for_word_ukrainian(word, subtitles, skipped)
-            possible_forms = [word]
+            # Include the lemma so the rank + dictionary form resolve against the
+            # lemma-based Ukrainian frequency list.
+            uk_lemma = ukrainian_lemmatizer.lemmatize_word(word)
+            possible_forms = [word, uk_lemma] if uk_lemma != word else [word]
         else:
             sentence_data = find_sentence_for_word(word, subtitles, skipped)
             possible_forms = strip_korean_particles(word)

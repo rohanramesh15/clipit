@@ -1,6 +1,7 @@
 /**
- * Deadbird — Netflix content script
+ * ClipIt — Netflix content script
  * Detects Netflix video playback and intercepts subtitle requests.
+ * Also tracks actual watch time while video is playing.
  */
 
 let lastTrackedId = null;
@@ -9,6 +10,113 @@ let screenshotCache = {}; // { timestamp: true } - tracks what we've already cap
 let keywordTimestamps = []; // Timestamps where keywords appear (from backend)
 let keywordTimestampsFetched = false;
 let detectedAudioLang = null; // Track the detected audio language
+
+// ─── Watch time tracking ─────────────────────────────────────────────────────
+let watchTimeAccumulator = 0; // Seconds accumulated since last sync
+let lastWatchTimeSync = Date.now();
+let isVideoPlaying = false;
+let watchTimeInterval = null;
+const WATCH_TIME_SYNC_INTERVAL = 30000; // Sync every 30 seconds
+
+function getNetflixVideoElement() {
+  return document.querySelector('video');
+}
+
+let netflixWatchTimeRetryCount = 0;
+const MAX_NETFLIX_WATCH_TIME_RETRIES = 10;
+
+function startWatchTimeTracking() {
+  if (watchTimeInterval) return; // Already tracking
+
+  const video = getNetflixVideoElement();
+  if (!video) {
+    // Retry up to 10 times (10 seconds total) if video not found
+    if (netflixWatchTimeRetryCount < MAX_NETFLIX_WATCH_TIME_RETRIES) {
+      netflixWatchTimeRetryCount++;
+      console.log(`[ClipIt] Netflix video element not found, retrying (${netflixWatchTimeRetryCount}/${MAX_NETFLIX_WATCH_TIME_RETRIES})...`);
+      setTimeout(startWatchTimeTracking, 1000);
+    } else {
+      console.log('[ClipIt] Netflix video element not found after max retries');
+      netflixWatchTimeRetryCount = 0;
+    }
+    return;
+  }
+
+  netflixWatchTimeRetryCount = 0; // Reset on success
+  console.log('[ClipIt] Netflix video element found, attaching event listeners');
+
+  // Listen for play/pause events
+  video.addEventListener('play', () => {
+    isVideoPlaying = true;
+    console.log('[ClipIt] Netflix video playing - tracking watch time');
+  });
+
+  video.addEventListener('pause', () => {
+    isVideoPlaying = false;
+    console.log('[ClipIt] Netflix video paused');
+    syncWatchTime();
+  });
+
+  video.addEventListener('ended', () => {
+    isVideoPlaying = false;
+    syncWatchTime();
+  });
+
+  // Set initial state - check if video is already playing
+  isVideoPlaying = !video.paused;
+  if (isVideoPlaying) {
+    console.log('[ClipIt] Netflix video already playing on attach');
+  }
+
+  // Accumulate watch time every second
+  watchTimeInterval = setInterval(() => {
+    if (isVideoPlaying && lastTrackedId) {
+      watchTimeAccumulator++;
+
+      // Sync periodically
+      if (Date.now() - lastWatchTimeSync >= WATCH_TIME_SYNC_INTERVAL) {
+        syncWatchTime();
+      }
+    }
+  }, 1000);
+}
+
+function syncWatchTime() {
+  if (watchTimeAccumulator > 0 && lastTrackedId) {
+    const secondsToSync = watchTimeAccumulator;
+    watchTimeAccumulator = 0;
+    lastWatchTimeSync = Date.now();
+
+    console.log(`[ClipIt] Syncing ${secondsToSync}s watch time for Netflix ${lastTrackedId}`);
+
+    try {
+      chrome.runtime.sendMessage({
+        type: 'UPDATE_WATCH_TIME',
+        videoId: lastTrackedId,
+        seconds: secondsToSync,
+        platform: 'netflix'
+      }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+    } catch (_) {}
+  }
+}
+
+function resetWatchTimeTracking() {
+  syncWatchTime();
+  watchTimeAccumulator = 0;
+  isVideoPlaying = false;
+}
+
+// Sync watch time when page is about to unload
+window.addEventListener('beforeunload', () => {
+  syncWatchTime();
+});
+
+// Also sync on visibility change (user switches tabs)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    syncWatchTime();
+  }
+});
 
 // Extract Netflix video ID from URL (e.g., /watch/81234567)
 function getVideoId() {
@@ -27,7 +135,7 @@ function getAudioLanguage() {
     const urlParams = new URLSearchParams(location.search);
     const audioLang = urlParams.get('al');
     if (audioLang) {
-      console.log('[Deadbird] Audio language from URL:', audioLang);
+      console.log('[ClipIt] Audio language from URL:', audioLang);
       return audioLang;
     }
 
@@ -70,7 +178,7 @@ function startAudioLanguageMonitor(videoId) {
     const lang = getAudioLanguage();
     if (lang && lang !== detectedAudioLang) {
       detectedAudioLang = lang;
-      console.log('[Deadbird] Detected audio language:', lang);
+      console.log('[ClipIt] Detected audio language:', lang);
 
       // Notify backend about audio language
       chrome.runtime.sendMessage({
@@ -164,7 +272,7 @@ function getEpisodeInfo() {
     }
 
     if (season || episode) {
-      console.log('[Deadbird] Episode info:', { season, episode, episodeTitle });
+      console.log('[ClipIt] Episode info:', { season, episode, episodeTitle });
       return { season, episode, episodeTitle };
     }
 
@@ -339,7 +447,7 @@ function processSubtitle(text, url) {
   const lang = detectLanguage(text);
   if (!lang) return;
 
-  console.log(`[Deadbird] Captured ${subtitles.length} ${lang} subtitles`);
+  console.log(`[ClipIt] Captured ${subtitles.length} ${lang} subtitles`);
 
   // Try to update the title now that page is fully loaded
   const title = getTitle();
@@ -353,7 +461,7 @@ function processSubtitle(text, url) {
 
   // Only process Korean or Ukrainian (skip English-only)
   if (lang !== 'ko' && lang !== 'uk') {
-    console.log(`[Deadbird] Skipping ${lang} subtitles (not target language)`);
+    console.log(`[ClipIt] Skipping ${lang} subtitles (not target language)`);
     return;
   }
 
@@ -366,7 +474,7 @@ function processSubtitle(text, url) {
     english: '', // Will be translated by backend
   }));
 
-  console.log(`[Deadbird] Sending ${formatted.length} ${lang} subtitles to background`);
+  console.log(`[ClipIt] Sending ${formatted.length} ${lang} subtitles to background`);
   chrome.runtime.sendMessage({
     type: 'NETFLIX_SUBTITLES',
     videoId,
@@ -390,10 +498,10 @@ async function fetchKeywordTimestamps(videoId) {
     if (timestamps && timestamps.length > 0) {
       keywordTimestamps = timestamps;
       keywordTimestampsFetched = true;
-      console.log(`[Deadbird] Loaded ${timestamps.length} keyword timestamps for screenshots`);
+      console.log(`[ClipIt] Loaded ${timestamps.length} keyword timestamps for screenshots`);
     }
   } catch (e) {
-    console.error('[Deadbird] Failed to get keyword timestamps:', e);
+    console.error('[ClipIt] Failed to get keyword timestamps:', e);
   }
 }
 
@@ -407,7 +515,7 @@ function isKeywordTimestamp(timestamp) {
 async function captureMediaForTimestamp(timestamp) {
   const videoId = getVideoId();
   if (!videoId) {
-    console.log('[Deadbird] ❌ No video ID found');
+    console.log('[ClipIt] ❌ No video ID found');
     return null;
   }
 
@@ -415,26 +523,26 @@ async function captureMediaForTimestamp(timestamp) {
 
   // Skip if we already captured this timestamp
   if (screenshotCache[roundedTimestamp]) {
-    console.log('[Deadbird] ⏭️ Already captured timestamp:', roundedTimestamp);
+    console.log('[ClipIt] ⏭️ Already captured timestamp:', roundedTimestamp);
     return null;
   }
 
   // Only capture at keyword timestamps
   if (!isKeywordTimestamp(timestamp)) {
-    console.log('[Deadbird] ⏭️ Not a keyword timestamp:', roundedTimestamp, '(keywords:', keywordTimestamps.slice(0, 5).join(', '), '...)');
+    console.log('[ClipIt] ⏭️ Not a keyword timestamp:', roundedTimestamp, '(keywords:', keywordTimestamps.slice(0, 5).join(', '), '...)');
     return null;
   }
 
-  console.log('[Deadbird] ✅ Capturing screenshot + audio at keyword timestamp:', roundedTimestamp);
+  console.log('[ClipIt] ✅ Capturing screenshot + audio at keyword timestamp:', roundedTimestamp);
 
   try {
     // Capture screenshot immediately
     const screenshotResponse = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
-    console.log('[Deadbird] 📷 Screenshot response:', screenshotResponse?.success);
+    console.log('[ClipIt] 📷 Screenshot response:', screenshotResponse?.success);
 
     if (screenshotResponse?.success && screenshotResponse.dataUrl) {
       screenshotCache[roundedTimestamp] = true; // Mark as captured
-      console.log(`[Deadbird] 📸 Screenshot captured at ${roundedTimestamp}s, size: ${screenshotResponse.dataUrl.length}`);
+      console.log(`[ClipIt] 📸 Screenshot captured at ${roundedTimestamp}s, size: ${screenshotResponse.dataUrl.length}`);
 
       // Send screenshot to backend
       chrome.runtime.sendMessage({
@@ -444,7 +552,7 @@ async function captureMediaForTimestamp(timestamp) {
         dataUrl: screenshotResponse.dataUrl,
       });
     } else {
-      console.log('[Deadbird] ❌ Screenshot failed:', screenshotResponse?.error);
+      console.log('[ClipIt] ❌ Screenshot failed:', screenshotResponse?.error);
     }
 
     // Capture 3 seconds of audio (starts from current playback position)
@@ -455,7 +563,7 @@ async function captureMediaForTimestamp(timestamp) {
       });
 
       if (audioResponse?.success && audioResponse.audioData) {
-        console.log(`[Deadbird] 🎵 Audio captured at ${roundedTimestamp}s, size: ${audioResponse.audioData.size}`);
+        console.log(`[ClipIt] 🎵 Audio captured at ${roundedTimestamp}s, size: ${audioResponse.audioData.size}`);
 
         // Send audio to backend
         chrome.runtime.sendMessage({
@@ -467,23 +575,23 @@ async function captureMediaForTimestamp(timestamp) {
       } else if (audioResponse?.error?.includes('not enabled')) {
         // Only log once per session to avoid spam
         if (!window._deadbirdAudioWarningShown) {
-          console.log('[Deadbird] 💡 Tip: Click the Deadbird extension icon and enable audio to capture sentence audio');
+          console.log('[ClipIt] 💡 Tip: Click the ClipIt extension icon and enable audio to capture sentence audio');
           window._deadbirdAudioWarningShown = true;
         }
       } else {
-        console.log('[Deadbird] ⚠️ Audio capture unavailable:', audioResponse?.error);
+        console.log('[ClipIt] ⚠️ Audio capture unavailable:', audioResponse?.error);
       }
     } catch (audioErr) {
       // Audio capture is optional - don't fail the whole operation
       if (!window._deadbirdAudioWarningShown) {
-        console.log('[Deadbird] 💡 Tip: Click the Deadbird extension icon and enable audio to capture sentence audio');
+        console.log('[ClipIt] 💡 Tip: Click the ClipIt extension icon and enable audio to capture sentence audio');
         window._deadbirdAudioWarningShown = true;
       }
     }
 
     return screenshotResponse?.dataUrl;
   } catch (e) {
-    console.error('[Deadbird] Media capture failed:', e);
+    console.error('[ClipIt] Media capture failed:', e);
   }
   return null;
 }
@@ -500,9 +608,9 @@ window.addEventListener('message', (event) => {
   }
 
   if (event.data?.type === 'DEADBIRD_CAPTURE_SCREENSHOT') {
-    console.log('[Deadbird] 📨 Received screenshot request for timestamp:', event.data.timestamp);
-    console.log('[Deadbird] 📊 Keyword timestamps loaded:', keywordTimestamps.length, 'timestamps');
-    console.log('[Deadbird] 🔍 Is keyword timestamp?', isKeywordTimestamp(event.data.timestamp));
+    console.log('[ClipIt] 📨 Received screenshot request for timestamp:', event.data.timestamp);
+    console.log('[ClipIt] 📊 Keyword timestamps loaded:', keywordTimestamps.length, 'timestamps');
+    console.log('[ClipIt] 🔍 Is keyword timestamp?', isKeywordTimestamp(event.data.timestamp));
     captureScreenshotForTimestamp(event.data.timestamp);
   }
 });
@@ -513,6 +621,9 @@ function sendTrack(videoId) {
   keywordTimestamps = []; // Reset keyword timestamps
   keywordTimestampsFetched = false;
   detectedAudioLang = null; // Reset audio language
+
+  // Reset watch time tracking when switching videos
+  resetWatchTimeTracking();
 
   let attempts = 0;
   let lastTitle = null;
@@ -533,7 +644,7 @@ function sendTrack(videoId) {
         titleCheckInterval = null;
 
         const finalTitle = hasRealTitle ? title : (lastTitle || 'Netflix Video');
-        console.log('[Deadbird] Tracking Netflix video:', videoId, finalTitle, 'audio:', audioLang, 'episode:', episodeInfo);
+        console.log('[ClipIt] Tracking Netflix video:', videoId, finalTitle, 'audio:', audioLang, 'episode:', episodeInfo);
         chrome.runtime.sendMessage({
           type: 'TRACK_NETFLIX',
           videoId,
@@ -554,6 +665,9 @@ function sendTrack(videoId) {
 
         // Start polling for keyword timestamps (set after subtitles processed)
         startKeywordTimestampPolling(videoId);
+
+        // Start tracking watch time for this video
+        setTimeout(startWatchTimeTracking, 1000);
       } else if (title && title !== 'Unknown') {
         lastTitle = title;
       }
@@ -564,11 +678,11 @@ function sendTrack(videoId) {
 // Capture a thumbnail for the video
 async function captureThumbnail(videoId) {
   try {
-    console.log('[Deadbird] Capturing thumbnail for video:', videoId);
+    console.log('[ClipIt] Capturing thumbnail for video:', videoId);
     const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
 
     if (response?.success && response.dataUrl) {
-      console.log('[Deadbird] Thumbnail captured, saving...');
+      console.log('[ClipIt] Thumbnail captured, saving...');
       chrome.runtime.sendMessage({
         type: 'SAVE_NETFLIX_THUMBNAIL',
         videoId: `netflix_${videoId}`,
@@ -576,7 +690,7 @@ async function captureThumbnail(videoId) {
       });
     }
   } catch (e) {
-    console.log('[Deadbird] Thumbnail capture failed:', e.message);
+    console.log('[ClipIt] Thumbnail capture failed:', e.message);
   }
 }
 
@@ -591,7 +705,7 @@ function startKeywordTimestampPolling(videoId) {
     if (keywordTimestampsFetched || pollAttempts >= maxAttempts) {
       clearInterval(pollInterval);
       if (!keywordTimestampsFetched) {
-        console.log('[Deadbird] Keyword timestamps not available yet');
+        console.log('[ClipIt] Keyword timestamps not available yet');
       }
       return;
     }
@@ -615,14 +729,61 @@ function checkNavigation() {
   } catch (e) {}
 }
 
+// ─── Hide subtitles feature ──────────────────────────────────────────────────
+const HIDE_SUBTITLES_STYLE_ID = 'deadbird-hide-subtitles';
+
+function setSubtitlesHidden(hide) {
+  let styleEl = document.getElementById(HIDE_SUBTITLES_STYLE_ID);
+
+  if (hide) {
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = HIDE_SUBTITLES_STYLE_ID;
+      styleEl.textContent = `
+        /* Hide Netflix subtitles - covers various Netflix subtitle containers */
+        .player-timedtext,
+        .player-timedtext-text-container,
+        [data-uia="player-timedtext"],
+        .timedtext-container,
+        .watch-video--subtitles-container {
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+      console.log('[ClipIt] Subtitles hidden (still being captured)');
+    }
+  } else {
+    if (styleEl) {
+      styleEl.remove();
+      console.log('[ClipIt] Subtitles visible');
+    }
+  }
+}
+
+// Listen for hide subtitles toggle from popup
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'SET_HIDE_SUBTITLES') {
+    setSubtitlesHidden(msg.hide);
+    sendResponse({ success: true });
+  }
+});
+
+// Apply saved preference on load
+chrome.storage.local.get('hideSubtitles').then(result => {
+  if (result.hideSubtitles) {
+    setSubtitlesHidden(true);
+  }
+});
+
 // Initialize
-console.log('[Deadbird] Netflix content script loading...');
+console.log('[ClipIt] Netflix content script loading...');
 injectInterceptor();
 setInterval(checkNavigation, 1000);
 
 const videoId = getVideoId();
 if (videoId) {
-  console.log('[Deadbird] Netflix video detected:', videoId);
+  console.log('[ClipIt] Netflix video detected:', videoId);
   lastTrackedId = videoId;
   sendTrack(videoId);
 }

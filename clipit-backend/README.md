@@ -2,6 +2,16 @@
 
 A FastAPI backend for the Deadbird language learning application. Learn languages through video content with spaced repetition flashcards.
 
+## Repository Structure
+
+```
+.
+├── new-backend/          # Main FastAPI backend
+├── chrome-extension/     # Browser extension for Netflix integration
+├── prev-backend/         # Legacy backend (deprecated)
+└── docker-compose.yml    # Docker configuration
+```
+
 ## Features
 
 - **User Authentication**: JWT-based auth with signup/login
@@ -11,11 +21,12 @@ A FastAPI backend for the Deadbird language learning application. Learn language
 - **Flashcards**: Spaced repetition using FSRS algorithm
 - **Translation**: DeepL integration for word lookups
 - **Deck Management**: Organize flashcards into custom decks
+- **Chrome Extension**: Netflix subtitle integration
 
-## Project Structure
+## Project Structure (new-backend)
 
 ```
-.
+new-backend/
 ├── app/
 │   ├── api/routes/       # API endpoints
 │   │   ├── auth.py       # Authentication
@@ -49,18 +60,23 @@ A FastAPI backend for the Deadbird language learning application. Learn language
 
 ### Installation
 
-1. Create and activate a virtual environment:
+1. Navigate to the backend directory:
+```bash
+cd new-backend
+```
+
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
 ```
 
-2. Install dependencies:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file:
+4. Create a `.env` file:
 ```env
 PROJECT_NAME=Deadbird API
 DEBUG=True
@@ -75,12 +91,19 @@ DEEPL_API_KEY=your-deepl-key
 
 ### Development
 ```bash
+cd new-backend
 python main.py
 ```
 
 ### Production
 ```bash
+cd new-backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+### Docker
+```bash
+docker-compose up
 ```
 
 ## API Documentation
@@ -101,3 +124,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 | `/api/lookup/*` | Word translation/lookup |
 | `/api/netflix/*` | Netflix integration |
 | `/api/decks/*` | Deck management |
+
+## Chrome Extension
+
+The `chrome-extension/` directory contains a browser extension for capturing subtitles from Netflix. See the extension's README for installation instructions.
+# Trigger redeploy Thu Mar 19 00:03:58 EDT 2026

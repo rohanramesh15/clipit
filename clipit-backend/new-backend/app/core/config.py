@@ -16,12 +16,20 @@ class Settings(BaseSettings):
     # CORS — includes Vite dev server (5173) and CRA (3000)
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "http://localhost:5175",
+        "http://127.0.0.1:5175",
         "http://localhost:5176",
+        "http://127.0.0.1:5176",
         "http://localhost:8000",
+        "http://127.0.0.1:8000",
         "https://project-deadbird-frontend.fly.dev",
+        "https://theclipitapp.com",
+        "https://www.theclipitapp.com",
     ]
 
     # Database
@@ -38,7 +46,17 @@ class Settings(BaseSettings):
     # SQLite + subtitle cache
     SQLITE_DB_PATH: str = "deadbird.db"
     SUBTITLES_CACHE_DIR: str = "subtitles_cache"
-      
+
+    # Email (Resend)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "Clip It <noreply@theclipitapp.com>"
+    FRONTEND_URL: str = "https://www.theclipitapp.com"
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+
+    # Gemini (chat, embeddings, STT, TTS)
+    GEMINI_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

@@ -2,13 +2,48 @@ import json
 from pathlib import Path
 from youtube_transcript_api import YouTubeTranscriptApi
 from app.core.config import settings
-from app.services.video_store import save_subtitles, get_subtitles, update_video_duration
+from app.services.video_store import save_subtitles, get_subtitles, update_video_duration, save_subtitles_ukrainian, get_subtitles_ukrainian
 
 
 def _cache_path(video_id: str) -> Path:
     cache_dir = Path(settings.SUBTITLES_CACHE_DIR)
     cache_dir.mkdir(exist_ok=True)
     return cache_dir / f"subtitles_{video_id}.json"
+
+
+def save_client_youtube_subtitles(video_id: str, merged_subtitles: list, has_korean: bool) -> None:
+    """
+    Save YouTube subtitles that were fetched client-side by the Chrome extension.
+    This bypasses YouTube's IP blocking of cloud servers.
+    """
+    cache_file = _cache_path(video_id)
+
+    data = {
+        'video_id': video_id,
+        'total_subtitles': len(merged_subtitles),
+        'has_korean': has_korean,
+        'subtitles': merged_subtitles,
+        'source': 'client',  # Mark as client-fetched
+    }
+
+    # Save to local cache
+    with open(cache_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # Also persist to Neon (best-effort)
+    try:
+        save_subtitles(video_id, data)
+    except Exception:
+        pass
+
+    # Calculate and save video duration from last subtitle
+    if merged_subtitles:
+        last_sub = merged_subtitles[-1]
+        duration_seconds = int(last_sub.get('end', last_sub['start'] + last_sub.get('duration', 0)))
+        try:
+            update_video_duration(video_id, duration_seconds)
+        except Exception:
+            pass
 
 
 def _snippets_to_list(result) -> list:
@@ -128,12 +163,13 @@ def fetch_and_cache_subtitles(video_id: str) -> dict:
     if korean_subs and english_subs:
         merged = merge_subtitles_by_timestamp(english_subs, korean_subs)
     elif korean_subs:
-        # Korean only — no English available
+        # Korean only — no English available, leave english empty for DeepL fallback
         merged = [
             {
                 'start': s['start'], 'duration': s['duration'],
                 'end': s['start'] + s['duration'],
-                'english': s['text'], 'korean': s['text'],
+                'english': '',
+                'korean': s['text'],
             }
             for s in korean_subs
             if s['text'] and s['text'].strip()
@@ -290,7 +326,7 @@ def fetch_and_cache_subtitles_ukrainian(video_id: str) -> dict:
             {
                 'start': s['start'], 'duration': s['duration'],
                 'end': s['start'] + s['duration'],
-                'english': s['text'], 'ukrainian': s['text'],
+                'english': '', 'ukrainian': s['text'],
             }
             for s in ukrainian_subs
             if s['text'] and s['text'].strip()
@@ -315,6 +351,12 @@ def fetch_and_cache_subtitles_ukrainian(video_id: str) -> dict:
 
     with open(cache_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # Also persist to Neon (best-effort) using the dedicated Ukrainian column
+    try:
+        save_subtitles_ukrainian(video_id, data)
+    except Exception:
+        pass
 
     # Calculate and save video duration from last subtitle
     if merged:
@@ -346,15 +388,95 @@ def check_ukrainian_available(video_id: str) -> bool:
 
 
 def load_cached_subtitles_ukrainian(video_id: str) -> dict | None:
-    """Load Ukrainian subtitle cache from disk, no network call."""
+    """Load Ukrainian subtitle cache from disk, then dedicated Neon column fallback."""
     cache_file = _cache_path_uk(video_id)
     if cache_file.exists():
         with open(cache_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return None
+    return get_subtitles_ukrainian(video_id)
 
 
-def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has_korean: bool = False, has_ukrainian: bool = False) -> bool:
+# ── English support ───────────────────────────────────────────────────────────
+# English is special: it's the target language for English-learners but also
+# the universal translation pair for other-language videos. The cache here is
+# for videos tracked specifically for English learners.
+
+def _cache_path_en(video_id: str) -> Path:
+    cache_dir = Path(settings.SUBTITLES_CACHE_DIR)
+    cache_dir.mkdir(exist_ok=True)
+    return cache_dir / f"subtitles_en_{video_id}.json"
+
+
+def fetch_and_cache_subtitles_english(video_id: str) -> dict:
+    """Fetch English subtitles, cache to disk, return data."""
+    cache_file = _cache_path_en(video_id)
+
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    api = YouTubeTranscriptApi()
+    transcript_list = api.list(video_id)
+    english_subs = _fetch_english(transcript_list, None)
+    if not english_subs:
+        raise Exception(f"No English subtitles available for {video_id}")
+
+    merged = [
+        {
+            'start': s['start'], 'duration': s['duration'],
+            'end': s['start'] + s['duration'],
+            'english': s['text'],
+        }
+        for s in english_subs
+        if s['text'] and s['text'].strip()
+    ]
+
+    data = {
+        'video_id': video_id,
+        'total_subtitles': len(merged),
+        'has_english': len(merged) > 0,
+        'subtitles': merged,
+    }
+
+    with open(cache_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    if merged:
+        last_sub = merged[-1]
+        duration_seconds = int(last_sub.get('end', last_sub['start'] + last_sub['duration']))
+        try:
+            update_video_duration(video_id, duration_seconds)
+        except Exception:
+            pass
+
+    return data
+
+
+def check_english_available(video_id: str) -> bool:
+    cache_file = _cache_path_en(video_id)
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data.get('has_english', False)
+
+    try:
+        api = YouTubeTranscriptApi()
+        transcript_list = api.list(video_id)
+        transcript_list.find_transcript(['en'])
+        return True
+    except Exception:
+        return False
+
+
+def load_cached_subtitles_english(video_id: str) -> dict | None:
+    cache_file = _cache_path_en(video_id)
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return get_subtitles(video_id)
+
+
+def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has_korean: bool = False, has_ukrainian: bool = False, has_english: bool = False) -> bool:
     """
     Save subtitles that were fetched by the extension (in the user's browser).
     This avoids YouTube IP blocking issues.
@@ -363,6 +485,8 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
         # Determine which cache file to use
         if lang == 'uk':
             cache_file = _cache_path_uk(video_id)
+        elif lang == 'en':
+            cache_file = _cache_path_en(video_id)
         else:
             cache_file = _cache_path(video_id)
 
@@ -372,6 +496,7 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
             'total_subtitles': len(subtitles),
             'has_korean': has_korean,
             'has_ukrainian': has_ukrainian,
+            'has_english': has_english,
             'subtitles': subtitles,
         }
 
@@ -379,21 +504,44 @@ def save_subtitles_from_extension(video_id: str, lang: str, subtitles: list, has
         with open(cache_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-        # Also save to Neon database (best-effort)
-        try:
-            save_subtitles(video_id, data)
-        except Exception:
-            pass
+        # Also save to Neon database (best-effort), only when we have actual content.
+        # Use separate columns so Korean and Ukrainian never overwrite each other.
+        if subtitles:
+            try:
+                if lang == 'uk':
+                    save_subtitles_ukrainian(video_id, data)
+                else:
+                    save_subtitles(video_id, data)
+            except Exception:
+                pass
 
         # Update video language status in database
-        from app.services.video_store import update_korean_status, update_ukrainian_status
+        from app.services.video_store import update_korean_status, update_ukrainian_status, update_english_status
         try:
             if lang == 'uk':
                 update_ukrainian_status(video_id, has_ukrainian)
+            elif lang == 'en':
+                update_english_status(video_id, has_english)
             else:
                 update_korean_status(video_id, has_korean)
         except Exception as e:
             print(f"Failed to update video status: {e}")
+
+        # Auto-embed target-language subtitles into pgvector (fire-and-forget)
+        target_has = (lang == 'en' and has_english)
+        if target_has and subtitles:
+            try:
+                import threading
+                from app.services.embedding_service import embed_video_subtitles
+                threading.Thread(
+                    target=embed_video_subtitles,
+                    args=(video_id, subtitles),
+                    kwargs={"language": lang},
+                    daemon=True,
+                ).start()
+                print(f"[embed] Spawned background embedding for {video_id} ({lang})")
+            except Exception as e:
+                print(f"[embed] Failed to spawn background embedding: {e}")
 
         # Calculate and save video duration from last subtitle
         if subtitles:

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel as PydanticModel
@@ -27,6 +27,7 @@ class CardUpsert(PydanticModel):
     lapses: int = 0
     state: int = 0                  # 0=New 1=Learning 2=Review 3=Relearning
     last_review: Optional[str] = None
+    video_id: Optional[str] = None  # YouTube video ID for deck organization
 
 
 class CardBulkUpsert(PydanticModel):
@@ -48,7 +49,10 @@ def _parse_dt(dt_str: Optional[str]) -> Optional[datetime]:
     if not dt_str:
         return None
     try:
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
     except (ValueError, AttributeError):
         return datetime.utcnow()
 
@@ -78,12 +82,16 @@ def _apply_card_upsert(
         existing.lapses = card.lapses
         existing.state = card.state
         existing.last_review = last_review
+        # Only update video_id if provided and not already set
+        if card.video_id and not existing.video_id:
+            existing.video_id = card.video_id
         return existing
     else:
         progress = UserFlashcardProgress(
             user_id=user_id,
             word=card.word,
             language=card.language,
+            video_id=card.video_id,
             due=due,
             stability=card.stability,
             difficulty=card.difficulty,
@@ -104,15 +112,21 @@ def _apply_card_upsert(
 def get_cards(
     limit: int = 500,
     offset: int = 0,
+    video_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Return FSRS card states for the current user, with optional pagination."""
+    """Return FSRS card states for the current user, with optional pagination and filtering."""
     query = (
         db.query(UserFlashcardProgress)
         .filter(UserFlashcardProgress.user_id == current_user.id)
-        .order_by(UserFlashcardProgress.word)
     )
+
+    # Filter by specific video (deck)
+    if video_id:
+        query = query.filter(UserFlashcardProgress.video_id == video_id)
+
+    query = query.order_by(UserFlashcardProgress.word)
     total = query.count()
     rows = query.offset(offset).limit(limit).all()
     return {
@@ -123,6 +137,7 @@ def get_cards(
             {
                 "word": r.word,
                 "language": r.language,
+                "video_id": r.video_id,
                 "due": r.due.isoformat() if r.due else None,
                 "stability": r.stability,
                 "difficulty": r.difficulty,
@@ -139,6 +154,16 @@ def get_cards(
     }
 
 
+def _invalidate_vocab_profile(user_id: int, language: str) -> None:
+    """Best-effort: drop the cached chat vocab profile so the next chat sees
+    the most recent card state. Safe to call without the chat module loaded."""
+    try:
+        from app.services.vocab_profile_service import invalidate
+        invalidate(user_id, language)
+    except Exception:
+        pass
+
+
 @router.post("/cards")
 def upsert_card(
     card: CardUpsert,
@@ -148,6 +173,7 @@ def upsert_card(
     """Upsert a single FSRS card state for the current user."""
     _apply_card_upsert(db, current_user.id, card)
     db.commit()
+    _invalidate_vocab_profile(current_user.id, card.language)
     return {"status": "ok", "word": card.word, "language": card.language}
 
 
@@ -158,9 +184,13 @@ def upsert_cards_bulk(
     current_user: User = Depends(get_current_user),
 ):
     """Upsert many FSRS card states at once (for initial localStorage migration)."""
+    langs_touched = set()
     for card in body.cards:
         _apply_card_upsert(db, current_user.id, card)
+        langs_touched.add(card.language)
     db.commit()
+    for lang in langs_touched:
+        _invalidate_vocab_profile(current_user.id, lang)
     return {"status": "ok", "upserted": len(body.cards)}
 
 
@@ -182,6 +212,7 @@ def add_review(
     )
     db.add(entry)
     db.commit()
+    _invalidate_vocab_profile(current_user.id, review.language)
     return {"status": "ok"}
 
 
@@ -217,6 +248,37 @@ def get_reviews(
     }
 
 
+@router.get("/reviews/today")
+def get_reviews_today(
+    tz_offset_minutes: int = 0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return how many cards the current user reviewed today in their local timezone."""
+    now_utc = datetime.utcnow()
+    local_now = now_utc - timedelta(minutes=tz_offset_minutes)
+    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_end = local_start + timedelta(days=1)
+    utc_start = local_start + timedelta(minutes=tz_offset_minutes)
+    utc_end = local_end + timedelta(minutes=tz_offset_minutes)
+
+    count = (
+        db.query(UserReviewHistory)
+        .filter(
+            UserReviewHistory.user_id == current_user.id,
+            UserReviewHistory.reviewed_at >= utc_start,
+            UserReviewHistory.reviewed_at < utc_end,
+        )
+        .count()
+    )
+
+    return {
+        "count": count,
+        "date": local_start.date().isoformat(),
+        "tz_offset_minutes": tz_offset_minutes,
+    }
+
+
 @router.delete("/cards/{word}")
 def delete_card(
     word: str,
@@ -249,3 +311,53 @@ def delete_card(
         raise HTTPException(status_code=404, detail="Card not found")
 
     return {"status": "ok", "word": word, "language": language}
+
+
+@router.delete("/cards/video/{video_id}")
+def delete_cards_by_video(
+    video_id: str,
+    language: str = "ko",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete all flashcards for a specific video from the user's progress."""
+    # Get all cards for this video first (to delete their review history)
+    cards = (
+        db.query(UserFlashcardProgress)
+        .filter(
+            UserFlashcardProgress.user_id == current_user.id,
+            UserFlashcardProgress.video_id == video_id,
+            UserFlashcardProgress.language == language,
+        )
+        .all()
+    )
+
+    words_deleted = [card.word for card in cards]
+
+    # Delete the card progress
+    deleted_count = (
+        db.query(UserFlashcardProgress)
+        .filter(
+            UserFlashcardProgress.user_id == current_user.id,
+            UserFlashcardProgress.video_id == video_id,
+            UserFlashcardProgress.language == language,
+        )
+        .delete()
+    )
+
+    # Also delete review history for these words
+    if words_deleted:
+        db.query(UserReviewHistory).filter(
+            UserReviewHistory.user_id == current_user.id,
+            UserReviewHistory.word.in_(words_deleted),
+            UserReviewHistory.language == language,
+        ).delete(synchronize_session=False)
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "video_id": video_id,
+        "language": language,
+        "deleted_count": deleted_count,
+    }

@@ -1,5 +1,5 @@
 /**
- * Deadbird — Offscreen Audio Recorder
+ * ClipIt — Offscreen Audio Recorder
  * Records audio from a tab using MediaRecorder API.
  * This runs in an offscreen document context (Manifest V3).
  *
@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     startPersistentLoopback(msg.streamId)
       .then(() => sendResponse({ success: true }))
       .catch(e => {
-        console.error('[Deadbird Offscreen] Loopback start failed:', e);
+        console.error('[ClipIt Offscreen] Loopback start failed:', e);
         sendResponse({ success: false, error: e.message });
       });
     return true;
@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     recordClip(msg.duration)
       .then(audioData => sendResponse({ success: true, audioData }))
       .catch(e => {
-        console.error('[Deadbird Offscreen] Recording failed:', e);
+        console.error('[ClipIt Offscreen] Recording failed:', e);
         sendResponse({ success: false, error: e.message });
       });
     return true;
@@ -81,11 +81,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
  */
 async function startPersistentLoopback(streamId) {
   if (isLoopbackActive) {
-    console.log('[Deadbird Offscreen] Loopback already active');
+    console.log('[ClipIt Offscreen] Loopback already active');
     return;
   }
 
-  console.log('[Deadbird Offscreen] Starting persistent loopback...');
+  console.log('[ClipIt Offscreen] Starting persistent loopback...');
 
   // Get media stream from the stream ID
   persistentStream = await navigator.mediaDevices.getUserMedia({
@@ -104,14 +104,14 @@ async function startPersistentLoopback(streamId) {
   sourceNode.connect(audioContext.destination);
 
   isLoopbackActive = true;
-  console.log('[Deadbird Offscreen] ✅ Persistent loopback active - audio will play through speakers');
+  console.log('[ClipIt Offscreen] ✅ Persistent loopback active - audio will play through speakers');
 }
 
 /**
  * Stop persistent loopback and clean up.
  */
 function stopPersistentLoopback() {
-  console.log('[Deadbird Offscreen] Stopping persistent loopback...');
+  console.log('[ClipIt Offscreen] Stopping persistent loopback...');
 
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
@@ -134,7 +134,7 @@ function stopPersistentLoopback() {
 
   isLoopbackActive = false;
   isRecording = false;
-  console.log('[Deadbird Offscreen] Loopback stopped');
+  console.log('[ClipIt Offscreen] Loopback stopped');
 }
 
 /**
@@ -150,7 +150,7 @@ async function recordClip(duration = 3000) {
     throw new Error('Recording already in progress');
   }
 
-  console.log('[Deadbird Offscreen] Recording clip, duration:', duration);
+  console.log('[ClipIt Offscreen] Recording clip, duration:', duration);
   isRecording = true;
   audioChunks = [];
 
@@ -168,7 +168,7 @@ async function recordClip(duration = 3000) {
 
     mediaRecorder.onstop = async () => {
       isRecording = false;
-      console.log('[Deadbird Offscreen] Clip recorded, chunks:', audioChunks.length);
+      console.log('[ClipIt Offscreen] Clip recorded, chunks:', audioChunks.length);
 
       if (audioChunks.length === 0) {
         reject(new Error('No audio data captured'));
@@ -187,7 +187,7 @@ async function recordClip(duration = 3000) {
 
     mediaRecorder.onerror = (event) => {
       isRecording = false;
-      console.error('[Deadbird Offscreen] MediaRecorder error:', event.error);
+      console.error('[ClipIt Offscreen] MediaRecorder error:', event.error);
       reject(event.error);
     };
 
@@ -207,7 +207,7 @@ async function recordClip(duration = 3000) {
  * Causes brief audio glitch. Used as fallback.
  */
 async function startRecordingLegacy(streamId, duration) {
-  console.log('[Deadbird Offscreen] Legacy recording (may cause audio glitch)');
+  console.log('[ClipIt Offscreen] Legacy recording (may cause audio glitch)');
 
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
@@ -307,4 +307,4 @@ function blobToBase64(blob) {
   });
 }
 
-console.log('[Deadbird Offscreen] Audio recorder ready (persistent loopback supported)');
+console.log('[ClipIt Offscreen] Audio recorder ready (persistent loopback supported)');
