@@ -14,13 +14,12 @@ const INPUT =
 const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-muted mb-2';
 
 export function LoginPage({ onNavigate }: LoginPageProps) {
-  const { login, loginWithGoogle } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,20 +37,6 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     }
   };
 
-  const handleGoogleSuccess = async (credential: string) => {
-    setIsGoogleLoading(true);
-    setError('');
-    try {
-      await loginWithGoogle(credential, 'signin');
-      gtag('event', 'conversion', { send_to: 'AW-18115152337/s3QjCOHmyqEcENGT_b1D', value: 0, currency: 'USD' });
-      onNavigate('app');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed');
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
   return (
     <AuthLayout onBack={() => onNavigate('landing')}>
       <h2 className="text-2xl font-heading font-bold text-primary mb-1">Welcome back</h2>
@@ -59,10 +44,8 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
       {/* Google — primary option */}
       <GoogleSignInButton
-        onSuccess={handleGoogleSuccess}
         onError={() => setError('Google sign-in was cancelled')}
         text="signin"
-        isLoading={isGoogleLoading}
       />
 
       <div className="relative my-6">
@@ -146,7 +129,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
         <button
           type="submit"
-          disabled={isLoading || isGoogleLoading}
+          disabled={isLoading}
           className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
         >
           {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign in'}

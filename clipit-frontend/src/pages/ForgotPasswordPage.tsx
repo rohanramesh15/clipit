@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, Loader2, CheckCircle } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
-import { API_BASE_URL } from '../config';
+import { supabase } from '../lib/supabaseClient';
 
 interface ForgotPasswordPageProps {
   onNavigate: (view: 'landing' | 'login') => void;
@@ -21,15 +21,10 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to send reset email');
-      }
+      if (error) throw new Error(error.message);
 
       setSuccess(true);
     } catch (err: unknown) {

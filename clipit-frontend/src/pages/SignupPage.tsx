@@ -13,13 +13,12 @@ const INPUT =
 const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-muted mb-2';
 
 export function SignupPage({ onNavigate }: SignupPageProps) {
-  const { register, loginWithGoogle } = useAuth();
+  const { register } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Auto-dismiss the error message after a few seconds.
@@ -47,19 +46,6 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
     }
   };
 
-  const handleGoogleSuccess = async (credential: string) => {
-    setIsGoogleLoading(true);
-    setError('');
-    try {
-      await loginWithGoogle(credential, 'signup');
-      onNavigate('onboarding');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google sign-up failed');
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
   return (
     <AuthLayout onBack={() => onNavigate('landing')}>
       <h2 className="text-2xl font-heading font-bold text-primary mb-1">Create your account</h2>
@@ -67,10 +53,8 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
       {/* Google — primary option */}
       <GoogleSignInButton
-        onSuccess={handleGoogleSuccess}
         onError={() => setError('Google sign-up was cancelled')}
         text="signup"
-        isLoading={isGoogleLoading}
       />
 
       <div className="relative my-6">
@@ -142,7 +126,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
         <button
           type="submit"
-          disabled={isLoading || isGoogleLoading}
+          disabled={isLoading}
           className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
         >
           {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create account'}

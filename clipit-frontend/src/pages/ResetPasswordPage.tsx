@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Lock, Loader2, CheckCircle } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
-import { API_BASE_URL } from '../config';
+import { supabase } from '../lib/supabaseClient';
 
 interface ResetPasswordPageProps {
-  token: string;
   onNavigate: (view: 'landing' | 'login') => void;
 }
 
-export function ResetPasswordPage({ token, onNavigate }: ResetPasswordPageProps) {
+export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,17 +33,8 @@ export function ResetPasswordPage({ token, onNavigate }: ResetPasswordPageProps)
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Failed to reset password');
-      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw new Error(error.message);
 
       setSuccess(true);
     } catch (err: unknown) {
@@ -53,28 +43,6 @@ export function ResetPasswordPage({ token, onNavigate }: ResetPasswordPageProps)
       setIsLoading(false);
     }
   };
-
-  if (!token) {
-    return (
-      <div className={`min-h-screen bg-app flex flex-col items-center justify-center p-6 ${isDark ? '' : 'light'}`}>
-        <div className="bg-surface border border-white/10 rounded-2xl p-8 md:p-10 shadow-2xl max-w-md w-full text-center">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-heading font-bold text-primary mb-2">
-            Invalid Reset Link
-          </h1>
-          <p className="text-secondary mb-6">
-            This password reset link is invalid or has expired.
-          </p>
-          <button
-            onClick={() => onNavigate('login')}
-            className="text-accent hover:text-accent-hover font-bold transition-colors"
-          >
-            Return to login
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen bg-app flex flex-col items-center justify-center p-6 relative overflow-hidden ${isDark ? '' : 'light'}`}>

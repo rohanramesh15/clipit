@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Sidebar } from './components/Sidebar';
 import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
@@ -22,7 +21,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
-import { GOOGLE_CLIENT_ID } from './config';
 type Page =
 'video' |
 'practice' |
@@ -40,7 +38,6 @@ function AppInner() {
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('practice');
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const [resetToken, setResetToken] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
     return saved === 'true';
@@ -70,10 +67,9 @@ function AppInner() {
       return;
     }
 
-    if (path === '/reset-password' || params.has('token')) {
-      const token = params.get('token') || '';
-      if (token) {
-        setResetToken(token);
+    if (path === '/reset-password' || params.has('code') || window.location.hash.includes('type=recovery')) {
+      const token = params.get('code') || '';
+      if (path === '/reset-password' || token || window.location.hash.includes('type=recovery')) {
         setAppView('reset-password');
         // Clean URL
         window.history.replaceState({}, '', '/');
@@ -171,7 +167,7 @@ function AppInner() {
     return <ForgotPasswordPage onNavigate={setAppView} />;
   }
   if (appView === 'reset-password') {
-    return <ResetPasswordPage token={resetToken} onNavigate={setAppView} />;
+    return <ResetPasswordPage onNavigate={setAppView} />;
   }
   if (appView === 'privacy') {
     return <PrivacyPage onNavigate={setAppView} />;
@@ -229,12 +225,10 @@ function AppInner() {
 
 export function App() {
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <AuthProvider>
-        <LanguageProvider>
-          <AppInner />
-        </LanguageProvider>
-      </AuthProvider>
-    </GoogleOAuthProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <AppInner />
+      </LanguageProvider>
+    </AuthProvider>
   );
 }

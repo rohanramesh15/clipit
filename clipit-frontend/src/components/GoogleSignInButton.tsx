@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface GoogleSignInButtonProps {
-  onSuccess: (credential: string) => void;
   onError?: () => void;
   text?: 'signin' | 'signup' | 'continue';
   isLoading?: boolean;
@@ -21,16 +21,12 @@ function GoogleLogo({ className }: { className?: string }) {
 }
 
 export function GoogleSignInButton({
-  onSuccess,
   onError,
   text = 'continue',
   isLoading = false
 }: GoogleSignInButtonProps) {
-  const hiddenButtonRef = useRef<HTMLDivElement>(null);
-  const callbackRef = useRef<((credential: string) => void) | null>(null);
-
-  // Store the callback in a ref to avoid stale closures
-  callbackRef.current = onSuccess;
+  const { loginWithGoogle } = useAuth();
+  const [redirecting, setRedirecting] = useState(false);
 
   const buttonText = {
     signin: 'Sign in with Google',
@@ -38,84 +34,27 @@ export function GoogleSignInButton({
     continue: 'Continue with Google'
   }[text];
 
-  // Initialize Google Identity Services
-  useEffect(() => {
-    const initializeGoogleSignIn = () => {
-      if (window.google?.accounts?.id && hiddenButtonRef.current) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: (response: { credential: string }) => {
-            if (response.credential && callbackRef.current) {
-              callbackRef.current(response.credential);
-            }
-          },
-        });
-
-        // Render the hidden Google button
-        window.google.accounts.id.renderButton(
-          hiddenButtonRef.current,
-          {
-            type: 'standard',
-            theme: 'filled_black',
-            size: 'large',
-            width: 300,
-          }
-        );
-      }
-    };
-
-    // Check if google is already loaded
-    if (window.google?.accounts?.id) {
-      initializeGoogleSignIn();
-    } else {
-      // Wait for Google Identity Services to load
-      const checkGoogle = setInterval(() => {
-        if (window.google?.accounts?.id) {
-          clearInterval(checkGoogle);
-          initializeGoogleSignIn();
-        }
-      }, 100);
-
-      return () => clearInterval(checkGoogle);
-    }
-  }, []);
-
-  const handleClick = () => {
-    if (isLoading) return;
-
-    // Try to click the hidden Google button
-    const googleButton = hiddenButtonRef.current?.querySelector('[role="button"]') as HTMLElement;
-    if (googleButton) {
-      googleButton.click();
-    } else {
-      // Fallback: show the One Tap prompt
-      window.google?.accounts?.id?.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          onError?.();
-        }
-      });
+  const handleClick = async () => {
+    if (isLoading || redirecting) return;
+    setRedirecting(true);
+    try {
+      await loginWithGoogle();
+    } catch {
+      setRedirecting(false);
+      onError?.();
     }
   };
 
   return (
     <div className="relative">
-      {/* Hidden Google button for triggering auth */}
-      <div
-        ref={hiddenButtonRef}
-        className="absolute opacity-0 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
-
-      {/* Custom styled button — uses the .auth-page theme tokens so text/border
-          meet contrast in both light and dark modes. */}
       <button
         type="button"
         onClick={handleClick}
-        disabled={isLoading}
+        disabled={isLoading || redirecting}
         className="w-full bg-transparent hover:bg-[var(--auth-border-faint)] font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-3 border disabled:opacity-70 disabled:cursor-not-allowed"
         style={{ color: 'var(--auth-text)', borderColor: 'var(--auth-border)' }}
       >
-        {isLoading ? (
+        {isLoading || redirecting ? (
           <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--auth-text)' }} />
         ) : (
           <>
@@ -126,33 +65,4 @@ export function GoogleSignInButton({
       </button>
     </div>
   );
-}
-
-// Type declaration for Google Identity Services
-declare global {
-  interface Window {
-    google?: {
-      accounts?: {
-        id?: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential: string }) => void;
-          }) => void;
-          renderButton: (
-            element: HTMLElement,
-            options: {
-              type?: string;
-              theme?: string;
-              size?: string;
-              width?: number;
-            }
-          ) => void;
-          prompt: (callback?: (notification: {
-            isNotDisplayed: () => boolean;
-            isSkippedMoment: () => boolean;
-          }) => void) => void;
-        };
-      };
-    };
-  }
 }
