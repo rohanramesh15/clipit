@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "ClipIt",
+  "version": "1.2.0",
+  "description": "Learn languages from YouTube and Netflix videos you love",
+  "permissions": ["storage", "scripting", "tabCapture", "offscreen", "activeTab"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.netflix.com/watch/*"],
+      "js": ["netflix-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:5176/*", "https://project-deadbird-frontend.fly.dev/*"],
+      "js": ["token-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ClipIt",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["*://*.netflix.com/*"]
+    }
+  ]
+}
