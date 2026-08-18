@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Love+Ya+Like+A+Sister&display=swap');
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Dark theme (default) */
+:root {
+  --bg-app: #141113;
+  --bg-surface: #201B21;
+  --bg-surface-hover: #2A242C;
+  --accent: #E06A5F;
+  --accent-hover: #F08378;
+  --text-primary: #F7F1EA;
+  --text-secondary: #CBBFC7;
+  --text-muted: #928790;
+  --border-subtle: rgba(247, 241, 234, 0.09);
+  --border-medium: rgba(247, 241, 234, 0.18);
+  /* Practice-card palette (dark): deep tinted backgrounds, light same-hue text */
+  --card-fc-bg: #3a1f21; --card-fc-text: #eaa9ae; /* flash cards — rose */
+  --card-vc-bg: #262240; --card-vc-text: #c2b8ef; /* voice chat — violet */
+  --card-ml-bg: #1d2b40; --card-ml-text: #abc9ef; /* mad libs — blue */
+}
+/* Light theme */
+.light {
+  --bg-app: #ffffff;
+  --bg-surface: #fffcf9;
+  --bg-surface-hover: #eeeef1;
+  --accent: #C4625A;
+  --accent-hover: #A84F49;
+  /* Text scale — one hue family (deep red, ~hue 0°, anchored on #4c2323),
+     tuned in lightness/saturation per role for a cohesive, legible read. */
+  --text-primary: #4c2323;   /* headings + key text — deep maroon */
+  --text-secondary: #7a3b3b; /* body / descriptions — dusty red */
+  --text-muted: #a87a7a;     /* captions / hints — soft muted rose */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-medium: rgba(0, 0, 0, 0.1);
+  /* Practice-card palette (light): soft pastel backgrounds, deep same-hue text */
+  --card-fc-bg: #ffeded; --card-fc-text: #9a3f44; /* flash cards — rose */
+  --card-vc-bg: #f1ecff; --card-vc-text: #544a93; /* voice chat — violet */
+  --card-ml-bg: #ecf3ff; --card-ml-text: #3a5a92; /* mad libs — blue */
+}
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Skeleton shimmer loading ──────────────────────────────────────────────
+   Placeholder boxes that sit in place of real UI boxes while content loads,
+   with a light sweeping diagonally across them. Theme-aware (light/dark). */
+@keyframes cv-shimmer {
+  0%   { background-position: 150% 0; }
+  100% { background-position: -150% 0; }
+}
+.skeleton {
+  /* A box that reads DARKER than the page background, with a sweeping sheen.
+     Pages can tint their loading state by setting --skeleton-tint on a wrapper. */
+  background-color: var(--skeleton-tint, rgba(0, 0, 0, 0.12));
+  background-image: linear-gradient(
+    100deg,
+    transparent 25%,
+    rgba(0, 0, 0, 0.08) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: cv-shimmer 1.5s ease-in-out infinite;
+  border-radius: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+/* Light mode overrides for white/black opacity patterns */
+.light .border-white\/5 { border-color: rgba(0, 0, 0, 0.06) !important; }
+.light .border-white\/10 { border-color: rgba(0, 0, 0, 0.1) !important; }
+.light .border-white\/20 { border-color: rgba(0, 0, 0, 0.12) !important; }
+.light .border-white\/30 { border-color: rgba(0, 0, 0, 0.15) !important; }
+.light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.04) !important; }
+.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06) !important; }
+.light .bg-white\/20 { background-color: rgba(0, 0, 0, 0.08) !important; }
+.light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.04) !important; }
+.light .hover\:bg-white\/20:hover { background-color: rgba(0, 0, 0, 0.08) !important; }
+.light .hover\:border-white\/10:hover { border-color: rgba(0, 0, 0, 0.1) !important; }
+.light .hover\:border-white\/30:hover { border-color: rgba(0, 0, 0, 0.15) !important; }
+.light .ring-white\/5 { --tw-ring-color: rgba(0, 0, 0, 0.06) !important; }
+.light .ring-white\/10 { --tw-ring-color: rgba(0, 0, 0, 0.1) !important; }
+.light .ring-white\/20 { --tw-ring-color: rgba(0, 0, 0, 0.12) !important; }
+.light .text-white { color: var(--text-primary) !important; }
+.light .hover\:text-white:hover { color: var(--text-primary) !important; }
+/* Light mode: invert black overlays on video players */
+.light .bg-black\/60 { background-color: rgba(0, 0, 0, 0.5) !important; }
+.light .bg-black\/80 { background-color: rgba(0, 0, 0, 0.7) !important; }
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-track { background: var(--bg-app); }
+.light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
+.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
+/* ── Remove gray borders from all UI elements ──────────────────────────────
+   The app draws hairline gray borders via the white/black opacity border
+   utilities (and a couple of token classes). We neutralize them to transparent
+   in BOTH themes so no element shows a gray outline. Colored/accent borders are
+   set via inline styles or accent classes and are unaffected. The `.light`
+   variants are listed too so these win over the light-mode overrides above. */
+.border-white\/5,  .light .border-white\/5,
+.border-white\/10, .light .border-white\/10,
+.border-white\/20, .light .border-white\/20,
+.border-white\/30, .light .border-white\/30,
+.border-subtle,    .light .border-subtle,
+.border-medium,    .light .border-medium,
+.hover\:border-white\/10:hover, .light .hover\:border-white\/10:hover,
+.hover\:border-white\/20:hover, .light .hover\:border-white\/20:hover,
+.hover\:border-white\/30:hover, .light .hover\:border-white\/30:hover {
+  border-color: transparent !important;
+}
+.divide-white\/5 > :not([hidden]) ~ :not([hidden]) {
+  border-color: transparent !important;
+}
+
+/* ── Light-mode component borders ──────────────────────────────────────────
+   In light mode, give every surface/card a soft warm hairline border, and
+   re-color any existing border utilities to the same tone (overriding the
+   transparent rule above). Dark mode keeps its borderless look. */
+.light .bg-surface {
+  border: 1px solid #fcf6ed;
+}
+.light .border-white\/5,
+.light .border-white\/10,
+.light .border-white\/20,
+.light .border-white\/30,
+.light .border-subtle,
+.light .border-medium {
+  border-color: #fcf6ed !important;
+}
+
+/* Custom Scrollbar (dark default) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-surface-hover);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

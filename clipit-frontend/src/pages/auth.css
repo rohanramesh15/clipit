@@ -1,0 +1,37 @@
+/* =========================================================================
+   Auth pages (Sign in / Sign up) palette.
+   Scoped under .auth-page. These are thin aliases over the app-wide theme
+   tokens from index.css (--bg-app, --bg-surface, --accent, --text-*, ...),
+   so the auth pages use the SAME colors as the rest of the app and adapt
+   automatically to light/dark (the .light class is toggled on <html>).
+
+   Color choices here are tuned for WCAG AA (>=4.5:1 for text, >=3:1 for
+   UI/icons):
+   - --auth-on-accent is near-black (not white): dark text on #C4625A is
+     4.85:1, whereas white on #C4625A is only 4.0:1.
+   - --auth-accent-text uses the deeper clay on light surfaces (accent on
+     white is 4.0:1; accent-hover on white is 5.41:1) and the standard
+     accent on dark surfaces (4.56:1).
+   ========================================================================= */
+
+.auth-page {
+  --auth-bg:            var(--bg-app);
+  --auth-surface:       var(--bg-surface);
+  --auth-text:          var(--text-primary);
+  --auth-border:        var(--border-medium);
+  --auth-border-strong: var(--accent);
+  --auth-border-faint:  var(--border-subtle);
+  --auth-accent:        var(--accent);
+  --auth-accent-hover:  var(--accent-hover);
+  --auth-accent-text:   var(--accent);      /* accent-colored text on the (dark) card: 4.56:1 */
+  --auth-on-accent:     #0D0D0F;            /* text on accent button: 4.85:1 in both modes */
+}
+
+.light .auth-page {
+  --auth-accent-text:   var(--accent-hover); /* deeper clay for >=4.5:1 on the white card */
+}
+
+.auth-page { background: var(--auth-bg); color: var(--auth-text); }
+
+/* Placeholders: legible but clearly secondary. */
+.auth-page input::placeholder { color: var(--auth-text); opacity: 0.55; }

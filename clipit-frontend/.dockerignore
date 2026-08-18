@@ -1,0 +1,9 @@
+fly.toml
+node_modules
+dist
+.git
+.gitignore
+# Never bake the local dev override into the production image — it would
+# override .env.production and point the deployed app at the wrong backend.
+.env.local
+.env.*.local
