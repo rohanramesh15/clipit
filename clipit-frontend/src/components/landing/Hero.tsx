@@ -25,7 +25,7 @@ export function Hero({ onGetStarted }: HeroProps) {
             <span className="text-accent">Learn it.</span>
           </h1>
           <p className="mt-6 max-w-md text-lead font-light text-secondary">
-            Learn a new language by watching Netflix &amp; YouTube.
+            Learn a new language by watching <span className="whitespace-nowrap">Netflix &amp; YouTube.</span>
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
