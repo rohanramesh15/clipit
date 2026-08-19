@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { Flame } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { GoalProgress } from '../components/GoalProgress';
-import { PracticeModes, type ModeId } from '../components/PracticeModes';
+import { PracticeModes } from '../components/PracticeModes';
 import { WordQueue, type QueuedWord, type WordStatus } from '../components/WordQueue';
-import { GetStartedPanel } from '../components/GetStartedPanel';
-import { WatchFirstDialog } from '../components/WatchFirstDialog';
+import { StreakSummary } from '../components/StreakSummary';
+import { WatchNudge } from '../components/WatchNudge';
+import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary, getCardStats, sortByPriority } from '../services/fsrs';
 import { API_BASE_URL } from '../config';
+import { fetchWithTimeout, mapWithConcurrency } from '../lib/network';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -35,19 +35,20 @@ interface TrackedVideoSummary {
 // specific watched video only becomes flashcard-shaped (with a sentence,
 // translation, and timestamp) via a second call to /flashcard-data — there's
 // no single endpoint that returns everything a user has clipped from videos.
-async function fetchCardsForVideo(videoId: string, language: string): Promise<FlashCard[]> {
+async function fetchCardsForVideo(videoId: string, language: string, signal: AbortSignal): Promise<FlashCard[]> {
   try {
-    await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
-    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
+    await fetchWithTimeout(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`, { signal });
+    const vocabRes = await fetchWithTimeout(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`, { signal });
     if (!vocabRes.ok) return [];
     const vocab = await vocabRes.json();
     if (!vocab.total_words) return [];
 
     const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
-    const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
+    const fcRes = await fetchWithTimeout(`${API_BASE_URL}/flashcard-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
+      signal,
     });
     if (!fcRes.ok) return [];
     const fc = await fcRes.json();
@@ -56,12 +57,6 @@ async function fetchCardsForVideo(videoId: string, language: string): Promise<Fl
     return [];
   }
 }
-
-const MODE_LABELS: Record<ModeId, string> = {
-  flashcards: 'Flash cards',
-  'converse-v2': 'Voice chat',
-  madlibs: 'Mad libs',
-};
 
 // A few varied greetings per time-of-day so it doesn't read the same every visit.
 const GREETINGS: Record<string, string[]> = {
@@ -76,13 +71,6 @@ function pickGreeting(): string {
   const bucket = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
   const arr = GREETINGS[bucket];
   return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// Daily goal in cards, derived from the saved daily-goal minutes (mirrors
-// ReviewSessionContext's mapping).
-function goalCards(): number {
-  const m = parseInt(localStorage.getItem('daily_goal') || '15', 10);
-  return m === 5 ? 10 : m === 30 ? 60 : m === 60 ? 120 : 30;
 }
 
 const DELETED_CARDS_KEY = 'lipit_deleted_cards';
@@ -107,21 +95,6 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
     [],
   );
 
-  const goal = useMemo(() => goalCards(), []);
-  const [reviewedToday, setReviewedToday] = useState<number | null>(null);
-  useEffect(() => {
-    if (!token) { setReviewedToday(0); return; }
-    let alive = true;
-    const tz = new Date().getTimezoneOffset();
-    fetch(`${API_BASE_URL}/fsrs/reviews/today?tz_offset_minutes=${tz}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : { count: 0 }))
-      .then((d) => { if (alive) setReviewedToday(d.count || 0); })
-      .catch(() => { if (alive) setReviewedToday(0); });
-    return () => { alive = false; };
-  }, [token]);
-
   // Words clipped from watched videos (+ any uploaded vocab lists) — same
   // two sources FlashcardsPage.tsx's "Study All Words" combines: uploaded
   // vocab lists via /vocab/lists/flashcards, and video-extracted vocabulary
@@ -130,15 +103,20 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   // Capped to the most recent 8 videos so a Home-page preview doesn't fire
   // unbounded requests for accounts with a long watch history.
   const [words, setWords] = useState<QueuedWord[] | null>(null);
+  const [wordLoadState, setWordLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [wordLoadAttempt, setWordLoadAttempt] = useState(0);
   useEffect(() => {
-    if (!token) { setWords([]); return; }
+    if (!token) { setWords([]); setWordLoadState('loaded'); return; }
     let alive = true;
+    const controller = new AbortController();
+    setWords(null);
+    setWordLoadState('loading');
     Promise.all([
-      fetch(`${API_BASE_URL}/vocab/lists/flashcards?language=${language}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      fetchWithTimeout(`${API_BASE_URL}/vocab/lists/flashcards?language=${language}`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       }).then((r) => (r.ok ? r.json() : { flashcards: [] })),
-      fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      fetchWithTimeout(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       }).then((r) => (r.ok ? r.json() : { videos: [] })),
     ])
       .then(async ([vocabData, videoData]) => {
@@ -147,8 +125,10 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
         const videoTitles = new Map(videos.map((v) => [v.video_id, v.title]));
 
         const recentVideos = videos.slice(0, 8);
-        const perVideoCards = await Promise.all(
-          recentVideos.map((v) => fetchCardsForVideo(v.video_id, language)),
+        const perVideoCards = await mapWithConcurrency(
+          recentVideos,
+          2,
+          (video) => fetchCardsForVideo(video.video_id, language, controller.signal),
         );
         if (!alive) return;
 
@@ -173,65 +153,73 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
           };
         });
         setWords(queued);
+        setWordLoadState('loaded');
       })
-      .catch(() => { if (alive) setWords([]); });
-    return () => { alive = false; };
-  }, [token, language]);
+      .catch(() => {
+        if (alive && !controller.signal.aborted) setWordLoadState('error');
+      });
+    return () => { alive = false; controller.abort(); };
+  }, [token, language, wordLoadAttempt]);
 
-  const isEmpty = words !== null && words.length === 0;
-
-  const [blockedMode, setBlockedMode] = useState<ModeId | null>(null);
-  const handleModeClick = (id: ModeId) => {
-    if (isEmpty) {
-      setBlockedMode(id);
-      return;
-    }
-    onNavigate(id);
-  };
+  const hasWatched = words !== null && words.length > 0;
+  const dueCount = words ? words.filter((word) => word.status === 'due').length : 0;
 
   return (
-    <div className="mx-auto max-w-page px-5 sm:px-8" style={{ paddingTop: '32px', paddingBottom: '32px' }}>
-      <div
-        className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5"
-        style={{ paddingBottom: isEmpty ? '32px' : '72px' }}
-      >
+    <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8">
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 pb-10">
         <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">
-          {isEmpty ? `Welcome, ${firstName}.` : `${greeting}${firstName ? `, ${firstName}` : ''}.`}
+          {wordLoadState === 'loaded' && hasWatched
+            ? `${greeting}${firstName ? `, ${firstName}` : ''}.`
+            : `Welcome${firstName ? `, ${firstName}` : ''}.`}
         </h1>
 
-        {!isEmpty && (
-          <div className="flex w-full items-center gap-6 sm:w-auto">
-            {streak > 0 && (
-              <span className="flex shrink-0 items-center gap-2 text-body-sm font-medium text-secondary">
-                <Flame className="h-4 w-4 text-accent" aria-hidden="true" />
-                {streak} day streak
-              </span>
-            )}
-            <div className="w-full min-w-[12rem] sm:w-64">
-              <GoalProgress reviewed={reviewedToday ?? 0} goal={goal} />
-            </div>
-          </div>
-        )}
+        {wordLoadState === 'loaded' &&
+          (hasWatched ? (
+            <StreakSummary dueCount={dueCount} streakDays={streak} />
+          ) : (
+            <WatchNudge language={language} languageName={languageName} />
+          ))}
       </div>
 
-      {isEmpty && (
-        <div className="mb-10">
-          <GetStartedPanel firstName={firstName} onUploadList={() => onNavigate('vocabulary')} />
+      {wordLoadState === 'loading' && (
+        <div className="mt-10" role="status" aria-live="polite">
+          <div className="grid gap-5 sm:grid-cols-3" aria-hidden="true">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="rounded-2xl bg-surface p-5">
+                <Skeleton className="mb-7 h-10 w-10 rounded-xl" />
+                <Skeleton className="mb-3 h-5 w-28 rounded-md" />
+                <Skeleton className="h-4 w-full rounded-md" />
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-body-sm text-muted">Loading your practice queue…</p>
         </div>
       )}
 
-      <PracticeModes onOpenMode={handleModeClick} isLocked={isEmpty} />
-      {!isEmpty && words && <WordQueue words={words} />}
+      {wordLoadState === 'error' && (
+        <div className="mt-10 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-12 text-center">
+          <AlertCircle className="h-7 w-7 text-accent" aria-hidden="true" />
+          <div>
+            <p className="font-semibold text-primary">Your practice queue took too long to load</p>
+            <p className="mt-1 text-body-sm text-secondary">Please try again. Your saved progress is safe.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWordLoadAttempt((attempt) => attempt + 1)}
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Try again
+          </button>
+        </div>
+      )}
 
-      <AnimatePresence>
-        {blockedMode && (
-          <WatchFirstDialog
-            modeLabel={MODE_LABELS[blockedMode]}
-            language={languageName}
-            onClose={() => setBlockedMode(null)}
-          />
-        )}
-      </AnimatePresence>
+      {wordLoadState === 'loaded' && words && (
+        <>
+          <PracticeModes onOpenMode={onNavigate} />
+          <WordQueue words={words} languageName={languageName} />
+        </>
+      )}
     </div>
   );
 }

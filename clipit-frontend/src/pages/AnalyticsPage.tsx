@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
 import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
@@ -7,6 +8,7 @@ import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
+import { fetchWithTimeout } from '../lib/network';
 
 interface ReviewEntry {
   word: string;
@@ -47,6 +49,28 @@ function AnalyticsLoadingState() {
   );
 }
 
+function AnalyticsErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="mx-auto max-w-page px-5 pb-24 pt-8 text-center sm:px-8">
+      <div className="mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-16">
+        <AlertCircle className="h-8 w-8 text-accent" aria-hidden="true" />
+        <div>
+          <h1 className="font-heading text-card-title text-primary">Your progress took too long to load</h1>
+          <p className="mt-2 text-body-sm text-secondary">Please try again. Your review history is still saved.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Try again
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Longest run of consecutive active days anywhere in the year (not just the
 // run ending today, unlike currentStreak below).
 function longestRun(reviewsByDate: Record<string, number>, year: number): number {
@@ -74,28 +98,36 @@ export function AnalyticsPage() {
   const [hoursWatched, setHoursWatched] = useState(0);
   const [reviewHistory, setReviewHistory] = useState<ReviewEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     setIsLoading(true);
+    setHasLoadError(false);
     setWordsLearned(getAnalyticsSummary().wordsLearned);
 
     if (!token) {
       setIsLoading(false);
-      return () => { active = false; };
+      return () => { active = false; controller.abort(); };
     }
 
     Promise.all([
-      fetch(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      fetchWithTimeout(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       })
-        .then((res) => res.json())
-        .catch(() => ({ total_hours: 0 })),
-      fetch(`${API_BASE_URL}/fsrs/reviews?limit=10000`, {
-        headers: { Authorization: `Bearer ${token}` },
+        .then((res) => {
+          if (!res.ok) throw new Error('Could not load watch time');
+          return res.json();
+        }),
+      fetchWithTimeout(`${API_BASE_URL}/fsrs/reviews?limit=10000`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       })
-        .then((res) => res.json())
-        .catch(() => ({ reviews: [], total: 0 })),
+        .then((res) => {
+          if (!res.ok) throw new Error('Could not load reviews');
+          return res.json();
+        }),
     ])
       .then(([watchData, reviewData]) => {
         if (active) {
@@ -104,12 +136,18 @@ export function AnalyticsPage() {
           setTotalReviews(reviewData.total || 0);
         }
       })
+      .catch(() => {
+        if (active && !controller.signal.aborted) {
+          controller.abort();
+          setHasLoadError(true);
+        }
+      })
       .finally(() => {
         if (active) setIsLoading(false);
       });
 
-    return () => { active = false; };
-  }, [language, token]);
+    return () => { active = false; controller.abort(); };
+  }, [language, token, loadAttempt]);
 
   const year = new Date().getFullYear();
 
@@ -165,6 +203,10 @@ export function AnalyticsPage() {
 
   if (isLoading) {
     return <AnalyticsLoadingState />;
+  }
+
+  if (hasLoadError) {
+    return <AnalyticsErrorState onRetry={() => setLoadAttempt((attempt) => attempt + 1)} />;
   }
 
   if (totalReviews === 0) {
