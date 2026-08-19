@@ -1,34 +1,34 @@
 import React, { useState } from 'react';
-import { Lock, Loader2, CheckCircle } from 'lucide-react';
+import { Lock, CheckCircle2 } from 'lucide-react';
 import { AuthLayout } from '../components/AuthLayout';
+import { AuthField } from '../components/auth/AuthField';
+import { PrimaryButton } from '../components/auth/PrimaryButton';
+import { PasswordToggle } from '../components/auth/PasswordToggle';
+import { FormError } from '../components/auth/FormError';
 import { supabase } from '../lib/supabaseClient';
 
 interface ResetPasswordPageProps {
   onNavigate: (view: 'landing' | 'login') => void;
 }
 
-const INPUT =
-  'w-full rounded-xl bg-app border border-[var(--border-medium)] focus:border-accent focus:outline-none px-11 py-3.5 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift';
-const LABEL = 'block text-meta font-semibold uppercase tracking-wider text-muted mb-2';
-
 export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [done, setDone] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -38,7 +38,7 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw new Error(error.message);
 
-      setSuccess(true);
+      setDone(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -46,74 +46,63 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
     }
   };
 
-  return (
-    <AuthLayout onBack={() => onNavigate('login')}>
-      {success ? (
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <CheckCircle className="w-14 h-14 text-accent" />
-          </div>
-          <h2 className="font-heading text-section text-primary mb-2">Password reset!</h2>
-          <p className="text-body-sm text-secondary mb-7">Your password has been successfully reset.</p>
-          <button
-            onClick={() => onNavigate('login')}
-            className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors duration-150 ease-swift"
-          >
-            Sign in
-          </button>
+  if (done) {
+    return (
+      <AuthLayout
+        onBack={() => onNavigate('login')}
+        title="Password updated"
+        subtitle="You're all set — sign in with your new password."
+      >
+        <div className="rounded-2xl border border-subtle bg-app p-5">
+          <CheckCircle2 className="h-6 w-6 text-accent" aria-hidden="true" />
+          <p className="mt-3 text-body-sm text-secondary">Your password has been changed successfully.</p>
         </div>
-      ) : (
-        <>
-          <h2 className="font-heading text-section text-primary mb-1">Reset password</h2>
-          <p className="text-body-sm text-secondary mb-7">Enter your new password.</p>
+        <div className="mt-4">
+          <PrimaryButton type="button" onClick={() => onNavigate('login')}>
+            Sign in
+          </PrimaryButton>
+        </div>
+      </AuthLayout>
+    );
+  }
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-xl px-4 py-3 text-body-sm text-red-500 bg-red-500/10">{error}</div>
-            )}
+  return (
+    <AuthLayout
+      onBack={() => onNavigate('login')}
+      title="Set a new password"
+      subtitle="Choose something you haven't used on ClipIt before."
+      switchPrompt={{ text: 'Changed your mind?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}
+    >
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {error && <FormError message={error} />}
 
-            <div>
-              <label className={LABEL}>New password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                <input
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={INPUT}
-                  required
-                  minLength={8}
-                />
-              </div>
-            </div>
+        <AuthField
+          id="password"
+          label="New password"
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={setPassword}
+          icon={Lock}
+          placeholder="At least 8 characters"
+          autoComplete="new-password"
+          minLength={8}
+          trailing={<PasswordToggle visible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
+        />
 
-            <div>
-              <label className={LABEL}>Confirm password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                <input
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={INPUT}
-                  required
-                  minLength={8}
-                />
-              </div>
-            </div>
+        <AuthField
+          id="confirm"
+          label="Confirm password"
+          type={showPassword ? 'text' : 'password'}
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          icon={Lock}
+          placeholder="Re-enter your new password"
+          autoComplete="new-password"
+          minLength={8}
+        />
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors duration-150 ease-swift flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
-            >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Reset password'}
-            </button>
-          </form>
-        </>
-      )}
+        <PrimaryButton isLoading={isLoading}>Update password</PrimaryButton>
+      </form>
     </AuthLayout>
   );
 }

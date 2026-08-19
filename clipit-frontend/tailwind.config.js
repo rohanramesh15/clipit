@@ -49,6 +49,7 @@ export default {
       },
       borderColor: {
         subtle: 'var(--border-subtle)',
+        medium: 'var(--border-medium)',
       },
       transitionTimingFunction: {
         swift: 'cubic-bezier(0.23, 1, 0.32, 1)',

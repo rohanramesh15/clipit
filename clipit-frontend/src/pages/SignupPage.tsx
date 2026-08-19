@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { AuthLayout } from '../components/AuthLayout';
+import { AuthField } from '../components/auth/AuthField';
+import { AuthDivider } from '../components/auth/AuthDivider';
+import { PrimaryButton } from '../components/auth/PrimaryButton';
+import { PasswordToggle } from '../components/auth/PasswordToggle';
+import { FormError } from '../components/auth/FormError';
 
 interface SignupPageProps {
   onNavigate: (view: 'landing' | 'login' | 'onboarding') => void;
 }
-
-const INPUT =
-  'w-full rounded-xl bg-app border border-[var(--border-medium)] focus:border-accent focus:outline-none px-11 py-3.5 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift';
-const LABEL = 'block text-meta font-semibold uppercase tracking-wider text-muted mb-2';
 
 export function SignupPage({ onNavigate }: SignupPageProps) {
   const { register } = useAuth();
@@ -50,100 +51,67 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
   };
 
   return (
-    <AuthLayout onBack={() => onNavigate('landing')}>
-      <h2 className="font-heading text-section text-primary mb-1">Create your account</h2>
-      <p className="text-body-sm text-secondary mb-7">Start learning from what you watch.</p>
+    <AuthLayout
+      onBack={() => onNavigate('landing')}
+      title="Create your account"
+      subtitle="Start turning what you watch into practice."
+      switchPrompt={{ text: 'Already have an account?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}
+    >
+      <GoogleSignInButton onError={() => setError('Google sign-up was cancelled')} text="signup" />
+      <AuthDivider label="or with email" />
 
-      {/* Google — primary option */}
-      <GoogleSignInButton
-        onError={() => setError('Google sign-up was cancelled')}
-        text="signup"
-      />
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {error && <FormError message={error} />}
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-subtle" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="px-3 text-meta text-muted bg-surface">or with email</span>
-        </div>
-      </div>
+        <AuthField
+          id="fullName"
+          label="Full name"
+          type="text"
+          value={fullName}
+          onChange={setFullName}
+          icon={User}
+          placeholder="John Doe"
+          autoComplete="name"
+        />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-xl px-4 py-3 text-body-sm text-red-500 bg-red-500/10">{error}</div>
-        )}
+        <AuthField
+          id="email"
+          label="Email address"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          icon={Mail}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
 
-        <div>
-          <label className={LABEL}>Full name</label>
-          <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type="text"
-              placeholder="John Doe"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className={INPUT}
-              required
-            />
-          </div>
-        </div>
+        <AuthField
+          id="password"
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={setPassword}
+          icon={Lock}
+          placeholder="Min. 8 characters"
+          autoComplete="new-password"
+          minLength={8}
+          trailing={<PasswordToggle visible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
+        />
 
-        <div>
-          <label className={LABEL}>Email address</label>
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={INPUT}
-              required
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className={LABEL}>Password</label>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Min. 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={INPUT + ' pr-11'}
-              required
-              minLength={8}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted transition-colors duration-150 ease-swift hover:text-primary"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors duration-150 ease-swift flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
-        >
-          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create account'}
-        </button>
+        <PrimaryButton isLoading={isLoading}>Create account</PrimaryButton>
       </form>
 
-      <div className="mt-6 pt-6 text-center border-t border-subtle">
-        <p className="text-body-sm text-secondary">
-          Already have an account?{' '}
-          <button onClick={() => onNavigate('login')} className="font-semibold text-accent transition-colors duration-150 ease-swift hover:text-accent-hover">
-            Sign in
-          </button>
-        </p>
-      </div>
+      <p className="mt-3 text-meta text-muted">
+        By creating an account you agree to our{' '}
+        <a href="#terms" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
+          Terms
+        </a>{' '}
+        and{' '}
+        <a href="#privacy" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
+          Privacy Policy
+        </a>
+        .
+      </p>
     </AuthLayout>
   );
 }

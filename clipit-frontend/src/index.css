@@ -16,6 +16,8 @@
   --text-muted: #928790;
   --border-subtle: rgba(247, 241, 234, 0.09);
   --border-medium: rgba(247, 241, 234, 0.18);
+  /* Text sitting on the accent fill (buttons etc). */
+  --on-accent: #ffffff;
   /* Practice-card palette (dark): deep tinted backgrounds, light same-hue text */
   --card-fc-bg: #3a1f21; --card-fc-text: #eaa9ae; /* flash cards — rose */
   --card-vc-bg: #262240; --card-vc-text: #c2b8ef; /* voice chat — violet */
@@ -35,6 +37,7 @@
   --text-muted: #a87a7a;     /* captions / hints — soft muted rose */
   --border-subtle: rgba(0, 0, 0, 0.06);
   --border-medium: rgba(0, 0, 0, 0.1);
+  --on-accent: #ffffff;
   /* Practice-card palette (light): soft pastel backgrounds, deep same-hue text */
   --card-fc-bg: #ffeded; --card-fc-text: #9a3f44; /* flash cards — rose */
   --card-vc-bg: #f1ecff; --card-vc-text: #544a93; /* voice chat — violet */

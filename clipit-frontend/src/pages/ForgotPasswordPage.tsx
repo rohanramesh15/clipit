@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
-import { Mail, Loader2, CheckCircle } from 'lucide-react';
+import { Mail, MailCheck } from 'lucide-react';
 import { AuthLayout } from '../components/AuthLayout';
+import { AuthField } from '../components/auth/AuthField';
+import { PrimaryButton } from '../components/auth/PrimaryButton';
+import { FormError } from '../components/auth/FormError';
 import { supabase } from '../lib/supabaseClient';
 
 interface ForgotPasswordPageProps {
   onNavigate: (view: 'landing' | 'login') => void;
 }
 
-const INPUT =
-  'w-full rounded-xl bg-app border border-[var(--border-medium)] focus:border-accent focus:outline-none px-11 py-3.5 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift';
-const LABEL = 'block text-meta font-semibold uppercase tracking-wider text-muted mb-2';
-
 export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +27,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       });
       if (error) throw new Error(error.message);
 
-      setSuccess(true);
+      setSent(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -36,68 +35,54 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     }
   };
 
-  return (
-    <AuthLayout onBack={() => onNavigate('login')}>
-      {success ? (
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <CheckCircle className="w-14 h-14 text-accent" />
-          </div>
-          <h2 className="font-heading text-section text-primary mb-2">Check your email</h2>
-          <p className="text-body-sm text-secondary mb-7">
-            If an account exists with that email, we've sent a password reset link.
+  if (sent) {
+    return (
+      <AuthLayout
+        onBack={() => onNavigate('login')}
+        title="Check your email"
+        subtitle={`If an account exists for ${email || 'that address'}, a reset link is on its way.`}
+        switchPrompt={{ text: 'Remembered it?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}
+      >
+        <div className="rounded-2xl border border-subtle bg-app p-5">
+          <MailCheck className="h-6 w-6 text-accent" aria-hidden="true" />
+          <p className="mt-3 text-body-sm text-secondary">
+            Check your spam folder if it hasn't arrived in a few minutes.
           </p>
           <button
-            onClick={() => onNavigate('login')}
-            className="font-semibold text-accent transition-colors duration-150 ease-swift hover:text-accent-hover"
+            type="button"
+            onClick={() => setSent(false)}
+            className="mt-4 text-body-sm font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
           >
-            Return to login
+            Use a different email
           </button>
         </div>
-      ) : (
-        <>
-          <h2 className="font-heading text-section text-primary mb-1">Forgot password?</h2>
-          <p className="text-body-sm text-secondary mb-7">Enter your email and we'll send you a reset link.</p>
+      </AuthLayout>
+    );
+  }
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-xl px-4 py-3 text-body-sm text-red-500 bg-red-500/10">{error}</div>
-            )}
+  return (
+    <AuthLayout
+      onBack={() => onNavigate('login')}
+      title="Forgot your password?"
+      subtitle="Enter the email on your account and we'll send a reset link."
+      switchPrompt={{ text: 'Remembered it?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}
+    >
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {error && <FormError message={error} />}
 
-            <div>
-              <label className={LABEL}>Email address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={INPUT}
-                  required
-                />
-              </div>
-            </div>
+        <AuthField
+          id="email"
+          label="Email address"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          icon={Mail}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors duration-150 ease-swift flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
-            >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send reset link'}
-            </button>
-          </form>
-
-          <div className="mt-6 pt-6 text-center border-t border-subtle">
-            <p className="text-body-sm text-secondary">
-              Remembered it?{' '}
-              <button onClick={() => onNavigate('login')} className="font-semibold text-accent transition-colors duration-150 ease-swift hover:text-accent-hover">
-                Sign in
-              </button>
-            </p>
-          </div>
-        </>
-      )}
+        <PrimaryButton isLoading={isLoading}>Send reset link</PrimaryButton>
+      </form>
     </AuthLayout>
   );
 }

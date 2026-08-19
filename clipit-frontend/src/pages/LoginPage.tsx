@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 declare function gtag(...args: unknown[]): void;
-import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { AuthLayout } from '../components/AuthLayout';
+import { AuthField } from '../components/auth/AuthField';
+import { AuthDivider } from '../components/auth/AuthDivider';
+import { PrimaryButton } from '../components/auth/PrimaryButton';
+import { PasswordToggle } from '../components/auth/PasswordToggle';
+import { FormError } from '../components/auth/FormError';
 
 interface LoginPageProps {
   onNavigate: (view: 'landing' | 'signup' | 'app' | 'forgot-password') => void;
 }
-
-const INPUT =
-  'w-full rounded-xl bg-app border border-[var(--border-medium)] focus:border-accent focus:outline-none px-11 py-3.5 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift';
-const LABEL = 'block text-meta font-semibold uppercase tracking-wider text-muted mb-2';
 
 export function LoginPage({ onNavigate }: LoginPageProps) {
   const { login } = useAuth();
@@ -38,112 +39,69 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
   };
 
   return (
-    <AuthLayout onBack={() => onNavigate('landing')}>
-      <h2 className="font-heading text-section text-primary mb-1">Welcome back</h2>
-      <p className="text-body-sm text-secondary mb-7">Sign in to keep learning.</p>
+    <AuthLayout
+      onBack={() => onNavigate('landing')}
+      title="Welcome back"
+      subtitle="Sign in to keep learning from what you watch."
+      switchPrompt={{ text: 'New to ClipIt?', linkLabel: 'Create an account', onClick: () => onNavigate('signup') }}
+    >
+      <GoogleSignInButton onError={() => setError('Google sign-in was cancelled')} text="signin" />
+      <AuthDivider label="or with email" />
 
-      {/* Google — primary option */}
-      <GoogleSignInButton
-        onError={() => setError('Google sign-in was cancelled')}
-        text="signin"
-      />
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {error && <FormError message={error} />}
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-subtle" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="px-3 text-meta text-muted bg-surface">or with email</span>
-        </div>
-      </div>
+        <AuthField
+          id="email"
+          label="Email address"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          icon={Mail}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-xl px-4 py-3 text-body-sm text-red-500 bg-red-500/10">{error}</div>
-        )}
-
-        <div>
-          <label className={LABEL}>Email address</label>
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={INPUT}
-              required
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className={LABEL + ' mb-0'}>Password</label>
+        <AuthField
+          id="password"
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={setPassword}
+          icon={Lock}
+          placeholder="Enter your password"
+          autoComplete="current-password"
+          trailing={<PasswordToggle visible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
+          labelAction={
             <button
               type="button"
               onClick={() => onNavigate('forgot-password')}
-              className="text-meta font-medium text-accent transition-colors duration-150 ease-swift hover:text-accent-hover"
+              className="text-meta font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
             >
               Forgot password?
             </button>
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={INPUT + ' pr-11'}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <button
-            type="button"
-            onClick={() => setRememberMe(!rememberMe)}
-            className="w-5 h-5 rounded-md flex items-center justify-center transition-all shrink-0"
-            style={{
-              background: rememberMe ? 'var(--accent)' : 'transparent',
-              border: `1.5px solid ${rememberMe ? 'var(--accent)' : 'var(--border-medium)'}`,
-            }}
-          >
-            {rememberMe && (
-              <svg className="w-3 h-3 text-app" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </button>
-          <span className="text-body-sm text-secondary" onClick={() => setRememberMe(!rememberMe)}>Remember me</span>
-        </label>
+          }
+        />
 
         <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors duration-150 ease-swift flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
+          type="button"
+          onClick={() => setRememberMe(!rememberMe)}
+          aria-pressed={rememberMe}
+          className="flex items-center gap-2.5 rounded-lg py-0.5 text-body-sm text-secondary transition-colors duration-150 ease-swift hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign in'}
+          <span
+            aria-hidden="true"
+            className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors duration-150 ease-swift ${
+              rememberMe ? 'border-accent bg-accent' : 'border-medium bg-app'
+            }`}
+          >
+            {rememberMe && <Check className="h-3 w-3 text-[var(--on-accent)]" strokeWidth={3} />}
+          </span>
+          Keep me signed in
         </button>
-      </form>
 
-      <div className="mt-6 pt-6 text-center border-t border-subtle">
-        <p className="text-body-sm text-secondary">
-          Don't have an account?{' '}
-          <button onClick={() => onNavigate('signup')} className="font-semibold text-accent transition-colors duration-150 ease-swift hover:text-accent-hover">
-            Sign up
-          </button>
-        </p>
-      </div>
+        <PrimaryButton isLoading={isLoading}>Sign in</PrimaryButton>
+      </form>
     </AuthLayout>
   );
 }

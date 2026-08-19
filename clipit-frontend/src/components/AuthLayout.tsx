@@ -17,46 +17,69 @@ function Logo() {
   );
 }
 
+interface SwitchPrompt {
+  text: string;
+  linkLabel: string;
+  onClick: () => void;
+}
+
 interface AuthLayoutProps {
   onBack: () => void;
+  title: string;
+  subtitle: string;
+  /** Cross-link shown beneath the form card (e.g. "New to ClipIt? Create an account"). */
+  switchPrompt?: SwitchPrompt;
   children: React.ReactNode;
 }
 
 /**
- * Shared shell for Sign in / Sign up. Matches the landing page: light mode,
- * app design tokens (bg-app / bg-surface / accent), a centered logo above a
- * single clean surface card, and a hairline-bordered, minimal aesthetic.
+ * Shared shell for Sign in / Sign up / Forgot / Reset. Locked to the
+ * viewport — a single centered column carrying the wordmark, the form
+ * card, and the account cross-link. Nothing scrolls.
  */
-export function AuthLayout({ onBack, children }: AuthLayoutProps) {
+export function AuthLayout({ onBack, title, subtitle, switchPrompt, children }: AuthLayoutProps) {
   return (
-    <div className="light min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app flex flex-col">
-      {/* Top bar — back to landing */}
-      <header className="h-20 shrink-0">
-        <div className="max-w-md mx-auto px-6 h-full flex items-center">
-          <button
-            onClick={onBack}
-            aria-label="Go back"
-            className="inline-flex items-center justify-center w-9 h-9 -ml-2 rounded-lg text-secondary transition-colors duration-150 ease-swift hover:text-primary hover:bg-black/5"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="light flex h-screen w-full flex-col overflow-hidden bg-app font-sans text-primary selection:bg-accent selection:text-[var(--on-accent)]" style={{ height: '100dvh' }}>
+      <header className="flex shrink-0 items-center px-5 pt-5 sm:px-8">
+        <button
+          onClick={onBack}
+          aria-label="Go back"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
       </header>
 
-      {/* Centered form */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-16">
+      <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-4 sm:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
+          transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+          className="w-full max-w-[420px]"
         >
-          <div className="mb-8">
+          <div className="flex justify-center">
             <Logo />
           </div>
-          <div className="bg-surface rounded-2xl p-7 sm:p-8" style={{ border: '1px solid var(--border-subtle)' }}>
-            {children}
+
+          <div className="mt-5 rounded-2xl border border-subtle bg-surface p-6 sm:p-7">
+            <h1 className="font-heading text-section text-primary">{title}</h1>
+            <p className="mt-1 text-body-sm text-secondary">{subtitle}</p>
+
+            <div className="mt-6">{children}</div>
           </div>
+
+          {switchPrompt && (
+            <p className="mt-5 text-center text-body-sm text-secondary">
+              {switchPrompt.text}{' '}
+              <button
+                type="button"
+                onClick={switchPrompt.onClick}
+                className="whitespace-nowrap font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
+              >
+                {switchPrompt.linkLabel}
+              </button>
+            </p>
+          )}
         </motion.div>
       </main>
     </div>
