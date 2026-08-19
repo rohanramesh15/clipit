@@ -39,14 +39,11 @@ const flags: Record<Language['id'], () => JSX.Element> = {
 
 export function Languages() {
   return (
-    <section
-      className="flex min-h-[740px] flex-col justify-center bg-blush py-16 md:py-24"
-      aria-labelledby="languages-title"
-    >
+    <section className="bg-blush py-16 md:py-20" aria-labelledby="languages-title">
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <div className="max-w-xl">
           <h2 id="languages-title" className="font-heading text-section text-primary md:text-section-lg">
-            Available in two languages
+            Two languages available
           </h2>
           <p className="mt-3 text-lead text-secondary">
             Clip from any video with subtitles in Korean or Ukrainian. Each language keeps its own deck,

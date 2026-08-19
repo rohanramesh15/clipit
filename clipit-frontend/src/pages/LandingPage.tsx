@@ -61,7 +61,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-subtle bg-inverse py-10">
+      <footer className="border-t border-white/10 bg-inverse py-10">
         <div className="mx-auto flex max-w-page flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
           <Logo size="text-2xl" img="w-8 h-8" stroke="1.5px" />
           <nav aria-label="Footer">
