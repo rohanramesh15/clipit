@@ -32,7 +32,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <header className="sticky top-0 z-50 bg-app/90 backdrop-blur">
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
           <a href="#top" className="flex items-center" aria-label="ClipIt home">
-            <Logo size="text-3xl" img="w-10 h-10" stroke="1.75px" />
+            <Logo size="text-4xl" img="w-12 h-12" stroke="2px" />
           </a>
 
           <div className="flex items-center gap-4 sm:gap-6">
