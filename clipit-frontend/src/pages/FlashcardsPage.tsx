@@ -41,6 +41,8 @@ import { API_BASE_URL } from '../config';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { Sparkles, BookOpen, LogOut } from 'lucide-react';
 import { fetchVideoWordCount } from '../services/madlibs';
+import { queryClient } from '../lib/queryClient';
+import { queryKeys } from '../lib/queries';
 
 // Vocabulary list types
 interface VocabList {
@@ -396,7 +398,7 @@ interface FlashcardsPageProps {
 
 export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const { language, languageName } = useLanguage();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const {
     session,
     startSession,
@@ -1226,9 +1228,17 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           clip_duration: clipDuration,
           reviewed_at: new Date().toISOString(),
         }),
-      }).catch((error) => {
-        console.error('Failed to record review history:', error);
-      });
+      })
+        .then((response) => {
+          if (!response.ok || !user) return;
+          // The next Home/Progress view needs the server-confirmed review,
+          // while the active review session can continue from local state.
+          queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
+          queryClient.removeQueries({ queryKey: queryKeys.reviews(user.id) });
+        })
+        .catch((error) => {
+          console.error('Failed to record review history:', error);
+        });
     }
 
     // Record card review and check if cap was just reached

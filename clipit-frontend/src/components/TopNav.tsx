@@ -82,7 +82,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
     <motion.header
       animate={{ y: isHidden ? '-100%' : '0%' }}
       transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-      className="sticky top-0 z-50 bg-app/90 backdrop-blur"
+      className="sticky top-0 z-50 bg-app"
     >
       <div className="mx-auto flex h-[72px] max-w-page items-center gap-6 px-5 sm:px-8">
         <button

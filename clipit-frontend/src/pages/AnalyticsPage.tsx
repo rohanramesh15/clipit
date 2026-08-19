@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { EmptyState } from '../components/EmptyState';
 import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
@@ -7,15 +8,7 @@ import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config';
-import { fetchWithTimeout } from '../lib/network';
-
-interface ReviewEntry {
-  word: string;
-  language: string;
-  rating: number;
-  reviewed_at: string;
-}
+import { reviewsQueryOptions, watchTimeQueryOptions } from '../lib/queries';
 
 function AnalyticsLoadingState() {
   return (
@@ -92,62 +85,21 @@ function longestRun(reviewsByDate: Record<string, number>, year: number): number
 
 export function AnalyticsPage() {
   const { language } = useLanguage();
-  const { token } = useAuth();
-  const [wordsLearned, setWordsLearned] = useState(0);
-  const [totalReviews, setTotalReviews] = useState(0);
-  const [hoursWatched, setHoursWatched] = useState(0);
-  const [reviewHistory, setReviewHistory] = useState<ReviewEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadError, setHasLoadError] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-    setIsLoading(true);
-    setHasLoadError(false);
-    setWordsLearned(getAnalyticsSummary().wordsLearned);
-
-    if (!token) {
-      setIsLoading(false);
-      return () => { active = false; controller.abort(); };
-    }
-
-    Promise.all([
-      fetchWithTimeout(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error('Could not load watch time');
-          return res.json();
-        }),
-      fetchWithTimeout(`${API_BASE_URL}/fsrs/reviews?limit=10000`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error('Could not load reviews');
-          return res.json();
-        }),
-    ])
-      .then(([watchData, reviewData]) => {
-        if (active) {
-          setHoursWatched(watchData.total_hours || 0);
-          setReviewHistory(reviewData.reviews || []);
-          setTotalReviews(reviewData.total || 0);
-        }
-      })
-      .catch(() => {
-        if (active && !controller.signal.aborted) {
-          controller.abort();
-          setHasLoadError(true);
-        }
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-
-    return () => { active = false; controller.abort(); };
-  }, [language, token, loadAttempt]);
+  const { token, user } = useAuth();
+  const watchTime = useQuery({
+    ...watchTimeQueryOptions(user?.id ?? 0, token ?? '', language),
+    enabled: Boolean(user && token),
+  });
+  const reviews = useQuery({
+    ...reviewsQueryOptions(user?.id ?? 0, token ?? ''),
+    enabled: Boolean(user && token),
+  });
+  const wordsLearned = getAnalyticsSummary().wordsLearned;
+  const totalReviews = reviews.data?.total ?? 0;
+  const hoursWatched = watchTime.data?.total_hours ?? 0;
+  const reviewHistory = reviews.data?.reviews ?? [];
+  const isLoading = watchTime.isPending || reviews.isPending;
+  const hasLoadError = watchTime.isError || reviews.isError;
 
   const year = new Date().getFullYear();
 
@@ -206,7 +158,7 @@ export function AnalyticsPage() {
   }
 
   if (hasLoadError) {
-    return <AnalyticsErrorState onRetry={() => setLoadAttempt((attempt) => attempt + 1)} />;
+    return <AnalyticsErrorState onRetry={() => { void watchTime.refetch(); void reviews.refetch(); }} />;
   }
 
   if (totalReviews === 0) {

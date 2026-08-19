@@ -27,8 +27,10 @@ interface AuthLayoutProps {
   onBack: () => void;
   title: string;
   subtitle: string;
-  /** Cross-link shown beneath the form card (e.g. "New to ClipIt? Create an account"). */
+  /** Cross-link shown inside the card, right below its content (e.g. "New to ClipIt? Create an account"). */
   switchPrompt?: SwitchPrompt;
+  /** Fine print shown outside the card, below everything (e.g. Terms/Privacy). */
+  footerNote?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -37,7 +39,7 @@ interface AuthLayoutProps {
  * viewport — a single centered column carrying the wordmark, the form
  * card, and the account cross-link. Nothing scrolls.
  */
-export function AuthLayout({ onBack, title, subtitle, switchPrompt, children }: AuthLayoutProps) {
+export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, children }: AuthLayoutProps) {
   return (
     <div className="light flex h-screen w-full flex-col overflow-hidden bg-app font-sans text-primary selection:bg-accent selection:text-[var(--on-accent)]" style={{ height: '100dvh' }}>
       <header className="flex shrink-0 items-center px-5 pt-5 sm:px-8">
@@ -66,20 +68,22 @@ export function AuthLayout({ onBack, title, subtitle, switchPrompt, children }: 
             <p className="mt-1 text-body-sm text-secondary">{subtitle}</p>
 
             <div className="mt-6">{children}</div>
+
+            {switchPrompt && (
+              <p className="mt-5 text-center text-body-sm text-secondary">
+                {switchPrompt.text}{' '}
+                <button
+                  type="button"
+                  onClick={switchPrompt.onClick}
+                  className="whitespace-nowrap font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
+                >
+                  {switchPrompt.linkLabel}
+                </button>
+              </p>
+            )}
           </div>
 
-          {switchPrompt && (
-            <p className="mt-5 text-center text-body-sm text-secondary">
-              {switchPrompt.text}{' '}
-              <button
-                type="button"
-                onClick={switchPrompt.onClick}
-                className="whitespace-nowrap font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
-              >
-                {switchPrompt.linkLabel}
-              </button>
-            </p>
-          )}
+          {footerNote && <div className="mt-5 text-center">{footerNote}</div>}
         </motion.div>
       </main>
     </div>

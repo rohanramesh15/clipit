@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TopNav } from './components/TopNav';
 import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
@@ -18,9 +18,11 @@ import { MadlibsPage } from './pages/MadlibsPage';
 import { Skeleton } from './components/Skeleton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
+import { queryClient } from './lib/queryClient';
+import { historyQueryOptions, homeQueueQueryOptions, reviewsQueryOptions, watchTimeQueryOptions } from './lib/queries';
 type Page =
 'video' |
 'practice' |
@@ -77,7 +79,8 @@ function AppLoadingState() {
 }
 
 function AppInner() {
-  const { user, isLoading, isNewUser } = useAuth();
+  const { user, token, isLoading, isNewUser } = useAuth();
+  const { language } = useLanguage();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('practice');
 
@@ -135,6 +138,19 @@ function AppInner() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activePage]);
 
+  // Populate the shared cache after sign-in. ensureQueryData only calls the
+  // backend when a cache entry does not exist, including after an IndexedDB
+  // restore, so returning users do not re-fetch this data on every visit.
+  useEffect(() => {
+    if (!user || !token) return;
+    void Promise.allSettled([
+      queryClient.ensureQueryData(historyQueryOptions(user.id, token, language)),
+      queryClient.ensureQueryData(homeQueueQueryOptions(queryClient, user.id, token, language)),
+      queryClient.ensureQueryData(watchTimeQueryOptions(user.id, token, language)),
+      queryClient.ensureQueryData(reviewsQueryOptions(user.id, token)),
+    ]);
+  }, [language, token, user]);
+
   const renderPage = () => {
     switch (activePage) {
       case 'video':
@@ -152,7 +168,7 @@ function AppInner() {
       case 'converse-v2':
         return <ConverseV2Page onBack={() => setActivePage('practice')} onNavigate={setActivePage} />;
       case 'settings':
-        return <SettingsPage onEditProfile={() => setAppView('onboarding')} />;
+        return <SettingsPage />;
       default:
         return <VideoPage />;
     }

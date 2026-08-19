@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useIsRestoring } from '@tanstack/react-query';
 import { API_BASE_URL } from '../config';
 import { supabase } from '../lib/supabaseClient';
+import { queryClient } from '../lib/queryClient';
+import { queryPersister } from '../lib/queryPersister';
+import { queryKeys } from '../lib/queries';
 
 const API_BASE = API_BASE_URL;
 
@@ -36,20 +40,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sticky within a session: once any request reports this login just created
   // the account, stays true even if a racing duplicate fetch reports false.
   const [isNewUser, setIsNewUser] = useState(false);
+  const isRestoringCache = useIsRestoring();
 
-  const fetchMe = useCallback(async (accessToken: string): Promise<MeResponse> => {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+  const clearCachedData = useCallback(() => {
+    queryClient.clear();
+    void queryPersister.removeClient();
+  }, []);
+
+  const fetchMe = useCallback(async (accessToken: string, authUserId: string): Promise<MeResponse> => {
+    return queryClient.fetchQuery({
+      queryKey: queryKeys.profile(authUserId),
+      queryFn: async ({ signal }) => {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal,
+        });
+        if (!res.ok) throw new Error('Token invalid');
+        return res.json() as Promise<MeResponse>;
+      },
     });
-    if (!res.ok) throw new Error('Token invalid');
-    return res.json();
   }, []);
 
   useEffect(() => {
+    if (isRestoringCache) return;
     let active = true;
-    const applySession = async (accessToken: string | null) => {
+    const applySession = async (accessToken: string | null, authUserId: string | null) => {
       if (!active) return;
-      if (!accessToken) {
+      if (!accessToken || !authUserId) {
+        clearCachedData();
         setUser(null);
         setToken(null);
         setIsNewUser(false);
@@ -57,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
-        const me = await fetchMe(accessToken);
+        const me = await fetchMe(accessToken, authUserId);
         if (active) {
           setUser(me);
           setToken(accessToken);
@@ -67,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (active) {
           setUser(null);
           setToken(null);
+          clearCachedData();
           await supabase.auth.signOut();
         }
       } finally {
@@ -75,21 +94,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void applySession(session?.access_token ?? null);
+      void applySession(session?.access_token ?? null, session?.user.id ?? null);
     });
-    void supabase.auth.getSession().then(({ data }) => applySession(data.session?.access_token ?? null));
+    void supabase.auth.getSession().then(({ data }) => applySession(data.session?.access_token ?? null, data.session?.user.id ?? null));
 
     return () => {
       active = false;
       subscription.unsubscribe();
     };
-  }, [fetchMe]);
+  }, [clearCachedData, fetchMe, isRestoringCache]);
 
   const login = async (email: string, password: string, rememberMe: boolean = true) => {
     void rememberMe; // Supabase owns secure session persistence.
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) throw new Error(error?.message || 'Login failed');
-    const me = await fetchMe(data.session.access_token);
+    const me = await fetchMe(data.session.access_token, data.session.user.id);
     setToken(data.session.access_token);
     setUser(me);
     if (me.is_new_user) setIsNewUser(true);
@@ -114,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw new Error(error.message);
     if (!data.session) throw new Error('Check your email to confirm your account before signing in');
-    const me = await fetchMe(data.session.access_token);
+    const me = await fetchMe(data.session.access_token, data.session.user.id);
     setToken(data.session.access_token);
     setUser(me);
     setIsNewUser(true);
@@ -122,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     void supabase.auth.signOut();
+    clearCachedData();
     setToken(null);
     setUser(null);
     setIsNewUser(false);

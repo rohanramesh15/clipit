@@ -15,11 +15,7 @@ const DAILY_GOAL_OPTIONS = [
   { minutes: 60, label: '1 hour+', cards: 120 },
 ];
 
-interface SettingsPageProps {
-  onEditProfile?: () => void;
-}
-
-export function SettingsPage({ onEditProfile }: SettingsPageProps) {
+export function SettingsPage() {
   const { user, token, logout } = useAuth();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -140,15 +136,6 @@ export function SettingsPage({ onEditProfile }: SettingsPageProps) {
             </p>
             <p className="truncate text-body-sm text-muted">{user?.email ?? ''}</p>
           </div>
-          {onEditProfile && (
-            <button
-              type="button"
-              onClick={onEditProfile}
-              className="shrink-0 rounded-lg border border-subtle px-3.5 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-            >
-              Edit profile
-            </button>
-          )}
         </div>
       </section>
 

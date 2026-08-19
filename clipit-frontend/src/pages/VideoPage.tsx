@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertCircle, Play as PlayIcon, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../components/EmptyState';
 import { SegmentedFilter } from '../components/SegmentedFilter';
 import { VideoHistoryItem, type TrackedVideo, type Platform } from '../components/VideoHistoryItem';
@@ -9,24 +10,11 @@ import { Skeleton } from '../components/Skeleton';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { fetchWithTimeout } from '../lib/network';
+import { type BackendVideo, historyQueryOptions, queryKeys } from '../lib/queries';
 
 const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
 
-interface BackendVideo {
-  video_id: string;
-  title: string;
-  tracked_at: number;
-  has_korean: number | boolean | null;
-  has_ukrainian: number | boolean | null;
-  has_english: number | boolean | null;
-  season?: number | null;
-  episode?: number | null;
-  episode_title?: string | null;
-}
-
 type Filter = 'all' | Platform;
-type LoadState = 'loading' | 'loaded' | 'error';
 
 function formatTrackedAt(ts: number): string {
   const now = Date.now() / 1000;
@@ -60,42 +48,20 @@ function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
 
 export function VideoPage() {
   const { language, languageName } = useLanguage();
-  const { token } = useAuth();
-  const [videos, setVideos] = useState<TrackedVideo[]>([]);
-  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const { token, user } = useAuth();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
   const [pendingRemoval, setPendingRemoval] = useState<TrackedVideo | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-    setLoadState('loading');
-    void fetchWithTimeout(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Backend error');
-        const data = await res.json();
-        if (!Array.isArray(data.videos)) throw new Error('Invalid history response');
-        return data.videos as BackendVideo[];
-      })
-      .then((videos) => {
-        if (!active) return;
-        setVideos(videos.map((video) => mapVideo(video, language)));
-        setLoadState('loaded');
-      })
-      .catch(() => {
-        if (active && !controller.signal.aborted) setLoadState('error');
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [language, token, loadAttempt]);
+  const history = useQuery({
+    ...historyQueryOptions(user?.id ?? 0, token ?? '', language),
+    enabled: Boolean(user && token),
+  });
+  const videos = useMemo(
+    () => (history.data || []).map((video) => mapVideo(video, language)),
+    [history.data, language],
+  );
+  const loadState = history.isPending ? 'loading' : history.isError ? 'error' : 'loaded';
 
   const options = useMemo(
     () => [
@@ -122,7 +88,11 @@ export function VideoPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
-        setVideos((current) => current.filter((video) => video.id !== pendingRemoval.id));
+        queryClient.setQueryData<BackendVideo[]>(queryKeys.history(user?.id ?? 0, language), (current = []) =>
+          current.filter((video) => video.video_id !== pendingRemoval.id),
+        );
+        queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user?.id ?? 0, language) });
+        queryClient.removeQueries({ queryKey: queryKeys.watchTime(user?.id ?? 0, language) });
       }
     } finally {
       setIsRemoving(false);
@@ -139,7 +109,7 @@ export function VideoPage() {
         </div>
         <button
           type="button"
-          onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+          onClick={() => void history.refetch()}
           className="mt-1 flex shrink-0 items-center gap-2 rounded-xl border border-subtle px-4 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
         >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -177,7 +147,7 @@ export function VideoPage() {
           </div>
           <button
             type="button"
-            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+            onClick={() => void history.refetch()}
             className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
           >
             Try again

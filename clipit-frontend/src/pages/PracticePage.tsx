@@ -1,15 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { PracticeModes } from '../components/PracticeModes';
-import { WordQueue, type QueuedWord, type WordStatus } from '../components/WordQueue';
+import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
 import { WatchNudge } from '../components/WatchNudge';
 import { Skeleton } from '../components/Skeleton';
-import { getAnalyticsSummary, getCardStats, sortByPriority } from '../services/fsrs';
-import { API_BASE_URL } from '../config';
-import { fetchWithTimeout, mapWithConcurrency } from '../lib/network';
+import { getAnalyticsSummary } from '../services/fsrs';
+import { homeQueueQueryOptions } from '../lib/queries';
+import { queryClient } from '../lib/queryClient';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -17,45 +18,6 @@ type Page =
 
 interface PracticePageProps {
   onNavigate: (page: Page) => void;
-}
-
-interface FlashCard {
-  target_word: string;
-  dictionary_form: string;
-  english: string;
-  video_id: string | null;
-}
-
-interface TrackedVideoSummary {
-  video_id: string;
-  title: string;
-}
-
-// Mirrors FlashcardsPage.tsx's fetchCardsForVideo: vocabulary extracted from a
-// specific watched video only becomes flashcard-shaped (with a sentence,
-// translation, and timestamp) via a second call to /flashcard-data — there's
-// no single endpoint that returns everything a user has clipped from videos.
-async function fetchCardsForVideo(videoId: string, language: string, signal: AbortSignal): Promise<FlashCard[]> {
-  try {
-    await fetchWithTimeout(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`, { signal });
-    const vocabRes = await fetchWithTimeout(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`, { signal });
-    if (!vocabRes.ok) return [];
-    const vocab = await vocabRes.json();
-    if (!vocab.total_words) return [];
-
-    const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
-    const fcRes = await fetchWithTimeout(`${API_BASE_URL}/flashcard-data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
-      signal,
-    });
-    if (!fcRes.ok) return [];
-    const fc = await fcRes.json();
-    return (fc.flashcards || []).map((card: FlashCard) => ({ ...card, video_id: card.video_id || videoId }));
-  } catch {
-    return [];
-  }
 }
 
 // A few varied greetings per time-of-day so it doesn't read the same every visit.
@@ -73,18 +35,6 @@ function pickGreeting(): string {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-const DELETED_CARDS_KEY = 'lipit_deleted_cards';
-function getDeletedCards(language: string): Set<string> {
-  try {
-    const stored = localStorage.getItem(DELETED_CARDS_KEY);
-    if (!stored) return new Set();
-    const parsed = JSON.parse(stored);
-    return new Set(parsed[language] || []);
-  } catch {
-    return new Set();
-  }
-}
-
 export function PracticePage({ onNavigate }: PracticePageProps) {
   const { user, token } = useAuth();
   const { language, languageName } = useLanguage();
@@ -95,71 +45,12 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
     [],
   );
 
-  // Words clipped from watched videos (+ any uploaded vocab lists) — same
-  // two sources FlashcardsPage.tsx's "Study All Words" combines: uploaded
-  // vocab lists via /vocab/lists/flashcards, and video-extracted vocabulary
-  // via a per-video /vocabulary + /flashcard-data call (that endpoint alone
-  // only covers uploaded lists — it explicitly does no video mining).
-  // Capped to the most recent 8 videos so a Home-page preview doesn't fire
-  // unbounded requests for accounts with a long watch history.
-  const [words, setWords] = useState<QueuedWord[] | null>(null);
-  const [wordLoadState, setWordLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
-  const [wordLoadAttempt, setWordLoadAttempt] = useState(0);
-  useEffect(() => {
-    if (!token) { setWords([]); setWordLoadState('loaded'); return; }
-    let alive = true;
-    const controller = new AbortController();
-    setWords(null);
-    setWordLoadState('loading');
-    Promise.all([
-      fetchWithTimeout(`${API_BASE_URL}/vocab/lists/flashcards?language=${language}`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-      }).then((r) => (r.ok ? r.json() : { flashcards: [] })),
-      fetchWithTimeout(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-      }).then((r) => (r.ok ? r.json() : { videos: [] })),
-    ])
-      .then(async ([vocabData, videoData]) => {
-        if (!alive) return;
-        const videos: TrackedVideoSummary[] = videoData.videos || [];
-        const videoTitles = new Map(videos.map((v) => [v.video_id, v.title]));
-
-        const recentVideos = videos.slice(0, 8);
-        const perVideoCards = await mapWithConcurrency(
-          recentVideos,
-          2,
-          (video) => fetchCardsForVideo(video.video_id, language, controller.signal),
-        );
-        if (!alive) return;
-
-        const deleted = getDeletedCards(language);
-        const cards: FlashCard[] = [...(vocabData.flashcards || []), ...perVideoCards.flat()].filter(
-          (card: FlashCard) => !deleted.has(card.dictionary_form || card.target_word),
-        );
-        const cardByKey = new Map(cards.map((card) => [card.dictionary_form || card.target_word, card]));
-        const sortedKeys = sortByPriority([...cardByKey.keys()]).slice(0, 30);
-        const now = Date.now();
-
-        const queued: QueuedWord[] = sortedKeys.map((key) => {
-          const card = cardByKey.get(key)!;
-          const stats = getCardStats(key);
-          const status: WordStatus = !stats || stats.isNew ? 'new' : stats.nextDue.getTime() <= now ? 'due' : 'learning';
-          return {
-            id: key,
-            word: card.dictionary_form || card.target_word,
-            meaning: card.english,
-            video: (card.video_id && videoTitles.get(card.video_id)) || 'Your vocabulary list',
-            status,
-          };
-        });
-        setWords(queued);
-        setWordLoadState('loaded');
-      })
-      .catch(() => {
-        if (alive && !controller.signal.aborted) setWordLoadState('error');
-      });
-    return () => { alive = false; controller.abort(); };
-  }, [token, language, wordLoadAttempt]);
+  const wordQueue = useQuery({
+    ...homeQueueQueryOptions(queryClient, user?.id ?? 0, token ?? '', language),
+    enabled: Boolean(user && token),
+  });
+  const words = wordQueue.data ?? null;
+  const wordLoadState = wordQueue.isPending ? 'loading' : wordQueue.isError ? 'error' : 'loaded';
 
   const hasWatched = words !== null && words.length > 0;
   const dueCount = words ? words.filter((word) => word.status === 'due').length : 0;
@@ -204,7 +95,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
           </div>
           <button
             type="button"
-            onClick={() => setWordLoadAttempt((attempt) => attempt + 1)}
+            onClick={() => void wordQueue.refetch()}
             className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />

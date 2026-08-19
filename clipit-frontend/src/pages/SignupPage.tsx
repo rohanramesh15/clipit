@@ -56,6 +56,19 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
       title="Create your account"
       subtitle="Start turning what you watch into practice."
       switchPrompt={{ text: 'Already have an account?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}
+      footerNote={
+        <p className="text-meta text-muted">
+          By creating an account you agree to our{' '}
+          <a href="#terms" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
+            Terms
+          </a>{' '}
+          and{' '}
+          <a href="#privacy" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
+            Privacy Policy
+          </a>
+          .
+        </p>
+      }
     >
       <GoogleSignInButton onError={() => setError('Google sign-up was cancelled')} text="signup" />
       <AuthDivider label="or with email" />
@@ -100,18 +113,6 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
         <PrimaryButton isLoading={isLoading}>Create account</PrimaryButton>
       </form>
-
-      <p className="mt-3 text-meta text-muted">
-        By creating an account you agree to our{' '}
-        <a href="#terms" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
-          Terms
-        </a>{' '}
-        and{' '}
-        <a href="#privacy" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
-          Privacy Policy
-        </a>
-        .
-      </p>
     </AuthLayout>
   );
 }
