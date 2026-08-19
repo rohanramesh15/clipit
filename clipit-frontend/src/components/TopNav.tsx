@@ -1,0 +1,333 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ChevronDown,
+  Check,
+  BarChart3,
+  History,
+  Settings as SettingsIcon,
+  LogOut,
+  MessageSquare,
+  Puzzle,
+  ExternalLink,
+  Menu,
+  X,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { Avatar } from './Avatar';
+import { useHideOnScroll } from '../hooks/useHideOnScroll';
+import clipitLogo from '../assets/clipitlogo.png';
+
+type Page =
+  | 'video' | 'practice' | 'flashcards' | 'analytics'
+  | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
+
+// Pages reached through the Practice hub — none of them get a persistent nav
+// pill (matches the new design: Practice is reached via the logo, Settings
+// only via the account menu), so no active-state grouping is needed here.
+const NAV_TABS: { id: Page; label: string; Icon: typeof BarChart3 }[] = [
+  { id: 'analytics', label: 'Progress', Icon: BarChart3 },
+  { id: 'video', label: 'History', Icon: History },
+];
+
+const LANGUAGES = [
+  { code: 'ko' as const, flag: '🇰🇷', name: 'Korean' },
+  { code: 'uk' as const, flag: '🇺🇦', name: 'Ukrainian' },
+];
+
+const FEEDBACK_URL = 'https://forms.gle/5x6GJLDZKUTfJLTj9';
+const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
+
+interface TopNavProps {
+  activePage: Page;
+  onNavigate: (page: Page) => void;
+}
+
+export function TopNav({ activePage, onNavigate }: TopNavProps) {
+  const { user, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isLangPickerOpen, setIsLangPickerOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  const langPickerRef = useRef<HTMLDivElement>(null);
+  const isHidden = useHideOnScroll();
+
+  const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
+  const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
+
+  // Any open menu would slide off-screen with the bar, so dismiss them.
+  useEffect(() => {
+    if (!isHidden) return;
+    setIsAccountOpen(false);
+    setIsLangPickerOpen(false);
+    setIsMobileOpen(false);
+  }, [isHidden]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
+        setIsAccountOpen(false);
+      }
+      if (langPickerRef.current && !langPickerRef.current.contains(event.target as Node)) {
+        setIsLangPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <motion.header
+      animate={{ y: isHidden ? '-100%' : '0%' }}
+      transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+      className="sticky top-0 z-50 bg-app/90 backdrop-blur"
+    >
+      <div className="mx-auto flex h-[72px] max-w-page items-center gap-6 px-5 sm:px-8">
+        <button
+          type="button"
+          onClick={() => onNavigate('practice')}
+          className="flex shrink-0 items-center"
+        >
+          <img src={clipitLogo} alt="" className="-mt-1 h-12 w-12 shrink-0 object-contain" />
+          <span
+            className="text-4xl leading-none tracking-tight"
+            style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: '2px #9E3B3B', paintOrder: 'stroke fill' }}
+          >
+            <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
+          </span>
+          <span className="sr-only">Go to practice home</span>
+        </button>
+
+        <nav aria-label="Main" className="hidden flex-1 md:block">
+          <ul className="flex items-center gap-1">
+            {NAV_TABS.map((tab) => {
+              const isActive = tab.id === activePage;
+              return (
+                <li key={tab.id}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(tab.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-body-sm font-medium transition-colors duration-150 ease-swift ${
+                      isActive ? 'text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-pill"
+                        className="absolute inset-0 rounded-lg bg-blush"
+                        transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+                      />
+                    )}
+                    <tab.Icon className="relative h-4 w-4" aria-hidden="true" />
+                    <span className="relative whitespace-nowrap">{tab.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="ml-auto flex items-center gap-2 md:ml-0">
+          <div className="relative hidden sm:block" ref={langPickerRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsLangPickerOpen((open) => !open);
+                setIsAccountOpen(false);
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={isLangPickerOpen}
+              className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+            >
+              <span aria-hidden="true">{currentLang.flag}</span>
+              {currentLang.name}
+              <ChevronDown
+                className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isLangPickerOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+              <span className="sr-only">Change the language you’re learning</span>
+            </button>
+
+            <AnimatePresence>
+              {isLangPickerOpen && (
+                <motion.ul
+                  role="listbox"
+                  aria-label="Language you’re learning"
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                  className="absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
+                >
+                  {LANGUAGES.map((option) => {
+                    const isSelected = option.code === language;
+                    return (
+                      <li key={option.code} role="option" aria-selected={isSelected}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLanguage(option.code);
+                            setIsLangPickerOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
+                            isSelected ? 'bg-blush font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                          }`}
+                        >
+                          <span aria-hidden="true">{option.flag}</span>
+                          <span className="flex-1 text-left">{option.name}</span>
+                          {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="relative" ref={accountRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAccountOpen((open) => !open);
+                setIsLangPickerOpen(false);
+              }}
+              aria-haspopup="menu"
+              aria-expanded={isAccountOpen}
+              className="flex items-center gap-2 rounded-full p-1 pr-2 transition-colors duration-150 ease-swift hover:bg-surface-hover"
+            >
+              <Avatar user={user} size={32} />
+              <ChevronDown
+                className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isAccountOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+              <span className="sr-only">Account menu</span>
+            </button>
+
+            <AnimatePresence>
+              {isAccountOpen && (
+                <motion.div
+                  role="menu"
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                  className="absolute right-0 top-full mt-2 w-64 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
+                >
+                  <div className="flex items-center gap-3 border-b border-subtle px-3 pb-3 pt-2">
+                    <Avatar user={user} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-body-sm font-semibold text-primary">{displayName}</p>
+                      <p className="truncate text-meta text-muted">{user?.email ?? ''}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsAccountOpen(false);
+                        onNavigate('settings');
+                      }}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                    >
+                      <SettingsIcon className="h-4 w-4 text-muted" aria-hidden="true" />
+                      Settings
+                    </button>
+
+                    <a
+                      href={EXTENSION_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      role="menuitem"
+                      onClick={() => setIsAccountOpen(false)}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                    >
+                      <Puzzle className="h-4 w-4 text-muted" aria-hidden="true" />
+                      <span className="flex-1 text-left">Get extension</span>
+                      <ExternalLink className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+                    </a>
+                    <a
+                      href={FEEDBACK_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      role="menuitem"
+                      onClick={() => setIsAccountOpen(false)}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                    >
+                      <MessageSquare className="h-4 w-4 text-muted" aria-hidden="true" />
+                      Feedback
+                    </a>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsAccountOpen(false);
+                        logout();
+                      }}
+                      className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-error/10 hover:text-error"
+                    >
+                      <LogOut className="h-4 w-4 text-muted transition-colors duration-150 ease-swift group-hover:text-error" aria-hidden="true" />
+                      Log out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen((open) => !open)}
+            aria-expanded={isMobileOpen}
+            aria-label="Toggle navigation"
+            className="rounded-lg p-2 text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary md:hidden"
+          >
+            {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isMobileOpen && (
+          <motion.nav
+            aria-label="Main"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            className="overflow-hidden border-t border-subtle md:hidden"
+          >
+            <ul className="mx-auto max-w-page px-5 py-3 sm:px-8">
+              {NAV_TABS.map((tab) => {
+                const isActive = tab.id === activePage;
+                return (
+                  <li key={tab.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate(tab.id);
+                        setIsMobileOpen(false);
+                      }}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-body font-medium transition-colors duration-150 ease-swift ${
+                        isActive ? 'bg-blush text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                      }`}
+                    >
+                      <tab.Icon className="h-5 w-5" aria-hidden="true" />
+                      {tab.label}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </motion.nav>
+        )}
+      </AnimatePresence>
+    </motion.header>
+  );
+}

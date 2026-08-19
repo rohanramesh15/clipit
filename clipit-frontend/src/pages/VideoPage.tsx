@@ -1,62 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Play,
-  Clock,
-  BookOpen,
-  Youtube,
-  ExternalLink,
-  RefreshCw,
-  AlertCircle,
-  Tv,
-  Film,
-  Trash2,
-  X,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Play as PlayIcon, RefreshCw } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { EmptyState } from '../components/EmptyState';
+import { SegmentedFilter } from '../components/SegmentedFilter';
+import { VideoHistoryItem, type TrackedVideo, type Platform } from '../components/VideoHistoryItem';
+import { RemoveVideoDialog } from '../components/RemoveVideoDialog';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
-import { Skeleton } from '../components/Skeleton';
-import { SegmentedTabs } from '../components/SegmentedTabs';
 
-const videoPageTips: HelpTip[] = [
-  {
-    id: 'platform-filter',
-    text: 'Filter by YouTube or Netflix to find specific videos.',
-    targetId: 'section-platform-tabs',
-    position: 'right',
-  },
-  {
-    id: 'video-grid',
-    text: 'Videos you watch with the browser extension appear here. Click to watch again, hover to delete.',
-    targetId: 'section-video-grid',
-    position: 'top',
-  },
-];
+const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
 
-function NetflixThumbnail({ videoId }: { videoId: string }) {
-  const [hasError, setHasError] = React.useState(false);
-
-  if (hasError) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-[#B20710]/10">
-        <span className="text-[#B20710] font-bold text-xl">N</span>
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={`${API_BASE_URL}/netflix/thumbnail/${videoId}`}
-      alt=""
-      className="w-full h-full object-cover"
-      onError={() => setHasError(true)}
-    />
-  );
-}
-
-interface TrackedVideo {
+interface BackendVideo {
   video_id: string;
   title: string;
   tracked_at: number;
@@ -68,10 +23,8 @@ interface TrackedVideo {
   episode_title?: string | null;
 }
 
-type LoadState = 'loading' | 'loaded' | 'error' | 'empty';
-type PlatformFilter = 'all' | 'youtube'
-
-| 'netflix';
+type Filter = 'all' | Platform;
+type LoadState = 'loading' | 'loaded' | 'error';
 
 function formatTrackedAt(ts: number): string {
   const now = Date.now() / 1000;
@@ -83,53 +36,59 @@ function formatTrackedAt(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
+  const isNetflix = v.video_id.startsWith('netflix_');
+  const hasSubs = language === 'uk' ? v.has_ukrainian : language === 'en' ? v.has_english : v.has_korean;
+  const langAbbr = language === 'uk' ? 'UK' : language === 'en' ? 'EN' : 'KO';
+  return {
+    id: v.video_id,
+    platform: isNetflix ? 'netflix' : 'youtube',
+    title: v.title,
+    thumbnail: isNetflix
+      ? `${API_BASE_URL}/netflix/thumbnail/${v.video_id}`
+      : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
+    trackedAt: formatTrackedAt(v.tracked_at),
+    subtitles: hasSubs === 1 ? `${langAbbr} + EN` : null,
+    newWords: 0,
+    season: v.season,
+    episode: v.episode,
+    episodeTitle: v.episode_title,
+  };
+}
+
 export function VideoPage() {
   const { language, languageName } = useLanguage();
   const { token } = useAuth();
   const [videos, setVideos] = useState<TrackedVideo[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ video: TrackedVideo } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [pendingRemoval, setPendingRemoval] = useState<TrackedVideo | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
-  // Filter videos by platform
-  const filteredVideos = useMemo(() => {
-    if (platformFilter === 'all') return videos;
-    if (platformFilter === 'netflix') return videos.filter(v => v.video_id.startsWith('netflix_'));
-    return videos.filter(v => !v.video_id.startsWith('netflix_'));
-  }, [videos, platformFilter]);
-
-  // Count videos by platform
-  const counts = useMemo(() => ({
-    all: videos.length,
-    youtube: videos.filter(v => !v.video_id.startsWith('netflix_')).length,
-    netflix: videos.filter(v => v.video_id.startsWith('netflix_')).length,
-  }), [videos]);
-
-  async function fetchVideos(silent: boolean = false) {
+  async function fetchVideos(silent = false) {
     try {
       const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
-      const vids: TrackedVideo[] = data.videos || [];
-      setVideos(vids);
-      setLoadState(vids.length ? 'loaded' : 'empty');
+      const vids: BackendVideo[] = data.videos || [];
+      setVideos(vids.map((v) => mapVideo(v, language)));
+      setLoadState('loaded');
     } catch {
-      // On a background poll, keep showing the current list instead of flipping
-      // to the error screen on a transient blip.
+      // On a background poll, keep showing the current list instead of
+      // flipping to the error screen on a transient blip.
       if (!silent) setLoadState('error');
     }
   }
 
   useEffect(() => {
+    setLoadState('loading');
     fetchVideos();
   }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh: silently re-fetch every 10s (only when the tab is visible) so
-  // newly captured videos appear without clicking Refresh.
+  // Silently re-fetch every 10s (only when the tab is visible) so newly
+  // captured videos appear without a manual refresh.
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') fetchVideos(true);
@@ -137,386 +96,163 @@ export function VideoPage() {
     return () => clearInterval(id);
   }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleRefresh() {
-    setIsRefreshing(true);
-    await fetchVideos();
-    setIsRefreshing(false);
-  }
+  const options = useMemo(
+    () => [
+      { id: 'all' as Filter, label: 'All', count: videos.length },
+      { id: 'youtube' as Filter, label: 'YouTube', count: videos.filter((v) => v.platform === 'youtube').length },
+      { id: 'netflix' as Filter, label: 'Netflix', count: videos.filter((v) => v.platform === 'netflix').length },
+    ],
+    [videos],
+  );
+  const visible = filter === 'all' ? videos : videos.filter((video) => video.platform === filter);
 
-  async function handleDeleteVideo(videoId: string, deleteFlashcards: boolean = false) {
-    setIsDeleting(true);
+  async function handleRemove(alsoFlashcards: boolean) {
+    if (!pendingRemoval) return;
+    setIsRemoving(true);
     try {
       const params = new URLSearchParams();
-      if (deleteFlashcards) {
+      if (alsoFlashcards) {
         params.set('delete_flashcards', 'true');
         params.set('lang', language);
       }
-      const url = `${API_BASE_URL}/videos/${encodeURIComponent(videoId)}${params.toString() ? '?' + params.toString() : ''}`;
+      const url = `${API_BASE_URL}/videos/${encodeURIComponent(pendingRemoval.id)}${params.toString() ? '?' + params.toString() : ''}`;
       const res = await fetch(url, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
-        setVideos(prev => prev.filter(v => v.video_id !== videoId));
+        setVideos((current) => current.filter((video) => video.id !== pendingRemoval.id));
       }
-    } catch (error) {
-      console.error('Failed to delete video:', error);
     } finally {
-      setIsDeleting(false);
-      setDeleteConfirm(null);
+      setIsRemoving(false);
+      setPendingRemoval(null);
     }
   }
 
   return (
-    <div className="pb-8 max-w-6xl mx-auto px-4 pt-8">
-      <HelpOverlay tips={videoPageTips} />
-
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+    <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
+      <header className="flex items-start justify-between gap-4 pb-6">
         <div>
-          <h1 className="text-3xl font-heading font-bold text-primary mb-2">
-            Watch History
-          </h1>
-          <p className="text-secondary max-w-2xl">
-            {languageName} videos tracked by extension.
-          </p>
+          <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Watch history</h1>
+          <p className="mt-1 text-body text-secondary">{languageName} videos the ClipIt extension tracked for you.</p>
         </div>
         <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface border border-white/5 hover:border-white/10 text-secondary hover:text-primary transition-all text-sm font-medium mt-1">
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          type="button"
+          onClick={() => fetchVideos()}
+          className="mt-1 flex shrink-0 items-center gap-2 rounded-xl border border-subtle px-4 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
           Refresh
         </button>
-      </div>
+      </header>
 
-      {/* Platform Tabs */}
-      <div id="section-platform-tabs" className="mb-6">
-        <SegmentedTabs
-          layoutId="history-tab-pill"
-          active={platformFilter}
-          onChange={setPlatformFilter}
-          tabs={[
-            { id: 'all', label: 'All', Icon: Tv, count: counts.all },
-            { id: 'youtube', label: 'YouTube', Icon: Youtube, count: counts.youtube },
-            { id: 'netflix', label: 'Netflix', Icon: Film, count: counts.netflix },
-          ]}
-        />
-      </div>
+      <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
 
-      {/* States */}
-      <AnimatePresence mode="wait">
-        {loadState === 'loading' && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-3">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-surface border border-white/5 rounded-xl p-3 flex flex-col sm:flex-row gap-4">
-                <Skeleton className="w-full sm:w-48 aspect-video rounded-lg shrink-0" />
-                <div className="flex-1 py-1 flex flex-col justify-center gap-3">
-                  <Skeleton className="h-5 w-3/4 rounded-md" />
-                  <Skeleton className="h-4 w-1/3 rounded" />
-                </div>
+      {loadState === 'loading' && (
+        <div className="mt-6 space-y-4" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col gap-4 rounded-2xl border border-subtle bg-surface p-4 sm:flex-row animate-pulse">
+              <div className="aspect-video w-full shrink-0 rounded-lg bg-blush sm:w-52" />
+              <div className="flex flex-1 flex-col justify-center gap-3 py-1">
+                <div className="h-5 w-3/4 rounded-md bg-blush" />
+                <div className="h-4 w-1/3 rounded-md bg-blush" />
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loadState === 'error' && (
+        <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-subtle bg-surface px-6 py-16 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
+            <AlertCircle className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-semibold text-primary">Backend not reachable</p>
+            <p className="mt-1 text-body-sm text-secondary">Make sure the ClipIt server is running and accessible.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setLoadState('loading'); fetchVideos(); }}
+            className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {loadState === 'loaded' && visible.length === 0 && (
+        <div className="mt-6">
+          <EmptyState
+            title={filter === 'all' ? 'Nothing tracked yet' : `No ${filter === 'youtube' ? 'YouTube' : 'Netflix'} videos yet`}
+            visual={
+              <div className="mx-auto grid max-w-md grid-cols-3 gap-3" aria-hidden="true">
+                {[0, 1, 2].map((tile) => (
+                  <div key={tile} className="space-y-2" style={{ opacity: 1 - tile * 0.25 }}>
+                    <div className="flex aspect-video items-center justify-center rounded-lg bg-blush">
+                      <PlayIcon className="h-5 w-5 text-accent/50" />
+                    </div>
+                    <div className="h-2.5 w-3/4 rounded-md bg-blush" />
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <a
+              href="https://www.youtube.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+            >
+              Browse YouTube
+            </a>
+            <a
+              href="https://www.netflix.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-subtle px-5 py-2.5 text-body-sm font-semibold text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+            >
+              Browse Netflix
+            </a>
+            <a
+              href={EXTENSION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-body-sm text-muted underline decoration-transparent underline-offset-2 transition-colors duration-150 ease-swift hover:text-accent hover:decoration-accent/40"
+            >
+              Need the extension?
+            </a>
+          </EmptyState>
+        </div>
+      )}
+
+      {loadState === 'loaded' && visible.length > 0 && (
+        <ul className="mt-6 space-y-4">
+          <AnimatePresence initial={false}>
+            {visible.map((video, index) => (
+              <motion.li
+                key={video.id}
+                layout
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.24, delay: 0.04 * index, ease: [0.23, 1, 0.32, 1] }}
+              >
+                <VideoHistoryItem video={video} onRemove={setPendingRemoval} />
+              </motion.li>
             ))}
-          </motion.div>
-        )}
+          </AnimatePresence>
+        </ul>
+      )}
 
-        {loadState === 'error' && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
-              <AlertCircle className="w-7 h-7 text-red-500" />
-            </div>
-            <p className="text-primary font-semibold">Backend not reachable</p>
-            <p className="text-secondary text-sm">Make sure the ClipIt server is running and accessible.</p>
-            <button
-              onClick={handleRefresh}
-              className="mt-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-semibold hover:bg-accent/20 transition-colors">
-              Try again
-            </button>
-          </motion.div>
-        )}
-
-        {loadState === 'empty' && (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-24 gap-6">
-            <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
-              <Tv className="w-8 h-8 text-accent" />
-            </div>
-            <div className="text-center">
-              <p className="text-primary font-semibold text-lg mb-2">No videos tracked yet</p>
-              <p className="text-secondary text-sm max-w-sm">
-                Watch any {languageName} video on YouTube or Netflix — the Clip It extension will track it automatically.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 mt-2">
-              <a
-                href="https://www.youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-app font-semibold transition-all shadow-lg shadow-accent/20">
-                <Youtube className="w-5 h-5" />
-                Browse YouTube
-                <ExternalLink className="w-4 h-4 opacity-70" />
-              </a>
-              <a
-                href="https://www.netflix.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-app font-semibold transition-all shadow-lg shadow-accent/20">
-                <Film className="w-5 h-5" />
-                Browse Netflix
-                <ExternalLink className="w-4 h-4 opacity-70" />
-              </a>
-            </div>
-            <p className="text-muted text-xs mt-2">
-              Make sure the <a href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Clip It browser extension</a> is installed and enabled
-            </p>
-          </motion.div>
-        )}
-
-        {loadState === 'loaded' && (
-          <motion.div
-            id="section-video-grid"
-            key="loaded"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-3">
-            {filteredVideos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-4">
-                <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
-                  {platformFilter === 'netflix' ? (
-                    <Film className="w-7 h-7 text-muted" />
-                  ) : (
-                    <Youtube className="w-7 h-7 text-muted" />
-                  )}
-                </div>
-                <p className="text-secondary text-sm">
-                  No {platformFilter === 'netflix' ? 'Netflix' : 'YouTube'} videos tracked yet
-                </p>
-              </div>
-            ) : (
-              filteredVideos.map((video, index) => {
-                const isNetflix = video.video_id.startsWith('netflix_');
-                const netflixId = isNetflix ? video.video_id.replace('netflix_', '') : null;
-                const videoUrl = isNetflix
-                  ? `https://www.netflix.com/watch/${netflixId}`
-                  : `https://www.youtube.com/watch?v=${video.video_id}`;
-
-                return (
-                  <motion.div
-                    key={video.video_id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
-                    className="group bg-surface border border-white/5 rounded-xl p-3 hover:bg-surface-hover hover:border-white/10 transition-all cursor-default flex flex-col sm:flex-row gap-4">
-
-                    {/* Thumbnail */}
-                    <div className="relative w-full sm:w-48 aspect-video rounded-lg overflow-hidden shrink-0 bg-white/5">
-                      {isNetflix ? (
-                        <NetflixThumbnail videoId={video.video_id} />
-                      ) : (
-                        <img
-                          src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.opacity = '0';
-                          }}
-                        />
-                      )}
-                      {/* Platform badge */}
-                      <div className={`absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1 ${
-                        isNetflix ? 'bg-[#B20710]' : 'bg-[#FF0000]'
-                      }`}>
-                        {isNetflix ? (
-                          <>
-                            <Film className="w-3 h-3" />
-                            Netflix
-                          </>
-                        ) : (
-                          <>
-                            <Youtube className="w-3 h-3" />
-                            YouTube
-                          </>
-                        )}
-                      </div>
-                      {/* Language badge */}
-                      {(language === 'uk' ? video.has_ukrainian : language === 'en' ? video.has_english : video.has_korean) === 1 && (
-                        <div className="absolute top-2 right-2 bg-accent/90 px-1.5 py-0.5 rounded text-[10px] font-bold text-app">
-                          {language === 'uk' ? 'UK' : language === 'en' ? 'EN' : 'KO'} + EN
-                        </div>
-                      )}
-                      {/* Hover play link */}
-                      <a
-                        href={videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30"
-                        onClick={e => e.stopPropagation()}>
-                        <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                          <Play className="w-3 h-3 text-white fill-current ml-0.5" />
-                        </div>
-                      </a>
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 flex flex-col justify-center py-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-1">
-                        <div>
-                          <h3 className="font-bold text-primary group-hover:text-accent transition-colors line-clamp-2">
-                            {video.title}
-                          </h3>
-                          {/* Episode info for Netflix shows */}
-                          {isNetflix && (video.season || video.episode) && (
-                            <p className="text-sm text-secondary mt-0.5">
-                              {video.season && video.episode
-                                ? `Season ${video.season}, Episode ${video.episode}`
-                                : video.season
-                                  ? `Season ${video.season}`
-                                  : `Episode ${video.episode}`}
-                              {video.episode_title && (
-                                <span className="text-muted"> — {video.episode_title}</span>
-                              )}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirm({ video });
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-500 transition-colors"
-                            title="Remove from history">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <a
-                            href={videoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}>
-                            <ExternalLink className="w-4 h-4 text-muted hover:text-accent transition-colors" />
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3 mt-auto">
-                        <div className="flex items-center gap-1.5 text-xs text-muted">
-                          <Clock className="w-3.5 h-3.5" />
-                          {formatTrackedAt(video.tracked_at)}
-                        </div>
-                        {(language === 'uk' ? video.has_ukrainian : language === 'en' ? video.has_english : video.has_korean) === 1 && (
-                          <div className="flex items-center gap-1.5 text-xs text-accent/80 bg-accent/5 px-2 py-0.5 rounded border border-accent/10">
-                            <BookOpen className="w-3 h-3" />
-                            {languageName} subtitles
-                          </div>
-                        )}
-                        {(language === 'uk' ? video.has_ukrainian : language === 'en' ? video.has_english : video.has_korean) === 0 && (
-                          <div className="text-xs text-muted/60 bg-white/3 px-2 py-0.5 rounded border border-white/5">
-                            No {languageName} subs
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Confirmation Dialog */}
       <AnimatePresence>
-        {deleteConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => !isDeleting && setDeleteConfirm(null)}>
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
-              onClick={e => e.stopPropagation()}>
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <Trash2 className="w-6 h-6 text-red-500" />
-                </div>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={isDeleting}
-                  className="p-1.5 rounded-lg hover:bg-white/5 text-muted hover:text-primary transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <h3 className="text-lg font-bold text-primary mb-2">
-                Remove from History?
-              </h3>
-              <p className="text-secondary text-sm mb-1">
-                <span className="font-medium text-primary">{deleteConfirm.video.title}</span>
-              </p>
-              <p className="text-muted text-sm mb-6">
-                Choose whether to also delete flashcards for words found in this video.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => handleDeleteVideo(deleteConfirm.video.video_id, false)}
-                  disabled={isDeleting}
-                  className="w-full px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-colors font-medium text-sm flex items-center justify-center gap-2">
-                  {isDeleting ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-orange-400/30 border-t-orange-400 animate-spin" />
-                      Removing...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Remove Video Only
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleDeleteVideo(deleteConfirm.video.video_id, true)}
-                  disabled={isDeleting}
-                  className="w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2">
-                  {isDeleting ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      Removing...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Remove Video & Flashcards
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={isDeleting}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-primary hover:bg-white/10 transition-colors font-medium text-sm">
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+        {pendingRemoval && (
+          <RemoveVideoDialog
+            video={pendingRemoval}
+            isRemoving={isRemoving}
+            onCancel={() => !isRemoving && setPendingRemoval(null)}
+            onRemove={handleRemove}
+          />
         )}
       </AnimatePresence>
     </div>

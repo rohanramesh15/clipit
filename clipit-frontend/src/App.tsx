@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Sidebar } from './components/Sidebar';
+import { TopNav } from './components/TopNav';
 import { VideoPage } from './pages/VideoPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -15,7 +15,6 @@ import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { ConverseV2Page } from './pages/ConverseV2Page';
 import { PracticePage } from './pages/PracticePage';
 import { MadlibsPage } from './pages/MadlibsPage';
-import { CommunityPage } from './pages/CommunityPage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -25,7 +24,6 @@ type Page =
 'video' |
 'practice' |
 'flashcards' |
-'community' |
 'analytics' |
 'vocabulary' |
 'converse-v2' |
@@ -37,25 +35,6 @@ function AppInner() {
   const { user, isLoading, isNewUser } = useAuth();
   const [appView, setAppView] = useState<AppView>('landing');
   const [activePage, setActivePage] = useState<Page>('practice');
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem('sidebar_collapsed');
-    return saved === 'true';
-  });
-
-  const toggleSidebarCollapsed = () => {
-    const newValue = !isSidebarCollapsed;
-    setIsSidebarCollapsed(newValue);
-    localStorage.setItem('sidebar_collapsed', String(newValue));
-  };
-
-  const toggleTheme = () => {
-    setIsDark(prev => {
-      const next = !prev;
-      localStorage.setItem('theme', next ? 'dark' : 'light');
-      return next;
-    });
-  };
 
   // Check URL for reset token and privacy page on mount
   useEffect(() => {
@@ -96,28 +75,14 @@ function AppInner() {
       setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
   }, [isLoading, user, isNewUser]);
-  // Apply theme class to <html> so it cascades to everything including fixed elements and body.
-  // Persist to localStorage so the choice survives refreshes.
+  // The app is light-only now — force the class/localStorage the same way
+  // the landing page already does, so nothing can leave a stale 'dark' value
+  // (e.g. from before this changed) lingering for the next visit.
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.remove('light');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.add('light');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
-
-  useEffect(() => {
-    function handleStorage(event: StorageEvent) {
-      if (event.key === 'theme') {
-        setIsDark(event.newValue !== 'light');
-      }
-    }
-
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    document.documentElement.classList.add('light');
+    localStorage.setItem('theme', 'light');
   }, []);
+
   const renderPage = () => {
     switch (activePage) {
       case 'video':
@@ -128,8 +93,6 @@ function AppInner() {
         return <FlashcardsPage onNavigate={setActivePage} />;
       case 'madlibs':
         return <MadlibsPage onNavigate={setActivePage} />;
-      case 'community':
-        return <CommunityPage />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'vocabulary':
@@ -137,13 +100,7 @@ function AppInner() {
       case 'converse-v2':
         return <ConverseV2Page onBack={() => setActivePage('practice')} onNavigate={setActivePage} />;
       case 'settings':
-        return (
-          <SettingsPage
-            onEditProfile={() => setAppView('onboarding')}
-            isDark={isDark}
-            onToggleTheme={() => setIsDark((v) => !v)}
-          />
-        );
+        return <SettingsPage onEditProfile={() => setAppView('onboarding')} />;
       default:
         return <VideoPage />;
     }
@@ -180,49 +137,38 @@ function AppInner() {
   return (
     <HelpProvider>
       <ReviewSessionProvider>
-        <div className="flex min-h-screen bg-app text-primary font-sans selection:bg-accent selection:text-app">
-        <Sidebar
-          activePage={activePage}
-          onNavigate={setActivePage}
-          isDark={isDark}
-          onToggleTheme={toggleTheme}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapsed={toggleSidebarCollapsed} />
+        <div className="min-h-screen w-full bg-app font-sans text-primary selection:bg-accent selection:text-app">
+          <TopNav activePage={activePage} onNavigate={setActivePage} />
 
+          <main className="p-4 md:p-8 overflow-x-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activePage}
+                initial={{
+                  opacity: 0,
+                  x: 20
+                }}
+                animate={{
+                  opacity: 1,
+                  x: 0
+                }}
+                exit={{
+                  opacity: 0,
+                  x: -20
+                }}
+                transition={{
+                  duration: 0.3,
+                  ease: 'easeInOut'
+                }}>
 
-        <motion.main
-          className="flex-1 p-4 md:p-8 overflow-x-hidden"
-          animate={{ marginLeft: isSidebarCollapsed ? 80 : 256 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activePage}
-              initial={{
-                opacity: 0,
-                x: 20
-              }}
-              animate={{
-                opacity: 1,
-                x: 0
-              }}
-              exit={{
-                opacity: 0,
-                x: -20
-              }}
-              transition={{
-                duration: 0.3,
-                ease: 'easeInOut'
-              }}
-              className="w-full max-w-7xl mx-auto">
-
-              {renderPage()}
-            </motion.div>
-          </AnimatePresence>
-        </motion.main>
-      </div>
-    </ReviewSessionProvider>
-  </HelpProvider>
-);
+                {renderPage()}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+      </ReviewSessionProvider>
+    </HelpProvider>
+  );
 
 }
 

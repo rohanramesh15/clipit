@@ -13,6 +13,7 @@ export default {
         'surface-hover': 'var(--bg-surface-hover)',
         accent: 'var(--accent)',
         'accent-hover': 'var(--accent-hover)',
+        'on-accent': 'var(--on-accent)',
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',
         muted: 'var(--text-muted)',
@@ -33,6 +34,7 @@ export default {
       fontFamily: {
         sans: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
         heading: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
+        logo: ['Love Ya Like A Sister', 'cursive'],
       },
       // Semantic type scale for the landing page — size, leading and weight
       // travel together.

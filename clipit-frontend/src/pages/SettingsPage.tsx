@@ -1,70 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, Minus, Plus, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
-import {
-  LogOut,
-  Trash2,
-  Layers,
-  AlertTriangle,
-  X,
-  Moon,
-  Sun,
-} from 'lucide-react';
-import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
+import { SettingRow } from '../components/SettingRow';
+import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
 import { Avatar } from '../components/Avatar';
-import { fetchTtsVoices, TtsVoice } from '../services/chat';
+import { fetchTtsVoices, type TtsVoice } from '../services/chat';
 
-const settingsPageTips: HelpTip[] = [
-  {
-    id: 'profile',
-    text: 'View and edit your profile information.',
-    targetId: 'section-profile',
-    position: 'right',
-  },
-  {
-    id: 'learning',
-    text: 'Set your target language, motivation, daily goal, and new cards per day.',
-    targetId: 'section-learning',
-    position: 'right',
-  },
-  {
-    id: 'account',
-    text: 'Manage your account security or log out.',
-    targetId: 'section-account',
-    position: 'right',
-  },
+const DAILY_GOAL_OPTIONS = [
+  { minutes: 5, label: '5 min', cards: 10 },
+  { minutes: 15, label: '15 min', cards: 30 },
+  { minutes: 30, label: '30 min', cards: 60 },
+  { minutes: 60, label: '1 hour+', cards: 120 },
 ];
-
-const DAILY_GOALS = [
-  { label: '5 min', value: '5' },
-  { label: '15 min', value: '15' },
-  { label: '30 min', value: '30' },
-  { label: '1 hour+', value: '60' }
-];
-
-// Daily time (minutes) → realistic daily flashcard target.
-function goalCards(minutes: string): number {
-  const m = parseInt(minutes, 10);
-  return m === 5 ? 10 : m === 30 ? 60 : m === 60 ? 120 : 30;
-}
 
 interface SettingsPageProps {
   onEditProfile?: () => void;
-  isDark: boolean;
-  onToggleTheme: () => void;
 }
 
-export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsPageProps) {
+export function SettingsPage({ onEditProfile }: SettingsPageProps) {
   const { user, token, logout } = useAuth();
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  const closeDeleteModal = () => {
-    if (isDeletingAccount) return;
-    setShowDeleteModal(false);
-    setDeleteError(null);
+  const [goalMinutes, setGoalMinutes] = useState(() => parseInt(localStorage.getItem('daily_goal') || '15', 10));
+  const [newCards, setNewCards] = useState(10);
+  const [voiceId, setVoiceId] = useState(() => localStorage.getItem('tts_voice') || 'Kore');
+  const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
+
+  const markSaved = () => setSavedAt(Date.now());
+
+  useEffect(() => {
+    if (savedAt === null) return;
+    const timer = window.setTimeout(() => setSavedAt(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [savedAt]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchTtsVoices(token).then(setTtsVoices).catch(() => {});
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE_URL}/vocab/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.new_cards_per_day !== undefined) setNewCards(data.new_cards_per_day);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const cardTarget = useMemo(
+    () => DAILY_GOAL_OPTIONS.find((option) => option.minutes === goalMinutes)?.cards ?? 30,
+    [goalMinutes],
+  );
+
+  const saveNewCards = async (value: number) => {
+    const clamped = Math.max(0, value);
+    setNewCards(clamped);
+    markSaved();
+    try {
+      await fetch(`${API_BASE_URL}/vocab/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ new_cards_per_day: clamped }),
+      });
+    } catch (err) {
+      console.error('Failed to save new cards setting:', err);
+    }
+  };
+
+  const handleVoiceChange = (id: string) => {
+    setVoiceId(id);
+    localStorage.setItem('tts_voice', id);
+    markSaved();
   };
 
   const confirmDeleteAccount = async () => {
@@ -82,327 +97,211 @@ export function SettingsPage({ onEditProfile, isDark, onToggleTheme }: SettingsP
         return;
       }
       logout();
-    } catch (err) {
+    } catch {
       setDeleteError('Failed to delete account. Please try again.');
       setIsDeletingAccount(false);
     }
   };
 
-  const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
-  const [dailyGoal, setDailyGoal] = useState(() => {
-    return localStorage.getItem('daily_goal') || '15';
-  });
-  const [newCardsPerDay, setNewCardsPerDay] = useState(10);
-  const [isSavingNewCards, setIsSavingNewCards] = useState(false);
-  const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
-  const [ttsVoice, setTtsVoice] = useState(() => localStorage.getItem('tts_voice') || 'Kore');
-
-  // Load TTS voices from backend
-  useEffect(() => {
-    if (!token) return;
-    fetchTtsVoices(token).then(setTtsVoices).catch(() => {});
-  }, [token]);
-
-  const handleTtsVoiceChange = (voice: string) => {
-    setTtsVoice(voice);
-    localStorage.setItem('tts_voice', voice);
-  };
-
-  // Fetch new cards per day setting on mount
-  useEffect(() => {
-    if (!token) return;
-    fetch(`${API_BASE_URL}/vocab/settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.new_cards_per_day !== undefined) {
-          setNewCardsPerDay(data.new_cards_per_day);
-        }
-      })
-      .catch(err => console.error('Failed to fetch settings:', err));
-  }, [token]);
-
-  // Persist daily goal to localStorage
-  const handleDailyGoalChange = (value: string) => {
-    setDailyGoal(value);
-    localStorage.setItem('daily_goal', value);
-  };
-
-  // Save new cards per day to API
-  const handleNewCardsChange = async (value: number) => {
-    const clampedValue = Math.max(0, value);
-    setNewCardsPerDay(clampedValue);
-    setIsSavingNewCards(true);
-    try {
-      await fetch(`${API_BASE_URL}/vocab/settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ new_cards_per_day: clampedValue }),
-      });
-    } catch (err) {
-      console.error('Failed to save new cards setting:', err);
-    } finally {
-      setIsSavingNewCards(false);
-    }
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="min-h-screen pb-20 max-w-3xl mx-auto px-4 pt-8">
-      <HelpOverlay tips={settingsPageTips} />
+    <div className="mx-auto max-w-3xl px-5 pb-24 pt-8 sm:px-8">
+      <header className="flex flex-wrap items-start justify-between gap-4 pb-8">
+        <div>
+          <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
+          <p className="mt-1 text-body text-secondary">Changes save as you make them.</p>
+        </div>
+        <div aria-live="polite" className="h-7">
+          <AnimatePresence>
+            {savedAt !== null && (
+              <motion.span
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                className="flex items-center gap-1.5 rounded-lg bg-blush px-3 py-1.5 text-body-sm font-medium text-accent"
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />
+                Saved
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+      </header>
 
-      {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-3xl font-heading font-bold text-primary mb-2">
-          Settings
-        </h1>
-        <p className="text-secondary">
-          Manage your account, preferences, and integrations.
-        </p>
-      </div>
-
-      <div className="space-y-10">
-        {/* Profile */}
-        <section id="section-profile">
-          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
-            Profile
-          </h2>
-          <div className="bg-surface border border-white/5 rounded-2xl p-6 flex items-center gap-5">
-            <Avatar user={user} size={64} />
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-primary text-lg">{displayName}</p>
-              <p className="text-sm text-secondary">{user?.email ?? ''}</p>
-            </div>
+      <section aria-labelledby="profile-heading" className="rounded-2xl border border-subtle bg-surface p-5">
+        <h2 id="profile-heading" className="sr-only">
+          Profile
+        </h2>
+        <div className="flex items-center gap-4">
+          <Avatar user={user} size={48} textClassName="text-body font-semibold" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-body font-semibold text-primary">
+              {user?.full_name || user?.email?.split('@')[0] || 'User'}
+            </p>
+            <p className="truncate text-body-sm text-muted">{user?.email ?? ''}</p>
           </div>
-        </section>
-
-        {/* Learning Preferences */}
-        <section id="section-learning">
-          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
-            Learning
-          </h2>
-          <div className="bg-surface border border-white/5 rounded-2xl p-6 space-y-6">
-            {/* Daily Goal */}
-            <div>
-              <label className="text-sm font-semibold text-primary mb-1 block">
-                Daily Goal
-              </label>
-              <p className="text-xs text-secondary mb-3">
-                How much time can you dedicate daily? This sets your daily card target —
-                currently <span className="font-semibold text-primary">≈ {goalCards(dailyGoal)} cards</span>.
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {DAILY_GOALS.map((g) => (
-                  <button
-                    key={g.value}
-                    onClick={() => handleDailyGoalChange(g.value)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${
-                      dailyGoal === g.value
-                        ? 'bg-accent text-app border-accent shadow-md shadow-accent/20'
-                        : 'bg-app/50 text-secondary border-white/5 hover:border-white/10 hover:text-primary'
-                    }`}>
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
-
-            {/* New Cards Per Day */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className="text-sm font-semibold text-primary block">
-                  New Cards Per Day
-                </label>
-                {isSavingNewCards && (
-                  <div className="w-4 h-4 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
-                )}
-              </div>
-              <p className="text-xs text-secondary mb-3">
-                How many new flashcards do you want to learn each day?
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                  <input
-                    type="number"
-                    min="0"
-                    value={newCardsPerDay}
-                    onChange={(e) => handleNewCardsChange(parseInt(e.target.value) || 0)}
-                    className="w-32 bg-app border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-primary text-sm font-bold focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
-                  />
-                </div>
-                <span className="text-sm text-secondary">cards</span>
-              </div>
-              <p className="text-xs text-muted mt-2">
-                Set to 0 to only review existing cards
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Voice (TTS) */}
-        {ttsVoices.length > 0 && (
-          <section id="section-voice">
-            <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
-              Voice
-            </h2>
-            <div className="bg-surface border border-white/5 rounded-2xl p-5">
-              <p className="font-bold text-primary mb-1">AI voice in conversations</p>
-              <p className="text-sm text-secondary mb-4">
-                Choose which voice the AI speaks with in Converse.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {ttsVoices.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => handleTtsVoiceChange(v.id)}
-                    className={`text-left px-4 py-3 rounded-xl border transition-colors ${
-                      ttsVoice === v.id
-                        ? 'bg-accent/10 border-accent text-primary'
-                        : 'bg-app/30 border-white/10 text-secondary hover:text-primary hover:border-white/20'
-                    }`}>
-                    <p className="text-sm font-medium">{v.label}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Appearance */}
-        <section id="section-appearance">
-          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
-            Appearance
-          </h2>
-          <div className="bg-surface border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              </div>
-              <div>
-                <p className="font-bold text-primary">Dark mode</p>
-                <p className="text-sm text-secondary">
-                  {isDark ? 'Easier on the eyes at night' : 'Brighter, daytime-friendly'}
-                </p>
-              </div>
-            </div>
+          {onEditProfile && (
             <button
-              role="switch"
-              aria-checked={isDark}
-              onClick={onToggleTheme}
-              className={`relative w-12 h-7 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 shrink-0 ${
-                isDark ? 'bg-accent' : 'bg-white/10'
-              }`}>
-              <span
-                className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                  isDark ? 'translate-x-5' : 'translate-x-0'
-                }`}
+              type="button"
+              onClick={onEditProfile}
+              className="shrink-0 rounded-lg border border-subtle px-3.5 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+            >
+              Edit profile
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section aria-labelledby="learning-heading" className="mt-10">
+        <h2 id="learning-heading" className="font-heading text-card-title text-primary">
+          Learning
+        </h2>
+
+        <div className="mt-2 border-t border-subtle">
+          <SettingRow
+            label="Daily goal"
+            description={`How much time can you give it each day? This sets your card target — about ${cardTarget} cards a day.`}
+          >
+            <div role="group" aria-label="Daily goal" className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface p-1">
+              {DAILY_GOAL_OPTIONS.map((option) => {
+                const isActive = option.minutes === goalMinutes;
+                return (
+                  <button
+                    key={option.minutes}
+                    type="button"
+                    onClick={() => {
+                      setGoalMinutes(option.minutes);
+                      localStorage.setItem('daily_goal', String(option.minutes));
+                      markSaved();
+                    }}
+                    aria-pressed={isActive}
+                    className={`rounded-md px-3.5 py-1.5 text-body-sm font-semibold transition-colors duration-150 ease-swift ${
+                      isActive ? 'bg-blush text-accent' : 'text-secondary hover:text-primary'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="New cards per day"
+            description="How many unseen words enter your reviews each day. Set to 0 to only review what you already have."
+            htmlFor="new-cards"
+          >
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => saveNewCards(newCards - 5)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+              >
+                <Minus className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Five fewer new cards</span>
+              </button>
+              <input
+                id="new-cards"
+                type="number"
+                min={0}
+                value={newCards}
+                onChange={(event) => saveNewCards(parseInt(event.target.value, 10) || 0)}
+                className="w-20 rounded-lg border border-subtle bg-app px-3 py-2 text-center text-body font-semibold tabular-nums text-primary transition-colors duration-150 ease-swift focus:border-accent focus:outline-none"
               />
-            </button>
-          </div>
-        </section>
+              <button
+                type="button"
+                onClick={() => saveNewCards(newCards + 5)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Five more new cards</span>
+              </button>
+              <span className="text-body-sm text-muted">cards</span>
+            </div>
+          </SettingRow>
+        </div>
+      </section>
 
-        {/* Account */}
-        <section id="section-account">
-          <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">
-            Account
+      {ttsVoices.length > 0 && (
+        <section aria-labelledby="practice-heading" className="mt-10">
+          <h2 id="practice-heading" className="font-heading text-card-title text-primary">
+            Practice
           </h2>
-          <div className="bg-surface border border-white/5 rounded-2xl divide-y divide-white/5">
-            <button
-              onClick={logout}
-              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-accent hover:bg-accent/5 transition-all text-sm font-medium text-left rounded-t-2xl">
-              <LogOut className="w-5 h-5 shrink-0" />
-              Log Out
-            </button>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="w-full flex items-center gap-4 p-5 text-secondary hover:text-red-400 hover:bg-red-500/5 transition-all text-sm font-medium text-left rounded-b-2xl">
-              <Trash2 className="w-5 h-5 shrink-0" />
-              Delete Account
-            </button>
+
+          <div className="mt-2 border-t border-subtle">
+            <SettingRow label="AI voice" description="The voice your tutor speaks with in AI chat.">
+              <div role="radiogroup" aria-label="AI voice" className="grid w-full gap-2 sm:w-[22rem] sm:grid-cols-2">
+                {ttsVoices.map((voice) => {
+                  const isActive = voice.id === voiceId;
+                  return (
+                    <button
+                      key={voice.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      onClick={() => handleVoiceChange(voice.id)}
+                      className={`rounded-lg border px-3.5 py-2.5 text-left transition-colors duration-150 ease-swift ${
+                        isActive ? 'border-accent bg-blush' : 'border-subtle hover:bg-surface-hover'
+                      }`}
+                    >
+                      <span className={`block text-body-sm font-semibold ${isActive ? 'text-accent' : 'text-primary'}`}>
+                        {voice.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingRow>
           </div>
         </section>
-      </div>
+      )}
+
+      <section aria-labelledby="account-heading" className="mt-10">
+        <h2 id="account-heading" className="font-heading text-card-title text-primary">
+          Account
+        </h2>
+
+        <div className="mt-2 border-t border-subtle">
+          <SettingRow label="Log out" description="Sign out of ClipIt on this device.">
+            <button
+              type="button"
+              onClick={logout}
+              className="flex items-center gap-2 rounded-lg border border-subtle px-3.5 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Log out
+            </button>
+          </SettingRow>
+
+          <SettingRow
+            label="Delete account"
+            description="Permanently erase your account, decks, and review history. This can't be undone."
+          >
+            <button
+              type="button"
+              onClick={() => setIsConfirmingDelete(true)}
+              className="rounded-lg border border-error/30 px-3.5 py-2 text-body-sm font-semibold text-error transition-colors duration-150 ease-swift hover:bg-error/10"
+            >
+              Delete account
+            </button>
+          </SettingRow>
+        </div>
+      </section>
 
       <AnimatePresence>
-        {showDeleteModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={closeDeleteModal}>
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
-              onClick={e => e.stopPropagation()}>
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-red-500" />
-                </div>
-                <button
-                  onClick={closeDeleteModal}
-                  disabled={isDeletingAccount}
-                  className="p-1.5 rounded-lg hover:bg-white/5 text-muted hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <h3 className="text-lg font-bold text-primary mb-2">
-                Delete your account?
-              </h3>
-              <p className="text-secondary text-sm mb-3">
-                This action <span className="font-semibold text-primary">cannot be undone</span>. Your account and all associated data will be permanently erased, including:
-              </p>
-              <ul className="text-muted text-sm mb-6 space-y-1.5 pl-1">
-                <li className="flex gap-2"><span className="text-red-400">•</span> Vocabulary lists and saved words</li>
-                <li className="flex gap-2"><span className="text-red-400">•</span> Flashcard progress and review history</li>
-                <li className="flex gap-2"><span className="text-red-400">•</span> Watched videos and mined words</li>
-                <li className="flex gap-2"><span className="text-red-400">•</span> Deck and learning preferences</li>
-              </ul>
-              {deleteError && (
-                <div className="mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                  {deleteError}
-                </div>
-              )}
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={confirmDeleteAccount}
-                  disabled={isDeletingAccount}
-                  className="w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
-                  {isDeletingAccount ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      Deleting…
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Delete Account Permanently
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={closeDeleteModal}
-                  disabled={isDeletingAccount}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-primary hover:bg-white/10 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+        {isConfirmingDelete && (
+          <DeleteAccountDialog
+            isDeleting={isDeletingAccount}
+            error={deleteError}
+            onCancel={() => {
+              if (isDeletingAccount) return;
+              setIsConfirmingDelete(false);
+              setDeleteError(null);
+            }}
+            onConfirm={confirmDeleteAccount}
+          />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
