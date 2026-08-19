@@ -118,7 +118,7 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           <section>
             <h2 className="text-2xl font-semibold text-primary mb-4">Contact Us</h2>
             <p>
-              If you have questions about this privacy policy or your data, please contact us at: <a href="mailto:support@theclipitapp.com" className="text-accent hover:underline">support@theclipitapp.com</a>
+              If you have questions about this privacy policy or your data, please contact us at: <a href="mailto:rohanramesh.dev@gmail.com" className="text-accent hover:underline">rohanramesh.dev@gmail.com</a>
             </p>
           </section>
         </div>
