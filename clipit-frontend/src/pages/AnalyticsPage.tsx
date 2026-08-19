@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '../components/EmptyState';
 import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
+import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +13,38 @@ interface ReviewEntry {
   language: string;
   rating: number;
   reviewed_at: string;
+}
+
+function AnalyticsLoadingState() {
+  return (
+    <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
+      <header className="pb-8" aria-hidden="true">
+        <Skeleton className="h-9 w-52 rounded-lg" />
+        <Skeleton className="mt-3 h-5 w-80 max-w-full rounded-md" />
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-3" aria-hidden="true">
+        <section className="rounded-2xl bg-surface p-6">
+          <Skeleton className="mb-8 h-5 w-28 rounded-md" />
+          <Skeleton className="h-12 w-24 rounded-lg" />
+          <Skeleton className="mt-8 h-20 w-full rounded-xl" />
+        </section>
+        <section className="lg:col-span-2">
+          <div className="grid h-full grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="py-5 sm:px-7 sm:first:pl-0">
+                <Skeleton className="h-5 w-24 rounded-md" />
+                <Skeleton className="mt-3 h-10 w-16 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <Skeleton className="mt-6 h-52 w-full rounded-2xl" />
+      <p className="mt-8 text-body-sm text-muted">Loading your progress…</p>
+    </div>
+  );
 }
 
 // Longest run of consecutive active days anywhere in the year (not just the
@@ -40,28 +73,42 @@ export function AnalyticsPage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [hoursWatched, setHoursWatched] = useState(0);
   const [reviewHistory, setReviewHistory] = useState<ReviewEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+    setIsLoading(true);
     setWordsLearned(getAnalyticsSummary().wordsLearned);
 
-    if (token) {
+    if (!token) {
+      setIsLoading(false);
+      return () => { active = false; };
+    }
+
+    Promise.all([
       fetch(`${API_BASE_URL}/videos/stats/watch-time?lang=${language}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())
-        .then((data) => setHoursWatched(data.total_hours || 0))
-        .catch(() => {});
-
+        .catch(() => ({ total_hours: 0 })),
       fetch(`${API_BASE_URL}/fsrs/reviews?limit=10000`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())
-        .then((data) => {
-          setReviewHistory(data.reviews || []);
-          setTotalReviews(data.total || 0);
-        })
-        .catch(() => {});
-    }
+        .catch(() => ({ reviews: [], total: 0 })),
+    ])
+      .then(([watchData, reviewData]) => {
+        if (active) {
+          setHoursWatched(watchData.total_hours || 0);
+          setReviewHistory(reviewData.reviews || []);
+          setTotalReviews(reviewData.total || 0);
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => { active = false; };
   }, [language, token]);
 
   const year = new Date().getFullYear();
@@ -115,6 +162,10 @@ export function AnalyticsPage() {
       value: hoursWatched < 1 ? `${Math.round(hoursWatched * 60)}m` : `${hoursWatched}h`,
     },
   ];
+
+  if (isLoading) {
+    return <AnalyticsLoadingState />;
+  }
 
   if (totalReviews === 0) {
     return (

@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState';
 import { SegmentedFilter } from '../components/SegmentedFilter';
 import { VideoHistoryItem, type TrackedVideo, type Platform } from '../components/VideoHistoryItem';
 import { RemoveVideoDialog } from '../components/RemoveVideoDialog';
+import { Skeleton } from '../components/Skeleton';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -149,16 +150,19 @@ export function VideoPage() {
       <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
 
       {loadState === 'loading' && (
-        <div className="mt-6 space-y-4" aria-hidden="true">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex flex-col gap-4 rounded-2xl border border-subtle bg-surface p-4 sm:flex-row animate-pulse">
-              <div className="aspect-video w-full shrink-0 rounded-lg bg-blush sm:w-52" />
-              <div className="flex flex-1 flex-col justify-center gap-3 py-1">
-                <div className="h-5 w-3/4 rounded-md bg-blush" />
-                <div className="h-4 w-1/3 rounded-md bg-blush" />
+        <div className="mt-6" role="status" aria-live="polite">
+          <div className="space-y-4" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col gap-4 rounded-2xl border border-subtle bg-surface p-4 sm:flex-row">
+                <Skeleton className="aspect-video w-full shrink-0 rounded-lg sm:w-52" />
+                <div className="flex flex-1 flex-col justify-center gap-3 py-1">
+                  <Skeleton className="h-5 w-3/4 rounded-md" />
+                  <Skeleton className="h-4 w-1/3 rounded-md" />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <p className="mt-6 text-body-sm text-muted">Loading your watch history…</p>
         </div>
       )}
 
