@@ -14,7 +14,7 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         </button>
 
         <h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
-        <p className="text-secondary mb-6">Last updated: March 2026</p>
+        <p className="text-secondary mb-6">Last updated: August 2026</p>
 
         <div className="space-y-8 text-secondary leading-relaxed">
           <section>
@@ -28,7 +28,11 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
             <h2 className="text-2xl font-semibold text-primary mb-4">Information We Collect</h2>
 
             <h3 className="text-xl font-medium text-primary mt-4 mb-2">Account Information</h3>
-            <p>When you create an account, we collect your email address and password (stored securely using encryption).</p>
+            <p>
+              When you create an account, we collect your email address and, if you sign up with email and password, a
+              securely encrypted password. If you sign in with Google, we instead receive your name, email address, and
+              profile picture from Google. Authentication is handled by our authentication provider, Supabase.
+            </p>
 
             <h3 className="text-xl font-medium text-primary mt-4 mb-2">Learning Data</h3>
             <p>We collect information about your learning activity, including:</p>
@@ -41,6 +45,13 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
 
             <h3 className="text-xl font-medium text-primary mt-4 mb-2">Subtitle Content</h3>
             <p>We process subtitle text from videos to extract vocabulary. This text is used solely for creating your flashcards and is not shared with third parties.</p>
+
+            <h3 className="text-xl font-medium text-primary mt-4 mb-2">Screenshots and Audio Clips (Netflix)</h3>
+            <p>
+              When you watch Netflix with the extension enabled, it captures short screenshots and audio clips at the
+              moments a vocabulary word appears, so your flashcards can include that video context. These clips are
+              tied to your account and used only to build your flashcards.
+            </p>
           </section>
 
           <section>
@@ -66,6 +77,8 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
             <h2 className="text-2xl font-semibold text-primary mb-4">Third-Party Services</h2>
             <p>We use the following third-party services:</p>
             <ul className="list-disc ml-6 mt-2 space-y-1">
+              <li><strong>Supabase:</strong> For account authentication and session management</li>
+              <li><strong>Google:</strong> For Google Sign-In, if you choose to use it (name, email, and profile picture)</li>
               <li><strong>DeepL:</strong> For translating vocabulary words (only the words you save are sent for translation)</li>
               <li><strong>Resend:</strong> For sending password reset emails</li>
             </ul>
@@ -80,6 +93,7 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
               <li><strong>storage:</strong> To store your login session locally</li>
               <li><strong>scripting:</strong> To read subtitles from YouTube and Netflix pages</li>
               <li><strong>tabCapture:</strong> To capture audio clips for flashcard playback</li>
+              <li><strong>offscreen:</strong> To process captured audio in the background</li>
             </ul>
           </section>
 
