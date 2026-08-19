@@ -97,7 +97,7 @@ function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; s
           onClick={handlePlayClick}
           className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors z-10">
           <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
-            <Play className="w-8 h-8 text-white ml-1" fill="white" />
+            <Play className="w-8 h-8 text-[#fff] ml-1" fill="white" />
           </div>
         </button>
       )}
@@ -206,13 +206,13 @@ function SampleFlashcard() {
             onClick={handlePlayClick}
             className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors z-10">
             <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
-              <Play className="w-6 h-6 text-white ml-0.5" fill="white" />
+              <Play className="w-6 h-6 text-[#fff] ml-0.5" fill="white" />
             </div>
           </button>
         )}
         {/* Sentence context overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2 text-center">
-          <p className="text-xs text-white font-medium">
+          <p className="text-meta text-[#fff] font-medium">
             맛있는 <span className="text-accent font-bold">피자</span> 게살 <span className="text-accent font-bold">피자</span>
           </p>
         </div>
@@ -590,7 +590,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               transition={{ duration: 0.3 }}
               className="w-full max-w-2xl text-center"
             >
-              <p className="text-sm text-secondary font-medium mb-4">
+              <p className="text-body-sm text-secondary font-medium mb-4">
                 Step {quizStep + 1} of {quizQuestions.length}
               </p>
               {'isExtensionStep' in currentQuestion && currentQuestion.isExtensionStep && (
@@ -599,7 +599,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               )}
 
-              <h2 className="text-2xl md:text-3xl font-heading font-bold text-primary mb-8">
+              <h2 className="text-card-title md:text-section font-heading text-primary mb-8">
                 {currentQuestion.question}
               </h2>
 
@@ -764,17 +764,17 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             ) : null}
 
             {/* Eyebrow */}
-            <p className="text-xs font-bold uppercase tracking-widest text-accent/80 mb-3">
+            <p className="text-meta font-bold uppercase tracking-widest text-accent/80 mb-3">
               {slide.eyebrow}
             </p>
 
             {/* Headline */}
-            <h1 className={`font-heading font-bold text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl'}`}>
+            <h1 className={`font-heading text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
               {slide.headline}
             </h1>
 
             {/* Body */}
-            <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-3xl md:text-4xl text-primary font-bold' : 'text-2xl text-primary font-bold') : 'text-lg text-secondary'}`}>
+            <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
               {slide.body}
             </p>
 
@@ -783,7 +783,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
             {/* Secondary Body */}
             {slide.secondaryBody && (
-              <p className="text-base text-secondary leading-relaxed max-w-xl mx-auto mb-6">
+              <p className="text-body text-secondary leading-relaxed max-w-xl mx-auto mb-6">
                 {slide.secondaryBody}
               </p>
             )}
@@ -800,10 +800,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             {/* Quote */}
             {slide.quote && (
               <div className="mt-6 max-w-lg mx-auto">
-                <p className="text-base text-secondary italic leading-relaxed">
+                <p className="text-body text-secondary italic leading-relaxed">
                   {slide.quote.text}
                 </p>
-                <p className="text-base text-muted mt-2">
+                <p className="text-body-sm text-muted mt-2">
                   — {slide.quote.author}
                 </p>
               </div>

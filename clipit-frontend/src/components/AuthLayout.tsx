@@ -36,7 +36,7 @@ export function AuthLayout({ onBack, children }: AuthLayoutProps) {
           <button
             onClick={onBack}
             aria-label="Go back"
-            className="inline-flex items-center justify-center w-9 h-9 -ml-2 rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors"
+            className="inline-flex items-center justify-center w-9 h-9 -ml-2 rounded-lg text-secondary transition-colors duration-150 ease-swift hover:text-primary hover:bg-black/5"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>

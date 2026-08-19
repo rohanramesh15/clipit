@@ -9,8 +9,8 @@ interface SignupPageProps {
 }
 
 const INPUT =
-  'w-full rounded-xl bg-app border border-[var(--border-medium)] focus:border-accent focus:outline-none px-11 py-3.5 text-sm text-primary placeholder:text-muted transition-colors';
-const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-muted mb-2';
+  'w-full rounded-xl bg-app border border-[var(--border-medium)] focus:border-accent focus:outline-none px-11 py-3.5 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift';
+const LABEL = 'block text-meta font-semibold uppercase tracking-wider text-muted mb-2';
 
 export function SignupPage({ onNavigate }: SignupPageProps) {
   const { register } = useAuth();
@@ -51,8 +51,8 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
   return (
     <AuthLayout onBack={() => onNavigate('landing')}>
-      <h2 className="text-2xl font-heading font-bold text-primary mb-1">Create your account</h2>
-      <p className="text-sm text-secondary mb-7">Start learning from what you watch.</p>
+      <h2 className="font-heading text-section text-primary mb-1">Create your account</h2>
+      <p className="text-body-sm text-secondary mb-7">Start learning from what you watch.</p>
 
       {/* Google — primary option */}
       <GoogleSignInButton
@@ -62,16 +62,16 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+          <div className="w-full border-t border-subtle" />
         </div>
         <div className="relative flex justify-center">
-          <span className="px-3 text-xs text-muted bg-surface">or with email</span>
+          <span className="px-3 text-meta text-muted bg-surface">or with email</span>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-xl px-4 py-3 text-sm text-red-500 bg-red-500/10">{error}</div>
+          <div className="rounded-xl px-4 py-3 text-body-sm text-red-500 bg-red-500/10">{error}</div>
         )}
 
         <div>
@@ -120,7 +120,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted transition-colors duration-150 ease-swift hover:text-primary"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -130,16 +130,16 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
+          className="w-full bg-accent hover:bg-accent-hover text-app font-bold py-3.5 rounded-xl transition-colors duration-150 ease-swift flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
         >
           {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create account'}
         </button>
       </form>
 
-      <div className="mt-6 pt-6 text-center" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <p className="text-sm text-secondary">
+      <div className="mt-6 pt-6 text-center border-t border-subtle">
+        <p className="text-body-sm text-secondary">
           Already have an account?{' '}
-          <button onClick={() => onNavigate('login')} className="font-semibold text-accent hover:text-accent-hover transition-colors">
+          <button onClick={() => onNavigate('login')} className="font-semibold text-accent transition-colors duration-150 ease-swift hover:text-accent-hover">
             Sign in
           </button>
         </p>
