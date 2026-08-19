@@ -15,6 +15,7 @@ import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { ConverseV2Page } from './pages/ConverseV2Page';
 import { PracticePage } from './pages/PracticePage';
 import { MadlibsPage } from './pages/MadlibsPage';
+import { Skeleton } from './components/Skeleton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -30,6 +31,50 @@ type Page =
 'madlibs' |
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
+
+function AppLoadingState() {
+  return (
+    <div
+      className="min-h-screen bg-app font-sans text-primary"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading your learning space"
+    >
+      <header className="border-b border-subtle bg-app/90">
+        <div className="mx-auto flex h-[72px] max-w-page items-center gap-6 px-5 sm:px-8">
+          <div className="flex items-center gap-2.5" aria-hidden="true">
+            <Skeleton className="h-11 w-11 rounded-2xl" />
+            <Skeleton className="h-7 w-24 rounded-lg" />
+          </div>
+          <div className="hidden flex-1 gap-2 md:flex" aria-hidden="true">
+            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-9 w-20 rounded-lg" />
+          </div>
+          <Skeleton className="ml-auto h-9 w-28 rounded-lg" />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-page px-5 pb-8 pt-16 sm:px-8">
+        <div className="max-w-xl">
+          <Skeleton className="mb-4 h-9 w-64 rounded-lg" />
+          <Skeleton className="h-5 w-80 max-w-full rounded-md" />
+        </div>
+
+        <div className="mt-14 grid gap-5 sm:grid-cols-3" aria-hidden="true">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="rounded-2xl bg-surface p-5">
+              <Skeleton className="mb-8 h-11 w-11 rounded-xl" />
+              <Skeleton className="mb-3 h-5 w-28 rounded-md" />
+              <Skeleton className="h-4 w-full rounded-md" />
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-10 text-body-sm text-muted">Loading your learning space…</p>
+      </main>
+    </div>
+  );
+}
 
 function AppInner() {
   const { user, isLoading, isNewUser } = useAuth();
@@ -107,7 +152,7 @@ function AppInner() {
   };
   // Show loading state while checking auth - prevents landing page flash for logged-in users
   if (isLoading) {
-    return <div className="min-h-screen bg-app" />;
+    return <AppLoadingState />;
   }
 
   // Render top-level views
