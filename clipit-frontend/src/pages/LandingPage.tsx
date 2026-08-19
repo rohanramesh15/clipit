@@ -46,7 +46,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               onClick={() => onNavigate('signup')}
               className="whitespace-nowrap rounded-lg bg-accent px-5 py-2.5 text-body font-medium text-[#fff] transition-colors duration-150 ease-swift hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              Get started
+              Sign up
             </button>
           </div>
         </div>
