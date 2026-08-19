@@ -45,7 +45,7 @@ export function PracticeModes() {
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <h2
           id="practice-title"
-          className="max-w-xl pr-8 font-heading text-section text-primary md:text-section-lg"
+          className="font-heading text-section text-primary md:text-section-lg md:whitespace-nowrap"
         >
           Three ways to practice the words you clipped
         </h2>
