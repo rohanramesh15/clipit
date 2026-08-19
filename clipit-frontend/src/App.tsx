@@ -128,6 +128,13 @@ function AppInner() {
     localStorage.setItem('theme', 'light');
   }, []);
 
+  // History can be much taller than Home or Progress.  Reset the document
+  // position as the view changes so the next, shorter screen is never opened
+  // below its visible content.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [activePage]);
+
   const renderPage = () => {
     switch (activePage) {
       case 'video':
@@ -186,7 +193,7 @@ function AppInner() {
           <TopNav activePage={activePage} onNavigate={setActivePage} />
 
           <main className="p-4 md:p-8 overflow-x-hidden">
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false}>
               <motion.div
                 key={activePage}
                 initial={{

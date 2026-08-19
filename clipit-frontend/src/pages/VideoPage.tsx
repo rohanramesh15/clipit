@@ -9,6 +9,7 @@ import { Skeleton } from '../components/Skeleton';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { fetchWithTimeout } from '../lib/network';
 
 const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
 
@@ -65,37 +66,36 @@ export function VideoPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [pendingRemoval, setPendingRemoval] = useState<TrackedVideo | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
-
-  async function fetchVideos(silent = false) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Backend error');
-      const data = await res.json();
-      const vids: BackendVideo[] = data.videos || [];
-      setVideos(vids.map((v) => mapVideo(v, language)));
-      setLoadState('loaded');
-    } catch {
-      // On a background poll, keep showing the current list instead of
-      // flipping to the error screen on a transient blip.
-      if (!silent) setLoadState('error');
-    }
-  }
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
     setLoadState('loading');
-    fetchVideos();
-  }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
+    void fetchWithTimeout(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Backend error');
+        const data = await res.json();
+        if (!Array.isArray(data.videos)) throw new Error('Invalid history response');
+        return data.videos as BackendVideo[];
+      })
+      .then((videos) => {
+        if (!active) return;
+        setVideos(videos.map((video) => mapVideo(video, language)));
+        setLoadState('loaded');
+      })
+      .catch(() => {
+        if (active && !controller.signal.aborted) setLoadState('error');
+      });
 
-  // Silently re-fetch every 10s (only when the tab is visible) so newly
-  // captured videos appear without a manual refresh.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') fetchVideos(true);
-    }, 10000);
-    return () => clearInterval(id);
-  }, [language, token]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [language, token, loadAttempt]);
 
   const options = useMemo(
     () => [
@@ -139,7 +139,7 @@ export function VideoPage() {
         </div>
         <button
           type="button"
-          onClick={() => fetchVideos()}
+          onClick={() => setLoadAttempt((attempt) => attempt + 1)}
           className="mt-1 flex shrink-0 items-center gap-2 rounded-xl border border-subtle px-4 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
         >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -177,7 +177,7 @@ export function VideoPage() {
           </div>
           <button
             type="button"
-            onClick={() => { setLoadState('loading'); fetchVideos(); }}
+            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
             className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
           >
             Try again

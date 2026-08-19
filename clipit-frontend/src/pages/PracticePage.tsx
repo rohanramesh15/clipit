@@ -182,7 +182,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
       </div>
 
       {wordLoadState === 'loading' && (
-        <div className="mt-10" role="status" aria-live="polite">
+        <div className="mt-10" role="status" aria-live="polite" aria-label="Loading your practice queue">
           <div className="grid gap-5 sm:grid-cols-3" aria-hidden="true">
             {[0, 1, 2].map((index) => (
               <div key={index} className="rounded-2xl bg-surface p-5">
@@ -192,7 +192,6 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-body-sm text-muted">Loading your practice queue…</p>
         </div>
       )}
 
