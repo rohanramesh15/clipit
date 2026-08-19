@@ -31,8 +31,8 @@ export default {
         dusk: { deep: '#2f4370', ink: '#4d6291', mid: '#b5c3e3', soft: '#edf0f8' },
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        heading: ['Inter Tight', 'sans-serif'],
+        sans: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
+        heading: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
       },
       // Semantic type scale for the landing page — size, leading and weight
       // travel together.
