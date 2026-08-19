@@ -496,6 +496,12 @@ const quizQuestions = [
       { label: "Cards created", description: "Flashcards appear automatically", icon: Layers }
     ],
     options: []
+  },
+  {
+    question: "You're all set!",
+    isFinalStep: true,
+    body: "Time to start learning from what you watch.",
+    options: []
   }
 ];
 
@@ -533,6 +539,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
   const handleOptionSelect = (value: string) => {
     setQuizAnswers((prev) => ({ ...prev, [quizStep]: value }));
+  };
+
+  const handleExtensionStepAdvance = () => {
+    // Save answers to proper keys for Settings to read
+    localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
+    if (quizAnswers[0]) localStorage.setItem('deadbird_language', quizAnswers[0]); // Language
+    if (quizAnswers[1]) localStorage.setItem('daily_goal', quizAnswers[1]); // Daily goal
+    setQuizStep((s) => s + 1);
   };
 
   const handleNextStep = () => {
@@ -599,6 +613,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               )}
 
+              {'isFinalStep' in currentQuestion && currentQuestion.isFinalStep && (
+                <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-9 h-9" />
+                </div>
+              )}
+
               <h2 className="text-card-title md:text-section font-heading text-primary mb-8">
                 {currentQuestion.question}
               </h2>
@@ -624,13 +644,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => {
-                        // Save answers to proper keys for Settings to read
-                        localStorage.setItem('onboarding_answers', JSON.stringify(quizAnswers));
-                        if (quizAnswers[0]) localStorage.setItem('deadbird_language', quizAnswers[0]);
-                        if (quizAnswers[1]) localStorage.setItem('daily_goal', quizAnswers[1]);
-                        onComplete();
-                      }}
+                      onClick={handleExtensionStepAdvance}
                       className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-app font-bold px-8 py-4 rounded-xl transition-all shadow-lg shadow-accent/20 text-base"
                     >
                       <Puzzle className="w-5 h-5" />
@@ -638,6 +652,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     </a>
                   </div>
                 </div>
+              ) : 'isFinalStep' in currentQuestion && currentQuestion.isFinalStep ? (
+                <p className="text-lead text-secondary max-w-md mx-auto">
+                  {currentQuestion.body}
+                </p>
               ) : (
                 <div className={`${'grid' in currentQuestion && currentQuestion.grid
                   ? `grid gap-4 ${'columns' in currentQuestion && currentQuestion.columns === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`
@@ -694,10 +712,18 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           </button>
           {'isExtensionStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isExtensionStep ? (
             <button
-              onClick={onComplete}
+              onClick={handleExtensionStepAdvance}
               className="text-secondary hover:text-primary transition-colors font-medium"
             >
               Skip for now
+            </button>
+          ) : 'isFinalStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isFinalStep ? (
+            <button
+              onClick={onComplete}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all bg-accent text-app hover:bg-accent-hover"
+            >
+              Begin learning
+              <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button
