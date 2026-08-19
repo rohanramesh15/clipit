@@ -16,9 +16,9 @@ interface BackendVideo {
   video_id: string;
   title: string;
   tracked_at: number;
-  has_korean: number | null;
-  has_ukrainian: number | null;
-  has_english: number | null;
+  has_korean: number | boolean | null;
+  has_ukrainian: number | boolean | null;
+  has_english: number | boolean | null;
   season?: number | null;
   episode?: number | null;
   episode_title?: string | null;
@@ -49,7 +49,7 @@ function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
       ? `${API_BASE_URL}/netflix/thumbnail/${v.video_id}`
       : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
     trackedAt: formatTrackedAt(v.tracked_at),
-    subtitles: hasSubs === 1 ? `${langAbbr} + EN` : null,
+    subtitles: hasSubs ? `${langAbbr} + EN` : null,
     newWords: 0,
     season: v.season,
     episode: v.episode,

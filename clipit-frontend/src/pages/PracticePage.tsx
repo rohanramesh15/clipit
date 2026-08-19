@@ -26,6 +26,37 @@ interface FlashCard {
   video_id: string | null;
 }
 
+interface TrackedVideoSummary {
+  video_id: string;
+  title: string;
+}
+
+// Mirrors FlashcardsPage.tsx's fetchCardsForVideo: vocabulary extracted from a
+// specific watched video only becomes flashcard-shaped (with a sentence,
+// translation, and timestamp) via a second call to /flashcard-data — there's
+// no single endpoint that returns everything a user has clipped from videos.
+async function fetchCardsForVideo(videoId: string, language: string): Promise<FlashCard[]> {
+  try {
+    await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
+    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
+    if (!vocabRes.ok) return [];
+    const vocab = await vocabRes.json();
+    if (!vocab.total_words) return [];
+
+    const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
+    const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
+    });
+    if (!fcRes.ok) return [];
+    const fc = await fcRes.json();
+    return (fc.flashcards || []).map((card: FlashCard) => ({ ...card, video_id: card.video_id || videoId }));
+  } catch {
+    return [];
+  }
+}
+
 const MODE_LABELS: Record<ModeId, string> = {
   flashcards: 'Flash cards',
   'converse-v2': 'Voice chat',
@@ -92,8 +123,12 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   }, [token]);
 
   // Words clipped from watched videos (+ any uploaded vocab lists) — same
-  // deck FlashcardsPage's default "My Words" study mode pulls from. `null`
-  // while loading so the empty-state gate doesn't flash for real users.
+  // two sources FlashcardsPage.tsx's "Study All Words" combines: uploaded
+  // vocab lists via /vocab/lists/flashcards, and video-extracted vocabulary
+  // via a per-video /vocabulary + /flashcard-data call (that endpoint alone
+  // only covers uploaded lists — it explicitly does no video mining).
+  // Capped to the most recent 8 videos so a Home-page preview doesn't fire
+  // unbounded requests for accounts with a long watch history.
   const [words, setWords] = useState<QueuedWord[] | null>(null);
   useEffect(() => {
     if (!token) { setWords([]); return; }
@@ -106,13 +141,19 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
         headers: { Authorization: `Bearer ${token}` },
       }).then((r) => (r.ok ? r.json() : { videos: [] })),
     ])
-      .then(([vocabData, videoData]) => {
+      .then(async ([vocabData, videoData]) => {
         if (!alive) return;
-        const deleted = getDeletedCards(language);
-        const videoTitles = new Map<string, string>(
-          (videoData.videos || []).map((v: { video_id: string; title: string }) => [v.video_id, v.title]),
+        const videos: TrackedVideoSummary[] = videoData.videos || [];
+        const videoTitles = new Map(videos.map((v) => [v.video_id, v.title]));
+
+        const recentVideos = videos.slice(0, 8);
+        const perVideoCards = await Promise.all(
+          recentVideos.map((v) => fetchCardsForVideo(v.video_id, language)),
         );
-        const cards: FlashCard[] = (vocabData.flashcards || []).filter(
+        if (!alive) return;
+
+        const deleted = getDeletedCards(language);
+        const cards: FlashCard[] = [...(vocabData.flashcards || []), ...perVideoCards.flat()].filter(
           (card: FlashCard) => !deleted.has(card.dictionary_form || card.target_word),
         );
         const cardByKey = new Map(cards.map((card) => [card.dictionary_form || card.target_word, card]));
