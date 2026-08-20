@@ -34,6 +34,26 @@ type Page =
 'settings';
 type AppView = 'landing' | 'login' | 'signup' | 'onboarding' | 'app' | 'forgot-password' | 'reset-password' | 'privacy';
 
+// URL for each in-app page, so refresh/back/forward land on the same screen
+// instead of always resetting to Practice. Auth-gated views (login, signup,
+// onboarding) don't get their own path — they're transient, not something
+// you'd want a reload to snap back to.
+const PAGE_PATHS: Record<Page, string> = {
+  practice: '/practice',
+  video: '/history',
+  flashcards: '/flashcards',
+  analytics: '/progress',
+  vocabulary: '/vocabulary',
+  'converse-v2': '/converse',
+  madlibs: '/madlibs',
+  settings: '/settings',
+};
+
+function pageForPath(path: string): Page | null {
+  const match = (Object.entries(PAGE_PATHS) as [Page, string][]).find(([, p]) => p === path);
+  return match ? match[0] : null;
+}
+
 function AppLoadingState() {
   return (
     <div
@@ -81,18 +101,39 @@ function AppLoadingState() {
 function AppInner() {
   const { user, token, isLoading, isNewUser } = useAuth();
   const { language } = useLanguage();
-  const [appView, setAppView] = useState<AppView>('landing');
-  const [activePage, setActivePage] = useState<Page>('practice');
+  // Lazy-initialize from the current URL so a page that was open before a
+  // refresh renders straight away, with no flash of the landing/practice
+  // default first. Whether this guess was actually valid (i.e. the user is
+  // really authenticated) gets confirmed/corrected by the auth-sync effect
+  // below once the session finishes loading.
+  const [appView, setAppView] = useState<AppView>(() => {
+    const path = window.location.pathname;
+    if (path === '/privacy') return 'privacy';
+    if (pageForPath(path)) return 'app';
+    return 'landing';
+  });
+  const [activePage, setActivePage] = useState<Page>(() => pageForPath(window.location.pathname) || 'practice');
+
+  // Wrap the raw setter so every in-app navigation also updates the URL -
+  // this is what makes refresh/back/forward land on the same screen. Views
+  // outside the main app (landing, login, signup, onboarding) stay
+  // URL-less: they're transient pre-auth screens, not somewhere a reload
+  // should snap back to.
+  const navigateToPage = (page: Page) => {
+    setActivePage(page);
+    window.history.pushState({}, '', PAGE_PATHS[page]);
+  };
+  // Privacy is the one AppView (outside the main app) that also gets a real,
+  // reload-safe URL - it's a standalone legal page people link to directly.
+  const navigateToView = (view: AppView) => {
+    setAppView(view);
+    if (view === 'privacy') window.history.pushState({}, '', '/privacy');
+  };
 
   // Check URL for reset token and privacy page on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
-
-    if (path === '/privacy') {
-      setAppView('privacy');
-      return;
-    }
 
     if (path === '/reset-password' || params.has('code') || window.location.hash.includes('type=recovery')) {
       const token = params.get('code') || '';
@@ -102,6 +143,16 @@ function AppInner() {
         window.history.replaceState({}, '', '/');
       }
     }
+  }, []);
+
+  // Browser back/forward: re-derive the page from the URL the user landed on.
+  useEffect(() => {
+    const onPopState = () => {
+      const page = pageForPath(window.location.pathname);
+      if (page) setActivePage(page);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   // Sync appView with auth state
@@ -115,6 +166,7 @@ function AppInner() {
           // once; everyone else lands straight on Practice.
           if (isNewUser) return 'onboarding';
           setActivePage('practice');
+          window.history.replaceState({}, '', PAGE_PATHS.practice);
           return 'app';
         }
         return v;
@@ -156,17 +208,17 @@ function AppInner() {
       case 'video':
         return <VideoPage />;
       case 'practice':
-        return <PracticePage onNavigate={setActivePage} />;
+        return <PracticePage onNavigate={navigateToPage} />;
       case 'flashcards':
-        return <FlashcardsPage onNavigate={setActivePage} />;
+        return <FlashcardsPage onNavigate={navigateToPage} />;
       case 'madlibs':
-        return <MadlibsPage onNavigate={setActivePage} />;
+        return <MadlibsPage onNavigate={navigateToPage} />;
       case 'analytics':
         return <AnalyticsPage />;
       case 'vocabulary':
-        return <VocabularyUploadPage onBack={() => setActivePage('practice')} />;
+        return <VocabularyUploadPage onBack={() => navigateToPage('practice')} />;
       case 'converse-v2':
-        return <ConverseV2Page onBack={() => setActivePage('practice')} onNavigate={setActivePage} />;
+        return <ConverseV2Page onBack={() => navigateToPage('practice')} onNavigate={navigateToPage} />;
       case 'settings':
         return <SettingsPage />;
       default:
@@ -180,7 +232,7 @@ function AppInner() {
 
   // Render top-level views
   if (appView === 'landing') {
-    return <LandingPage onNavigate={setAppView} />;
+    return <LandingPage onNavigate={navigateToView} />;
   }
   if (appView === 'login') {
     return <LoginPage onNavigate={setAppView} />;
@@ -189,7 +241,7 @@ function AppInner() {
     return <SignupPage onNavigate={setAppView} />;
   }
   if (appView === 'onboarding') {
-    return <OnboardingPage onComplete={() => { setActivePage('practice'); setAppView('app'); }} />;
+    return <OnboardingPage onComplete={() => { navigateToPage('practice'); setAppView('app'); }} />;
   }
   if (appView === 'forgot-password') {
     return <ForgotPasswordPage onNavigate={setAppView} />;
@@ -206,7 +258,7 @@ function AppInner() {
     <HelpProvider>
       <ReviewSessionProvider>
         <div className="min-h-screen w-full bg-app font-sans text-primary selection:bg-accent selection:text-app">
-          <TopNav activePage={activePage} onNavigate={setActivePage} />
+          <TopNav activePage={activePage} onNavigate={navigateToPage} />
 
           <main className="p-4 md:p-8 overflow-x-hidden">
             <AnimatePresence initial={false} mode="popLayout">
