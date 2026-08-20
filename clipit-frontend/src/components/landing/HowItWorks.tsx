@@ -1,6 +1,8 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Check, ChevronRight, Plus } from 'lucide-react';
 import { loopStages } from '../../data/landing';
+import { motionTiming } from '../../lib/motion';
 
 const VLOG_FRAME =
   'https://cdn.magicpatterns.com/patterns/generated-images/78c36208-7c22-4434-b887-1069d99c4241.jpg';
@@ -97,11 +99,24 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <ol className="mt-12 grid gap-6 md:grid-cols-3 md:gap-x-14">
+        <motion.ol
+          className="mt-12 grid gap-6 md:grid-cols-3 md:gap-x-14"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.3 }}
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+        >
           {loopStages.map((stage, index) => {
             const Visual = visuals[index];
             return (
-              <li key={stage.step} className="relative flex flex-col rounded-2xl bg-app p-5">
+              <motion.li
+                key={stage.step}
+                variants={{
+                  hidden: { opacity: 0, y: 16 },
+                  visible: { opacity: 1, y: 0, transition: motionTiming.base },
+                }}
+                className="relative flex flex-col rounded-2xl bg-app p-5"
+              >
                 <div className="flex h-44 items-center">
                   <Visual />
                 </div>
@@ -117,10 +132,10 @@ export function HowItWorks() {
                     <ChevronRight className="h-4 w-4 rotate-90 md:rotate-0" strokeWidth={2.5} />
                   </span>
                 )}
-              </li>
+              </motion.li>
             );
           })}
-        </ol>
+        </motion.ol>
       </div>
     </section>
   );

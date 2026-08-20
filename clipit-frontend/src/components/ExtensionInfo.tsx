@@ -15,17 +15,17 @@ export function ExtensionInfo({ languageName }: ExtensionInfoProps) {
   useEffect(() => {
     if (!isOpen) return;
 
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
     }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setIsOpen(false);
     }
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);

@@ -66,7 +66,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
   }, [isHidden]);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
         setIsAccountOpen(false);
       }
@@ -74,8 +74,18 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
         setIsLangPickerOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      setIsAccountOpen(false);
+      setIsLangPickerOpen(false);
+      setIsMobileOpen(false);
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   return (
@@ -296,9 +306,9 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
         {isMobileOpen && (
           <motion.nav
             aria-label="Main"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
             className="overflow-hidden border-t border-subtle md:hidden"
           >

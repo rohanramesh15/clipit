@@ -812,6 +812,8 @@ export function ConverseV2Page(
           {/* Clickable summary line — expands the video header below. */}
           <button
             onClick={() => setHeaderExpanded((v) => !v)}
+            aria-expanded={headerExpanded}
+            aria-controls="conversation-deck-details"
             className="group flex flex-1 items-center justify-between gap-3 min-w-0 rounded-lg px-2 py-1 -mx-2 hover:bg-black/5 transition-colors"
           >
             <h1 className="font-heading font-semibold text-xs text-secondary truncate">
@@ -837,11 +839,11 @@ export function ConverseV2Page(
         <AnimatePresence initial={false}>
           {headerExpanded && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
+              id="conversation-deck-details"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
             >
               <div className="bg-surface rounded-2xl p-4 mb-4">
                 <div className="flex items-center gap-4">

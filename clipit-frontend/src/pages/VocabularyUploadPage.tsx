@@ -637,6 +637,8 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
                     </div>
                     <button
                       onClick={() => toggleListExpand(list.id)}
+                      aria-expanded={expandedListId === list.id}
+                      aria-controls={`vocabulary-list-${list.id}`}
                       className="p-2 text-secondary hover:text-primary transition-colors"
                     >
                       {expandedListId === list.id ? (
@@ -661,9 +663,10 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
                   {/* Expanded Words */}
                   {expandedListId === list.id && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      transition={{ duration: 0.2 }}
+                      id={`vocabulary-list-${list.id}`}
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                       className="border-t border-white/5"
                     >
                       <div className="p-4 max-h-64 overflow-y-auto">

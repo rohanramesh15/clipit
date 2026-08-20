@@ -6,6 +6,9 @@
 
 /* Dark theme (default) */
 :root {
+  --motion-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
   --bg-app: #141113;
   --bg-surface: #201B21;
   --bg-surface-hover: #2A242C;
@@ -50,7 +53,41 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color var(--motion-base) var(--motion-ease), color var(--motion-base) var(--motion-ease);
+}
+
+/* Shared control feedback: transform/opacity/color only, so interactions
+   feel responsive without causing layout work. Hover transforms are omitted
+   for touch devices, where pressed feedback is the useful signal. */
+button:not(:disabled),
+a[href],
+input,
+textarea,
+select {
+  transition:
+    color var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    opacity var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover,
+  a[href]:hover {
+    transform: translateY(-1px);
+  }
+}
+
+button:not(:disabled):active,
+a[href]:active {
+  transform: translateY(0) scale(0.98);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* ── Skeleton shimmer loading ──────────────────────────────────────────────
@@ -76,6 +113,12 @@ body {
   border-radius: 14px;
 }
 @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
   .skeleton { animation: none; }
 }
 /* Light mode overrides for white/black opacity patterns */

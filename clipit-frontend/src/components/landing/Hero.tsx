@@ -2,8 +2,17 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { ClipDemo } from './ClipDemo';
+import { motionEase, motionTiming } from '../../lib/motion';
 
-const swift = [0.23, 1, 0.32, 1] as const;
+const heroSequence = {
+  hidden: {},
+  visible: { transition: { delayChildren: 0.08, staggerChildren: 0.07 } },
+};
+
+const heroItem = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: motionTiming.page },
+};
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -11,24 +20,25 @@ interface HeroProps {
 
 export function Hero({ onGetStarted }: HeroProps) {
   return (
-    <section id="top" className="mx-auto max-w-page px-5 pb-16 pt-14 sm:px-8 md:pb-24 md:pt-20">
+    <motion.section
+      id="top"
+      variants={heroSequence}
+      initial="hidden"
+      animate="visible"
+      className="mx-auto max-w-page px-5 pb-16 pt-14 sm:px-8 md:pb-24 md:pt-20"
+    >
       <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-14">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: swift }}
-          className="lg:col-span-5"
-        >
-          <h1 className="font-heading text-display text-primary md:text-display-lg">
+        <div className="lg:col-span-5">
+          <motion.h1 variants={heroItem} className="font-heading text-display text-primary md:text-display-lg">
             Clip it.
             <br />
             <span className="text-accent">Learn it.</span>
-          </h1>
-          <p className="mt-6 max-w-md text-lead font-light text-secondary">
+          </motion.h1>
+          <motion.p variants={heroItem} className="mt-6 max-w-md text-lead font-light text-secondary">
             Learn a new language by watching <span className="whitespace-nowrap">Netflix &amp; YouTube.</span>
-          </p>
+          </motion.p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <motion.div variants={heroItem} className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
             <button
               type="button"
               onClick={onGetStarted}
@@ -38,18 +48,19 @@ export function Hero({ onGetStarted }: HeroProps) {
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </button>
             <p className="text-body text-muted">Free extension · no card needed</p>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: swift, delay: 0.06 }}
+          variants={{
+            hidden: { opacity: 0, y: 16 },
+            visible: { opacity: 1, y: 0, transition: { ...motionTiming.page, delay: 0.1, ease: motionEase } },
+          }}
           className="lg:col-span-7"
         >
           <ClipDemo />
         </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 }

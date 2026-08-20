@@ -1823,6 +1823,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                     <div className="flex items-center group">
                       <button
                         onClick={() => setExpandedFolderId(isExpanded ? null : folder.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`folder-${folder.id}`}
                         className="flex-1 flex items-center gap-4 p-4 text-left"
                       >
                         <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
@@ -1867,10 +1869,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="border-t border-white/5 overflow-hidden"
+                          id={`folder-${folder.id}`}
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                          className="border-t border-white/5"
                         >
                           <div className="p-3 space-y-2">
                             {folderVideos.length === 0 ? (

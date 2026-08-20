@@ -1,6 +1,7 @@
 import './index.css';
 import { createRoot } from 'react-dom/client';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { MotionConfig } from 'framer-motion';
 import { App } from './App';
 import { queryClient } from './lib/queryClient';
 import { queryPersister } from './lib/queryPersister';
@@ -16,6 +17,8 @@ createRoot(container).render(
       buster: 'clipit-query-cache-v1',
     }}
   >
-    <App />
+    <MotionConfig reducedMotion="user">
+      <App />
+    </MotionConfig>
   </PersistQueryClientProvider>,
 );
