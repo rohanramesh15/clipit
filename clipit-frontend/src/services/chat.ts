@@ -195,6 +195,17 @@ export async function fetchTtsVoices(token: string): Promise<TtsVoice[]> {
   return data.voices || [];
 }
 
+/** Short spoken preview clip for a voice, in the given learning language. */
+export async function fetchVoiceSample(token: string, voiceId: string, lang: string): Promise<Blob> {
+  const url = new URL(`${API_BASE_URL}/chat/voices/${encodeURIComponent(voiceId)}/sample`);
+  url.searchParams.set('lang', lang);
+  const res = await fetch(url.toString(), {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error('Failed to load voice sample');
+  return res.blob();
+}
+
 
 export async function translateToEnglish(
   token: string,

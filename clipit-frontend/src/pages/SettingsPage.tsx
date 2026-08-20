@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Minus, Plus, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import { SettingRow } from '../components/SettingRow';
 import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
 import { Avatar } from '../components/Avatar';
-import { fetchTtsVoices, type TtsVoice } from '../services/chat';
+import { VoiceSelector } from '../components/VoiceSelector';
+import { fetchTtsVoices, fetchVoiceSample, type TtsVoice } from '../services/chat';
 
 const DAILY_GOAL_OPTIONS = [
   { minutes: 5, label: '5 min', cards: 10 },
@@ -17,6 +19,7 @@ const DAILY_GOAL_OPTIONS = [
 
 export function SettingsPage() {
   const { user, token, logout } = useAuth();
+  const { language } = useLanguage();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -26,8 +29,24 @@ export function SettingsPage() {
   const [newCards, setNewCards] = useState(10);
   const [voiceId, setVoiceId] = useState(() => localStorage.getItem('tts_voice') || 'Kore');
   const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
+  const voiceSampleUrls = useRef<Map<string, string>>(new Map());
 
   const markSaved = () => setSavedAt(Date.now());
+
+  useEffect(() => {
+    const cache = voiceSampleUrls.current;
+    return () => cache.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
+
+  const getVoiceSampleUrl = async (voiceId: string) => {
+    const cacheKey = `${voiceId}:${language}`;
+    const cached = voiceSampleUrls.current.get(cacheKey);
+    if (cached) return cached;
+    const blob = await fetchVoiceSample(token!, voiceId, language);
+    const url = URL.createObjectURL(blob);
+    voiceSampleUrls.current.set(cacheKey, url);
+    return url;
+  };
 
   useEffect(() => {
     if (savedAt === null) return;
@@ -216,28 +235,17 @@ export function SettingsPage() {
           </h2>
 
           <div className="mt-2 border-t border-subtle">
-            <SettingRow label="AI voice" description="The voice your tutor speaks with in AI chat.">
-              <div role="radiogroup" aria-label="AI voice" className="grid w-full gap-2 sm:w-[22rem] sm:grid-cols-2">
-                {ttsVoices.map((voice) => {
-                  const isActive = voice.id === voiceId;
-                  return (
-                    <button
-                      key={voice.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={isActive}
-                      onClick={() => handleVoiceChange(voice.id)}
-                      className={`rounded-lg border px-3.5 py-2.5 text-left transition-colors duration-150 ease-swift ${
-                        isActive ? 'border-accent bg-blush' : 'border-subtle hover:bg-surface-hover'
-                      }`}
-                    >
-                      <span className={`block text-body-sm font-semibold ${isActive ? 'text-accent' : 'text-primary'}`}>
-                        {voice.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+            <SettingRow
+              label="AI voice"
+              description="The voice your tutor speaks with in AI chat. Hear one before you commit to it."
+              layout="stacked"
+            >
+              <VoiceSelector
+                voices={ttsVoices}
+                selectedId={voiceId}
+                onSelect={handleVoiceChange}
+                getSampleUrl={getVoiceSampleUrl}
+              />
             </SettingRow>
           </div>
         </section>
