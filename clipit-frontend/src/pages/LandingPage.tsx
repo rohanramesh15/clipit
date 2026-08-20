@@ -69,6 +69,9 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
 
       {/* Footer */}
       <footer className="bg-inverse py-10">
+        <div className="mx-auto mb-10 max-w-page px-5 sm:px-8" aria-hidden="true">
+          <div className="h-px bg-cream/20" />
+        </div>
         <div className="mx-auto flex max-w-page flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
           <Logo size="text-2xl" img="w-8 h-8" stroke="1.5px" />
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
