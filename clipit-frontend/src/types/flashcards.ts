@@ -30,16 +30,6 @@ export type LoadState =
   | 'session-complete'
   | 'time-gated-complete';
 
-export type SortOption = 'recent' | 'alphabetical' | 'oldest';
-
-// Vocabulary list types
-export interface VocabList {
-  id: number;
-  name: string;
-  language: string;
-  word_count: number;
-}
-
 export type Page =
   | 'video'
   | 'practice'

@@ -40,6 +40,16 @@ export function formatNextReview(date: Date): string {
   return `${diffDays}d`;
 }
 
+// Human label for how long ago a video was watched, e.g. "Today" / "3 days ago".
+export function relativeDay(trackedAtMs: number): string {
+  const days = Math.round((Date.now() - trackedAtMs) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return 'Last week';
+  return `${Math.floor(days / 7)} weeks ago`;
+}
+
 // Get responsive font size based on word/definition length
 export function getWordFontSize(text: string): string {
   const len = text.length;

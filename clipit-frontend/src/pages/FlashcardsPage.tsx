@@ -4,13 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '../components/Skeleton';
 import {
   ArrowLeft,
+  ChevronLeft,
   AlertCircle,
   Tv,
   Layers,
   Clock,
   Trash2,
-  BookOpen,
-  LogOut,
 } from 'lucide-react';
 import { rateCard, sortByPriority, getDueCards, getCardStats, previewNextReviews, Rating } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
@@ -20,7 +19,7 @@ import { API_BASE_URL } from '../config';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { queryClient } from '../lib/queryClient';
 import { queryKeys } from '../lib/queries';
-import { FlashCard, TrackedVideo, VocabList, LoadState, Page } from '../types/flashcards';
+import { FlashCard, TrackedVideo, LoadState, Page } from '../types/flashcards';
 import { getDeletedCards, formatNextReview } from '../utils/flashcardStorage';
 import { DueToday } from '../components/flashcards/DueToday';
 import { DeckBrowser } from '../components/flashcards/DeckBrowser';
@@ -84,15 +83,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [editedDefinition, setEditedDefinition] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
-  const [showJoinClass, setShowJoinClass] = useState(false);
-  const [isJoiningClass, setIsJoiningClass] = useState(false);
-  const [classCode, setClassCode] = useState('');
-  const [showLeaveClass, setShowLeaveClass] = useState(false);
-  const [isLeavingClass, setIsLeavingClass] = useState(false);
-  const [enrolledClasses, setEnrolledClasses] = useState<Array<{class_code: string, class_name: string, lists_count: number, words_count: number}>>([]);
-  const [isLoadingEnrolled, setIsLoadingEnrolled] = useState(false);
-  const [confirmLeaveClass, setConfirmLeaveClass] = useState<{class_code: string, class_name: string} | null>(null);
-  const [vocabLists, setVocabLists] = useState<VocabList[]>([]);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
@@ -142,153 +132,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       'currency': 'USD'
     });
   }, []);
-
-  // Fetch vocabulary lists, filtered to the current language
-  const fetchVocabLists = useCallback(async () => {
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/lists`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const lists = await res.json();
-        setVocabLists(lists.filter((l: VocabList) => l.language === language));
-      }
-    } catch (err) {
-      console.error('Failed to fetch vocab lists:', err);
-    }
-  }, [token, language]);
-
-  // Fetch enrolled classes
-  async function fetchEnrolledClasses() {
-    if (!token) return;
-    setIsLoadingEnrolled(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/enrolled-classes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setEnrolledClasses(data.classes || []);
-      }
-    } catch (err) {
-      console.error('Error fetching enrolled classes:', err);
-    } finally {
-      setIsLoadingEnrolled(false);
-    }
-  }
-
-  // Sync all enrolled classes to get new vocabulary
-  async function syncEnrolledClasses() {
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/enrolled-classes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const classes = data.classes || [];
-
-      let totalNewWords = 0;
-      for (const cls of classes) {
-        try {
-          const syncRes = await fetch(`${API_BASE_URL}/vocab/sync-class`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ class_code: cls.class_code }),
-          });
-          if (syncRes.ok) {
-            const syncData = await syncRes.json();
-            totalNewWords += syncData.words_added || 0;
-          }
-        } catch (err) {
-          console.error(`Error syncing class ${cls.class_code}:`, err);
-        }
-      }
-
-      if (totalNewWords > 0) {
-        console.log(`Synced ${totalNewWords} new words from enrolled classes`);
-        fetchVocabLists();
-      }
-    } catch (err) {
-      console.error('Error syncing enrolled classes:', err);
-    }
-  }
-
-  // Fetch vocabulary lists on mount and sync enrolled classes
-  useEffect(() => {
-    fetchVocabLists();
-    syncEnrolledClasses();
-  }, [fetchVocabLists]);
-
-  // Join a class to get pre-made vocab lists
-  async function handleJoinClass() {
-    if (!classCode.trim() || !token) return;
-    setIsJoiningClass(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/join-class`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ class_code: classCode.trim() }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        alert(error.detail || 'Failed to join class');
-        return;
-      }
-      const data = await res.json();
-      alert(`Successfully joined ${data.class_name}! ${data.words_added} words added to your vocab lists.`);
-      setShowJoinClass(false);
-      setClassCode('');
-      fetchVocabLists();
-    } catch (err) {
-      console.error('Error joining class:', err);
-      alert('Failed to join class. Please try again.');
-    } finally {
-      setIsJoiningClass(false);
-    }
-  }
-
-  function openLeaveClassModal() {
-    setShowLeaveClass(true);
-    fetchEnrolledClasses();
-  }
-
-  // Leave a class and remove all associated vocab lists
-  async function handleLeaveClass(classCode: string) {
-    if (!classCode || !token) return;
-    setIsLeavingClass(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/vocab/leave-class`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ class_code: classCode }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        alert(error.detail || 'Failed to leave class');
-        return;
-      }
-      setShowLeaveClass(false);
-      setConfirmLeaveClass(null);
-      fetchVocabLists();
-    } catch (err) {
-      console.error('Error leaving class:', err);
-      alert('Failed to leave class. Please try again.');
-    } finally {
-      setIsLeavingClass(false);
-    }
-  }
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -524,59 +367,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
     prepareCardsForReview(videoCards);
   }, [fetchCardsForVideo, prepareCardsForReview]);
-
-  // Load TTS-only flashcards from user vocabulary lists (no video required)
-  const loadVocabTTSCards = useCallback(async (listId?: number) => {
-    setLoadState('loading');
-    setLoadingMsg('Loading your vocabulary...');
-    setCards([]);
-    setDueCards([]);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setSelectedVideoId(listId ? `vocablist_tts_${listId}` : 'vocablist_tts_all');
-    setSelectedVideoTitle(listId
-      ? vocabLists.find(l => l.id === listId)?.name || 'Vocabulary List'
-      : 'My Vocabulary'
-    );
-    setLastRatingInfo(null);
-
-    try {
-      const url = listId
-        ? `${API_BASE_URL}/vocab/lists/flashcards?list_id=${listId}&language=${language}`
-        : `${API_BASE_URL}/vocab/lists/flashcards?language=${language}`;
-
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch vocab flashcards');
-
-      const data = await res.json();
-      let ttsCards: FlashCard[] = data.flashcards.map((card: FlashCard) => ({
-        ...card,
-        card_type: 'tts',
-        video_id: null,
-        timestamp: null,
-        end_timestamp: null,
-      }));
-
-      const deletedCards = getDeletedCards(language);
-      ttsCards = ttsCards.filter(card => {
-        const word = card.dictionary_form || card.target_word;
-        return !deletedCards.has(word);
-      });
-
-      if (!ttsCards.length) {
-        setLoadState('no-vocab');
-        return;
-      }
-
-      prepareCardsForReview(ttsCards);
-    } catch (err) {
-      console.error('Failed to load vocab TTS cards:', err);
-      setLoadState('error');
-    }
-  }, [language, token, vocabLists, prepareCardsForReview]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -985,23 +775,26 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   if (loadState === 'deck-select') {
     const hasNoVideos = videos.length === 0;
     return (
-      <div className="min-h-screen pb-20 max-w-3xl mx-auto px-4 sm:px-6 pt-8 bg-white">
-        <div className="mb-8">
-          <button
-            onClick={() => onNavigate?.('practice')}
-            aria-label="Back to Practice"
-            className="mb-4 w-9 h-9 flex items-center justify-center rounded-lg text-sand-ink hover:text-sand-deep hover:bg-sand-soft transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-4xl font-heading font-medium text-sand-deep mb-2" id="section-deck-select">Flash Cards</h1>
-          <p className="text-sand-ink">
-            {hasNoVideos ? "You haven't watched any videos yet." : 'Select a deck to start reviewing flashcards.'}
-          </p>
-        </div>
+      <div className="mx-auto min-h-screen max-w-3xl px-4 pb-24 pt-4 sm:px-8 bg-white">
+        <button
+          onClick={() => onNavigate?.('practice')}
+          className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-body-sm text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          Practice
+        </button>
+
+        <h1 className="mt-6 font-heading text-section font-medium text-sand-deep" id="section-deck-select">
+          Flash cards
+        </h1>
+        <p className="mt-2 max-w-md text-body text-sand-ink">
+          {hasNoVideos
+            ? "You haven't watched any videos yet."
+            : "Words picked out of what you watched, scheduled for you. Start with today's queue, or pick a single video."}
+        </p>
 
         {hasNoVideos ? (
-          <div className="flex flex-col items-center gap-5 py-12 text-center">
+          <div className="mt-10 flex flex-col items-center gap-5 py-12 text-center">
             <div className="w-16 h-16 rounded-full bg-sand-soft flex items-center justify-center">
               <Tv className="w-8 h-8 text-sand-ink" />
             </div>
@@ -1020,212 +813,24 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           </div>
         ) : (
           <>
-            {videos.length > 0 && (
-              <div className="mb-8">
-                <DueToday
-                  videos={videos}
-                  dueCounts={dueCounts}
-                  isLoadingDue={isLoadingDue}
-                  onStartAll={() => loadAllVideos(videos)}
-                />
-              </div>
-            )}
+            <div className="mt-8">
+              <DueToday
+                videos={videos}
+                dueCounts={dueCounts}
+                isLoadingDue={isLoadingDue}
+                onStartAll={() => loadAllVideos(videos)}
+              />
+            </div>
 
             <DeckBrowser
               videos={videos}
               wordCounts={wordCounts}
-              vocabLists={vocabLists}
-              language={language}
+              dueCounts={dueCounts}
               onStudyVideo={loadFlashcards}
-              onStudyVocabList={loadVocabTTSCards}
-              onStudyAllVideos={() => loadAllVideos(videos)}
               onDeleteVideo={handleDeleteVideoFlashcards}
             />
-
-            <div className="mt-10 text-center">
-              <p className="text-sand-ink text-sm mb-4">Want to add more?</p>
-              <div className="flex flex-wrap justify-center gap-3">
-                <button
-                  onClick={() => setShowJoinClass(true)}
-                  className="px-4 py-2 bg-white border border-sand-mid hover:border-sand-ink text-sand-ink hover:text-sand-deep font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  Join Another Class
-                </button>
-                {vocabLists.length > 0 && (
-                  <button
-                    onClick={() => openLeaveClassModal()}
-                    className="px-4 py-2 bg-white border border-sand-mid hover:border-red-400 text-sand-ink hover:text-red-500 font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Leave a Class
-                  </button>
-                )}
-              </div>
-            </div>
           </>
         )}
-
-        {/* Join Class Modal */}
-        <AnimatePresence>
-          {showJoinClass && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
-              onClick={() => !isJoiningClass && setShowJoinClass(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-sand-soft mx-auto mb-4">
-                  <BookOpen className="w-6 h-6 text-sand-ink" />
-                </div>
-                <h3 className="text-lg font-bold text-sand-deep text-center mb-2">Join a Class</h3>
-                <p className="text-sm text-sand-ink text-center mb-4">
-                  Enter your class code to get pre-made vocab lists from your instructor.
-                </p>
-                <input
-                  type="text"
-                  placeholder="Enter class code"
-                  value={classCode}
-                  onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && classCode.trim() && handleJoinClass()}
-                  className="w-full bg-white border border-sand-mid rounded-xl px-4 py-3 text-sm text-sand-deep placeholder:text-sand-ink/60 focus:outline-none focus:ring-2 focus:ring-sand-ink/40 mb-4 uppercase"
-                  autoFocus
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => { setShowJoinClass(false); setClassCode(''); }}
-                    disabled={isJoiningClass}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-sand-soft text-sand-deep font-medium hover:bg-sand-mid transition-colors disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleJoinClass}
-                    disabled={!classCode.trim() || isJoiningClass}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-sand-ink text-white font-medium hover:bg-sand-deep transition-colors disabled:opacity-50"
-                  >
-                    {isJoiningClass ? 'Joining...' : 'Join'}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Leave Class Modal */}
-        <AnimatePresence>
-          {showLeaveClass && !confirmLeaveClass && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
-              onClick={() => !isLeavingClass && setShowLeaveClass(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
-                  <LogOut className="w-6 h-6 text-red-400" />
-                </div>
-                <h3 className="text-lg font-bold text-sand-deep text-center mb-2">Leave a Class</h3>
-                <p className="text-sm text-sand-ink text-center mb-4">
-                  Select a class to leave. This will remove all vocab lists from that class.
-                </p>
-                {isLoadingEnrolled ? (
-                  <div className="flex justify-center py-4">
-                    <div className="w-6 h-6 rounded-full border-2 border-sand-mid border-t-sand-ink animate-spin" />
-                  </div>
-                ) : enrolledClasses.length === 0 ? (
-                  <p className="text-sand-ink text-sm text-center py-4">You're not enrolled in any classes.</p>
-                ) : (
-                  <div className="space-y-2 mb-4">
-                    {enrolledClasses.map((cls) => (
-                      <button
-                        key={cls.class_code}
-                        onClick={() => setConfirmLeaveClass(cls)}
-                        className="w-full px-4 py-3 bg-sand-tint border border-sand-mid/60 hover:border-red-400 rounded-xl text-left transition-colors group"
-                      >
-                        <div className="font-medium text-sand-deep group-hover:text-red-500">{cls.class_name}</div>
-                        <div className="text-xs text-sand-ink">{cls.lists_count} lists · {cls.words_count} words</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowLeaveClass(false)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-sand-soft text-sand-deep font-medium hover:bg-sand-mid transition-colors"
-                >
-                  Cancel
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Confirm Leave Class Modal */}
-        <AnimatePresence>
-          {confirmLeaveClass && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
-              onClick={() => !isLeavingClass && setConfirmLeaveClass(null)}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
-                  <AlertCircle className="w-6 h-6 text-red-400" />
-                </div>
-                <h3 className="text-lg font-bold text-sand-deep text-center mb-2">Are you sure?</h3>
-                <p className="text-sm text-sand-ink text-center mb-4">
-                  This will remove all vocab lists from <span className="text-sand-deep font-medium">{confirmLeaveClass.class_name}</span>. This action cannot be undone.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setConfirmLeaveClass(null)}
-                    disabled={isLeavingClass}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-sand-soft text-sand-deep font-medium hover:bg-sand-mid transition-colors disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleLeaveClass(confirmLeaveClass.class_code)}
-                    disabled={isLeavingClass}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isLeavingClass ? (
-                      <>
-                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        Leaving...
-                      </>
-                    ) : (
-                      'Leave Class'
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -1327,11 +932,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               <>
                 <Layers className="w-3 h-3 shrink-0 mr-0.5" />
                 <span className="truncate min-w-0">All Videos</span>
-              </>
-            ) : selectedVideoId.startsWith('vocablist_') ? (
-              <>
-                <BookOpen className="w-3 h-3 shrink-0 mr-0.5" />
-                <span className="truncate min-w-0">{selectedVideoTitle}</span>
               </>
             ) : (
               <>
