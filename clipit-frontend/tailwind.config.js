@@ -27,7 +27,7 @@ export default {
         inverse: '#4c2323',
         ink: { DEFAULT: '#201b21', deep: '#141113', soft: '#2e262c' },
         cream: '#ffead3',
-        sand: { deep: '#5a3d17', ink: '#8f6227', mid: '#e6c391', soft: '#fbf0e1' },
+        sand: { deep: '#5a3d17', ink: '#8f6227', mid: '#e6c391', soft: '#fbf0e1', tint: '#fdf8f0' },
         sage: { deep: '#2e4a2a', ink: '#4a7043', mid: '#b1cbac', soft: '#ecf2ea' },
         dusk: { deep: '#2f4370', ink: '#4d6291', mid: '#b5c3e3', soft: '#edf0f8' },
         // Wordmark fill, bespoke to the hand-drawn logo mark only.
