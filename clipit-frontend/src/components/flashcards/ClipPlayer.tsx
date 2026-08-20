@@ -48,7 +48,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
   };
 
   return (
-    <div className="w-full h-full relative bg-gradient-to-br from-[#1a1a2e] to-[#2d1f3d]">
+    <div className="w-full h-full relative bg-gradient-to-br from-sand-deep to-sand-ink">
       {hasAudio && (
         <audio
           ref={audioRef}
@@ -200,7 +200,7 @@ export function ClipPlayer({
         <div ref={playerContainerRef} className="h-full w-full" />
       )}
 
-      <div className="absolute right-2 top-2 flex gap-1">
+      <div className="absolute right-1.5 top-1.5 flex gap-1">
         {card.card_type === 'video' && (
           <button
             onClick={(e) => {
@@ -208,7 +208,7 @@ export function ClipPlayer({
               onRevertToTTS();
             }}
             disabled={isReverting}
-            className="rounded-lg bg-black/60 p-2 text-white/70 transition-colors hover:bg-sand-ink/90 hover:text-[#ffffff] disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-sand-ink/90 hover:text-[#ffffff] disabled:opacity-50"
             title="Revert to TTS-only"
           >
             <RotateCcw className={`h-4 w-4 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -219,7 +219,7 @@ export function ClipPlayer({
             e.stopPropagation();
             onDeleteCard();
           }}
-          className="rounded-lg bg-black/60 p-2 text-white/70 transition-colors hover:bg-red-500/80 hover:text-[#ffffff]"
+          className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-red-500/80 hover:text-[#ffffff]"
           title="Delete this flashcard"
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />

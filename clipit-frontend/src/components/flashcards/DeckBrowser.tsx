@@ -149,7 +149,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 </button>
                 <button
                   onClick={() => setShowDeleteVideoConfirm(video)}
-                  className="shrink-0 rounded-lg p-2 text-sand-ink/60 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sand-ink/60 transition-colors hover:bg-red-500/10 hover:text-red-500"
                   title="Delete video"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

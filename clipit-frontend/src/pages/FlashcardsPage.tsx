@@ -769,17 +769,19 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     const hasNoVideos = videos.length === 0;
     return (
       <div className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-white">
-        <button
-          onClick={() => onNavigate?.('practice')}
-          aria-label="Back"
-          className="-ml-2 inline-flex items-center rounded-xl p-2 text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
-        >
-          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <div className="-ml-2 flex items-center gap-2">
+          <button
+            onClick={() => onNavigate?.('practice')}
+            aria-label="Back"
+            className="inline-flex items-center rounded-xl p-2 text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+          </button>
 
-        <h1 className="mt-4 font-heading text-section font-medium text-sand-deep" id="section-deck-select">
-          Flash cards
-        </h1>
+          <h1 className="font-heading text-section font-medium text-sand-deep" id="section-deck-select">
+            Flash cards
+          </h1>
+        </div>
 
         {hasNoVideos ? (
           <div className="mt-10 flex flex-col items-center gap-5 py-12 text-center">

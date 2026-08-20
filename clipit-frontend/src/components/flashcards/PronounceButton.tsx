@@ -10,7 +10,8 @@ interface PronounceButtonProps {
 }
 
 export function PronounceButton({ text, language, label, size = 'md' }: PronounceButtonProps) {
-  const dimensions = size === 'sm' ? 'h-8 w-8' : 'h-10 w-10';
+  // Both sizes meet the 44px minimum touch target; "sm" stays visually lighter via a smaller icon, not a smaller tap area.
+  const dimensions = size === 'sm' ? 'h-11 w-11' : 'h-12 w-12';
   const icon = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
 
   return (

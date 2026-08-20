@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Sparkles, Trophy } from 'lucide-react';
 
 interface SessionStats {
@@ -40,19 +39,10 @@ export function SessionSummary({
   if (variant === 'goal-reached') {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-5 px-5 text-center sm:px-8">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className="flex h-20 w-20 items-center justify-center rounded-full bg-sand-soft"
-        >
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-sand-soft">
           <Sparkles className="h-10 w-10 text-sand-ink" aria-hidden="true" />
-        </motion.div>
-        <motion.div
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.08 }}
-        >
+        </div>
+        <div>
           <h2 className="font-heading text-card-title text-sand-deep">
             {stats.reviewed} cards — great work!
           </h2>
@@ -61,13 +51,8 @@ export function SessionSummary({
               You hit your daily goal of {goalLabel}
             </p>
           )}
-        </motion.div>
-        <motion.div
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.16 }}
-          className="mt-2 flex flex-col items-center gap-3"
-        >
+        </div>
+        <div className="mt-2 flex flex-col items-center gap-3">
           <p className="text-body-sm text-sand-ink">Want to keep going?</p>
           <div className="flex gap-3">
             <button
@@ -83,7 +68,7 @@ export function SessionSummary({
               Keep reviewing
             </button>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }

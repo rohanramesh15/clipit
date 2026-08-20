@@ -102,13 +102,16 @@ export function ReviewCard({
             <h2 className={`${getWordFontSize(card.target_word)} font-heading leading-tight text-sand-deep`}>
               {card.target_word}
             </h2>
-            <div className="mt-4" onClick={(event) => event.stopPropagation()}>
-              <PronounceButton
-                text={card.target_word}
-                language={language}
-                label={`Hear ${card.target_word} pronounced`}
-              />
-            </div>
+            {/* TTS-only cards already have a dedicated pronunciation control via ClipPlayer's placeholder above. */}
+            {card.card_type === 'video' && (
+              <div className="mt-4" onClick={(event) => event.stopPropagation()}>
+                <PronounceButton
+                  text={card.target_word}
+                  language={language}
+                  label={`Hear ${card.target_word} pronounced`}
+                />
+              </div>
+            )}
           </div>
 
           <p className="flex shrink-0 items-center justify-center gap-1.5 border-t border-sand-mid/60 pt-4 text-meta text-sand-ink">
@@ -142,7 +145,7 @@ export function ReviewCard({
               {!isEditingDefinition && (
                 <button
                   onClick={onStartEdit}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-sand-soft text-sand-deep transition-colors hover:bg-sand-mid"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-sand-soft text-sand-deep transition-colors hover:bg-sand-mid"
                   title="Edit definition"
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
