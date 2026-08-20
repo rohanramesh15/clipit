@@ -56,7 +56,7 @@ export function ClipDemo() {
                       initial={false}
                       animate={isClipped ? { scale: [1, 1.05, 1] } : {}}
                       transition={{ duration: 0.22, ease: swift }}
-                      className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-landing-heading text-xl font-semibold transition-colors duration-150 ease-swift sm:text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream ${
+                      className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-heading text-xl font-semibold transition-colors duration-150 ease-swift sm:text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream ${
                         isClipped ? 'bg-cream text-ink-deep' : 'text-[#fff] hover:bg-white/12'
                       }`}
                     >

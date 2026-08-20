@@ -30,7 +30,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
   const isNavHidden = useHideOnScroll();
 
   return (
-    <div className="light min-h-screen w-full overflow-x-hidden bg-app font-landing-body text-primary selection:bg-accent selection:text-white">
+    <div className="light min-h-screen w-full overflow-x-hidden bg-app font-sans text-primary selection:bg-accent selection:text-white">
       {/* Nav */}
       <motion.header
         animate={{ y: isNavHidden ? '-100%' : '0%' }}

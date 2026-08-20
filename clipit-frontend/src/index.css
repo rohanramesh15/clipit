@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Love+Ya+Like+A+Sister&display=swap');
-/* Landing-page type pair (Fredoka/Nunito) — scoped to the marketing page via
-   the `font-landing-heading` / `font-landing-body` Tailwind utilities. */
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap');
+/* App-wide type pair: Fredoka for `font-heading`, Nunito for `font-sans`. */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700;800&display=swap');
 
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -55,7 +54,7 @@
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
-  font-family: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;

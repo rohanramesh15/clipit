@@ -8,7 +8,7 @@ export function PracticeModes() {
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <h2
           id="practice-title"
-          className="font-landing-heading text-section text-primary md:text-section-lg md:whitespace-nowrap"
+          className="font-heading text-section text-primary md:text-section-lg md:whitespace-nowrap"
         >
           Three ways to practice the words you clipped
         </h2>
@@ -19,7 +19,7 @@ export function PracticeModes() {
 
         <div className="mt-12 grid items-stretch gap-6 md:grid-cols-3">
           <article className="flex h-full flex-col rounded-2xl bg-sand-soft p-7 sm:p-9">
-            <h3 className="font-landing-heading text-card-title text-sand-deep">
+            <h3 className="font-heading text-card-title text-sand-deep">
               {practiceModes.flashcards.title}
             </h3>
             <p className="mt-2 text-lead text-sand-ink">
@@ -31,7 +31,7 @@ export function PracticeModes() {
           </article>
 
           <article className="flex h-full flex-col rounded-2xl bg-sage-soft p-7 sm:p-9">
-            <h3 className="font-landing-heading text-card-title text-sage-deep">{practiceModes.voice.title}</h3>
+            <h3 className="font-heading text-card-title text-sage-deep">{practiceModes.voice.title}</h3>
             <p className="mt-2 text-lead text-sage-ink">{practiceModes.voice.description}</p>
             <div className="mt-auto pt-8">
               <ChatVisual />
@@ -39,7 +39,7 @@ export function PracticeModes() {
           </article>
 
           <article className="flex h-full flex-col rounded-2xl bg-dusk-soft p-7 sm:p-9">
-            <h3 className="font-landing-heading text-card-title text-dusk-deep">{practiceModes.madlibs.title}</h3>
+            <h3 className="font-heading text-card-title text-dusk-deep">{practiceModes.madlibs.title}</h3>
             <p className="mt-2 text-lead text-dusk-ink">{practiceModes.madlibs.description}</p>
             <div className="mt-auto pt-8">
               <MadlibsVisual />

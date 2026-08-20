@@ -36,13 +36,9 @@ export default {
         logo: { fill: '#EA7B7B' },
       },
       fontFamily: {
-        sans: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
-        heading: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
+        sans: ['Nunito', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
+        heading: ['Fredoka', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
         logo: ['Love Ya Like A Sister', 'cursive'],
-        // Landing-only type pair — scoped to the marketing page so the rest
-        // of the app (which relies on `sans`/`heading` above) is unaffected.
-        'landing-heading': ['Fredoka', 'sans-serif'],
-        'landing-body': ['Nunito', 'sans-serif'],
       },
       // Semantic type scale for the landing page — size, leading and weight
       // travel together.

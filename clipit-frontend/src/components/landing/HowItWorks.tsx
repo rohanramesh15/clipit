@@ -91,7 +91,7 @@ export function HowItWorks() {
     <section id="how-it-works" className="bg-blush py-16 md:py-24" aria-labelledby="how-it-works-title">
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <div className="max-w-2xl">
-          <h2 id="how-it-works-title" className="font-landing-heading text-section text-primary md:text-section-lg">
+          <h2 id="how-it-works-title" className="font-heading text-section text-primary md:text-section-lg">
             One loop, from watching to remembering
           </h2>
           <p className="mt-4 text-lead text-secondary">
@@ -123,7 +123,7 @@ export function HowItWorks() {
                 </div>
 
                 <p className="mt-4 text-meta font-semibold tracking-wide text-accent">Step {stage.step}</p>
-                <h3 className="mt-1 font-landing-heading text-card-title text-primary">{stage.title}</h3>
+                <h3 className="mt-1 font-heading text-card-title text-primary">{stage.title}</h3>
                 <p className="mt-2 text-body text-secondary">{stage.description}</p>
 
                 {index < loopStages.length - 1 && (

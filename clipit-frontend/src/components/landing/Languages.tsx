@@ -42,7 +42,7 @@ export function Languages() {
     <section className="bg-blush py-16 md:py-20" aria-labelledby="languages-title">
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <div className="max-w-xl">
-          <h2 id="languages-title" className="font-landing-heading text-section text-primary md:text-section-lg">
+          <h2 id="languages-title" className="font-heading text-section text-primary md:text-section-lg">
             Two languages available
           </h2>
           <p className="mt-3 text-lead text-secondary">
@@ -59,7 +59,7 @@ export function Languages() {
                 <span className="h-9 w-[54px] shrink-0 overflow-hidden rounded-md ring-1 ring-[var(--border-subtle)]">
                   <Flag />
                 </span>
-                <p className="font-landing-heading text-card-title font-medium leading-tight text-primary">
+                <p className="font-heading text-card-title font-medium leading-tight text-primary">
                   {language.english}
                 </p>
               </li>
