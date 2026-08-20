@@ -1,10 +1,17 @@
+import { motion } from 'framer-motion';
+
 interface PrivacyPageProps {
   onNavigate: (view: 'landing') => void;
 }
 
 export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
   return (
-    <div className="min-h-screen bg-app text-primary p-8">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+      className="min-h-screen bg-app text-primary p-8"
+    >
       <div className="max-w-3xl mx-auto">
         <button
           onClick={() => onNavigate('landing')}
@@ -123,6 +130,6 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           </section>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

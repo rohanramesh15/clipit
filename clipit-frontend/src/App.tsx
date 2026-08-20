@@ -183,12 +183,13 @@ function AppInner() {
     localStorage.setItem('theme', 'light');
   }, []);
 
-  // History can be much taller than Home or Progress.  Reset the document
-  // position as the view changes so the next, shorter screen is never opened
-  // below its visible content.
+  // History can be much taller than Home or Progress, and the landing page
+  // is much taller than Privacy below it. Reset the document position as the
+  // page or top-level view changes so the next, shorter screen is never
+  // opened below its visible content.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [activePage]);
+  }, [activePage, appView]);
 
   // Populate the shared cache after sign-in. ensureQueryData only calls the
   // backend when a cache entry does not exist, including after an IndexedDB
