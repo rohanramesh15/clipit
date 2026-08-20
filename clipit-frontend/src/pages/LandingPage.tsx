@@ -34,8 +34,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       {/* Nav */}
       <motion.header
         animate={{ y: isNavHidden ? '-100%' : '0%' }}
-        transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-        className="sticky top-0 z-50 bg-app"
+        transition={{ duration: 0.42, ease: [0.23, 1, 0.32, 1] }}
+        className="fixed inset-x-0 top-0 z-50 bg-app"
       >
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
           <a href="#top" className="flex items-center" aria-label="ClipIt home">
@@ -59,7 +59,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         </div>
       </motion.header>
 
-      <main>
+      <main className="pt-[72px]">
         <Hero onGetStarted={() => onNavigate('signup')} />
         <HowItWorks />
         <PracticeModes />
@@ -68,18 +68,20 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-inverse py-10">
+      <footer className="bg-inverse py-10">
         <div className="mx-auto flex max-w-page flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
           <Logo size="text-2xl" img="w-8 h-8" stroke="1.5px" />
-          <nav aria-label="Footer">
-            <button
-              onClick={() => onNavigate('privacy')}
-              className="text-body-sm text-cream/70 transition-colors duration-150 ease-swift hover:text-cream"
-            >
-              Privacy
-            </button>
-          </nav>
-          <p className="text-body-sm text-cream/60">© 2026 ClipIt Inc.</p>
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
+            <nav aria-label="Footer">
+              <button
+                onClick={() => onNavigate('privacy')}
+                className="text-body-sm text-cream/70 transition-colors duration-150 ease-swift hover:text-cream"
+              >
+                Privacy
+              </button>
+            </nav>
+            <p className="text-body-sm text-cream/60">© 2026 ClipIt Inc.</p>
+          </div>
         </div>
       </footer>
     </div>
