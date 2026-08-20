@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlayIcon } from 'lucide-react';
+import { ChevronRight, PlayIcon } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { Skeleton } from '../Skeleton';
 
@@ -10,6 +10,7 @@ interface DueTodayProps {
   /** True while due counts are still being computed in the background. */
   isLoadingDue: boolean;
   onStartAll: () => void;
+  onStartVideo: (videoId: string, title: string) => void;
 }
 
 function thumbnailFor(video: TrackedVideo): string | null {
@@ -17,94 +18,117 @@ function thumbnailFor(video: TrackedVideo): string | null {
   return `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`;
 }
 
-export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTodayProps) {
+export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll, onStartVideo }: DueTodayProps) {
   if (isLoadingDue) {
     return (
-      <section className="flex flex-col gap-4 rounded-2xl bg-sand-soft px-7 py-8 sm:flex-row sm:items-center sm:justify-between">
+      <section className="grid gap-10 rounded-2xl bg-sand-soft px-8 py-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
         <div className="flex flex-col gap-3">
           <Skeleton className="h-3 w-20 rounded" />
-          <Skeleton className="h-12 w-40 rounded" />
+          <Skeleton className="h-14 w-48 rounded" />
           <Skeleton className="h-11 w-36 rounded-xl" />
         </div>
-        <div className="flex -space-x-4">
+        <div className="space-y-2 rounded-xl bg-white/60 p-2">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-16 w-24 rounded-xl border-2 border-sand-soft" />
+            <Skeleton key={i} className="h-14 w-full rounded-lg" />
           ))}
         </div>
       </section>
     );
   }
 
-  const withDue = videos.filter((video) => (dueCounts[video.video_id] ?? 0) > 0);
+  const withDue = [...videos]
+    .filter((video) => (dueCounts[video.video_id] ?? 0) > 0)
+    .sort((a, b) => (dueCounts[b.video_id] ?? 0) - (dueCounts[a.video_id] ?? 0));
   const totalDue = withDue.reduce((sum, video) => sum + (dueCounts[video.video_id] ?? 0), 0);
 
   if (totalDue === 0) {
     return (
-      <section className="flex flex-col gap-2 rounded-2xl bg-sand-soft px-7 py-8" aria-labelledby="due-heading">
-        <h2 id="due-heading" className="font-heading text-card-title text-sand-deep">
-          Nothing due today
+      <section
+        className="flex flex-col items-start gap-3 rounded-2xl bg-sand-soft px-8 py-10"
+        aria-labelledby="due-heading"
+      >
+        <p className="text-meta font-semibold uppercase tracking-[0.08em] text-sand-ink">Due today</p>
+        <h2 id="due-heading" className="font-heading text-section text-sand-deep">
+          Nothing to review
         </h2>
-        <p className="text-body text-sand-ink">
-          Your next words come back soon. Watch something and new ones will land here.
+        <p className="max-w-sm text-body text-sand-ink">
+          Your next words come back soon. Watch something and the words you pick will land here.
         </p>
       </section>
     );
   }
 
-  const previewVideos = withDue.slice(0, 4);
-  const hiddenVideos = withDue.length - previewVideos.length;
+  const topVideos = withDue.slice(0, 3);
+  const hiddenVideos = withDue.length - topVideos.length;
 
   return (
     <section
-      className="flex flex-col gap-8 rounded-2xl bg-sand-soft px-7 py-8 sm:flex-row sm:items-center sm:justify-between"
+      className="grid gap-10 rounded-2xl bg-sand-soft px-8 py-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center"
       aria-labelledby="due-heading"
     >
       <div>
         <p className="text-meta font-semibold uppercase tracking-[0.08em] text-sand-ink">Due today</p>
-        <h2 id="due-heading" className="mt-3 font-heading text-[3rem] leading-none text-sand-deep">
+        <h2 id="due-heading" className="mt-4 flex items-baseline gap-3 font-heading text-[3.5rem] leading-none text-sand-deep">
           {totalDue}
-          <span className="ml-3 align-middle font-sans text-body text-sand-ink">
-            {totalDue === 1 ? 'word' : 'words'} from {withDue.length}{' '}
-            {withDue.length === 1 ? 'video' : 'videos'}
+          <span className="font-sans text-body font-normal text-sand-ink">
+            {totalDue === 1 ? 'word' : 'words'} across {withDue.length} {withDue.length === 1 ? 'video' : 'videos'}
           </span>
         </h2>
         <button
           onClick={onStartAll}
-          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-sand-ink px-6 py-3 text-body font-semibold text-white transition-colors duration-150 ease-swift hover:bg-sand-deep"
+          className="mt-7 inline-flex items-center gap-2 rounded-xl bg-sand-ink px-6 py-3 text-body font-semibold text-white transition-colors duration-150 ease-swift hover:bg-sand-deep"
         >
           <PlayIcon className="h-4 w-4" aria-hidden="true" />
           Start review
         </button>
+        <p className="mt-3 text-meta text-sand-ink">Mixed across every video, in scheduled order</p>
       </div>
 
-      <ul className="flex shrink-0 items-center -space-x-4" aria-hidden="true">
-        {previewVideos.map((video) => {
-          const thumb = thumbnailFor(video);
-          return (
-            <li key={video.video_id}>
-              {thumb ? (
-                <img
-                  src={thumb}
-                  alt=""
-                  className="h-16 w-24 rounded-xl border-2 border-sand-soft object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div className="flex h-16 w-24 items-center justify-center rounded-xl border-2 border-sand-soft bg-[#B20710]/10 text-body-sm font-bold text-[#B20710]">
-                  N
-                </div>
-              )}
-            </li>
-          );
-        })}
+      <div className="rounded-xl bg-white/60 p-2">
+        <ul>
+          {topVideos.map((video) => {
+            const thumb = thumbnailFor(video);
+            return (
+              <li key={video.video_id}>
+                <button
+                  onClick={() => onStartVideo(video.video_id, video.title)}
+                  className="group flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors duration-150 ease-swift hover:bg-white"
+                >
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="h-10 w-16 shrink-0 rounded-md object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-10 w-16 shrink-0 items-center justify-center rounded-md bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
+                      N
+                    </div>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-body-sm font-medium text-sand-deep">{video.title}</span>
+                    <span className="mt-0.5 block text-meta text-sand-ink">
+                      {dueCounts[video.video_id] ?? 0} due
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-sand-ink transition-transform duration-150 ease-swift group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
         {hiddenVideos > 0 && (
-          <li className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-sand-soft bg-sand-mid text-body-sm font-semibold text-sand-deep">
-            +{hiddenVideos}
-          </li>
+          <p className="px-2 pb-1 pt-2 text-meta text-sand-ink">
+            +{hiddenVideos} more {hiddenVideos === 1 ? 'video' : 'videos'} with words due
+          </p>
         )}
-      </ul>
+      </div>
     </section>
   );
 }

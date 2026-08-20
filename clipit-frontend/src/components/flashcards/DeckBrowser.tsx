@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Film, Play, Search, Trash2 } from 'lucide-react';
+import { Film, PlayIcon, SearchIcon, Trash2 } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
 
@@ -13,19 +13,12 @@ interface DeckBrowserProps {
 }
 
 type SortKey = 'due' | 'recent';
-type SourceFilter = 'all' | 'YouTube' | 'Netflix';
 
 const PAGE_SIZE = 5;
 
 const sorts: { value: SortKey; label: string }[] = [
   { value: 'due', label: 'Most due' },
   { value: 'recent', label: 'Recently watched' },
-];
-
-const sources: { value: SourceFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'YouTube', label: 'YouTube' },
-  { value: 'Netflix', label: 'Netflix' },
 ];
 
 function sourceOf(video: TrackedVideo): 'YouTube' | 'Netflix' {
@@ -35,26 +28,19 @@ function sourceOf(video: TrackedVideo): 'YouTube' | 'Netflix' {
 export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDeleteVideo }: DeckBrowserProps) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('due');
-  const [source, setSource] = useState<SourceFilter>('all');
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [showDeleteVideoConfirm, setShowDeleteVideoConfirm] = useState<TrackedVideo | null>(null);
   const [isDeletingVideo, setIsDeletingVideo] = useState(false);
 
-  const resetPaging = () => setVisible(PAGE_SIZE);
-
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const filtered = videos.filter((video) => {
-      if (source !== 'all' && sourceOf(video) !== source) return false;
-      if (!needle) return true;
-      return video.title.toLowerCase().includes(needle);
-    });
+    const filtered = videos.filter((video) => !needle || video.title.toLowerCase().includes(needle));
 
     return [...filtered].sort((a, b) => {
       if (sort === 'due') return (dueCounts[b.video_id] ?? 0) - (dueCounts[a.video_id] ?? 0);
       return b.tracked_at - a.tracked_at;
     });
-  }, [videos, query, sort, source, dueCounts]);
+  }, [videos, query, sort, dueCounts]);
 
   const shown = results.slice(0, visible);
 
@@ -70,54 +56,37 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
   }
 
   return (
-    <section className="mt-14" aria-labelledby="library-heading">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <section aria-labelledby="library-heading">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-sand-mid/40 pb-4">
         <h2 id="library-heading" className="font-heading text-card-title text-sand-deep">
           Your videos
         </h2>
-        <label className="relative w-full max-w-xs">
-          <span className="sr-only">Search videos</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sand-ink" aria-hidden="true" />
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              resetPaging();
-            }}
-            placeholder="Search a video"
-            className="w-full rounded-xl border border-sand-mid/60 bg-sand-tint py-2.5 pl-9 pr-3 text-body-sm text-sand-deep placeholder:text-sand-ink/70 focus:border-sand-ink focus:outline-none"
-          />
-        </label>
-      </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-sand-mid/40 pb-4">
-        <div className="flex items-center gap-1.5" role="group" aria-label="Filter by source">
-          {sources.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => {
-                setSource(option.value);
-                resetPaging();
+        <div className="flex flex-1 items-center justify-end gap-3">
+          <label className="relative w-full max-w-xs">
+            <span className="sr-only">Search videos</span>
+            <SearchIcon
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sand-ink"
+              aria-hidden="true"
+            />
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setVisible(PAGE_SIZE);
               }}
-              aria-pressed={source === option.value}
-              className={`rounded-lg px-3 py-1.5 text-body-sm transition-colors duration-150 ease-swift ${
-                source === option.value ? 'bg-sand-soft font-semibold text-sand-deep' : 'text-sand-ink hover:text-sand-deep'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <label className="ml-auto flex items-center gap-2 text-body-sm text-sand-ink">
-          Sort
+              placeholder="Search a video"
+              className="w-full rounded-xl border border-sand-mid/60 bg-sand-tint py-2.5 pl-9 pr-3 text-body-sm text-sand-deep placeholder:text-sand-ink/70 focus:border-sand-ink focus:outline-none"
+            />
+          </label>
           <select
             value={sort}
             onChange={(event) => {
               setSort(event.target.value as SortKey);
-              resetPaging();
+              setVisible(PAGE_SIZE);
             }}
-            className="rounded-lg border border-sand-mid/60 bg-sand-tint px-2.5 py-1.5 text-body-sm font-medium text-sand-deep focus:outline-none"
+            aria-label="Sort videos"
+            className="shrink-0 rounded-xl border border-sand-mid/60 bg-sand-tint px-3 py-2.5 text-body-sm font-medium text-sand-deep focus:outline-none"
           >
             {sorts.map((option) => (
               <option key={option.value} value={option.value}>
@@ -125,11 +94,11 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
 
       {results.length === 0 ? (
-        <p className="py-12 text-center text-body text-sand-ink">
+        <p className="py-16 text-center text-body text-sand-ink">
           {videos.length === 0 ? 'No videos tracked yet.' : `No videos match "${query}".`}
         </p>
       ) : (
@@ -139,54 +108,52 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             const count = wordCounts[video.video_id];
             const isNetflix = sourceOf(video) === 'Netflix';
             return (
-              <li key={video.video_id}>
-                <div className="flex items-center gap-4 border-b border-sand-mid/40 py-4">
-                  <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-sand-soft">
-                    {isNetflix ? (
-                      <div className="flex h-full w-full items-center justify-center bg-[#B20710]/10">
-                        <Film className="h-5 w-5 text-[#B20710]" aria-hidden="true" />
-                      </div>
-                    ) : (
-                      <img
-                        src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-body font-semibold text-sand-deep">{video.title}</p>
-                    <p className="mt-0.5 truncate text-body-sm text-sand-ink">
-                      {sourceOf(video)} · {relativeDay(video.tracked_at)}
-                    </p>
-                  </div>
-                  <div className="hidden w-28 shrink-0 text-right sm:block">
-                    <p className={`text-body-sm font-semibold ${due > 0 ? 'text-sand-ink' : 'text-sand-ink/60'}`}>
-                      {count === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Caught up'}
-                    </p>
-                    <p className="mt-0.5 text-meta text-sand-ink/70">
-                      {count === undefined ? '' : `${count} words`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onStudyVideo(video.video_id, video.title)}
-                    disabled={due === 0}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sand-soft px-3.5 py-2 text-body-sm font-semibold text-sand-deep transition-colors duration-150 ease-swift enabled:hover:bg-sand-mid disabled:opacity-40"
-                  >
-                    <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                    Review
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteVideoConfirm(video)}
-                    className="shrink-0 rounded-lg p-2 text-sand-ink/60 transition-colors hover:bg-red-500/10 hover:text-red-500"
-                    title="Delete video"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
+              <li key={video.video_id} className="flex items-center gap-5 border-b border-sand-mid/40 py-4">
+                <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-sand-soft">
+                  {isNetflix ? (
+                    <div className="flex h-full w-full items-center justify-center bg-[#B20710]/10">
+                      <Film className="h-5 w-5 text-[#B20710]" aria-hidden="true" />
+                    </div>
+                  ) : (
+                    <img
+                      src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  )}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body font-semibold text-sand-deep">{video.title}</p>
+                  <p className="mt-0.5 truncate text-body-sm text-sand-ink">
+                    {sourceOf(video)} · {relativeDay(video.tracked_at)}
+                    {count !== undefined && ` · ${count} words`}
+                  </p>
+                </div>
+                <p
+                  className={`hidden w-20 shrink-0 text-right text-body-sm font-semibold sm:block ${
+                    due > 0 ? 'text-sand-ink' : 'text-sand-ink/60'
+                  }`}
+                >
+                  {count === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Caught up'}
+                </p>
+                <button
+                  onClick={() => onStudyVideo(video.video_id, video.title)}
+                  disabled={due === 0}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sand-soft px-3.5 py-2 text-body-sm font-semibold text-sand-deep transition-colors duration-150 ease-swift enabled:hover:bg-sand-mid disabled:opacity-40"
+                >
+                  <PlayIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  Review
+                </button>
+                <button
+                  onClick={() => setShowDeleteVideoConfirm(video)}
+                  className="shrink-0 rounded-lg p-2 text-sand-ink/60 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                  title="Delete video"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
               </li>
             );
           })}
@@ -194,17 +161,12 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
       )}
 
       {visible < results.length && (
-        <div className="mt-6 flex items-center justify-center gap-4">
-          <button
-            onClick={() => setVisible((count) => count + PAGE_SIZE)}
-            className="rounded-xl bg-sand-soft px-4 py-2.5 text-body-sm font-semibold text-sand-deep transition-colors duration-150 ease-swift hover:bg-sand-mid"
-          >
-            Show more
-          </button>
-          <span className="text-meta text-sand-ink">
-            {shown.length} of {results.length} videos
-          </span>
-        </div>
+        <button
+          onClick={() => setVisible((count) => count + PAGE_SIZE)}
+          className="mt-6 w-full rounded-xl py-2.5 text-body-sm font-semibold text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
+        >
+          Show {Math.min(PAGE_SIZE, results.length - visible)} more of {results.length}
+        </button>
       )}
 
       {/* Delete Video Confirmation Modal */}

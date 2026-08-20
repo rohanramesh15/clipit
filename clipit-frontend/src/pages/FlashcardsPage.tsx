@@ -105,26 +105,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
   }, []);
 
-  // Play text using Web Speech API
-  const playTTS = useCallback((text: string) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR';
-    utterance.rate = 0.9;
-
-    const voices = window.speechSynthesis.getVoices();
-    const langPrefix = language === 'uk' ? 'uk' : language === 'en' ? 'en' : 'ko';
-    const targetVoice = voices.find(v => v.lang.startsWith(langPrefix) && v.name.includes('Google'))
-      || voices.find(v => v.lang.startsWith(langPrefix))
-      || voices[0];
-
-    if (targetVoice) {
-      utterance.voice = targetVoice;
-    }
-
-    window.speechSynthesis.speak(utterance);
-  }, [language]);
-
   useEffect(() => {
     gtag('event', 'conversion', {
       'send_to': 'AW-18115152337/s3QjCOHmyqEcENGT_b1D',
@@ -501,7 +481,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }, 300);
   }
 
-  // 1-4 keyboard shortcuts for rating, matching the hints shown on RatingBar.
+  // Space/Enter to flip, Esc to leave, 1-4 to rate once revealed.
   useEffect(() => {
     if (loadState !== 'loaded' || !currentCard || isEditingDefinition || showDeleteConfirm) return;
     const keyToRating: Record<string, Rating> = {
@@ -513,10 +493,23 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     function onKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      const rating = keyToRating[e.key];
-      if (rating !== undefined) {
+
+      if (e.key === 'Escape') {
         e.preventDefault();
-        handleRating(rating);
+        handleBackToDecks();
+        return;
+      }
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        setIsFlipped((v) => !v);
+        return;
+      }
+      if (isFlipped) {
+        const rating = keyToRating[e.key];
+        if (rating !== undefined) {
+          e.preventDefault();
+          handleRating(rating);
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -778,20 +771,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <div className="mx-auto min-h-screen max-w-3xl px-4 pb-24 pt-4 sm:px-8 bg-white">
         <button
           onClick={() => onNavigate?.('practice')}
-          className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-body-sm text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
+          aria-label="Back"
+          className="-ml-2 inline-flex items-center rounded-xl p-2 text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          Practice
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
 
-        <h1 className="mt-6 font-heading text-section font-medium text-sand-deep" id="section-deck-select">
+        <h1 className="mt-4 font-heading text-section font-medium text-sand-deep" id="section-deck-select">
           Flash cards
         </h1>
-        <p className="mt-2 max-w-md text-body text-sand-ink">
-          {hasNoVideos
-            ? "You haven't watched any videos yet."
-            : "Words picked out of what you watched, scheduled for you. Start with today's queue, or pick a single video."}
-        </p>
 
         {hasNoVideos ? (
           <div className="mt-10 flex flex-col items-center gap-5 py-12 text-center">
@@ -799,7 +787,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               <Tv className="w-8 h-8 text-sand-ink" />
             </div>
             <p className="text-sand-ink text-sm max-w-sm">
-              Install the Clip It extension, then watch something on YouTube or Netflix — we'll turn the words you hear into flashcards.
+              You haven't watched any videos yet. Install the Clip It extension, then watch something on YouTube or
+              Netflix — we'll turn the words you hear into flashcards.
             </p>
             <a
               href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
@@ -819,16 +808,19 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 dueCounts={dueCounts}
                 isLoadingDue={isLoadingDue}
                 onStartAll={() => loadAllVideos(videos)}
+                onStartVideo={loadFlashcards}
               />
             </div>
 
-            <DeckBrowser
-              videos={videos}
-              wordCounts={wordCounts}
-              dueCounts={dueCounts}
-              onStudyVideo={loadFlashcards}
-              onDeleteVideo={handleDeleteVideoFlashcards}
-            />
+            <div className="mt-14">
+              <DeckBrowser
+                videos={videos}
+                wordCounts={wordCounts}
+                dueCounts={dueCounts}
+                onStudyVideo={loadFlashcards}
+                onDeleteVideo={handleDeleteVideoFlashcards}
+              />
+            </div>
           </>
         )}
       </div>
@@ -993,7 +985,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             onChangeEditedDefinition={setEditedDefinition}
             onSaveDefinition={handleSaveDefinition}
             onCancelEdit={() => setIsEditingDefinition(false)}
-            onPlaySentenceTTS={playTTS}
           />
         </div>
       )}
@@ -1013,8 +1004,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       </AnimatePresence>
 
       {/* Controls */}
-      <div id="section-rating-buttons" className="mt-8 w-full">
-        <RatingBar previewTimes={previewTimes} onRate={handleRating} />
+      <div id="section-rating-buttons" className="mx-auto mt-6 min-h-[5.5rem] w-full max-w-[22rem]">
+        {isFlipped ? (
+          <RatingBar previewTimes={previewTimes} onRate={handleRating} />
+        ) : (
+          <p className="pt-4 text-center text-meta text-sand-ink">Space to flip · Esc to leave</p>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

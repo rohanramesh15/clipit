@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Play, RotateCcw, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { API_BASE_URL } from '../../config';
 import { FlashCard } from '../../types/flashcards';
+import { speak } from '../../utils/speech';
 
 // Netflix video placeholder component with screenshot and audio support
 function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; timestamp: number }) {
@@ -114,55 +115,13 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
   );
 }
 
-// Preload voices on module load
-let cachedVoices: SpeechSynthesisVoice[] = [];
-
-function loadVoices() {
-  cachedVoices = window.speechSynthesis.getVoices();
-}
-
-loadVoices();
-if (typeof window !== 'undefined' && window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}
-
-function playTTSWord(word: string, lang: string) {
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = lang === 'uk' ? 'uk-UA' : lang === 'en' ? 'en-US' : 'ko-KR';
-  utterance.rate = 0.9;
-
-  const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
-  const langPrefix = lang === 'uk' ? 'uk' : lang === 'en' ? 'en' : 'ko';
-
-  const targetVoice =
-    voices.find((v) => v.lang.startsWith(langPrefix) && v.name.includes('Google')) ||
-    voices.find((v) => v.lang.startsWith(langPrefix) && v.name.includes('Yuna')) ||
-    voices.find((v) => v.lang.startsWith(langPrefix) && v.name.includes('Sora')) ||
-    voices.find(
-      (v) =>
-        v.lang.startsWith(langPrefix) &&
-        !v.name.includes('Eddy') &&
-        !v.name.includes('Rocko') &&
-        !v.name.includes('Shelley'),
-    ) ||
-    voices.find((v) => v.lang.startsWith(langPrefix));
-
-  if (targetVoice) {
-    utterance.voice = targetVoice;
-  }
-
-  window.speechSynthesis.speak(utterance);
-}
-
 // TTS Card placeholder component - displays word with audio button (no video context)
 function TTSCardPlaceholder({ word, language }: { word: string; language: string }) {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const playAudio = React.useCallback(() => {
     setIsPlaying(true);
-    playTTSWord(word, language);
+    speak(word, language);
     setTimeout(() => setIsPlaying(false), 1500);
   }, [word, language]);
 
