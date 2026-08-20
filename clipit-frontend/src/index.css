@@ -93,26 +93,12 @@ a[href]:active {
   outline-offset: 3px;
 }
 
-/* ── Skeleton shimmer loading ──────────────────────────────────────────────
-   Placeholder boxes that sit in place of real UI boxes while content loads,
-   with a light sweeping diagonally across them. Theme-aware (light/dark). */
-@keyframes cv-shimmer {
-  0%   { background-position: 150% 0; }
-  100% { background-position: -150% 0; }
-}
+/* ── Skeleton loading placeholders ─────────────────────────────────────────
+   Layout placeholders remain still; the shared loading video provides the
+   motion so every loading state has one consistent visual language. */
 .skeleton {
-  /* A box that reads DARKER than the page background, with a sweeping sheen.
-     Pages can tint their loading state by setting --skeleton-tint on a wrapper. */
+  /* Pages can tint their loading state by setting --skeleton-tint on a wrapper. */
   background-color: var(--skeleton-tint, rgba(0, 0, 0, 0.12));
-  background-image: linear-gradient(
-    100deg,
-    transparent 25%,
-    rgba(0, 0, 0, 0.08) 50%,
-    transparent 75%
-  );
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-  animation: cv-shimmer 1.5s ease-in-out infinite;
   border-radius: 14px;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -122,7 +108,6 @@ a[href]:active {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
-  .skeleton { animation: none; }
 }
 /* Light mode overrides for white/black opacity patterns */
 .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.06) !important; }

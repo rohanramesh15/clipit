@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Shimmering placeholder box used for loading states across the app.
+ * Static placeholder box used to preserve layout while the shared loader plays.
  * Shape it with Tailwind sizing/radius classes (e.g. `h-14 w-full rounded-2xl`)
  * so the skeleton mirrors the real UI box it stands in for.
  */

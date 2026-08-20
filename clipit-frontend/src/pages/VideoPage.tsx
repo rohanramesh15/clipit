@@ -7,6 +7,7 @@ import { SegmentedFilter } from '../components/SegmentedFilter';
 import { VideoHistoryItem, type TrackedVideo, type Platform } from '../components/VideoHistoryItem';
 import { RemoveVideoDialog } from '../components/RemoveVideoDialog';
 import { Skeleton } from '../components/Skeleton';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -132,7 +133,10 @@ export function VideoPage() {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-body-sm text-muted">Loading your watch history…</p>
+          <div className="mt-6 flex items-center gap-3 text-body-sm text-muted">
+            <LoadingAnimation className="h-7 w-7" />
+            <p>Loading your watch history…</p>
+          </div>
         </div>
       )}
 

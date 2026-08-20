@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Construction, Loader2, Mic, Phone, PhoneOff, FileText, X, Sparkles } from 'lucide-react';
+import { Construction, Mic, Phone, PhoneOff, FileText, X, Sparkles } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,6 +10,7 @@ import {
   endSession,
 } from '../services/chat';
 import { VoiceSession, VoiceEvent, buildWsUrl } from '../lib/voiceSession';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 
 const SUPPORTED_CHAT_LANGUAGES = new Set(['es', 'en']);
 const LEVELS = ['A1', 'A2', 'B1'] as const;
@@ -271,7 +272,7 @@ function Orb({ status, level }: { status: Status; level: number }) {
         style={{ transform: `scale(${scale})` }}>
         <div className="absolute inset-3 rounded-full bg-app/40 backdrop-blur flex items-center justify-center">
           {status === 'connecting' ? (
-            <Loader2 className="w-10 h-10 text-white animate-spin" />
+            <LoadingAnimation className="h-10 w-10" />
           ) : (
             <Mic className="w-10 h-10 text-white" style={{ opacity: 0.6 + level * 0.4 }} />
           )}
@@ -330,7 +331,7 @@ function SummaryModal({
 
         {ending ? (
           <div className="flex items-center gap-2 text-secondary text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Scoring your call…
+            <LoadingAnimation className="h-4 w-4" /> Scoring your call…
           </div>
         ) : (
           <div className="space-y-4">

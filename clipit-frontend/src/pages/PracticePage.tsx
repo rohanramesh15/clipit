@@ -8,6 +8,7 @@ import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
 import { WatchNudge } from '../components/WatchNudge';
 import { Skeleton } from '../components/Skeleton';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { homeQueueQueryOptions } from '../lib/queries';
 import { queryClient } from '../lib/queryClient';
@@ -74,6 +75,10 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
 
       {wordLoadState === 'loading' && (
         <div className="mt-10" role="status" aria-live="polite" aria-label="Loading your practice queue">
+          <div className="mb-5 flex items-center gap-3 text-body-sm text-muted">
+            <LoadingAnimation className="h-7 w-7" />
+            <span>Loading your practice queue…</span>
+          </div>
           <div className="grid gap-5 sm:grid-cols-3" aria-hidden="true">
             {[0, 1, 2].map((index) => (
               <div key={index} className="rounded-2xl bg-surface p-5">

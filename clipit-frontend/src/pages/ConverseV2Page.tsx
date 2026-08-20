@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, ArrowLeft, Lightbulb, HelpCircle,
-  Loader2, ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy,
+  ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -21,6 +21,7 @@ import { PracticeEmptyState, type NavPage } from '../components/PracticeEmptySta
 import { Skeleton } from '../components/Skeleton';
 import { Persona, type PersonaState } from '../components/ai-elements/persona';
 import { SpeechInput } from '../components/ai-elements/speech-input';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 
 // App accent (matches --accent in index.css).
 const ACCENT = '#C4625A';
@@ -787,8 +788,9 @@ export function ConverseV2Page(
           <Skeleton className="h-12 w-1/2 rounded-2xl ml-auto" />
           <Skeleton className="h-16 w-2/3 rounded-2xl" />
         </div>
-        <div className="mt-10 flex justify-center">
-          <Skeleton className="h-[68px] w-[68px] rounded-full" />
+        <div className="mt-10 flex flex-col items-center gap-3 text-sm text-muted" role="status" aria-live="polite">
+          <LoadingAnimation className="h-[68px] w-[68px]" />
+          <span>Starting your conversation…</span>
         </div>
       </div>
     );
@@ -963,7 +965,7 @@ export function ConverseV2Page(
                           aria-label="Another response"
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors disabled:opacity-60"
                         >
-                          {regenLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                          {regenLoading ? <LoadingAnimation className="h-4 w-4" /> : <RotateCcw className="w-4 h-4" />}
                         </button>
                         <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
                           Another response
@@ -976,7 +978,7 @@ export function ConverseV2Page(
                           aria-label="Suggest reply"
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors disabled:opacity-60"
                         >
-                          {suggestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquarePlus className="w-4 h-4" />}
+                          {suggestLoading ? <LoadingAnimation className="h-4 w-4" /> : <MessageSquarePlus className="w-4 h-4" />}
                         </button>
                         <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
                           Suggest reply
@@ -1088,7 +1090,7 @@ export function ConverseV2Page(
                   className="px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
                   style={{ background: ACCENT }}
                 >
-                  {howtoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Translate'}
+                  {howtoLoading ? <LoadingAnimation className="h-4 w-4" /> : 'Translate'}
                 </button>
               </div>
               {howtoResult && howtoResult.spanish && (
@@ -1138,7 +1140,7 @@ export function ConverseV2Page(
               className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full disabled:opacity-40 transition-opacity"
               style={{ background: ACCENT, color: '#fff' }}
             >
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {sending ? <LoadingAnimation className="h-4 w-4" /> : <Send className="w-4 h-4" />}
             </button>
           </div>
         </div>

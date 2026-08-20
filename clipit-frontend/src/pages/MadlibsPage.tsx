@@ -11,6 +11,7 @@ import {
 } from '../services/madlibs';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -126,7 +127,11 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         </p>
 
         {videos === null ? (
-          <div className="space-y-3">
+          <div className="space-y-3" role="status" aria-live="polite">
+            <div className="flex items-center gap-3 text-sm text-muted">
+              <LoadingAnimation className="h-7 w-7" />
+              <span>Loading videos…</span>
+            </div>
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="bg-surface rounded-2xl p-5 flex items-center gap-5">
                 <Skeleton className="w-32 aspect-video rounded-lg shrink-0" />
@@ -188,6 +193,10 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     return (
       <div className="min-h-[calc(100vh-4rem)] max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">{backTo('deck')}{title}</div>
+        <div className="mb-6 flex items-center gap-3 text-sm text-muted" role="status" aria-live="polite">
+          <LoadingAnimation className="h-7 w-7" />
+          <span>Preparing your practice…</span>
+        </div>
         <Skeleton className="h-1.5 w-full rounded-full mb-10" />
         <Skeleton className="h-44 w-full mb-5" style={{ borderRadius: 24 }} />
         <div className="grid grid-cols-2 gap-3">

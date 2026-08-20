@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { LoadingAnimation } from '../LoadingAnimation';
 
 function GoogleLogo({ className }: { className?: string }) {
   return (
@@ -26,7 +26,7 @@ export function GoogleButton({ label, onClick, isLoading = false }: GoogleButton
       disabled={isLoading}
       className="flex w-full items-center justify-center gap-3 rounded-xl border border-medium bg-app py-2.5 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-70"
     >
-      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <GoogleLogo className="h-4 w-4" />}
+      {isLoading ? <LoadingAnimation className="h-4 w-4" /> : <GoogleLogo className="h-4 w-4" />}
       {label}
     </button>
   );

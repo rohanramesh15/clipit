@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState';
 import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
 import { Skeleton } from '../components/Skeleton';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -37,7 +38,10 @@ function AnalyticsLoadingState() {
       </div>
 
       <Skeleton className="mt-6 h-52 w-full rounded-2xl" />
-      <p className="mt-8 text-body-sm text-muted">Loading your progress…</p>
+      <div className="mt-8 flex items-center gap-3 text-body-sm text-muted">
+        <LoadingAnimation className="h-7 w-7" />
+        <p>Loading your progress…</p>
+      </div>
     </div>
   );
 }

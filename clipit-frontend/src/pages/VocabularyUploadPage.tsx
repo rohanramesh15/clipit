@@ -11,7 +11,6 @@ import {
   Plus,
   CheckCircle,
   AlertCircle,
-  Loader2,
   Info,
   ChevronDown,
   ChevronUp,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { Skeleton } from '../components/Skeleton';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 
 const uploadPageTips: HelpTip[] = [
   {
@@ -424,7 +424,7 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
               <p className="font-semibold text-primary">Choose your word source</p>
               <InfoTip text="Controls which words are extracted when you watch videos." />
               {isSavingSettings && (
-                <Loader2 className="w-5 h-5 text-accent animate-spin ml-auto" />
+                <LoadingAnimation className="ml-auto h-5 w-5" />
               )}
             </div>
 
@@ -507,7 +507,7 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
               }`}
             >
               {isUploading ? (
-                <Loader2 className="w-10 h-10 text-accent animate-spin mb-3" />
+                <LoadingAnimation className="mb-3 h-10 w-10" />
               ) : (
                 <Upload className="w-10 h-10 text-secondary mb-3" />
               )}
@@ -547,7 +547,7 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
               }`}
             >
               {isUploadingAnki ? (
-                <Loader2 className="w-8 h-8 text-purple-400 animate-spin mb-2" />
+                <LoadingAnimation className="mb-2 h-8 w-8" />
               ) : (
                 <Layers className="w-8 h-8 text-secondary mb-2" />
               )}
@@ -653,7 +653,7 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
                       className="p-2 text-secondary hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {deletingListId === list.id ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <LoadingAnimation className="h-5 w-5" />
                       ) : (
                         <Trash2 className="w-5 h-5" />
                       )}
@@ -672,7 +672,7 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
                       <div className="p-4 max-h-64 overflow-y-auto">
                         {expandedListWords.length === 0 ? (
                           <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-5 h-5 text-accent animate-spin" />
+                            <LoadingAnimation className="h-5 w-5" />
                           </div>
                         ) : (
                           <div className="space-y-2">

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Volume2, Loader2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Volume2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCardStats } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { API_BASE_URL } from '../config';
+import { LoadingAnimation } from '../components/LoadingAnimation';
 
 const dictionaryPageTips: HelpTip[] = [
   {
@@ -139,7 +140,7 @@ export function DictionaryPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 text-accent animate-spin" />
+        <LoadingAnimation className="h-8 w-8" />
         <p className="text-secondary">Loading dictionary...</p>
       </div>
     );
