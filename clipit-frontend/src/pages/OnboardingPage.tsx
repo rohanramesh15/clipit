@@ -260,7 +260,7 @@ interface Slide {
   id: number;
   eyebrow: string;
   headline: string;
-  body: string;
+  body?: string;
   icon: React.ElementType;
   iconBg: string;
   iconColor: string;
@@ -290,14 +290,11 @@ const slides: Slide[] = [
   id: 0,
   eyebrow: '',
   headline: "Welcome to ClipIt",
-  body: "Clip it. Learn it.",
   secondaryBody: "Make the content you love the classroom.",
   icon: Zap,
   iconBg: 'bg-accent/20',
   iconColor: 'text-accent',
-  useClipLogo: true,
-  largeBody: true,
-  smallHeadline: true
+  useClipLogo: true
 },
 {
   id: 1,
@@ -800,9 +797,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </h1>
 
             {/* Body */}
-            <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
-              {slide.body}
-            </p>
+            {slide.body && (
+              <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
+                {slide.body}
+              </p>
+            )}
 
             {/* Sample Flashcard */}
             {slide.showFlashcard && <SampleFlashcard />}

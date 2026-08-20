@@ -25,10 +25,10 @@ export function WatchNudge({ language, languageName }: WatchNudgeProps) {
       className="flex items-end gap-3"
     >
       <div className="flex items-start gap-1.5">
-        <p className="max-w-[22rem] -rotate-[1.5deg] font-logo text-lead leading-snug text-accent">
+        <p className="max-w-[22rem] -rotate-[1.5deg] text-lead leading-snug text-accent">
           Go watch anything in {languageName}
           {phrase && (
-            <span className="ml-1.5 whitespace-nowrap font-sans text-body-sm font-semibold text-muted">{phrase}</span>
+            <span className="ml-1.5 whitespace-nowrap text-body-sm font-semibold text-muted">{phrase}</span>
           )}
           <br />
           and start practicing your words with these ways.
