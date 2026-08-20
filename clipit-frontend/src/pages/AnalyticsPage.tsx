@@ -176,10 +176,7 @@ export function AnalyticsPage() {
               {Array.from({ length: 26 }).map((_, column) => (
                 <div key={column} className="flex flex-col gap-[3px]">
                   {Array.from({ length: 7 }).map((__, row) => (
-                    <span
-                      key={row}
-                      className={`h-[11px] w-[11px] rounded-sm ${column === 25 && row === 3 ? 'bg-accent' : 'bg-blush'}`}
-                    />
+                    <span key={row} className="h-[11px] w-[11px] rounded-sm bg-blush" />
                   ))}
                 </div>
               ))}
