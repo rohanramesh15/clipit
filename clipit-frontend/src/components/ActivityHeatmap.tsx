@@ -76,46 +76,44 @@ export function ActivityHeatmap({ days, year }: ActivityHeatmapProps) {
         </p>
       </div>
 
-      <div className="mt-6 overflow-x-auto pb-1">
-        <div className="min-w-[720px]">
-          <div className="flex gap-[3px] pl-6">
-            {monthLabels.map((label, index) => (
-              <span key={index} className="w-[11px] shrink-0 text-meta text-muted">
-                {label ? <span className="relative -left-px whitespace-nowrap">{label}</span> : null}
+      <div className="mt-6">
+        <div className="flex gap-[3px] pl-6">
+          {monthLabels.map((label, index) => (
+            <span key={index} className="flex-1 text-meta text-muted">
+              {label ? <span className="relative -left-px whitespace-nowrap">{label}</span> : null}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-1 flex gap-[3px]">
+          <div className="mr-1 flex w-5 shrink-0 flex-col gap-[3px]">
+            {DAY_ROWS.map((label, index) => (
+              <span key={index} className="h-[11px] text-[9px] leading-[11px] text-muted">
+                {label}
               </span>
             ))}
           </div>
 
-          <div className="mt-1 flex gap-[3px]">
-            <div className="mr-1 flex w-5 flex-col gap-[3px]">
-              {DAY_ROWS.map((label, index) => (
-                <span key={index} className="h-[11px] text-[9px] leading-[11px] text-muted">
-                  {label}
-                </span>
-              ))}
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="flex flex-1 flex-col gap-[3px]">
+              {week.map((cell, dayIndex) =>
+                cell ? (
+                  <span
+                    key={cell.date}
+                    onMouseEnter={() => setHovered(cell)}
+                    onFocus={() => setHovered(cell)}
+                    onMouseLeave={() => setHovered(null)}
+                    onBlur={() => setHovered(null)}
+                    tabIndex={-1}
+                    title={`${formatDayLabel(cell.date)} · ${cell.reviews === 0 ? 'No reviews' : `${cell.reviews} reviews`}`}
+                    className={`h-[11px] w-full rounded-sm ${intensityClass(cell.reviews, max)}`}
+                  />
+                ) : (
+                  <span key={`${weekIndex}-${dayIndex}`} className="h-[11px] w-full" />
+                ),
+              )}
             </div>
-
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-[3px]">
-                {week.map((cell, dayIndex) =>
-                  cell ? (
-                    <span
-                      key={cell.date}
-                      onMouseEnter={() => setHovered(cell)}
-                      onFocus={() => setHovered(cell)}
-                      onMouseLeave={() => setHovered(null)}
-                      onBlur={() => setHovered(null)}
-                      tabIndex={-1}
-                      title={`${formatDayLabel(cell.date)} · ${cell.reviews === 0 ? 'No reviews' : `${cell.reviews} reviews`}`}
-                      className={`h-[11px] w-[11px] rounded-sm ${intensityClass(cell.reviews, max)}`}
-                    />
-                  ) : (
-                    <span key={`${weekIndex}-${dayIndex}`} className="h-[11px] w-[11px]" />
-                  ),
-                )}
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
