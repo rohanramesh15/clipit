@@ -36,8 +36,12 @@ export default {
         logo: { fill: '#EA7B7B' },
       },
       fontFamily: {
-        sans: ['Nunito', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
-        heading: ['Fredoka', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
+        // 'Noto Sans KR' fills the Hangul gap neither Nunito nor Fredoka
+        // covers, so Korean content gets the same intentional treatment
+        // Ukrainian already gets from Nunito's native Cyrillic support,
+        // instead of silently falling back to the bare OS font.
+        sans: ['Nunito', 'Noto Sans KR', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
+        heading: ['Fredoka', 'Noto Sans KR', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
         logo: ['Love Ya Like A Sister', 'cursive'],
       },
       // Semantic type scale for the landing page — size, leading and weight

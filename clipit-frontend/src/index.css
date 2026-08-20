@@ -1,6 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Love+Ya+Like+A+Sister&display=swap');
-/* App-wide type pair: Fredoka for `font-heading`, Nunito for `font-sans`. */
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700;800&display=swap');
+/* App-wide type pair: Fredoka for `font-heading`, Nunito for `font-sans`.
+   Neither ships Hangul glyphs (and Fredoka has no Cyrillic either), so
+   Korean text would otherwise fall back to the bare OS font while Nunito's
+   native Cyrillic support lets Ukrainian render normally. Noto Sans KR fills
+   that gap in both stacks (see tailwind.config.js) so Korean gets the same
+   intentional treatment as Ukrainian instead of silently reverting to the
+   system default. */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
 
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -54,7 +60,7 @@
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
-  font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  font-family: 'Nunito', 'Noto Sans KR', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
