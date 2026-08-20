@@ -701,7 +701,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // ── Loading (skeleton mirrors the review layout) ──────────────
   if (loadState === 'loading') {
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 sm:px-6 pt-8 bg-white">
+      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-white">
         <div className="flex items-center gap-3 mb-6">
           <Skeleton className="w-9 h-9 rounded-lg" />
           <Skeleton className="h-9 w-40 rounded-lg" />
@@ -768,7 +768,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   if (loadState === 'deck-select') {
     const hasNoVideos = videos.length === 0;
     return (
-      <div className="mx-auto min-h-screen max-w-3xl px-4 pb-24 pt-4 sm:px-8 bg-white">
+      <div className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-white">
         <button
           onClick={() => onNavigate?.('practice')}
           aria-label="Back"
@@ -903,11 +903,11 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loaded ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center max-w-md mx-auto px-4 py-8 md:py-10 bg-white">
+    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-white">
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div className="w-full grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 mb-5">
+      <div className="w-full max-w-md grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 mb-5">
         <button
           onClick={() => handleBackToDecks()}
           aria-label="Back to decks"
@@ -996,7 +996,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mt-4 px-4 py-2 rounded-lg bg-sand-tint border border-sand-mid/60 text-xs text-sand-ink flex items-center gap-2">
+            className="mt-4 w-full max-w-[22rem] px-4 py-2 rounded-lg bg-sand-tint border border-sand-mid/60 text-xs text-sand-ink flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-sand-ink" />
             Next review for "{lastRatingInfo.word}" in {lastRatingInfo.nextDue}
           </motion.div>
