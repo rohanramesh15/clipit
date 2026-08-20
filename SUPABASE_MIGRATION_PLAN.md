@@ -54,10 +54,10 @@ Ran `alembic upgrade head` against the fresh Supabase DB directly (all 32 migrat
 Step 2 completed with zero errors, so per the plan's own condition, no changes are needed to `app/core/database.py` or `alembic/env.py`. Confirmed: works unmodified against the Session pooler.
 
 ### Step 4 — Update docs and stale references — **Codex**
-- `clipit-backend/new-backend/.env.example`: add an uncommented `DATABASE_URL` example showing the Supabase Session-pooler format, with a comment explaining why (IPv4 pooler required, port 5432 not 6543, not the Direct connection).
-- `clipit-backend/new-backend/test_db_connection.py`: update the "Testing Neon Database Connection" banner text and any Neon-specific wording — this script is a ready-made manual smoke test, reuse it for Step 5.
+- `clipit-backend/.env.example`: add an uncommented `DATABASE_URL` example showing the Supabase Session-pooler format, with a comment explaining why (IPv4 pooler required, port 5432 not 6543, not the Direct connection).
+- `clipit-backend/test_db_connection.py`: update the "Testing Neon Database Connection" banner text and any Neon-specific wording — this script is a ready-made manual smoke test, reuse it for Step 5.
 - `app/services/video_store.py`, `app/services/subtitle_service.py`: update comments/docstrings mentioning "Neon" to be accurate (Supabase, or provider-neutral).
-- `clipit-backend/new-backend/DEPLOYMENT.md`: rewrite the database section — it currently documents `flyctl postgres create`/`attach`, which was never actually used in practice (prod has been on Neon). Replace with Supabase project creation + Session pooler connection string + `flyctl secrets set DATABASE_URL=...`.
+- `clipit-backend/DEPLOYMENT.md`: rewrite the database section — it currently documents `flyctl postgres create`/`attach`, which was never actually used in practice (prod has been on Neon). Replace with Supabase project creation + Session pooler connection string + `flyctl secrets set DATABASE_URL=...`.
 
 ### Step 5 — Functional regression pass against Supabase — **Codex**
 With the app running locally against the Supabase connection (fresh/empty schema):
