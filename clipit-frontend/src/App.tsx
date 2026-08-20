@@ -209,7 +209,7 @@ function AppInner() {
           <TopNav activePage={activePage} onNavigate={setActivePage} />
 
           <main className="p-4 md:p-8 overflow-x-hidden">
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} mode="popLayout">
               <motion.div
                 key={activePage}
                 initial={{
