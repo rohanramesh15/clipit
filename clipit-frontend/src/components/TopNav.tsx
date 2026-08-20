@@ -227,9 +227,8 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                   transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
                   className="absolute right-0 top-full mt-2 w-64 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
                 >
-                  <div className="flex items-center gap-3 border-b border-subtle px-3 pb-3 pt-2">
-                    <Avatar user={user} size={36} />
-                    <div className="min-w-0 flex-1">
+                  <div className="border-b border-subtle px-3 pb-3 pt-2">
+                    <div className="min-w-0">
                       <p className="truncate text-body-sm font-semibold text-primary">{displayName}</p>
                       <p className="truncate text-meta text-muted">{user?.email ?? ''}</p>
                     </div>
