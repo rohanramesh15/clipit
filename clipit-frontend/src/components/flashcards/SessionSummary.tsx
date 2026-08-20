@@ -39,7 +39,7 @@ export function SessionSummary({
 }: SessionSummaryProps) {
   if (variant === 'goal-reached') {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-5 px-5 pb-24 pt-24 text-center sm:px-8">
+      <div className="mx-auto flex max-w-md flex-col items-center gap-5 px-5 text-center sm:px-8">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -90,7 +90,7 @@ export function SessionSummary({
 
   if (stats.reviewed === 0) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-5 pb-24 pt-24 text-center sm:px-8">
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-5 text-center sm:px-8">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sand-soft">
           <Trophy className="h-8 w-8 text-sand-ink" aria-hidden="true" />
         </div>
@@ -109,7 +109,7 @@ export function SessionSummary({
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-5 pb-24 pt-24 text-center sm:px-8">
+    <div className="mx-auto flex max-w-md flex-col items-center px-5 text-center sm:px-8">
       <p className="font-heading text-[3rem] leading-none text-sand-deep">{stats.reviewed}</p>
       <p className="mt-3 text-body text-sand-ink">
         {stats.reviewed === 1 ? 'word reviewed' : 'words reviewed'}
