@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { EmptyState } from '../components/EmptyState';
 import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
 import { Skeleton } from '../components/Skeleton';
@@ -163,32 +162,6 @@ export function AnalyticsPage() {
 
   if (hasLoadError) {
     return <AnalyticsErrorState onRetry={() => { void watchTime.refetch(); void reviews.refetch(); }} />;
-  }
-
-  if (totalReviews === 0) {
-    return (
-      <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
-        <header className="pb-8">
-          <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Your progress</h1>
-          <p className="mt-1 text-body text-secondary">Everything else follows from showing up.</p>
-        </header>
-
-        <EmptyState
-          title="Your first review lights this up"
-          visual={
-            <div className="mx-auto flex w-fit gap-[3px]">
-              {Array.from({ length: 26 }).map((_, column) => (
-                <div key={column} className="flex flex-col gap-[3px]">
-                  {Array.from({ length: 7 }).map((__, row) => (
-                    <span key={row} className="h-[11px] w-[11px] rounded-sm bg-blush" />
-                  ))}
-                </div>
-              ))}
-            </div>
-          }
-        />
-      </div>
-    );
   }
 
   return (
