@@ -1,4 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Love+Ya+Like+A+Sister&display=swap');
+/* Landing-page type pair (Fredoka/Nunito) — scoped to the marketing page via
+   the `font-landing-heading` / `font-landing-body` Tailwind utilities. */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap');
 
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -41,6 +44,9 @@
   --border-subtle: rgba(0, 0, 0, 0.06);
   --border-medium: rgba(0, 0, 0, 0.1);
   --on-accent: #ffffff;
+  /* Wordmark stroke — bespoke to the hand-drawn logo mark, set via
+     WebkitTextStroke (a style property, so it can't take a Tailwind class). */
+  --logo-stroke: #9e3b3b;
   /* Practice-card palette (light): soft pastel backgrounds, deep same-hue text */
   --card-fc-bg: #ffeded; --card-fc-text: #9a3f44; /* flash cards — rose */
   --card-vc-bg: #f1ecff; --card-vc-text: #544a93; /* voice chat — violet */

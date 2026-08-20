@@ -3,9 +3,18 @@ import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { demoLine, demoLineTranslation } from '../../data/landing';
 
-const HERO_FRAME =
-  'https://cdn.magicpatterns.com/patterns/generated-images/8e58cf16-1661-4d93-b19e-7ef0ba779ca4.jpg';
 const swift = [0.23, 1, 0.32, 1] as const;
+
+/** Stand-in for a paused video frame, built from brand tones — no stock photography. */
+function SceneBackdrop() {
+  return (
+    <div className="absolute inset-0 flex" aria-hidden="true">
+      <div className="h-full w-[55%] bg-sand-mid/20" />
+      <div className="h-full w-[25%] bg-accent/15" />
+      <div className="h-full w-[20%] bg-sage-mid/20" />
+    </div>
+  );
+}
 
 export function ClipDemo() {
   const [clipped, setClipped] = useState<string[]>([]);
@@ -29,12 +38,8 @@ export function ClipDemo() {
           </span>
         </div>
 
-        <div className="relative">
-          <img
-            src={HERO_FRAME}
-            alt="A scene from a Korean drama playing in the browser"
-            className="aspect-video w-full object-cover"
-          />
+        <div className="relative aspect-video w-full">
+          <SceneBackdrop />
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-ink-deep/75" aria-hidden="true" />
 
           <div className="absolute inset-x-0 bottom-0 p-4 sm:p-6">
@@ -51,7 +56,7 @@ export function ClipDemo() {
                       initial={false}
                       animate={isClipped ? { scale: [1, 1.05, 1] } : {}}
                       transition={{ duration: 0.22, ease: swift }}
-                      className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-heading text-xl font-semibold transition-colors duration-150 ease-swift sm:text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream ${
+                      className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-landing-heading text-xl font-semibold transition-colors duration-150 ease-swift sm:text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream ${
                         isClipped ? 'bg-cream text-ink-deep' : 'text-[#fff] hover:bg-white/12'
                       }`}
                     >

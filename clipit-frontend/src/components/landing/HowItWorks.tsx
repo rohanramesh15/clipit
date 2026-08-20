@@ -4,9 +4,6 @@ import { Check, ChevronRight, Plus } from 'lucide-react';
 import { loopStages } from '../../data/landing';
 import { motionTiming } from '../../lib/motion';
 
-const VLOG_FRAME =
-  'https://cdn.magicpatterns.com/patterns/generated-images/78c36208-7c22-4434-b887-1069d99c4241.jpg';
-
 function WatchVisual() {
   return (
     <div className="w-full overflow-hidden rounded-xl bg-ink">
@@ -15,8 +12,12 @@ function WatchVisual() {
         <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
         <div className="ml-1 h-2 flex-1 rounded-full bg-white/10" />
       </div>
-      <div className="relative">
-        <img src={VLOG_FRAME} alt="" className="h-[124px] w-full object-cover" />
+      <div className="relative h-[124px] w-full" aria-hidden="true">
+        <div className="absolute inset-0 flex items-end">
+          <div className="h-3/5 w-2/5 bg-sand-mid/25" />
+          <div className="h-4/5 w-2/5 bg-accent/20" />
+          <div className="h-2/5 w-1/5 bg-sage-mid/25" />
+        </div>
         <div className="absolute inset-x-0 bottom-0 bg-ink-deep/70 px-3 py-2.5">
           <div className="h-1.5 w-3/4 rounded-full bg-white/35" />
         </div>
@@ -90,7 +91,7 @@ export function HowItWorks() {
     <section id="how-it-works" className="bg-blush py-16 md:py-24" aria-labelledby="how-it-works-title">
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <div className="max-w-2xl">
-          <h2 id="how-it-works-title" className="font-heading text-section text-primary md:text-section-lg">
+          <h2 id="how-it-works-title" className="font-landing-heading text-section text-primary md:text-section-lg">
             One loop, from watching to remembering
           </h2>
           <p className="mt-4 text-lead text-secondary">
@@ -121,7 +122,8 @@ export function HowItWorks() {
                   <Visual />
                 </div>
 
-                <h3 className="mt-4 font-heading text-card-title text-primary">{stage.title}</h3>
+                <p className="mt-4 text-meta font-semibold tracking-wide text-accent">Step {stage.step}</p>
+                <h3 className="mt-1 font-landing-heading text-card-title text-primary">{stage.title}</h3>
                 <p className="mt-2 text-body text-secondary">{stage.description}</p>
 
                 {index < loopStages.length - 1 && (

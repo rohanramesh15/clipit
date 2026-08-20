@@ -17,9 +17,9 @@ const Logo = ({ size = 'text-5xl', img = 'w-16 h-16', stroke = '2px' }: { size?:
     <img src={clipitLogo} alt="ClipIt" className={`${img} object-contain shrink-0 -mt-2`} />
     <span
       className={`${size} tracking-tight`}
-      style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: `${stroke} #9E3B3B`, paintOrder: 'stroke fill' }}
+      style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: `${stroke} var(--logo-stroke)`, paintOrder: 'stroke fill' }}
     >
-      <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
+      <span className="text-logo-fill">lip</span><span className="text-cream">It</span>
     </span>
   </div>
 );
@@ -30,7 +30,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
   const isNavHidden = useHideOnScroll();
 
   return (
-    <div className="light min-h-screen w-full overflow-x-hidden bg-app font-sans text-primary selection:bg-accent selection:text-white">
+    <div className="light min-h-screen w-full overflow-x-hidden bg-app font-landing-body text-primary selection:bg-accent selection:text-white">
       {/* Nav */}
       <motion.header
         animate={{ y: isNavHidden ? '-100%' : '0%' }}
@@ -51,7 +51,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
             <button
               onClick={() => onNavigate('signup')}
-              className="whitespace-nowrap rounded-lg bg-accent px-5 py-2.5 text-body font-medium text-[#fff] transition-colors duration-150 ease-swift hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="whitespace-nowrap rounded-xl bg-accent px-5 py-2.5 text-body font-medium text-[#fff] transition-colors duration-150 ease-swift hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               Sign up
             </button>

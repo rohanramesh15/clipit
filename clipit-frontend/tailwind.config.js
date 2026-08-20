@@ -30,11 +30,19 @@ export default {
         sand: { deep: '#5a3d17', ink: '#8f6227', mid: '#e6c391', soft: '#fbf0e1' },
         sage: { deep: '#2e4a2a', ink: '#4a7043', mid: '#b1cbac', soft: '#ecf2ea' },
         dusk: { deep: '#2f4370', ink: '#4d6291', mid: '#b5c3e3', soft: '#edf0f8' },
+        // Wordmark fill, bespoke to the hand-drawn logo mark only.
+        // (Stroke lives as --logo-stroke in index.css — it's consumed via
+        // the WebkitTextStroke style property, which can't take a class.)
+        logo: { fill: '#EA7B7B' },
       },
       fontFamily: {
         sans: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
         heading: ['Segoe UI', 'ui-sans-serif', 'system-ui', '-apple-system', 'Helvetica Neue', 'sans-serif'],
         logo: ['Love Ya Like A Sister', 'cursive'],
+        // Landing-only type pair — scoped to the marketing page so the rest
+        // of the app (which relies on `sans`/`heading` above) is unaffected.
+        'landing-heading': ['Fredoka', 'sans-serif'],
+        'landing-body': ['Nunito', 'sans-serif'],
       },
       // Semantic type scale for the landing page — size, leading and weight
       // travel together.
