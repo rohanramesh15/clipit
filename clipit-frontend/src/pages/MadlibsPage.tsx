@@ -386,8 +386,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                   <button
                     type="button"
                     onClick={() => setIsSortOpen((open) => !open)}
-                    aria-haspopup="listbox"
                     aria-expanded={isSortOpen}
+                    aria-controls="madlibs-sort-options"
                     className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
                   >
                     {currentSort.label}
@@ -397,7 +397,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                   <AnimatePresence>
                     {isSortOpen && (
                       <motion.ul
-                        role="listbox"
+                        id="madlibs-sort-options"
                         aria-label="Sort videos"
                         initial={{ opacity: 0, y: -6, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -408,10 +408,11 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                         {SORTS.map((option) => {
                           const isSelected = option.value === sort;
                           return (
-                            <li key={option.value} role="option" aria-selected={isSelected}>
+                            <li key={option.value}>
                               <button
                                 type="button"
                                 onClick={() => { setSort(option.value); setVisible(PAGE_SIZE); setIsSortOpen(false); }}
+                                aria-pressed={isSelected}
                                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
                                   isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                                 }`}

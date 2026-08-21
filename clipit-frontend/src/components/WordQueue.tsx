@@ -75,7 +75,7 @@ export function WordQueue({
         </div>
 
         {!isEmpty && (
-          <div role="tablist" aria-label="Filter words" className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Filter words" className="flex flex-wrap items-center gap-2">
             {FILTERS.map((option) => {
               const count = option.id === 'all' ? words.length : words.filter((word) => word.status === option.id).length;
               const isActive = option.id === filter;
@@ -84,8 +84,7 @@ export function WordQueue({
                 <button
                   key={option.id}
                   type="button"
-                  role="tab"
-                  aria-selected={isActive}
+                  aria-pressed={isActive}
                   onClick={() => selectFilter(option.id)}
                   className={`rounded-lg px-3.5 py-1.5 text-body-sm font-medium transition-colors duration-150 ease-swift ${
                     isActive

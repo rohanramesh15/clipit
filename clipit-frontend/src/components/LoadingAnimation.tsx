@@ -20,9 +20,10 @@ export function LoadingAnimation({ className = 'h-8 w-8', label }: LoadingAnimat
         playsInline
         preload="auto"
         src={loadingAnimation}
-        className="h-full w-full object-contain"
+        className="h-full w-full object-contain motion-reduce:hidden"
         aria-hidden="true"
       />
+      <span className="hidden text-current motion-reduce:block" aria-hidden="true">…</span>
       {label && <span className="sr-only">{label}</span>}
     </span>
   );

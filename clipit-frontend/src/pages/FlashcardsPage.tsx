@@ -25,6 +25,7 @@ import { ReviewCard } from '../components/flashcards/ReviewCard';
 import { RatingBar } from '../components/flashcards/RatingBar';
 import { SessionSummary } from '../components/flashcards/SessionSummary';
 import { NavigationIconButton } from '../components/NavigationIconButton';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 const flashcardsPageTips: HelpTip[] = [
   {
@@ -91,6 +92,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [isEditingDefinition, setIsEditingDefinition] = useState(false);
   const [editedDefinition, setEditedDefinition] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const deleteCardDialogRef = useDialogFocus(showDeleteConfirm, () => setShowDeleteConfirm(false));
   const [isReverting, setIsReverting] = useState(false);
   const [isStreamingCards, setIsStreamingCards] = useState(false);
   const playerRef = useRef<any>(null);
@@ -203,7 +205,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         videoId: card.video_id,
         playerVars: {
           start: startTime,
-          autoplay: 1,
+          autoplay: 0,
+          controls: 1,
           rel: 0,
           modestbranding: 1,
         },
@@ -1185,6 +1188,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             onClick={() => setShowDeleteConfirm(false)}
           >
             <motion.div
+              ref={deleteCardDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-flashcard-title"
+              aria-describedby="delete-flashcard-description"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -1194,8 +1203,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-500" />
               </div>
-              <h3 className="text-lg font-bold text-primary text-center mb-2">Delete Flashcard?</h3>
-              <p className="text-sm text-secondary text-center mb-6">
+              <h3 id="delete-flashcard-title" className="text-lg font-bold text-primary text-center mb-2">Delete Flashcard?</h3>
+              <p id="delete-flashcard-description" className="text-sm text-secondary text-center mb-6">
                 Remove this flashcard? The word can reappear with a new clip when you watch more content.
               </p>
               <div className="flex gap-3">

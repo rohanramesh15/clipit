@@ -49,6 +49,27 @@ const PAGE_PATHS: Record<Page, string> = {
   settings: '/settings',
 };
 
+const PAGE_TITLES: Record<Page, string> = {
+  practice: 'Practice',
+  video: 'History',
+  flashcards: 'Flashcards',
+  analytics: 'Progress',
+  vocabulary: 'Vocabulary',
+  'converse-v2': 'Conversation',
+  madlibs: 'Mad Libs',
+  settings: 'Settings',
+};
+
+const VIEW_TITLES: Partial<Record<AppView, string>> = {
+  landing: 'Learn languages with video',
+  login: 'Sign in',
+  signup: 'Create account',
+  onboarding: 'Set up your learning plan',
+  'forgot-password': 'Reset password',
+  'reset-password': 'Choose a new password',
+  privacy: 'Privacy policy',
+};
+
 function pageForPath(path: string): Page | null {
   const match = (Object.entries(PAGE_PATHS) as [Page, string][]).find(([, p]) => p === path);
   return match ? match[0] : null;
@@ -213,6 +234,21 @@ function AppInner() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activePage, appView]);
 
+  // Announce SPA navigation through a meaningful document title and move the
+  // keyboard cursor to the incoming page's main landmark.
+  useEffect(() => {
+    const title = appView === 'app' ? PAGE_TITLES[activePage] : VIEW_TITLES[appView];
+    document.title = title ? `${title} | ClipIt` : 'ClipIt';
+  }, [activePage, appView]);
+
+  useEffect(() => {
+    if (appView !== 'app') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('main-content')?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activePage, appView]);
+
   // Populate only Home's first-visible data after sign-in. Progress data is
   // intentionally fetched when its tab is opened instead of competing with
   // the initial queue request on a cold backend.
@@ -300,9 +336,15 @@ function AppInner() {
     <HelpProvider>
       <ReviewSessionProvider>
         <div className="min-h-screen w-full bg-app font-sans text-primary selection:bg-accent selection:text-app">
+          <a
+            href="#main-content"
+            className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-primary px-4 py-2 font-medium text-app focus:not-sr-only"
+          >
+            Skip to main content
+          </a>
           <TopNav activePage={activePage} onNavigate={navigateToPage} />
 
-          <main className="p-4 md:p-8 overflow-x-clip">
+          <main id="main-content" tabIndex={-1} className="p-4 md:p-8 overflow-x-clip focus:outline-none">
             <AnimatePresence initial={false} mode="popLayout">
               <motion.div
                 key={activePage}

@@ -66,7 +66,7 @@ export function VoiceSelector({ voices, selectedId, onSelect, getSampleUrl }: Vo
 
   return (
     <div className="w-full">
-      <div role="radiogroup" aria-label="AI voice" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div role="group" aria-label="AI voice" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {voices.map((voice) => {
           const isActive = voice.id === selectedId;
           const isPlaying = playingId === voice.id;
@@ -77,8 +77,7 @@ export function VoiceSelector({ voices, selectedId, onSelect, getSampleUrl }: Vo
             <button
               key={voice.id}
               type="button"
-              role="radio"
-              aria-checked={isActive}
+              aria-pressed={isActive}
               onClick={() => handleSelect(voice)}
               className={`group flex flex-col rounded-xl border px-3.5 py-3 text-left transition-colors duration-150 ease-swift ${
                 hasError

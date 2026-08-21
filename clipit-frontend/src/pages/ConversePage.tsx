@@ -11,6 +11,7 @@ import {
 } from '../services/chat';
 import { VoiceSession, VoiceEvent, buildWsUrl } from '../lib/voiceSession';
 import { LoadingAnimation } from '../components/LoadingAnimation';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 const SUPPORTED_CHAT_LANGUAGES = new Set(['es', 'en']);
 const LEVELS = ['A1', 'A2', 'B1'] as const;
@@ -283,20 +284,22 @@ function Orb({ status, level }: { status: Status; level: number }) {
 }
 
 function StatusLabel({ status, copy }: { status: Status; copy: { listening: string; speaking: string } }) {
-  if (status === 'connecting') return <p className="text-sm text-muted">Connecting…</p>;
-  if (status === 'listening') return <p className="text-sm text-emerald-400">{copy.listening}</p>;
-  if (status === 'speaking') return <p className="text-sm text-fuchsia-400">{copy.speaking}</p>;
-  if (status === 'ended') return <p className="text-sm text-muted">Call ended</p>;
-  return <p className="text-sm text-muted">&nbsp;</p>;
+  if (status === 'connecting') return <p className="text-sm text-muted" role="status" aria-live="polite">Connecting…</p>;
+  if (status === 'listening') return <p className="text-sm text-emerald-400" role="status" aria-live="polite">{copy.listening}</p>;
+  if (status === 'speaking') return <p className="text-sm text-fuchsia-400" role="status" aria-live="polite">{copy.speaking}</p>;
+  if (status === 'ended') return <p className="text-sm text-muted" role="status" aria-live="polite">Call ended</p>;
+  return <p className="text-sm text-muted" aria-hidden="true">&nbsp;</p>;
 }
 
 function LevelDial({ value, onChange }: { value: Level; onChange: (v: Level) => void }) {
   return (
-    <div className="flex items-center gap-1 bg-surface/50 border border-white/10 rounded-full p-0.5">
+    <div className="flex items-center gap-1 bg-surface/50 border border-white/10 rounded-full p-0.5" role="group" aria-label="Conversation level">
       {LEVELS.map((l) => (
         <button
           key={l}
+          type="button"
           onClick={() => onChange(l)}
+          aria-pressed={value === l}
           className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
             value === l ? 'bg-accent text-app' : 'text-secondary hover:text-primary'
           }`}>
@@ -316,16 +319,18 @@ function SummaryModal({
   ending: boolean;
   onClose: () => void;
 }) {
+  const dialogRef = useDialogFocus(true, onClose);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="session-summary-title" tabIndex={-1} className="bg-surface border border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-accent" />
-            <h2 className="text-lg font-heading font-bold text-primary">Nice talk</h2>
+            <h2 id="session-summary-title" className="text-lg font-heading font-bold text-primary">Nice talk</h2>
           </div>
-          <button onClick={onClose} className="text-secondary hover:text-primary">
-            <X className="w-5 h-5" />
+          <button type="button" onClick={onClose} aria-label="Close session summary" className="text-secondary hover:text-primary">
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 

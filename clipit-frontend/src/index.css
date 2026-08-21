@@ -45,7 +45,7 @@
      tuned in lightness/saturation per role for a cohesive, legible read. */
   --text-primary: #4c2323;   /* headings + key text — deep maroon */
   --text-secondary: #7a3b3b; /* body / descriptions — dusty red */
-  --text-muted: #a87a7a;     /* captions / hints — soft muted rose */
+  --text-muted: #986a6a;     /* captions / hints — AA contrast on app background */
   --border-subtle: rgba(0, 0, 0, 0.06);
   --border-medium: rgba(0, 0, 0, 0.1);
   --on-accent: #ffffff;

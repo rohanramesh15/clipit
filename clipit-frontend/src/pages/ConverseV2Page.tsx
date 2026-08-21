@@ -1073,8 +1073,8 @@ export function ConverseV2Page(
                     <button
                       type="button"
                       onClick={() => setIsDeckSortOpen((open) => !open)}
-                      aria-haspopup="listbox"
                       aria-expanded={isDeckSortOpen}
+                      aria-controls="chat-video-sort-options"
                       className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
                     >
                       {currentDeckSort.label}
@@ -1084,7 +1084,7 @@ export function ConverseV2Page(
                     <AnimatePresence>
                       {isDeckSortOpen && (
                         <motion.ul
-                          role="listbox"
+                          id="chat-video-sort-options"
                           aria-label="Sort videos"
                           initial={{ opacity: 0, y: -6, scale: 0.98 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1095,7 +1095,7 @@ export function ConverseV2Page(
                           {deckSorts.map((option) => {
                             const isSelected = option.value === deckSort;
                             return (
-                              <li key={option.value} role="option" aria-selected={isSelected}>
+                              <li key={option.value}>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1103,6 +1103,7 @@ export function ConverseV2Page(
                                     setVisibleDecks(DECK_PAGE_SIZE);
                                     setIsDeckSortOpen(false);
                                   }}
+                                  aria-pressed={isSelected}
                                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
                                 >
                                   <span className="flex-1 text-left">{option.label}</span>
@@ -1480,7 +1481,7 @@ export function ConverseV2Page(
             >
               <Lightbulb className="w-4 h-4 mt-0.5 shrink-0" style={{ color: PAGE }} />
               <span className="flex-1 text-body-sm text-secondary">{nudge}</span>
-              <button onClick={() => setNudge(null)} className="text-muted hover:text-primary"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setNudge(null)} aria-label="Dismiss tip" className="text-muted hover:text-primary"><X className="w-4 h-4" aria-hidden="true" /></button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1493,12 +1494,13 @@ export function ConverseV2Page(
             >
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-body-sm font-semibold text-primary">How do I say…?</h4>
-                <button onClick={() => { setHowtoOpen(false); setHowtoInput(''); setHowtoResult(null); }} className="text-muted hover:text-primary"><X className="w-4 h-4" /></button>
+                <button type="button" onClick={() => { setHowtoOpen(false); setHowtoInput(''); setHowtoResult(null); }} aria-label="Close translation helper" className="text-muted hover:text-primary"><X className="w-4 h-4" aria-hidden="true" /></button>
               </div>
               <div className="flex gap-2">
                 <input
                   autoFocus
                   value={howtoInput}
+                  aria-label="English phrase to translate"
                   placeholder="Say it in English…"
                   onChange={(e) => setHowtoInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runHowto(); } }}
@@ -1567,7 +1569,7 @@ export function ConverseV2Page(
           </div>
         </div>
 
-        <div className="text-center text-meta text-muted mt-2 h-4">
+        <div className="text-center text-meta text-muted mt-2 h-4" role="status" aria-live="polite">
           {voiceError ? <span style={{ color: ACCENT }}>{voiceError}</span>
             : chatError ? <span style={{ color: ACCENT }}>{chatError}</span>
             : status}

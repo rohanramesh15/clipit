@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { TrackedVideo } from './VideoHistoryItem';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface RemoveVideoDialogProps {
   video: TrackedVideo;
@@ -11,17 +11,14 @@ interface RemoveVideoDialogProps {
 }
 
 export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemove }: RemoveVideoDialogProps) {
-  useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isRemoving) onCancel();
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onCancel, isRemoving]);
+  const dialogRef = useDialogFocus(true, () => {
+    if (!isRemoving) onCancel();
+  });
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
       <motion.div
+        aria-hidden="true"
         className="absolute inset-0 bg-black/35"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -31,10 +28,12 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
       />
 
       <motion.div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-video-title"
         aria-describedby="delete-video-description"
+        tabIndex={-1}
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.98 }}

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 const ERASED_ITEMS = [
   'Vocabulary lists and saved words',
@@ -17,17 +17,14 @@ interface DeleteAccountDialogProps {
 }
 
 export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: DeleteAccountDialogProps) {
-  useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isDeleting) onCancel();
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onCancel, isDeleting]);
+  const dialogRef = useDialogFocus(true, () => {
+    if (!isDeleting) onCancel();
+  });
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
       <motion.div
+        aria-hidden="true"
         className="absolute inset-0 bg-black/35"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -37,10 +34,12 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
       />
 
       <motion.div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-account-title"
         aria-describedby="delete-account-description"
+        tabIndex={-1}
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -74,7 +73,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
         </ul>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-error/20 bg-error/10 px-3 py-2.5 text-body-sm text-error">
+          <div role="alert" className="mt-4 rounded-lg border border-error/20 bg-error/10 px-3 py-2.5 text-body-sm text-error">
             {error}
           </div>
         )}

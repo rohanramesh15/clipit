@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { useHelp } from '../context/HelpContext';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 export interface HelpTip {
   id: string;
@@ -125,6 +127,7 @@ function DynamicHelpTooltip({
 
 export function HelpOverlay({ tips }: HelpOverlayProps) {
   const { isHelpMode, closeHelpMode } = useHelp();
+  const dialogRef = useDialogFocus(isHelpMode, closeHelpMode);
   const [positions, setPositions] = useState<Record<string, TipPosition>>({});
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -307,20 +310,36 @@ export function HelpOverlay({ tips }: HelpOverlayProps) {
             onClick={closeHelpMode}
           />
 
-          {/* Legacy tips (fixed position) */}
-          {legacyTips.map((tip, index) => (
-            <LegacyHelpTooltip key={tip.id} tip={tip} index={index} />
-          ))}
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Help tips"
+            tabIndex={-1}
+            className="pointer-events-none fixed inset-0 z-[60]"
+          >
+            <button
+              type="button"
+              onClick={closeHelpMode}
+              className="pointer-events-auto absolute right-5 top-5 rounded-lg bg-app p-2 text-primary shadow-lg"
+              aria-label="Close help tips"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
 
-          {/* Dynamic tips (follow elements) */}
-          {dynamicTips.map((tip, index) => (
-            <DynamicHelpTooltip
-              key={tip.id}
-              tip={tip}
-              index={legacyTips.length + index}
-              position={positions[tip.id] || { top: 0, left: 0, visible: false, actualPosition: tip.position || 'right' }}
-            />
-          ))}
+            {legacyTips.map((tip, index) => (
+              <LegacyHelpTooltip key={tip.id} tip={tip} index={index} />
+            ))}
+
+            {dynamicTips.map((tip, index) => (
+              <DynamicHelpTooltip
+                key={tip.id}
+                tip={tip}
+                index={legacyTips.length + index}
+                position={positions[tip.id] || { top: 0, left: 0, visible: false, actualPosition: tip.position || 'right' }}
+              />
+            ))}
+          </div>
         </>
       )}
     </AnimatePresence>

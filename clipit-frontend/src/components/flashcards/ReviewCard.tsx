@@ -66,11 +66,6 @@ export function ReviewCard({
           className={faceClasses}
           aria-hidden={isFlipped}
           onClick={isFlipped ? undefined : onFlip}
-          role="button"
-          tabIndex={isFlipped ? -1 : 0}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') onFlip();
-          }}
         >
           <div className="flex shrink-0 items-center justify-between">
             {stats?.isNew === false ? (
@@ -114,10 +109,18 @@ export function ReviewCard({
             )}
           </div>
 
-          <p className="flex shrink-0 items-center justify-center gap-1.5 border-t border-subtle pt-3 text-meta text-muted">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onFlip();
+            }}
+            className="flex shrink-0 items-center justify-center gap-1.5 border-t border-subtle pt-3 text-meta text-muted"
+            aria-label="Show the definition"
+          >
             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
-            Tap the card or press space to flip
-          </p>
+            Show definition
+          </button>
         </div>
 
         {/* Back — the meaning */}
@@ -125,11 +128,6 @@ export function ReviewCard({
           className={`${faceClasses} [transform:rotateY(180deg)]`}
           aria-hidden={!isFlipped}
           onClick={isFlipped ? onFlip : undefined}
-          role="button"
-          tabIndex={isFlipped ? 0 : -1}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') onFlip();
-          }}
         >
           <div className="flex shrink-0 items-center justify-between gap-3">
             <span className="truncate rounded-full bg-blush px-2.5 py-1 text-meta font-semibold text-accent">
@@ -212,7 +210,17 @@ export function ReviewCard({
             )}
           </div>
 
-          <p className="shrink-0 text-center text-meta text-muted">Tap to flip back</p>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onFlip();
+            }}
+            className="shrink-0 text-center text-meta text-muted"
+            aria-label="Show the prompt"
+          >
+            Show prompt
+          </button>
         </div>
       </motion.div>
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
+  Pause,
   Layers,
   MessageCircle,
   BarChart3,
@@ -44,12 +45,11 @@ function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; s
             start: startTime,
             end: endTime,
             autoplay: 0,
-            controls: 0,
+            controls: 1,
             modestbranding: 1,
             rel: 0,
             showinfo: 0,
             fs: 0,
-            disablekb: 1,
             playsinline: 1,
           },
           events: {
@@ -92,15 +92,15 @@ function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; s
   return (
     <div className="relative w-full max-w-lg mx-auto mt-6 rounded-2xl overflow-hidden bg-black aspect-video">
       <div ref={containerRef} className="absolute inset-0 [&>iframe]:w-full [&>iframe]:h-full" />
-      {!isPlaying && (
-        <button
-          onClick={handlePlayClick}
-          className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors z-10">
-          <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
-            <Play className="w-8 h-8 text-[#fff] ml-1" fill="white" />
-          </div>
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handlePlayClick}
+        aria-label={isPlaying ? 'Pause video example' : 'Play video example'}
+        aria-pressed={isPlaying}
+        className="absolute bottom-3 left-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white transition-colors hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        {isPlaying ? <Pause className="h-5 w-5" aria-hidden="true" fill="currentColor" /> : <Play className="ml-0.5 h-5 w-5" aria-hidden="true" fill="currentColor" />}
+      </button>
     </div>
   );
 }
@@ -151,12 +151,11 @@ function SampleFlashcard() {
           playerVars: {
             start: startTime,
             autoplay: 0,
-            controls: 0,
+            controls: 1,
             modestbranding: 1,
             rel: 0,
             showinfo: 0,
             fs: 0,
-            disablekb: 1,
             playsinline: 1,
           },
           events: {
@@ -201,15 +200,15 @@ function SampleFlashcard() {
       {/* Video card */}
       <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black ring-1 ring-white/10">
         <div ref={containerRef} className="absolute inset-0 [&>iframe]:w-full [&>iframe]:h-full" />
-        {!isPlaying && (
-          <button
-            onClick={handlePlayClick}
-            className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors z-10">
-            <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
-              <Play className="w-6 h-6 text-[#fff] ml-0.5" fill="white" />
-            </div>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handlePlayClick}
+          aria-label={isPlaying ? 'Pause video example' : 'Play video example'}
+          aria-pressed={isPlaying}
+          className="absolute bottom-12 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/75 text-white transition-colors hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          {isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" fill="currentColor" /> : <Play className="ml-0.5 h-4 w-4" aria-hidden="true" fill="currentColor" />}
+        </button>
         {/* Sentence context overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2 text-center">
           <p className="text-meta text-[#fff] font-medium">
@@ -221,7 +220,16 @@ function SampleFlashcard() {
       {/* Flashcard */}
       <div
         onClick={() => setIsFlipped(!isFlipped)}
-        className="relative h-36 cursor-pointer"
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setIsFlipped((flipped) => !flipped);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={isFlipped ? 'Show the Korean word' : 'Show the English definition'}
+        className="relative h-36 cursor-pointer rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         style={{ perspective: '1000px' }}
       >
         <motion.div
@@ -896,9 +904,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
       {/* Bottom nav */}
       <div className="h-20 border-t border-white/5 flex items-center justify-between px-6 md:px-10">
-        <button
-          onClick={goBack}
-          className={`flex items-center gap-2 text-sm font-medium transition-colors ${current === 0 ? 'invisible' : 'text-secondary hover:text-primary'}`}>
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={current === 0}
+            className={`flex items-center gap-2 text-sm font-medium transition-colors ${current === 0 ? 'invisible' : 'text-secondary hover:text-primary'}`}>
 
           <ArrowLeft className="w-4 h-4" />
           Back

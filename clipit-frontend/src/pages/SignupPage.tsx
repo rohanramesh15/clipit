@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Mail, Lock, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
@@ -26,13 +26,6 @@ export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Auto-dismiss the error message after a few seconds.
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => setError(''), 5000);
-    return () => clearTimeout(timer);
-  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

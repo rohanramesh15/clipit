@@ -92,6 +92,7 @@ export const SpeechInput = ({
   onTranscriptionChange,
   onAudioRecorded,
   lang = "en-US",
+  "aria-label": ariaLabel,
   ...props
 }: SpeechInputProps) => {
   const [isListening, setIsListening] = useState(false);
@@ -286,6 +287,14 @@ export const SpeechInput = ({
     (mode === "media-recorder" && !onAudioRecorded) ||
     isProcessing;
 
+  const statusMessage = isProcessing
+    ? "Processing recorded audio"
+    : isListening
+      ? "Listening. Activate to stop recording"
+      : isDisabled
+        ? "Speech input is unavailable"
+        : "Speech input is ready";
+
   return (
     <div className="relative inline-flex items-center justify-center">
       {/* Animated pulse rings */}
@@ -303,6 +312,7 @@ export const SpeechInput = ({
 
       {/* Main record button */}
       <Button
+        {...props}
         className={cn(
           "relative z-10 rounded-full transition-all duration-300",
           isListening
@@ -312,12 +322,14 @@ export const SpeechInput = ({
         )}
         disabled={isDisabled}
         onClick={toggleListening}
-        {...props}
+        aria-label={isListening ? "Stop listening" : ariaLabel || "Start voice input"}
+        aria-pressed={isListening}
       >
         {isProcessing && <Spinner />}
         {!isProcessing && isListening && <SquareIcon className="size-4" />}
         {!(isProcessing || isListening) && <MicIcon className="size-4" />}
       </Button>
+      <span className="sr-only" role="status" aria-live="polite">{statusMessage}</span>
     </div>
   );
 };

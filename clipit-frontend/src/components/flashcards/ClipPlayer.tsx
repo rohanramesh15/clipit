@@ -25,15 +25,6 @@ function NetflixVideoPlaceholder({ videoId, timestamp, isRevealed }: { videoId: 
       .catch(() => setHasAudio(false));
   }, [videoId, roundedTimestamp]);
 
-  // Auto-play audio when component mounts (if available)
-  useEffect(() => {
-    if (hasAudio && audioRef.current) {
-      audioRef.current.play().catch(() => {
-        // Auto-play blocked, user needs to click
-      });
-    }
-  }, [hasAudio]);
-
   // Pause when the card flips to its back face.
   useEffect(() => {
     if (isRevealed && audioRef.current) {
@@ -76,9 +67,10 @@ function NetflixVideoPlaceholder({ videoId, timestamp, isRevealed }: { videoId: 
           />
           {hasAudio && (
             <button
+              type="button"
               onClick={toggleAudio}
               className="absolute bottom-3 right-3 p-2.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
-              title={isPlaying ? 'Stop audio' : 'Play audio'}
+              aria-label={isPlaying ? 'Stop audio' : 'Play audio'}
             >
               {isPlaying ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
@@ -102,6 +94,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp, isRevealed }: { videoId: 
           <p className="text-white/50 text-xs mt-2">{timeStr}</p>
           {hasAudio && (
             <button
+              type="button"
               onClick={toggleAudio}
               className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] text-[#ffffff] text-xs transition-colors"
             >
@@ -132,18 +125,13 @@ function TTSCardPlaceholder({ word, language }: { word: string; language: string
     setTimeout(() => setIsPlaying(false), 1500);
   }, [word, language]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      playAudio();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [word, playAudio]);
-
   return (
     <div className="w-full h-full relative bg-gradient-to-br from-accent/20 to-primary/10 flex flex-col items-center justify-center">
       <div className="w-20 h-20 rounded-full bg-app/40 flex items-center justify-center mb-4">
         <button
+          type="button"
           onClick={playAudio}
+          aria-label={`Play pronunciation for ${word}`}
           className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
             isPlaying
               ? 'bg-accent text-[#ffffff] scale-110'
@@ -210,11 +198,13 @@ export function ClipPlayer({
       <div className="absolute right-1.5 top-1.5 flex gap-1">
         {card.card_type === 'video' && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onRevertToTTS();
             }}
             disabled={isReverting}
+            aria-label="Revert to TTS-only flashcard"
             className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-accent/90 hover:text-[#ffffff] disabled:opacity-50"
             title="Revert to TTS-only"
           >
@@ -222,10 +212,12 @@ export function ClipPlayer({
           </button>
         )}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDeleteCard();
           }}
+          aria-label="Delete this flashcard"
           className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-red-500/80 hover:text-[#ffffff]"
           title="Delete this flashcard"
         >

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ExternalLink, Film, PlayIcon, SearchIcon, Trash2, X } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface DeckBrowserProps {
   videos: TrackedVideo[];
@@ -40,6 +41,9 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
   const [showDeleteVideoConfirm, setShowDeleteVideoConfirm] = useState<TrackedVideo | null>(null);
   const [isDeletingVideo, setIsDeletingVideo] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const deleteDialogRef = useDialogFocus(Boolean(showDeleteVideoConfirm), () => {
+    if (!isDeletingVideo) setShowDeleteVideoConfirm(null);
+  });
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -111,8 +115,8 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             <button
               type="button"
               onClick={() => setIsSortOpen((open) => !open)}
-              aria-haspopup="listbox"
               aria-expanded={isSortOpen}
+              aria-controls="video-sort-options"
               className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
             >
               {currentSort.label}
@@ -126,7 +130,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             <AnimatePresence>
               {isSortOpen && (
                 <motion.ul
-                  role="listbox"
+                  id="video-sort-options"
                   aria-label="Sort videos"
                   initial={{ opacity: 0, y: -6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -137,7 +141,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   {sorts.map((option) => {
                     const isSelected = option.value === sort;
                     return (
-                      <li key={option.value} role="option" aria-selected={isSelected}>
+                      <li key={option.value}>
                         <button
                           type="button"
                           onClick={() => {
@@ -145,6 +149,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                             setVisible(PAGE_SIZE);
                             setIsSortOpen(false);
                           }}
+                          aria-pressed={isSelected}
                           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
                             isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                           }`}
@@ -255,10 +260,12 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             onClick={() => !isDeletingVideo && setShowDeleteVideoConfirm(null)}
           >
             <motion.div
+              ref={deleteDialogRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-video-title"
               aria-describedby="delete-video-description"
+              tabIndex={-1}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}

@@ -98,15 +98,16 @@ export function ActivityHeatmap({ days, year }: ActivityHeatmapProps) {
             <div key={weekIndex} className="flex flex-1 flex-col gap-[3px]">
               {week.map((cell, dayIndex) =>
                 cell ? (
-                  <span
+                  <button
+                    type="button"
                     key={cell.date}
                     onMouseEnter={() => setHovered(cell)}
                     onFocus={() => setHovered(cell)}
                     onMouseLeave={() => setHovered(null)}
                     onBlur={() => setHovered(null)}
-                    tabIndex={-1}
-                    title={`${formatDayLabel(cell.date)} · ${cell.reviews === 0 ? 'No reviews' : `${cell.reviews} reviews`}`}
-                    className={`h-[11px] w-full rounded-sm ${intensityClass(cell.reviews, max)}`}
+                    onClick={() => setHovered(cell)}
+                    aria-label={`${formatDayLabel(cell.date)} · ${cell.reviews === 0 ? 'No reviews' : `${cell.reviews} reviews`}`}
+                    className={`h-[11px] w-full rounded-sm border-0 p-0 ${intensityClass(cell.reviews, max)} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary`}
                   />
                 ) : (
                   <span key={`${weekIndex}-${dayIndex}`} className="h-[11px] w-full" />

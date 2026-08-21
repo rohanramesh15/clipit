@@ -148,8 +148,8 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                 setIsLangPickerOpen((open) => !open);
                 setIsAccountOpen(false);
               }}
-              aria-haspopup="listbox"
               aria-expanded={isLangPickerOpen}
+              aria-controls="language-picker"
               className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
             >
               <span aria-hidden="true">{currentLang.flag}</span>
@@ -164,7 +164,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
             <AnimatePresence>
               {isLangPickerOpen && (
                 <motion.ul
-                  role="listbox"
+                  id="language-picker"
                   aria-label="Language you’re learning"
                   initial={{ opacity: 0, y: -6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -175,13 +175,14 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                   {LANGUAGES.map((option) => {
                     const isSelected = option.code === language;
                     return (
-                      <li key={option.code} role="option" aria-selected={isSelected}>
+                      <li key={option.code}>
                         <button
                           type="button"
                           onClick={() => {
                             setLanguage(option.code);
                             setIsLangPickerOpen(false);
                           }}
+                          aria-pressed={isSelected}
                           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
                             isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                           }`}
@@ -205,8 +206,8 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                 setIsAccountOpen((open) => !open);
                 setIsLangPickerOpen(false);
               }}
-              aria-haspopup="menu"
               aria-expanded={isAccountOpen}
+              aria-controls="account-menu"
               className="flex items-center gap-2 rounded-full p-1 pr-2 transition-colors duration-150 ease-swift hover:bg-surface-hover"
             >
               <Avatar user={user} size={32} />
@@ -220,7 +221,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
             <AnimatePresence>
               {isAccountOpen && (
                 <motion.div
-                  role="menu"
+                  id="account-menu"
                   initial={{ opacity: 0, y: -6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
@@ -237,7 +238,6 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                   <div className="pt-2">
                     <button
                       type="button"
-                      role="menuitem"
                       onClick={() => {
                         setIsAccountOpen(false);
                         onNavigate('settings');
@@ -252,7 +252,6 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                       href={EXTENSION_URL}
                       target="_blank"
                       rel="noopener noreferrer"
-                      role="menuitem"
                       onClick={() => setIsAccountOpen(false)}
                       className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
                     >
@@ -264,7 +263,6 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                       href={FEEDBACK_URL}
                       target="_blank"
                       rel="noopener noreferrer"
-                      role="menuitem"
                       onClick={() => setIsAccountOpen(false)}
                       className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
                     >
@@ -273,7 +271,6 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     </a>
                     <button
                       type="button"
-                      role="menuitem"
                       onClick={() => {
                         setIsAccountOpen(false);
                         logout();
@@ -293,6 +290,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
             type="button"
             onClick={() => setIsMobileOpen((open) => !open)}
             aria-expanded={isMobileOpen}
+            aria-controls="mobile-main-navigation"
             aria-label="Toggle navigation"
             className="rounded-lg p-2 text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary md:hidden"
           >
@@ -304,6 +302,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
       <AnimatePresence>
         {isMobileOpen && (
           <motion.nav
+            id="mobile-main-navigation"
             aria-label="Main"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
