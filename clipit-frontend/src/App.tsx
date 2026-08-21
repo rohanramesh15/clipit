@@ -237,7 +237,7 @@ function AppInner() {
       case 'converse-v2':
         return <ConverseV2Page onBack={() => navigateToPage('practice')} onNavigate={navigateToPage} />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage onNavigate={navigateToPage} />;
       default:
         return <VideoPage />;
     }

@@ -8,6 +8,7 @@ import { SettingRow } from '../components/SettingRow';
 import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
 import { Avatar } from '../components/Avatar';
 import { VoiceSelector } from '../components/VoiceSelector';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 import { fetchTtsVoices, fetchVoiceSample, type TtsVoice } from '../services/chat';
 
 const DAILY_GOAL_OPTIONS = [
@@ -17,7 +18,10 @@ const DAILY_GOAL_OPTIONS = [
   { minutes: 60, label: '1 hour+', cards: 120 },
 ];
 
-export function SettingsPage() {
+type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
+interface SettingsPageProps { onNavigate: (page: Page) => void; }
+
+export function SettingsPage({ onNavigate }: SettingsPageProps) {
   const { user, token, logout } = useAuth();
   const { language } = useLanguage();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -123,7 +127,10 @@ export function SettingsPage() {
       <div className="max-w-3xl">
       <header className="flex flex-wrap items-start justify-between gap-4 pb-8">
         <div>
-          <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
+          <div className="-ml-2 flex items-center gap-2">
+            <NavigationIconButton direction="back" label="Back to Practice" onClick={() => onNavigate('practice')} />
+            <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
+          </div>
           <p className="mt-1 text-body text-secondary">Changes save as you make them.</p>
         </div>
         <div aria-live="polite" className="h-7">

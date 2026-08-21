@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Play, RotateCcw, Search, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchTrackedVideos, fetchVideoCards, buildMadlibItems, fetchVideoWordCount, type MadlibItem, type TrackedVideo } from '../services/madlibs';
 import { relativeDay } from '../utils/flashcardStorage';
+import { saveMadlibProgress, clearMadlibProgress, getMostRecentMadlibProgress, type MadlibProgress } from '../utils/madlibsStorage';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
@@ -67,6 +68,24 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   const [revealed, setRevealed] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [answers, setAnswers] = useState<AnswerRecord[]>([]);
+  const [resumable, setResumable] = useState<MadlibProgress | null>(null);
+
+  useEffect(() => {
+    if (phase !== 'deck') return;
+    setResumable(getMostRecentMadlibProgress(language));
+  }, [phase, language]);
+
+  useEffect(() => {
+    if (phase !== 'playing' || !deck || items.length === 0 || answers.length === 0) return;
+    saveMadlibProgress({
+      videoId: deck.id,
+      title: deck.title,
+      language,
+      items,
+      answers: answers.map((a) => ({ chosen: a.chosen, correct: a.correct })),
+      updatedAt: Date.now(),
+    });
+  }, [phase, deck, items, answers, language]);
 
   useEffect(() => {
     let alive = true;
@@ -116,6 +135,24 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     setPhase('playing');
   }, [deck, language]);
 
+  const resumeDeck = useCallback((progress: MadlibProgress) => {
+    setDeck({ id: progress.videoId, title: progress.title });
+    setItems(progress.items);
+    setAnswers(progress.answers.map((a, i) => ({ item: progress.items[i], chosen: a.chosen, correct: a.correct })));
+    setIndex(progress.answers.length);
+    setSelected(null);
+    setRevealed(false);
+    setShowHint(false);
+    setResumable(null);
+    setPhase('playing');
+  }, []);
+
+  const restartResumable = useCallback((progress: MadlibProgress) => {
+    clearMadlibProgress(language, progress.videoId);
+    setResumable(null);
+    void startDeck({ video_id: progress.videoId, title: progress.title, tracked_at: Date.now() });
+  }, [language, startDeck]);
+
   const choose = useCallback((option: string) => {
     const item = items[index];
     if (revealed || !item) return;
@@ -125,12 +162,16 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   }, [items, index, revealed]);
 
   const next = useCallback(() => {
-    if (index + 1 >= items.length) { setPhase('done'); return; }
+    if (index + 1 >= items.length) {
+      if (deck) clearMadlibProgress(language, deck.id);
+      setPhase('done');
+      return;
+    }
     setIndex((value) => value + 1);
     setSelected(null);
     setRevealed(false);
     setShowHint(false);
-  }, [index, items.length]);
+  }, [index, items.length, deck, language]);
 
   // 1–4 pick an option before reveal, Enter advances once it's revealed.
   useEffect(() => {
@@ -174,6 +215,40 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <h2 id="madlibs-intro" className="font-heading text-lead text-dusk-deep">Fill in the blanks</h2>
           <p className="text-body-sm text-dusk-ink">Practice words in the real sentences from videos you watched.</p>
         </section>
+
+        {resumable && (
+          <section className="mt-6 flex flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-labelledby="madlibs-continue">
+            <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
+            <div className="min-w-0 flex-1">
+              <p id="madlibs-continue" className="text-meta font-semibold uppercase tracking-wider text-dusk-ink">Continue</p>
+              <p className="mt-1 truncate text-body font-semibold text-dusk-deep">{resumable.title}</p>
+              <p className="mt-1 text-body-sm text-dusk-ink">{resumable.answers.length} of {resumable.items.length} blanks filled</p>
+              <div className="mt-2 flex gap-1">
+                {resumable.items.map((resumeItem, i) => (
+                  <span key={resumeItem.id} className={`h-1.5 flex-1 rounded-full ${i < resumable.answers.length ? 'bg-accent' : 'bg-dusk-mid/40'}`} />
+                ))}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-5">
+              <button
+                type="button"
+                onClick={() => resumeDeck(resumable)}
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+              >
+                <Play className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true" />
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={() => restartResumable(resumable)}
+                className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-secondary transition-colors duration-150 ease-swift hover:text-primary"
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                Restart
+              </button>
+            </div>
+          </section>
+        )}
 
         <section className="mt-14" aria-labelledby="madlibs-library">
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
