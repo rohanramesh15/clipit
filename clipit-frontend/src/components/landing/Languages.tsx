@@ -55,11 +55,11 @@ export function Languages() {
           {availableLanguages.map((language) => {
             const Flag = flags[language.id];
             return (
-              <li key={language.id} className="overflow-hidden rounded-2xl">
-                <span className="block aspect-[3/2] w-full overflow-hidden rounded-t-2xl bg-blush">
+              <li key={language.id} className="relative">
+                <span className="relative z-10 block aspect-[3/2] w-full overflow-hidden rounded-2xl border border-subtle bg-blush">
                   <Flag />
                 </span>
-                <p className="bg-app px-6 py-4 text-center font-heading text-card-title font-medium leading-tight text-primary sm:px-7 sm:py-5">
+                <p className="relative z-0 -mt-4 rounded-b-2xl bg-app px-6 pb-4 pt-8 text-center font-heading text-card-title font-medium leading-tight text-primary sm:px-7 sm:pb-5 sm:pt-9">
                   {language.english}
                 </p>
               </li>
