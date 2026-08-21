@@ -39,7 +39,7 @@ const flags: Record<Language['id'], () => JSX.Element> = {
 
 export function Languages() {
   return (
-    <section className="bg-blush py-16 md:py-20" aria-labelledby="languages-title">
+    <section className="bg-blush py-20 md:py-28" aria-labelledby="languages-title">
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <div className="max-w-xl">
           <h2 id="languages-title" className="font-heading text-section text-primary md:text-section-lg">
@@ -51,15 +51,15 @@ export function Languages() {
           </p>
         </div>
 
-        <ul className="mt-10 grid gap-5 md:grid-cols-2">
+        <ul className="mt-12 grid gap-6 md:grid-cols-2">
           {availableLanguages.map((language) => {
             const Flag = flags[language.id];
             return (
-              <li key={language.id} className="flex items-center gap-4 rounded-2xl bg-app p-6 sm:p-7">
-                <span className="h-9 w-[54px] shrink-0 overflow-hidden rounded-md ring-1 ring-[var(--border-subtle)]">
+              <li key={language.id} className="overflow-hidden rounded-2xl bg-app">
+                <span className="block aspect-[3/2] w-full overflow-hidden border-b border-subtle">
                   <Flag />
                 </span>
-                <p className="font-heading text-card-title font-medium leading-tight text-primary">
+                <p className="px-6 py-5 font-heading text-card-title font-medium leading-tight text-primary sm:px-7 sm:py-6">
                   {language.english}
                 </p>
               </li>
