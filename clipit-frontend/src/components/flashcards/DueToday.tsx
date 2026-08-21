@@ -95,7 +95,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
 
         <button
           onClick={onStartAll}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-sand-ink px-5 py-2.5 text-body-sm font-semibold text-[#ffffff] transition-colors duration-150 ease-swift hover:bg-sand-deep"
         >
           <PlayIcon className="h-4 w-4" aria-hidden="true" />
           Start review

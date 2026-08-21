@@ -32,12 +32,12 @@ export function RatingBar({ previewTimes, onRate }: RatingBarProps) {
             onClick={() => onRate(rating.value)}
             className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-body-sm font-semibold transition-colors duration-150 ease-swift ${
               isPrimary
-                ? 'bg-accent text-on-accent hover:bg-accent-hover'
-                : 'bg-surface-hover text-primary hover:bg-blush'
+                ? 'bg-sand-ink text-[#ffffff] hover:bg-sand-deep'
+                : 'bg-sand-soft text-sand-deep hover:bg-sand-mid'
             }`}
           >
             <span>{rating.label}</span>
-            <span className={`text-meta font-normal ${isPrimary ? 'text-on-accent/75' : 'text-muted'}`}>
+            <span className={`text-meta font-normal ${isPrimary ? 'text-white/75' : 'text-sand-ink'}`}>
               {previewTimes ? formatNextReview(previewTimes[rating.previewKey]) : ''}
             </span>
           </button>

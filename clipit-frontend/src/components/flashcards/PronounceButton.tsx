@@ -22,7 +22,7 @@ export function PronounceButton({ text, language, label, size = 'md' }: Pronounc
         event.stopPropagation();
         speak(text, language);
       }}
-      className={`${dimensions} flex shrink-0 items-center justify-center rounded-full bg-surface-hover text-primary transition-colors duration-150 ease-swift hover:bg-blush`}
+      className={`${dimensions} flex shrink-0 items-center justify-center rounded-full bg-sand-soft text-sand-deep transition-colors duration-150 ease-swift hover:bg-sand-mid`}
     >
       <Volume2 className={icon} aria-hidden="true" />
     </button>
