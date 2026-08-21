@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mic, MicOff, Keyboard, Send, X, ArrowLeft, Lightbulb, HelpCircle,
+  Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle,
   ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy,
 } from 'lucide-react';
 import {
@@ -22,6 +22,7 @@ import { Skeleton } from '../components/Skeleton';
 import { Persona, type PersonaState } from '../components/ai-elements/persona';
 import { SpeechInput } from '../components/ai-elements/speech-input';
 import { LoadingAnimation } from '../components/LoadingAnimation';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 
 // App accent (matches --accent in index.css).
 const ACCENT = '#C4625A';
@@ -698,13 +699,7 @@ export function ConverseV2Page(
   // ============================================================================
   const header = (back: () => void, label: string) => (
     <div className="flex items-center gap-3 mb-6">
-      <button
-        onClick={back}
-        aria-label={label}
-        className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors"
-      >
-        <ArrowLeft className="w-5 h-5" />
-      </button>
+      <NavigationIconButton direction="back" label={label} onClick={back} />
       <h1 className="font-heading font-bold text-xl text-primary">Voice Chat</h1>
     </div>
   );
@@ -805,13 +800,7 @@ export function ConverseV2Page(
       {/* header + word tracker */}
       <div className="shrink-0">
         <div className="flex items-center gap-3 mb-4">
-          <button
-            onClick={() => setShowLeaveConfirm(true)}
-            aria-label="Back to videos"
-            className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-black/5 transition-colors shrink-0"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <NavigationIconButton direction="back" label="Back to videos" onClick={() => setShowLeaveConfirm(true)} className="shrink-0" />
           {/* Clickable summary line — expands the video header below. */}
           <button
             onClick={() => setHeaderExpanded((v) => !v)}

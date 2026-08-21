@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
+import { NavigationIconButton } from './NavigationIconButton';
 
 function Logo() {
   return (
@@ -43,13 +43,7 @@ export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, 
   return (
     <div className="light flex h-screen w-full flex-col overflow-hidden bg-app font-sans text-primary selection:bg-accent selection:text-[var(--on-accent)]" style={{ height: '100dvh' }}>
       <header className="flex shrink-0 items-center px-5 pt-5 sm:px-8">
-        <button
-          onClick={onBack}
-          aria-label="Go back"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <NavigationIconButton direction="back" label="Go back" onClick={onBack} />
       </header>
 
       <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-4 sm:px-8">

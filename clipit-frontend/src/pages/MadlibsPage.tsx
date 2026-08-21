@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Check, ChevronRight, Film, Lightbulb, PenLine, RotateCcw, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, Film, Lightbulb, PenLine, RotateCcw, Sparkles, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchTrackedVideos, fetchVideoCards, buildMadlibItems, fetchVideoWordCount, type MadlibItem, type TrackedVideo } from '../services/madlibs';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 
 type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 interface MadlibsPageProps { onNavigate: (page: Page) => void; }
@@ -66,11 +67,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     if (index + 1 >= items.length) { setPhase('done'); return; }
     setIndex((value) => value + 1); setSelected(null); setRevealed(false); setShowHint(false);
   };
-  const back = (target: 'practice' | 'deck') => (
-    <button type="button" onClick={() => target === 'practice' ? onNavigate('practice') : setPhase('deck')} aria-label={target === 'practice' ? 'Back to Practice' : 'Back to videos'} className="inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary">
-      <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-    </button>
-  );
+  const back = (target: 'practice' | 'deck') => <NavigationIconButton direction="back" label={target === 'practice' ? 'Back to Practice' : 'Back to videos'} onClick={() => target === 'practice' ? onNavigate('practice') : setPhase('deck')} />;
 
   if (phase === 'deck') {
     return <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">

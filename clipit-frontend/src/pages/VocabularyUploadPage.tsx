@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
 import {
-  ArrowLeft,
   Upload,
   FileText,
   Trash2,
@@ -19,6 +18,7 @@ import {
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 
 const uploadPageTips: HelpTip[] = [
   {
@@ -381,13 +381,7 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
       {/* Header */}
       <div className="mb-10">
         {onBack && (
-          <button
-            onClick={onBack}
-            aria-label="Back"
-            className="mb-4 w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-white/5 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <NavigationIconButton direction="back" label="Back" onClick={onBack} className="mb-4" />
         )}
         <h1 className="text-3xl font-heading font-bold text-primary mb-2">
           Add your own cards

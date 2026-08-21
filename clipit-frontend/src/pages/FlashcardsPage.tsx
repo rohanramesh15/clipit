@@ -3,7 +3,6 @@ declare function gtag(...args: unknown[]): void;
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '../components/Skeleton';
 import {
-  ChevronLeft,
   AlertCircle,
   Tv,
   Clock,
@@ -24,6 +23,7 @@ import { DeckBrowser } from '../components/flashcards/DeckBrowser';
 import { ReviewCard } from '../components/flashcards/ReviewCard';
 import { RatingBar } from '../components/flashcards/RatingBar';
 import { SessionSummary } from '../components/flashcards/SessionSummary';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 
 const flashcardsPageTips: HelpTip[] = [
   {
@@ -879,13 +879,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     return (
       <div className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-app">
         <div className="-ml-2 flex items-center gap-2">
-          <button
-            onClick={() => onNavigate?.('practice')}
-            aria-label="Back"
-            className="inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <NavigationIconButton direction="back" label="Back" onClick={() => onNavigate?.('practice')} />
 
           <h1 className="font-heading text-section font-medium text-primary" id="section-deck-select">
             Flash cards
@@ -1018,12 +1012,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
       {/* Header stats */}
       <div id="section-deck-select" className="flex w-full shrink-0 items-center justify-between mb-4">
-        <button
-          onClick={() => handleBackToDecks()}
-          aria-label="Back"
-          className="-ml-2 inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary">
-          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <NavigationIconButton direction="back" label="Back" onClick={() => handleBackToDecks()} className="-ml-2" />
         <div className="flex items-center gap-3">
           <div
             className="h-2 w-32 sm:w-48 overflow-hidden rounded-full bg-surface-hover"
