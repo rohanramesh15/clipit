@@ -13,13 +13,12 @@ import {
 } from '../services/converseV2';
 import { Sparkles, RotateCcw, MessageSquarePlus } from 'lucide-react';
 import {
-  fetchTrackedVideos, fetchVideoCards,
+  fetchVideoCards,
   type TrackedVideo, type FlashCard,
 } from '../services/madlibs';
 import { VoiceSession, VoiceEvent } from '../lib/voiceSession';
 import { getDueCards } from '../services/fsrs';
 import { getDeletedCards, relativeDay } from '../utils/flashcardStorage';
-import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
@@ -28,6 +27,9 @@ import { Persona, type PersonaState } from '../components/ai-elements/persona';
 import { SpeechInput } from '../components/ai-elements/speech-input';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
+import { queryClient } from '../lib/queryClient';
+import { historyQueryOptions, queryKeys, type VideoVocabulary, videoVocabularyQueryOptions } from '../lib/queries';
+import { mapWithConcurrency } from '../lib/network';
 
 // AI chat's brand accent — matches the sage tokens the "AI chat" tile uses on
 // the home screen (see tailwind.config.js `sage`), not the app's generic coral.
@@ -210,9 +212,8 @@ function VoicePersona({ status, level, onToggle }: { status: VoiceStatus; level:
 export function ConverseV2Page(
   { onBack, onNavigate }: { onBack?: () => void; onNavigate?: (page: NavPage) => void } = {},
 ) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { language } = useLanguage();
-  const { token } = useAuth();
   const langName = LANG_NAMES[language] || 'Korean';
 
   const [phase, setPhase] = useState<Phase>('deck');
@@ -319,11 +320,19 @@ export function ConverseV2Page(
   }, []);
 
   useEffect(() => {
+    if (!user || !token) {
+      setVideos([]);
+      return;
+    }
     let alive = true;
-    setVideos(null);
-    fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
+    const historyKey = queryKeys.history(user.id, language);
+    const cached = queryClient.getQueryData<TrackedVideo[]>(historyKey);
+    setVideos(cached ?? null);
+    void queryClient.ensureQueryData(historyQueryOptions(user.id, token, language))
+      .then((videos) => { if (alive) setVideos(videos); })
+      .catch(() => { if (alive && !cached) setVideos([]); });
     return () => { alive = false; };
-  }, [language, token]);
+  }, [language, token, user]);
 
   // Most recent session, for the Resume card — only sessions created after
   // real per-user scoping was added are resumable (see backend user_id).
@@ -354,10 +363,16 @@ export function ConverseV2Page(
   // Per-video word lists provide the same word-count and due-count metadata as
   // Flashcards' deck browser. Due state is the same local-FSRS approximation
   // used there; the lists themselves are not shown in this picker.
-  const [deckWords, setDeckWords] = useState<Record<string, { word: string; due: boolean }[]>>({});
+  const [deckWords, setDeckWords] = useState<Record<string, string[]>>({});
   const deckDueCounts = useMemo(
-    () => Object.fromEntries(Object.entries(deckWords).map(([id, words]) => [id, words.filter((w) => w.due).length])),
-    [deckWords],
+    () => {
+      const deleted = getDeletedCards(language);
+      return Object.fromEntries(Object.entries(deckWords).map(([id, words]) => {
+        const remaining = words.filter((word) => !deleted.has(word));
+        return [id, getDueCards(remaining).length];
+      }));
+    },
+    [deckWords, language],
   );
   useEffect(() => {
     function closeDeckSort(event: PointerEvent) {
@@ -374,29 +389,31 @@ export function ConverseV2Page(
     };
   }, []);
   useEffect(() => {
-    if (!videos || !videos.length) return;
+    if (!videos?.length || !user || !token) return;
     let alive = true;
-    Promise.all(
-      videos.map(async (v) => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/vocabulary/${v.video_id}?limit=20&lang=${language}`);
-          if (!res.ok) return [v.video_id, []] as const;
-          const data = await res.json();
-          const words: string[] = (data.vocabulary || []).map((w: { word: string }) => w.word);
-          const deleted = getDeletedCards(language);
-          const remaining = words.filter((w) => !deleted.has(w));
-          const due = new Set(getDueCards(remaining));
-          return [v.video_id, remaining.map((word) => ({ word, due: due.has(word) }))] as const;
-        } catch {
-          return [v.video_id, []] as const;
-        }
+    const cachedWords = Object.fromEntries(
+      videos.flatMap((video) => {
+        const cached = queryClient.getQueryData<VideoVocabulary>(
+          queryKeys.videoVocabulary(user.id, language, video.video_id),
+        );
+        return cached ? [[video.video_id, cached.words] as const] : [];
       }),
-    ).then((entries) => {
-      if (!alive) return;
-      setDeckWords(Object.fromEntries(entries));
+    );
+    setDeckWords(cachedWords);
+
+    const missing = videos.filter((video) => cachedWords[video.video_id] === undefined);
+    void mapWithConcurrency(missing, 2, async (video) => {
+      try {
+        const vocabulary = await queryClient.fetchQuery(
+          videoVocabularyQueryOptions(user.id, token, language, video.video_id),
+        );
+        if (alive) setDeckWords((current) => ({ ...current, [video.video_id]: vocabulary.words }));
+      } catch {
+        if (alive) setDeckWords((current) => ({ ...current, [video.video_id]: [] }));
+      }
     });
     return () => { alive = false; };
-  }, [videos, language]);
+  }, [videos, language, token, user]);
 
   // ── auto-scroll transcript ──────────────────────────────────────────────────
   useEffect(() => {

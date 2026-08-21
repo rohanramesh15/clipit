@@ -10,6 +10,8 @@ import { Avatar } from '../components/Avatar';
 import { VoiceSelector } from '../components/VoiceSelector';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 import { fetchTtsVoices, fetchVoiceSample, type TtsVoice } from '../services/chat';
+import { queryClient } from '../lib/queryClient';
+import { queryKeys, vocabularySettingsQueryOptions } from '../lib/queries';
 
 const DAILY_GOAL_OPTIONS = [
   { minutes: 5, label: '5 min', cards: 10 },
@@ -64,16 +66,15 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    fetch(`${API_BASE_URL}/vocab/settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    if (!token || !user) return;
+    const cached = queryClient.getQueryData<{ new_cards_per_day?: number }>(queryKeys.vocabularySettings(user.id));
+    if (cached?.new_cards_per_day !== undefined) setNewCards(cached.new_cards_per_day);
+    void queryClient.ensureQueryData(vocabularySettingsQueryOptions(user.id, token))
       .then((data) => {
         if (data.new_cards_per_day !== undefined) setNewCards(data.new_cards_per_day);
       })
       .catch(() => {});
-  }, [token]);
+  }, [token, user]);
 
   const cardTarget = useMemo(
     () => DAILY_GOAL_OPTIONS.find((option) => option.minutes === goalMinutes)?.cards ?? 30,
@@ -90,6 +91,12 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ new_cards_per_day: clamped }),
       });
+      if (user) {
+        queryClient.setQueryData(queryKeys.vocabularySettings(user.id), (current: { new_cards_per_day?: number } | undefined) => ({
+          ...current,
+          new_cards_per_day: clamped,
+        }));
+      }
     } catch (err) {
       console.error('Failed to save new cards setting:', err);
     }
@@ -172,7 +179,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               Learning
             </h2>
 
-            <div className="mt-2 w-full border-t border-subtle">
+            <div className="mt-2 w-full">
               <SettingRow label="Daily goal" description={`How much time would you like to learn each day? This sets a daily target of about ${cardTarget} cards.`}>
                 <div role="group" aria-label="Daily goal" className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface p-1">
                   {DAILY_GOAL_OPTIONS.map((option) => {
@@ -236,7 +243,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 Practice
               </h2>
 
-              <div className="mt-2 w-full border-t border-subtle">
+              <div className="mt-2 w-full">
                 <SettingRow label="AI voice" description="Tap a voice to hear a short sample. Your selected voice becomes your default voice." layout="stacked">
                   <VoiceSelector voices={ttsVoices} selectedId={voiceId} onSelect={handleVoiceChange} getSampleUrl={getVoiceSampleUrl} />
                 </SettingRow>
@@ -249,7 +256,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               Account
             </h2>
 
-            <div className="mt-2 w-full border-t border-subtle">
+            <div className="mt-2 w-full">
               <SettingRow label="Log out" description="Sign out of ClipIt on this device.">
                 <button
                   type="button"

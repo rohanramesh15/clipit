@@ -19,6 +19,8 @@ import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
+import { queryClient } from '../lib/queryClient';
+import { queryKeys, vocabularyListsQueryOptions, vocabularySettingsQueryOptions } from '../lib/queries';
 
 const uploadPageTips: HelpTip[] = [
   {
@@ -99,7 +101,7 @@ function InfoTip({ text }: { text: React.ReactNode }) {
 }
 
 export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ankiInputRef = useRef<HTMLInputElement>(null);
@@ -125,38 +127,33 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
 
   // Fetch lists and settings on mount
   useEffect(() => {
-    if (!token) {
+    if (!token || !user) {
       setIsLoading(false);
       return;
     }
 
     Promise.all([fetchLists(), fetchSettings()])
       .finally(() => setIsLoading(false));
-  }, [token]);
+  }, [token, user]);
 
-  const fetchLists = async () => {
+  const fetchLists = async (force = false) => {
+    if (!token || !user) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/vocab/lists`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLists(data);
-      }
+      const options = vocabularyListsQueryOptions(user.id, token);
+      const data = force
+        ? await queryClient.fetchQuery({ ...options, staleTime: 0 })
+        : await queryClient.ensureQueryData(options);
+      setLists(data);
     } catch (err) {
       console.error('Failed to fetch lists:', err);
     }
   };
 
   const fetchSettings = async () => {
+    if (!token || !user) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/vocab/settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPriorityMode(data.priority_mode);
-      }
+      const data = await queryClient.ensureQueryData(vocabularySettingsQueryOptions(user.id, token));
+      if (data.priority_mode) setPriorityMode(data.priority_mode);
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     }
@@ -202,7 +199,16 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
       if (res.ok) {
         const newList = await res.json();
         console.log('[Upload] Success! List created:', newList);
-        setLists([newList, ...lists]);
+        setLists((current) => [newList, ...current]);
+        if (user) queryClient.setQueryData<VocabList[]>(
+          queryKeys.vocabularyLists(user.id),
+          (current = []) => [newList, ...current],
+        );
+        if (user) {
+          queryClient.removeQueries({ queryKey: ['video-vocabulary', user.id, language] });
+          queryClient.removeQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
+          queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
+        }
         setSuccess(`Successfully uploaded "${newList.name}" with ${newList.word_count} words!`);
       } else {
         const data = await res.json();
@@ -231,7 +237,16 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
       });
 
       if (res.ok) {
-        setLists(lists.filter((l) => l.id !== listId));
+        setLists((current) => current.filter((list) => list.id !== listId));
+        if (user) queryClient.setQueryData<VocabList[]>(
+          queryKeys.vocabularyLists(user.id),
+          (current = []) => current.filter((list) => list.id !== listId),
+        );
+        if (user) {
+          queryClient.removeQueries({ queryKey: ['video-vocabulary', user.id, language] });
+          queryClient.removeQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
+          queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
+        }
         if (expandedListId === listId) {
           setExpandedListId(null);
           setExpandedListWords([]);
@@ -264,6 +279,14 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
 
       if (!res.ok) {
         setError('Failed to save settings');
+      } else if (user) {
+        queryClient.setQueryData(queryKeys.vocabularySettings(user.id), (current: { priority_mode?: string } | undefined) => ({
+          ...current,
+          priority_mode: mode,
+        }));
+        queryClient.removeQueries({ queryKey: ['video-vocabulary', user.id, language] });
+        queryClient.removeQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
+        queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
       }
     } catch (err) {
       setError('Failed to save settings');
@@ -307,7 +330,12 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
         setAnkiImportResult(data);
         setSuccess(`Successfully imported "${data.deck_name}"!`);
         // Refresh lists to show the new Anki import
-        fetchLists();
+        void fetchLists(true);
+        if (user) {
+          queryClient.removeQueries({ queryKey: ['video-vocabulary', user.id, language] });
+          queryClient.removeQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
+          queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
+        }
       } else {
         const data = await res.json();
         setError(data.detail || 'Failed to import Anki deck');

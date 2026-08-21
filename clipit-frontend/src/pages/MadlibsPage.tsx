@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Play, RotateCcw, Search, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { buildMadlibItem, buildMadlibItems, fetchTrackedVideos, fetchVideoWordCount, streamVideoCards, type FlashCard, type MadlibItem, type TrackedVideo } from '../services/madlibs';
+import { buildMadlibItem, buildMadlibItems, streamVideoCards, type FlashCard, type MadlibItem, type TrackedVideo } from '../services/madlibs';
 import { relativeDay } from '../utils/flashcardStorage';
 import { saveMadlibProgress, clearMadlibProgress, getMostRecentMadlibProgress, type MadlibProgress } from '../utils/madlibsStorage';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
@@ -11,7 +11,8 @@ import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 import { queryClient } from '../lib/queryClient';
-import { type CachedMadlibDeck, queryKeys } from '../lib/queries';
+import { type CachedMadlibDeck, historyQueryOptions, queryKeys, videoVocabularyQueryOptions } from '../lib/queries';
+import { mapWithConcurrency } from '../lib/network';
 
 type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 interface MadlibsPageProps { onNavigate: (page: Page) => void; }
@@ -100,19 +101,46 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   }, [phase, deck, items, answers, language]);
 
   useEffect(() => {
+    if (!user || !token) {
+      setVideos([]);
+      return;
+    }
     let alive = true;
-    setVideos(null); setWordCounts({});
-    void fetchTrackedVideos(language, token).then((nextVideos) => { if (alive) setVideos(nextVideos); });
+    const historyKey = queryKeys.history(user.id, language);
+    const cached = queryClient.getQueryData<TrackedVideo[]>(historyKey);
+    setVideos(cached ?? null);
+    void queryClient.ensureQueryData(historyQueryOptions(user.id, token, language))
+      .then((nextVideos) => { if (alive) setVideos(nextVideos); })
+      .catch(() => { if (alive && !cached) setVideos([]); });
     return () => { alive = false; };
-  }, [language, token]);
+  }, [language, token, user]);
 
   useEffect(() => {
-    if (!videos?.length) return;
+    if (!videos?.length || !user || !token) return;
     let alive = true;
-    void Promise.all(videos.map(async (video) => [video.video_id, await fetchVideoWordCount(video.video_id, language)] as const))
-      .then((entries) => { if (alive) setWordCounts(Object.fromEntries(entries)); });
+    const cachedCounts = Object.fromEntries(
+      videos.flatMap((video) => {
+        const cached = queryClient.getQueryData<{ totalWords: number }>(
+          queryKeys.videoVocabulary(user.id, language, video.video_id),
+        );
+        return cached ? [[video.video_id, cached.totalWords] as const] : [];
+      }),
+    );
+    setWordCounts(cachedCounts);
+
+    const missing = videos.filter((video) => cachedCounts[video.video_id] === undefined);
+    void mapWithConcurrency(missing, 2, async (video) => {
+      try {
+        const vocabulary = await queryClient.fetchQuery(
+          videoVocabularyQueryOptions(user.id, token, language, video.video_id),
+        );
+        if (alive) setWordCounts((current) => ({ ...current, [video.video_id]: vocabulary.totalWords }));
+      } catch {
+        if (alive) setWordCounts((current) => ({ ...current, [video.video_id]: 0 }));
+      }
+    });
     return () => { alive = false; };
-  }, [videos, language]);
+  }, [videos, language, token, user]);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -405,20 +433,9 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           </div>
 
           {videos === null ? (
-            <div className="space-y-3 pt-4" role="status" aria-live="polite">
-              <div className="flex items-center gap-3 text-body-sm text-muted">
-                <LoadingAnimation className="h-7 w-7" />
-                Loading videos…
-              </div>
-              {[0, 1, 2].map((value) => (
-                <div key={value} className="flex items-center gap-5 border-b border-subtle py-4">
-                  <Skeleton className="h-14 w-24 shrink-0 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-2/3 rounded" />
-                    <Skeleton className="h-3 w-1/3 rounded" />
-                  </div>
-                </div>
-              ))}
+            <div className="pt-6" role="status" aria-live="polite">
+              <Skeleton className="h-80 w-full rounded-2xl" />
+              <p className="mt-5 text-body-sm text-muted">Loading your videos…</p>
             </div>
           ) : videos.length === 0 ? (
             <PracticeEmptyState mode="Mad Libs" />
@@ -487,15 +504,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <h1 className="font-heading text-section font-medium text-primary">Mad libs</h1>
         </div>
         <div className="mx-auto mt-8 w-full max-w-2xl">
-          <div className="mb-6 flex items-center gap-3 text-body-sm text-muted" role="status">
-            <LoadingAnimation className="h-7 w-7" />
-            Preparing your practice…
-          </div>
-          <Skeleton className="mb-8 h-2 w-full rounded-full" />
-          <Skeleton className="mb-5 h-52 w-full rounded-2xl" />
-          <div className="grid grid-cols-2 gap-3">
-            {[0, 1, 2, 3].map((value) => <Skeleton key={value} className="h-14 rounded-xl" />)}
-          </div>
+          <Skeleton className="h-80 w-full rounded-2xl" />
+          <p className="mt-5 text-body-sm text-muted" role="status">Preparing your practice…</p>
         </div>
       </main>
     );

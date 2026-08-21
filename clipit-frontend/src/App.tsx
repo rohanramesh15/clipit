@@ -66,18 +66,9 @@ function AppLoadingState() {
       <header className="h-[72px] border-b border-subtle bg-app/90" aria-hidden="true" />
 
       <main className="mx-auto max-w-page px-5 pb-8 pt-16 sm:px-8">
-        <div className="max-w-xl">
-          <Skeleton className="mb-4 h-9 w-64 rounded-lg" />
-          <Skeleton className="h-5 w-80 max-w-full rounded-md" />
-        </div>
-
         <div className="mt-14 grid gap-5 sm:grid-cols-3" aria-hidden="true">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="rounded-2xl bg-surface p-5">
-              <Skeleton className="mb-8 h-11 w-11 rounded-xl" />
-              <Skeleton className="mb-3 h-5 w-28 rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-            </div>
+            <Skeleton key={index} className="h-44 rounded-2xl" />
           ))}
         </div>
 
@@ -283,15 +274,15 @@ function AppInner() {
                 key={activePage}
                 initial={{
                   opacity: 0,
-                  x: 20
+                  ...(activePage === 'settings' ? {} : { x: 20 }),
                 }}
                 animate={{
                   opacity: 1,
-                  x: 0
+                  ...(activePage === 'settings' ? {} : { x: 0 }),
                 }}
                 exit={{
                   opacity: 0,
-                  x: -20
+                  ...(activePage === 'settings' ? {} : { x: -20 }),
                 }}
                 transition={{
                   duration: 0.3,

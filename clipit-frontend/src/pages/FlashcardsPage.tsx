@@ -15,7 +15,8 @@ import { useReviewSession } from '../context/ReviewSessionContext';
 import { API_BASE_URL } from '../config';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { queryClient } from '../lib/queryClient';
-import { queryKeys } from '../lib/queries';
+import { historyQueryOptions, queryKeys, videoVocabularyQueryOptions } from '../lib/queries';
+import { mapWithConcurrency } from '../lib/network';
 import { FlashCard, TrackedVideo, LoadState, Page } from '../types/flashcards';
 import { getDeletedCards, formatNextReview } from '../utils/flashcardStorage';
 import { DueToday } from '../components/flashcards/DueToday';
@@ -264,12 +265,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         try {
           await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
 
-          const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
-          if (!vocabRes.ok) return [];
-          const vocab = await vocabRes.json();
-          if (!vocab.total_words) return [];
+          const vocab = await queryClient.fetchQuery(
+            videoVocabularyQueryOptions(user?.id ?? 0, token ?? '', language, videoId),
+          );
+          if (!vocab.totalWords) return [];
 
-          const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
+          const wordList = vocab.words;
           const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -279,7 +280,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           const fc = await fcRes.json();
 
           const rankMap: Record<string, number> = {};
-          vocab.vocabulary.forEach((v: { word: string; rank: number }) => { rankMap[v.word] = v.rank; });
           let cards = (fc.flashcards || []).map((card: FlashCard) => ({
             ...card,
             card_type: 'video' as const,
@@ -308,7 +308,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         }
       },
     });
-  }, [language, user?.id]);
+  }, [language, token, user?.id]);
 
   // Read the streaming endpoint as Server-Sent Events. Cards are added to the
   // active review queue one by one instead of waiting for every translation in
@@ -319,19 +319,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   ): Promise<FlashCard[]> => {
     await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
 
-    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
-    if (!vocabRes.ok) return [];
-    const vocab = await vocabRes.json();
-    if (!vocab.total_words || !Array.isArray(vocab.vocabulary)) return [];
-
-    const rankMap: Record<string, number> = {};
-    vocab.vocabulary.forEach((word: { word: string; rank: number }) => { rankMap[word.word] = word.rank; });
+    const vocab = await queryClient.fetchQuery(
+      videoVocabularyQueryOptions(user?.id ?? 0, token ?? '', language, videoId),
+    );
+    if (!vocab.totalWords) return [];
     const response = await fetch(`${API_BASE_URL}/flashcard-data/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         video_id: videoId,
-        words: vocab.vocabulary.map((word: { word: string }) => word.word),
+        words: vocab.words,
         word_source: 'essential',
         language,
       }),
@@ -355,7 +352,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         ...rawCard,
         card_type: 'video',
         video_id: rawCard.video_id || videoId,
-        rank: rankMap[rawCard.target_word],
       };
       if (videoId.startsWith('netflix_') && !await checkScreenshotExists(videoId, card.timestamp ?? 0)) return;
       const word = card.dictionary_form || card.target_word;
@@ -379,7 +375,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
     if (buffer.trim()) await handleEvent(buffer);
     return cards;
-  }, [language]);
+  }, [language, token, user?.id]);
 
   const beginProgressiveSession = useCallback(() => {
     streamedCardKeysRef.current = new Set();
@@ -539,35 +535,28 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const fetchDashboard = useCallback(async (): Promise<FlashcardsDashboard> => {
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const tzOffset = new Date().getTimezoneOffset();
-    const [todayRes, filteredRes] = await Promise.all([
+    const [todayRes, vids] = await Promise.all([
       token
         ? fetch(`${API_BASE_URL}/fsrs/reviews/today?tz_offset_minutes=${tzOffset}`, { headers })
         : Promise.resolve(null),
-      fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers }),
+      queryClient.ensureQueryData(historyQueryOptions(user?.id ?? 0, token ?? '', language)),
     ]);
-    if (!filteredRes.ok) throw new Error('Could not load decks');
 
-    const [todayData, filteredData] = await Promise.all([
+    const [todayData] = await Promise.all([
       todayRes?.ok ? todayRes.json() : Promise.resolve({ count: 0 }),
-      filteredRes.json(),
     ]);
-    const vids: TrackedVideo[] = filteredData.videos || [];
-    const counts = await Promise.all(
-      vids.map(async (video) => {
+    const counts = await mapWithConcurrency(vids, 2, async (video) => {
         try {
-          const res = await fetch(`${API_BASE_URL}/vocabulary/${video.video_id}?limit=20&lang=${language}`);
-          if (!res.ok) return [video.video_id, 0, 0] as const;
-          const data = await res.json();
+          const data = await queryClient.fetchQuery(
+            videoVocabularyQueryOptions(user?.id ?? 0, token ?? '', language, video.video_id),
+          );
           const deleted = getDeletedCards(language);
-          const remaining = (data.vocabulary || [])
-            .map((word: { word: string }) => word.word)
-            .filter((word: string) => !deleted.has(word));
-          return [video.video_id, data.total_words || 0, getDueCards(remaining).length] as const;
+          const remaining = data.words.filter((word) => !deleted.has(word));
+          return [video.video_id, data.totalWords, getDueCards(remaining).length] as const;
         } catch {
           return [video.video_id, 0, 0] as const;
         }
-      }),
-    );
+      });
 
     return {
       cardsReviewedToday: todayData.count || 0,
@@ -575,7 +564,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       wordCounts: Object.fromEntries(counts.map(([id, count]) => [id, count])),
       dueCounts: Object.fromEntries(counts.map(([id, , due]) => [id, due])),
     };
-  }, [language, token]);
+  }, [language, token, user?.id]);
 
   useEffect(() => {
     let alive = true;

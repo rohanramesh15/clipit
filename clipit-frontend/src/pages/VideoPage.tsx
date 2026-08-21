@@ -7,7 +7,6 @@ import { SegmentedFilter } from '../components/SegmentedFilter';
 import { VideoHistoryItem, type TrackedVideo, type Platform } from '../components/VideoHistoryItem';
 import { RemoveVideoDialog } from '../components/RemoveVideoDialog';
 import { Skeleton } from '../components/Skeleton';
-import { LoadingAnimation } from '../components/LoadingAnimation';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -99,6 +98,9 @@ export function VideoPage() {
         );
         queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user?.id ?? 0, language) });
         queryClient.removeQueries({ queryKey: queryKeys.watchTime(user?.id ?? 0, language) });
+        queryClient.removeQueries({ queryKey: queryKeys.videoVocabulary(user?.id ?? 0, language, pendingRemoval.id) });
+        queryClient.removeQueries({ queryKey: queryKeys.flashcardDeck(user?.id ?? 0, language, pendingRemoval.id) });
+        queryClient.removeQueries({ queryKey: queryKeys.madlibDeck(user?.id ?? 0, language, pendingRemoval.id) });
       }
     } finally {
       setIsRemoving(false);
@@ -119,21 +121,8 @@ export function VideoPage() {
       <section aria-label="Video history">
       {loadState === 'loading' && (
         <div className="mt-6" role="status" aria-live="polite">
-          <div className="space-y-0" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="flex gap-5 border-b border-subtle py-4">
-                <Skeleton className="h-14 w-24 shrink-0 rounded-lg" />
-                <div className="flex flex-1 flex-col justify-center gap-3 py-1">
-                  <Skeleton className="h-5 w-3/4 rounded-md" />
-                  <Skeleton className="h-4 w-1/3 rounded-md" />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 flex items-center gap-3 text-body-sm text-muted">
-            <LoadingAnimation className="h-7 w-7" />
-            <p>Loading your watch history…</p>
-          </div>
+          <Skeleton className="h-72 w-full rounded-2xl" />
+          <p className="mt-6 text-body-sm text-muted">Loading your watch history…</p>
         </div>
       )}
 

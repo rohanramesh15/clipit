@@ -21,6 +21,24 @@ export interface CachedMadlibDeck<Card> {
   isComplete: boolean;
 }
 
+export interface VideoVocabulary {
+  totalWords: number;
+  words: string[];
+}
+
+export interface VocabularySettings {
+  new_cards_per_day?: number;
+  priority_mode?: string;
+}
+
+export interface VocabularyListSummary {
+  id: number;
+  name: string;
+  language: string;
+  word_count: number;
+  created_at: string;
+}
+
 export interface ReviewEntry {
   word: string;
   language: string;
@@ -74,6 +92,10 @@ export const queryKeys = {
     ['flashcard-deck', userId, language, videoId] as const,
   madlibDeck: (userId: number, language: string, videoId: string) =>
     ['madlib-deck', userId, language, videoId] as const,
+  videoVocabulary: (userId: number, language: string, videoId: string) =>
+    ['video-vocabulary', userId, language, videoId] as const,
+  vocabularySettings: (userId: number) => ['vocabulary-settings', userId] as const,
+  vocabularyLists: (userId: number) => ['vocabulary-lists', userId] as const,
   watchTime: (userId: number, language: string) => ['watch-time', userId, language] as const,
   reviews: (userId: number) => ['reviews', userId] as const,
 };
@@ -90,6 +112,45 @@ export function historyQueryOptions(userId: number, token: string, language: str
       if (!Array.isArray(data.videos)) throw new Error('Invalid history response');
       return data.videos;
     },
+  };
+}
+
+export function videoVocabularyQueryOptions(userId: number, token: string, language: string, videoId: string) {
+  return {
+    queryKey: queryKeys.videoVocabulary(userId, language, videoId),
+    queryFn: async ({ signal }: { signal: AbortSignal }): Promise<VideoVocabulary> => {
+      const data = await readJson<{ total_words?: number; vocabulary?: { word: string }[] }>(
+        `${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`,
+        token,
+        signal,
+      );
+      return {
+        totalWords: data.total_words || 0,
+        words: Array.isArray(data.vocabulary) ? data.vocabulary.map((item) => item.word) : [],
+      };
+    },
+  };
+}
+
+export function vocabularySettingsQueryOptions(userId: number, token: string) {
+  return {
+    queryKey: queryKeys.vocabularySettings(userId),
+    queryFn: ({ signal }: { signal: AbortSignal }) => readJson<VocabularySettings>(
+      `${API_BASE_URL}/vocab/settings`,
+      token,
+      signal,
+    ),
+  };
+}
+
+export function vocabularyListsQueryOptions(userId: number, token: string) {
+  return {
+    queryKey: queryKeys.vocabularyLists(userId),
+    queryFn: ({ signal }: { signal: AbortSignal }) => readJson<VocabularyListSummary[]>(
+      `${API_BASE_URL}/vocab/lists`,
+      token,
+      signal,
+    ),
   };
 }
 
