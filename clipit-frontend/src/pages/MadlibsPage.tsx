@@ -525,17 +525,22 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
   return (
     <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-4 sm:px-8">
-      <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2">
-          {back('deck')}
-          <p className="truncate text-body-sm font-semibold text-secondary">{deck?.title}</p>
+      <header className="mx-auto flex w-full max-w-2xl shrink-0 items-center justify-between">
+        <div className="-ml-2 flex items-center">{back('deck')}</div>
+        <div className="flex items-center gap-3">
+          <div
+            className="h-2 w-32 overflow-hidden rounded-full bg-surface-hover sm:w-48"
+            role="progressbar"
+            aria-valuenow={index + (revealed ? 1 : 0)}
+            aria-valuemin={0}
+            aria-valuemax={items.length}
+            aria-label="Mad libs progress"
+          >
+            <motion.div className="h-full rounded-full bg-accent" animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} />
+          </div>
+          <span className="shrink-0 text-right text-body-sm tabular-nums text-muted">{index + 1} / {items.length}</span>
         </div>
-        <span className="shrink-0 text-body-sm font-medium tabular-nums text-secondary">{index + 1} / {items.length}</span>
       </header>
-
-      <div className="mx-auto mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-surface-hover">
-        <motion.div className="h-full rounded-full bg-accent" animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} />
-      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
