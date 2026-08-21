@@ -75,12 +75,27 @@ function getDeletedCards(language: string): Set<string> {
   }
 }
 
+export class RequestError extends Error {
+  constructor(message: string, readonly status?: number, readonly isTimeout = false) {
+    super(message);
+    this.name = 'RequestError';
+  }
+}
+
 async function readJson<T>(url: string, token: string, signal: AbortSignal, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetchWithTimeout(url, { ...init, headers, signal });
-  if (!response.ok) throw new Error(`Request failed (${response.status})`);
-  return response.json() as Promise<T>;
+  try {
+    const response = await fetchWithTimeout(url, { ...init, headers, signal });
+    if (!response.ok) throw new RequestError(`Request failed (${response.status})`, response.status);
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new RequestError('Request timed out', undefined, true);
+    }
+    throw error;
+  }
 }
 
 export const queryKeys = {
@@ -179,6 +194,11 @@ export function reviewsQueryOptions(userId: number, token: string) {
 export function homeQueueQueryOptions(userId: number, token: string, language: string) {
   return {
     queryKey: queryKeys.homeQueue(userId, language),
+    retry: (failureCount: number, error: unknown) => {
+      if (error instanceof RequestError && error.status && error.status < 500) return false;
+      return failureCount < 2;
+    },
+    retryDelay: (attempt: number) => Math.min(500 * 2 ** attempt, 2_000),
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<QueuedWord[]> => {
       const queue = await readJson<{ cards?: FlashCard[] }>(
         `${API_BASE_URL}/videos/home/queue?lang=${language}`,

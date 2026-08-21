@@ -8,7 +8,7 @@ import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
 import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
-import { homeQueueQueryOptions } from '../lib/queries';
+import { homeQueueQueryOptions, RequestError } from '../lib/queries';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -48,7 +48,8 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
     enabled: Boolean(user && token),
   });
   const words = wordQueue.data ?? null;
-  const wordLoadState = wordQueue.isPending ? 'loading' : wordQueue.isError ? 'error' : 'loaded';
+  // Cached practice data remains useful if a background refresh fails.
+  const wordLoadState = words ? 'loaded' : wordQueue.isPending ? 'loading' : wordQueue.isError ? 'error' : 'loaded';
 
   const hasWatched = words !== null && words.length > 0;
   const dueCount = words ? words.filter((word) => word.status === 'due').length : 0;
@@ -81,8 +82,16 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
         <div className="mt-10 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-12 text-center">
           <AlertCircle className="h-7 w-7 text-accent" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-primary">Your practice queue took too long to load</p>
-            <p className="mt-1 text-body-sm text-secondary">Please try again. Your saved progress is safe.</p>
+            <p className="font-semibold text-primary">
+              {wordQueue.error instanceof RequestError && wordQueue.error.status === 401
+                ? 'Your session has expired'
+                : 'We couldn’t load your practice queue'}
+            </p>
+            <p className="mt-1 text-body-sm text-secondary">
+              {wordQueue.error instanceof RequestError && wordQueue.error.status === 401
+                ? 'Sign in again to continue practicing.'
+                : 'Check your connection and try again.'}
+            </p>
           </div>
           <button
             type="button"
