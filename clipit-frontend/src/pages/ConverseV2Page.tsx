@@ -885,7 +885,7 @@ export function ConverseV2Page(
         )}
 
         {chatError && (
-          <div className="mb-4 text-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
+          <div className="mb-4 text-body-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
         )}
 
         {videos === null ? (
@@ -1057,7 +1057,7 @@ export function ConverseV2Page(
           <Skeleton className="h-12 w-1/2 rounded-2xl ml-auto" />
           <Skeleton className="h-16 w-2/3 rounded-2xl" />
         </div>
-        <div className="mt-10 flex flex-col items-center gap-3 text-sm text-muted" role="status" aria-live="polite">
+        <div className="mt-10 flex flex-col items-center gap-3 text-body-sm text-muted" role="status" aria-live="polite">
           <LoadingAnimation className="h-[68px] w-[68px]" />
           <span>Starting your conversation…</span>
         </div>
@@ -1089,7 +1089,7 @@ export function ConverseV2Page(
           </span>
 
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-heading font-semibold text-sm text-primary">
+            <h1 className="truncate font-heading font-semibold text-body text-primary">
               {deck?.title || 'Voice Chat'}
             </h1>
           </div>
@@ -1110,7 +1110,7 @@ export function ConverseV2Page(
                   );
                 })}
               </span>
-              <p className="text-xs text-secondary">
+              <p className="text-meta text-secondary">
                 <span className="font-semibold text-primary tabular-nums">{usedCount}</span>/{targetWords.length} words
               </p>
             </div>
@@ -1138,7 +1138,7 @@ export function ConverseV2Page(
             const usedHere = lemmasUsedIn(m.text, targetWords);
             return (
               <div key={m.id} className="flex flex-col items-end gap-1.5">
-                <div className="max-w-[85%] text-xl leading-relaxed text-secondary text-right">
+                <div className="max-w-[85%] text-lead leading-relaxed text-secondary text-right">
                   {m.text}
                 </div>
                 {usedHere.length > 0 && (
@@ -1162,12 +1162,12 @@ export function ConverseV2Page(
                 <MessageCircle className="h-4 w-4" />
               </div>
               <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-              <div className="max-w-[90%] text-xl leading-relaxed text-primary font-medium">
+              <div className="max-w-[90%] text-lead leading-relaxed text-primary font-medium">
                 <TappableText text={m.text} targets={m.targets} onWordTap={handleWordTap} />
               </div>
               {/* romanization — the sentence written in the English alphabet */}
               {msgRoman[m.id] ? (
-                <div className="max-w-[90%] text-xl leading-relaxed text-muted">{msgRoman[m.id]}</div>
+                <div className="max-w-[90%] text-lead leading-relaxed text-muted">{msgRoman[m.id]}</div>
               ) : null}
 
               <div className="flex flex-col gap-2 w-full">
@@ -1181,7 +1181,7 @@ export function ConverseV2Page(
                     >
                       <Languages className="w-4 h-4" />
                     </button>
-                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                       Translate
                     </span>
                   </span>
@@ -1193,7 +1193,7 @@ export function ConverseV2Page(
                     >
                       <Volume2 className="w-4 h-4" />
                     </button>
-                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                       Listen
                     </span>
                   </span>
@@ -1208,7 +1208,7 @@ export function ConverseV2Page(
                         >
                           {regenLoading ? <LoadingAnimation className="h-4 w-4" /> : <RotateCcw className="w-4 h-4" />}
                         </button>
-                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                           Another response
                         </span>
                       </span>
@@ -1221,7 +1221,7 @@ export function ConverseV2Page(
                         >
                           {suggestLoading ? <LoadingAnimation className="h-4 w-4" /> : <MessageSquarePlus className="w-4 h-4" />}
                         </button>
-                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                           Suggest reply
                         </span>
                       </span>
@@ -1229,7 +1229,7 @@ export function ConverseV2Page(
                   )}
                 </div>
                 {msgTrans[m.id]?.visible && (
-                  <div className="mt-2 border-l-2 border-subtle pl-3 text-sm text-secondary">
+                  <div className="mt-2 border-l-2 border-subtle pl-3 text-body-sm text-secondary">
                     {msgTrans[m.id]?.loading ? 'Translating…' : (msgTrans[m.id]?.text || m.translation || '—')}
                   </div>
                 )}
@@ -1237,18 +1237,18 @@ export function ConverseV2Page(
                 {m.correction && (!revealed ? (
                   <button
                     onClick={() => setRevealedCorrections((prev) => new Set(prev).add(m.id))}
-                    className="self-start inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-secondary transition-colors"
+                    className="self-start inline-flex items-center gap-1.5 text-meta font-medium text-muted hover:text-secondary transition-colors"
                   >
                     <Lightbulb className="w-3.5 h-3.5" /> A better way to say that
                   </button>
                 ) : (
                   <div className="rounded-2xl bg-surface p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">A better way to say that</div>
+                    <div className="text-meta font-semibold uppercase tracking-wide text-muted mb-1">A better way to say that</div>
                     <div className="text-body font-medium text-primary" style={{ color: PAGE }}>{m.correction.correct}</div>
                     <div className="text-body-sm text-secondary mt-1.5">{m.correction.why_en}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <button
-                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
+                        className={'text-meta font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
                         style={verdict === 'fine' ? { background: ACCENT } : undefined}
                         disabled={!!verdict}
                         onClick={() => handleCorrectionFb(m.id, m.turnId, 'fine')}
@@ -1256,14 +1256,14 @@ export function ConverseV2Page(
                         Mine was fine
                       </button>
                       <button
-                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
+                        className={'text-meta font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
                         style={verdict === 'wrong' ? { background: ACCENT } : undefined}
                         disabled={!!verdict}
                         onClick={() => handleCorrectionFb(m.id, m.turnId, 'wrong')}
                       >
                         Not right
                       </button>
-                      {verdict && <span className="text-xs text-muted">thanks</span>}
+                      {verdict && <span className="text-meta text-muted">thanks</span>}
                     </div>
                   </div>
                 ))}
@@ -1279,12 +1279,12 @@ export function ConverseV2Page(
                           >
                             <kbd
                               aria-hidden="true"
-                              className="grid h-5 w-5 shrink-0 translate-y-0.5 place-items-center rounded-md bg-surface-hover text-[11px] font-medium text-muted"
+                              className="grid h-5 w-5 shrink-0 translate-y-0.5 place-items-center rounded-md bg-surface-hover text-meta font-medium text-muted"
                             >
                               {i + 1}
                             </kbd>
-                            <span className="min-w-0 flex-1 text-sm font-medium text-primary">{s.es}</span>
-                            {s.en && <span className="hidden shrink-0 text-xs text-muted sm:block">{s.en}</span>}
+                            <span className="min-w-0 flex-1 text-body-sm font-medium text-primary">{s.es}</span>
+                            {s.en && <span className="hidden shrink-0 text-meta text-muted sm:block">{s.en}</span>}
                           </button>
                         </li>
                       ))}
@@ -1337,10 +1337,10 @@ export function ConverseV2Page(
           {nudge && (
             <motion.div
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-              className="flex items-start gap-2 rounded-xl bg-surface p-3 mb-3"
+              className="flex items-start gap-2 rounded-2xl bg-surface p-4 mb-3"
             >
               <Lightbulb className="w-4 h-4 mt-0.5 shrink-0" style={{ color: PAGE }} />
-              <span className="flex-1 text-sm text-secondary">{nudge}</span>
+              <span className="flex-1 text-body-sm text-secondary">{nudge}</span>
               <button onClick={() => setNudge(null)} className="text-muted hover:text-primary"><X className="w-4 h-4" /></button>
             </motion.div>
           )}
@@ -1350,10 +1350,10 @@ export function ConverseV2Page(
           {howtoOpen && (
             <motion.div
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-              className="rounded-xl bg-surface p-3 mb-3"
+              className="rounded-2xl bg-surface p-4 mb-3"
             >
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-primary">How do I say…?</h4>
+                <h4 className="text-body-sm font-semibold text-primary">How do I say…?</h4>
                 <button onClick={() => { setHowtoOpen(false); setHowtoInput(''); setHowtoResult(null); }} className="text-muted hover:text-primary"><X className="w-4 h-4" /></button>
               </div>
               <div className="flex gap-2">
@@ -1363,12 +1363,12 @@ export function ConverseV2Page(
                   placeholder="Say it in English…"
                   onChange={(e) => setHowtoInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runHowto(); } }}
-                  className="flex-1 rounded-lg bg-app px-3 py-2 text-sm text-primary placeholder:text-muted outline-none"
+                  className="flex-1 rounded-lg bg-app px-3 py-2 text-body-sm text-primary placeholder:text-muted outline-none"
                 />
                 <button
                   onClick={runHowto}
                   disabled={howtoLoading || !howtoInput.trim()}
-                  className="px-3 py-2 rounded-lg text-sm font-semibold text-[#ffffff] disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg text-body-sm font-semibold text-[#ffffff] disabled:opacity-50"
                   style={{ background: ACCENT }}
                 >
                   {howtoLoading ? <LoadingAnimation className="h-4 w-4" /> : 'Translate'}
@@ -1376,11 +1376,11 @@ export function ConverseV2Page(
               </div>
               {howtoResult && howtoResult.spanish && (
                 <div className="mt-3 rounded-lg bg-app p-3">
-                  <div className="text-sm font-medium text-primary">{howtoResult.spanish}</div>
-                  {howtoResult.note_en && <div className="text-xs text-muted mt-1">{howtoResult.note_en}</div>}
+                  <div className="text-body-sm font-medium text-primary">{howtoResult.spanish}</div>
+                  {howtoResult.note_en && <div className="text-meta text-muted mt-1">{howtoResult.note_en}</div>}
                   <button
                     onClick={() => pickSuggestion(howtoResult!.spanish)}
-                    className="mt-2 text-xs font-semibold px-2.5 py-1 rounded-lg text-[#ffffff]"
+                    className="mt-2 text-meta font-semibold px-2.5 py-1 rounded-lg text-[#ffffff]"
                     style={{ background: ACCENT }}
                   >
                     Use this
@@ -1388,7 +1388,7 @@ export function ConverseV2Page(
                 </div>
               )}
               {howtoResult && !howtoResult.spanish && howtoResult.note_en && (
-                <div className="mt-2 text-xs text-muted">{howtoResult.note_en}</div>
+                <div className="mt-2 text-meta text-muted">{howtoResult.note_en}</div>
               )}
             </motion.div>
           )}
@@ -1402,7 +1402,7 @@ export function ConverseV2Page(
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
             placeholder={`Type in ${langName}…`}
             aria-label="Type a message"
-            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-[15px] text-primary placeholder:text-muted outline-none"
+            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-body text-primary placeholder:text-muted outline-none"
           />
 
           <div className="flex items-center justify-between gap-3 px-1 pb-1 pt-1">
@@ -1427,7 +1427,7 @@ export function ConverseV2Page(
           </div>
         </div>
 
-        <div className="text-center text-xs text-muted mt-2 h-4">
+        <div className="text-center text-meta text-muted mt-2 h-4">
           {voiceError ? <span style={{ color: ACCENT }}>{voiceError}</span>
             : chatError ? <span style={{ color: ACCENT }}>{chatError}</span>
             : status}
@@ -1452,21 +1452,21 @@ export function ConverseV2Page(
               className="bg-surface rounded-2xl p-6 w-full max-w-sm shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold text-primary mb-2">Leave this conversation?</h3>
-              <p className="text-sm text-secondary mb-6">
+              <h3 className="text-lead font-bold text-primary mb-2">Leave this conversation?</h3>
+              <p className="text-body-sm text-secondary mb-6">
                 You can pick up where you left off from the Resume card next time you come back.
               </p>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={leaveChat}
-                  className="w-full px-4 py-2.5 rounded-xl text-[#ffffff] font-semibold text-sm"
+                  className="w-full px-4 py-2.5 rounded-xl text-[#ffffff] font-semibold text-body-sm"
                   style={{ background: ACCENT }}
                 >
                   Leave
                 </button>
                 <button
                   onClick={() => setShowLeaveConfirm(false)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-app text-secondary hover:text-primary font-semibold text-sm transition-colors"
+                  className="w-full px-4 py-2.5 rounded-xl bg-app text-secondary hover:text-primary font-semibold text-body-sm transition-colors"
                 >
                   Keep talking
                 </button>
@@ -1484,9 +1484,9 @@ export function ConverseV2Page(
           onClick={(e) => e.stopPropagation()}
         >
           <span className="block px-3 py-2">
-            <span className="block text-sm font-bold">{pop.word}</span>
-            <span className="block text-[11px] uppercase tracking-wide opacity-60 mt-1">English meaning</span>
-            <span className="block text-sm opacity-90">
+            <span className="block text-body-sm font-bold">{pop.word}</span>
+            <span className="block text-meta uppercase tracking-wide opacity-60 mt-1">English meaning</span>
+            <span className="block text-body-sm opacity-90">
               {pop.loading ? 'Translating…' : (pop.text || '—')}
             </span>
             {!pop.loading && pop.text && (() => {
@@ -1496,7 +1496,7 @@ export function ConverseV2Page(
                   type="button"
                   onClick={() => saveWord(pop.word, pop.text)}
                   disabled={isSaved}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[rgba(255,255,255,0.12)] px-2 py-1 text-[11px] font-medium hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-70"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[rgba(255,255,255,0.12)] px-2 py-1 text-meta font-medium hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-70"
                 >
                   {isSaved ? <Check className="w-3 h-3" aria-hidden="true" /> : <BookmarkPlus className="w-3 h-3" aria-hidden="true" />}
                   {isSaved ? 'Saved' : 'Save word'}
