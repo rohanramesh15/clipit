@@ -15,9 +15,9 @@ export function FlashcardVisual() {
 export function ChatVisual() {
   const bars = [10, 22, 34, 18, 40, 26, 14, 30, 20, 36, 12, 24];
   return (
-    <div aria-hidden="true" className="mx-auto flex h-28 items-end justify-center gap-2">
+    <div aria-hidden="true" className="mx-auto flex h-32 items-end justify-center gap-2">
       {bars.map((height, index) => (
-        <span key={index} style={{ height: `${Math.round(height * 1.35)}px` }} className="w-2.5 rounded-full bg-sage-mid" />
+        <span key={index} style={{ height: `${Math.round(height * 1.65)}px` }} className="w-2.5 rounded-full bg-sage-mid" />
       ))}
     </div>
   );

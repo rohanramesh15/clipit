@@ -251,7 +251,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-inverse/40 p-5"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-5"
             onClick={() => !isDeletingVideo && setShowDeleteVideoConfirm(null)}
           >
             <motion.div
@@ -299,7 +299,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   type="button"
                   onClick={handleConfirmDeleteVideo}
                   disabled={isDeletingVideo}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-error/90 disabled:opacity-70"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-70"
                 >
                   {isDeletingVideo ? (
                     <>

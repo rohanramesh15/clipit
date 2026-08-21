@@ -56,11 +56,11 @@ export function Hero({ onGetStarted }: HeroProps) {
             hidden: { opacity: 0, y: 16 },
             visible: { opacity: 1, y: 0, transition: { ...motionTiming.page, delay: 0.1, ease: motionEase } },
           }}
-          className="lg:col-span-7"
+          className="lg:col-span-7 lg:mr-2.5"
         >
           <div
-            className="rounded-2xl border-[5px] border-sand-mid"
-            style={{ boxShadow: '0 0 0 5px #b1cbac, 0 0 0 10px #b5c3e3' }}
+            className="rounded-2xl border-[5px] border-sand-soft"
+            style={{ boxShadow: '0 0 0 5px #ecf2ea, 0 0 0 10px #edf0f8' }}
           >
             <img
               src={landingPage}

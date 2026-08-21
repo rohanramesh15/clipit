@@ -59,10 +59,6 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
       footerNote={
         <p className="text-meta text-muted">
           By creating an account you agree to our{' '}
-          <a href="#terms" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
-            Terms
-          </a>{' '}
-          and{' '}
           <a href="#privacy" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
             Privacy Policy
           </a>

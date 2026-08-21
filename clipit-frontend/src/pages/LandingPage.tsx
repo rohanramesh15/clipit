@@ -1,12 +1,10 @@
 import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
 import clipitLogo from '../assets/clipitlogo.png';
 import { Hero } from '../components/landing/Hero';
 import { HowItWorks } from '../components/landing/HowItWorks';
 import { PracticeModes } from '../components/landing/PracticeModes';
 import { Languages } from '../components/landing/Languages';
 import { ClosingCTA } from '../components/landing/ClosingCTA';
-import { useHideOnScroll } from '../hooks/useHideOnScroll';
 
 interface LandingPageProps {
   onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
@@ -27,16 +25,11 @@ const Logo = ({ size = 'text-5xl', img = 'w-16 h-16', stroke = '2px' }: { size?:
 export function LandingPage({ onNavigate }: LandingPageProps) {
   // Landing always renders in light mode (the default theme).
   useEffect(() => { localStorage.setItem('theme', 'light'); }, []);
-  const isNavHidden = useHideOnScroll();
 
   return (
     <div className="light min-h-screen w-full overflow-x-hidden bg-app font-sans text-primary selection:bg-accent selection:text-white">
       {/* Nav */}
-      <motion.header
-        animate={{ y: isNavHidden ? '-100%' : '0%' }}
-        transition={{ duration: 0.42, ease: [0.23, 1, 0.32, 1] }}
-        className="fixed inset-x-0 top-0 z-50 bg-app"
-      >
+      <header className="fixed inset-x-0 top-0 z-50 bg-app">
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
           <a href="#top" className="flex items-center" aria-label="ClipIt home">
             <Logo size="text-4xl" img="w-12 h-12" stroke="2px" />
@@ -57,7 +50,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
           </div>
         </div>
-      </motion.header>
+      </header>
 
       <main className="pt-[72px]">
         <Hero onGetStarted={() => onNavigate('signup')} />

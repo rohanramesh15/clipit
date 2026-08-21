@@ -22,7 +22,7 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
       <motion.div
-        className="absolute inset-0 bg-inverse/40"
+        className="absolute inset-0 bg-black/35"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

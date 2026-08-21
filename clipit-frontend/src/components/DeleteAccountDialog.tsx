@@ -28,7 +28,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
       <motion.div
-        className="absolute inset-0 bg-inverse/40"
+        className="absolute inset-0 bg-black/35"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -88,7 +88,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
             type="button"
             onClick={onConfirm}
             disabled={isDeleting}
-            className="w-full rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-error/90 disabled:opacity-70"
+            className="w-full rounded-xl bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-70"
           >
             {isDeleting ? 'Deleting…' : 'Delete account permanently'}
           </button>
