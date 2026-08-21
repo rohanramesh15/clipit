@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 
 interface PrivacyPageProps {
   onNavigate: (view: 'landing') => void;
@@ -13,14 +14,10 @@ export function PrivacyPage({ onNavigate }: PrivacyPageProps) {
       className="min-h-screen bg-app text-primary p-8"
     >
       <div className="max-w-3xl mx-auto">
-        <button
-          onClick={() => onNavigate('landing')}
-          className="text-accent hover:underline mb-8 inline-block"
-        >
-          &larr; Back to home
-        </button>
-
-        <h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
+        <div className="mb-8 flex items-center gap-2">
+          <NavigationIconButton direction="back" label="Back to home" onClick={() => onNavigate('landing')} />
+          <h1 className="text-4xl font-bold">Privacy Policy</h1>
+        </div>
         <p className="text-secondary mb-6">Last updated: August 2026</p>
 
         <div className="space-y-8 text-secondary leading-relaxed">

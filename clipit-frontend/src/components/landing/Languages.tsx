@@ -11,7 +11,7 @@ function KoreanFlag() {
   );
 
   return (
-    <svg viewBox="0 0 60 40" className="h-full w-full opacity-75 [filter:saturate(.72)]" role="img" aria-label="Flag of South Korea">
+    <svg viewBox="0 0 60 40" className="h-full w-full opacity-85 [filter:saturate(.85)]" role="img" aria-label="Flag of South Korea">
       <rect width="60" height="40" fill="#ffffff" />
       <circle cx="30" cy="20" r="10" fill="#CD2E3A" />
       <path d="M20 20 A5 5 0 0 0 30 20 A5 5 0 0 1 40 20 A10 10 0 0 1 20 20 Z" fill="#0047A0" />
@@ -25,7 +25,7 @@ function KoreanFlag() {
 
 function UkrainianFlag() {
   return (
-    <svg viewBox="0 0 60 40" className="h-full w-full opacity-75 [filter:saturate(.72)]" role="img" aria-label="Flag of Ukraine">
+    <svg viewBox="0 0 60 40" className="h-full w-full opacity-85 [filter:saturate(.85)]" role="img" aria-label="Flag of Ukraine">
       <rect width="60" height="20" fill="#0057B7" />
       <rect y="20" width="60" height="20" fill="#FFD700" />
     </svg>
@@ -55,11 +55,11 @@ export function Languages() {
           {availableLanguages.map((language) => {
             const Flag = flags[language.id];
             return (
-              <li key={language.id}>
-                <span className="mx-auto block aspect-[3/2] w-[92%] overflow-hidden rounded-2xl bg-blush">
+              <li key={language.id} className="overflow-hidden rounded-2xl">
+                <span className="block aspect-[3/2] w-full overflow-hidden rounded-t-2xl bg-blush">
                   <Flag />
                 </span>
-                <p className="mx-auto mt-3 w-[92%] rounded-xl bg-app px-6 py-4 text-center font-heading text-card-title font-medium leading-tight text-primary sm:px-7 sm:py-5">
+                <p className="bg-app px-6 py-4 text-center font-heading text-card-title font-medium leading-tight text-primary sm:px-7 sm:py-5">
                   {language.english}
                 </p>
               </li>

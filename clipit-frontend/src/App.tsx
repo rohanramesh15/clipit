@@ -63,19 +63,7 @@ function AppLoadingState() {
       aria-live="polite"
       aria-label="Loading your learning space"
     >
-      <header className="border-b border-subtle bg-app/90">
-        <div className="mx-auto flex h-[72px] max-w-page items-center gap-6 px-5 sm:px-8">
-          <div className="flex items-center gap-2.5" aria-hidden="true">
-            <Skeleton className="h-11 w-11 rounded-2xl" />
-            <Skeleton className="h-7 w-24 rounded-lg" />
-          </div>
-          <div className="hidden flex-1 gap-2 md:flex" aria-hidden="true">
-            <Skeleton className="h-9 w-24 rounded-lg" />
-            <Skeleton className="h-9 w-20 rounded-lg" />
-          </div>
-          <Skeleton className="ml-auto h-9 w-28 rounded-lg" />
-        </div>
-      </header>
+      <header className="h-[72px] border-b border-subtle bg-app/90" aria-hidden="true" />
 
       <main className="mx-auto max-w-page px-5 pb-8 pt-16 sm:px-8">
         <div className="max-w-xl">

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export type WordStatus = 'due' | 'learning' | 'new';
 
@@ -32,6 +32,8 @@ const STATUS_STYLES: Record<WordStatus, string> = {
   new: 'border border-medium text-secondary',
 };
 
+const WORDS_PER_PAGE = 10;
+
 interface WordQueueProps {
   words: QueuedWord[];
   languageName: string;
@@ -39,8 +41,21 @@ interface WordQueueProps {
 
 export function WordQueue({ words, languageName }: WordQueueProps) {
   const [filter, setFilter] = useState<'all' | WordStatus>('due');
+  const [page, setPage] = useState(0);
   const isEmpty = words.length === 0;
   const visible = filter === 'all' ? words : words.filter((word) => word.status === filter);
+  const totalPages = Math.max(1, Math.ceil(visible.length / WORDS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pagedWords = visible.slice(currentPage * WORDS_PER_PAGE, (currentPage + 1) * WORDS_PER_PAGE);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages - 1));
+  }, [totalPages]);
+
+  const selectFilter = (nextFilter: 'all' | WordStatus) => {
+    setFilter(nextFilter);
+    setPage(0);
+  };
 
   return (
     <section aria-labelledby="queue-heading" className="mt-16">
@@ -64,7 +79,7 @@ export function WordQueue({ words, languageName }: WordQueueProps) {
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  onClick={() => setFilter(option.id)}
+                  onClick={() => selectFilter(option.id)}
                   className={`rounded-lg px-3.5 py-1.5 text-body-sm font-medium transition-colors duration-150 ease-swift ${
                     isActive
                       ? 'bg-accent text-on-accent'
@@ -92,8 +107,9 @@ export function WordQueue({ words, languageName }: WordQueueProps) {
           Nothing in this bucket right now.
         </p>
       ) : (
-        <ul className="mt-6 divide-y divide-subtle overflow-hidden rounded-2xl border border-subtle bg-surface">
-          {visible.map((word, index) => (
+        <>
+          <ul className="mt-6 divide-y divide-subtle overflow-hidden rounded-2xl border border-subtle bg-surface">
+          {pagedWords.map((word, index) => (
             <motion.li
               key={word.id}
               initial={{ opacity: 0, y: 6 }}
@@ -125,7 +141,33 @@ export function WordQueue({ words, languageName }: WordQueueProps) {
               </button>
             </motion.li>
           ))}
-        </ul>
+          </ul>
+          {visible.length > WORDS_PER_PAGE && (
+            <nav aria-label="Word list pagination" className="mt-4 flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => setPage(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              Previous
+            </button>
+            <p className="text-body-sm text-muted">
+              Page {currentPage + 1} of {totalPages}
+            </p>
+            <button
+              type="button"
+              onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
+              disabled={currentPage === totalPages - 1}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+            </nav>
+          )}
+        </>
       )}
     </section>
   );

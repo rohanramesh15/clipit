@@ -81,15 +81,13 @@ export function VideoPage() {
   );
   const visible = filter === 'all' ? videos : videos.filter((video) => video.platform === filter);
 
-  async function handleRemove(alsoFlashcards: boolean) {
+  async function handleRemove() {
     if (!pendingRemoval) return;
     setIsRemoving(true);
     try {
       const params = new URLSearchParams();
-      if (alsoFlashcards) {
-        params.set('delete_flashcards', 'true');
-        params.set('lang', language);
-      }
+      params.set('delete_flashcards', 'true');
+      params.set('lang', language);
       const url = `${API_BASE_URL}/videos/${encodeURIComponent(pendingRemoval.id)}${params.toString() ? '?' + params.toString() : ''}`;
       const res = await fetch(url, {
         method: 'DELETE',

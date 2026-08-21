@@ -7,7 +7,7 @@ interface RemoveVideoDialogProps {
   video: TrackedVideo;
   isRemoving?: boolean;
   onCancel: () => void;
-  onRemove: (alsoFlashcards: boolean) => void;
+  onRemove: () => void;
 }
 
 export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemove }: RemoveVideoDialogProps) {
@@ -33,7 +33,8 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
       <motion.div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="remove-title"
+        aria-labelledby="delete-video-title"
+        aria-describedby="delete-video-description"
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -50,31 +51,15 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
           <span className="sr-only">Close</span>
         </button>
 
-        <h2 id="remove-title" className="pr-10 font-heading text-card-title text-primary">
-          Remove from history?
+        <h2 id="delete-video-title" className="pr-10 font-heading text-card-title font-medium text-primary">
+          Delete video and flashcards?
         </h2>
-        <p className="mt-2 text-body text-secondary">
-          <span className="font-semibold text-primary">{video.title}</span> will leave your history. Choose whether to
-          also delete the flashcards made from its words.
+        <p id="delete-video-description" className="mt-2 text-body text-secondary">
+          <span className="font-semibold text-primary">{video.title}</span> will be removed from your watch history
+          along with all flashcards made from its words.
         </p>
 
         <div className="mt-6 space-y-2">
-          <button
-            type="button"
-            onClick={() => onRemove(false)}
-            disabled={isRemoving}
-            className="w-full rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
-          >
-            {isRemoving ? 'Removing…' : 'Remove video only'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onRemove(true)}
-            disabled={isRemoving}
-            className="w-full rounded-xl border border-medium px-4 py-2.5 text-body-sm font-semibold text-error transition-colors duration-150 ease-swift hover:bg-error/10 disabled:opacity-70"
-          >
-            {isRemoving ? 'Removing…' : 'Remove video & flashcards'}
-          </button>
           <button
             type="button"
             onClick={onCancel}
@@ -82,6 +67,14 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
             className="w-full rounded-xl px-4 py-2.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
           >
             Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={isRemoving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
+          >
+            {isRemoving ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </motion.div>
