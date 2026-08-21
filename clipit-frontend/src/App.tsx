@@ -71,7 +71,6 @@ function AppLoadingState() {
           ))}
         </div>
 
-        <p className="mt-10 text-body-sm text-muted">Loading your learning space…</p>
       </main>
     </div>
   );

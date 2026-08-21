@@ -139,10 +139,9 @@ export function DictionaryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen max-w-5xl mx-auto px-4 pt-8">
+      <div className="min-h-screen max-w-5xl mx-auto px-4 pt-8" role="status" aria-live="polite" aria-label="Loading your dictionary">
         <Skeleton className="h-28 w-full rounded-2xl" />
         <Skeleton className="mt-8 h-[32rem] w-full rounded-2xl" />
-        <p className="mt-5 text-body-sm text-muted" role="status">Loading your dictionary…</p>
       </div>
     );
   }

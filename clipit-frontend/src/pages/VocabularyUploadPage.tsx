@@ -385,10 +385,12 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="min-h-screen pb-20 max-w-3xl mx-auto px-4 pt-8"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading your vocabulary"
       >
         <Skeleton className="h-44 w-full rounded-2xl" />
         <Skeleton className="mt-8 h-72 w-full rounded-2xl" />
-        <p className="mt-5 text-body-sm text-muted" role="status">Loading your vocabulary…</p>
       </motion.div>
     );
   }

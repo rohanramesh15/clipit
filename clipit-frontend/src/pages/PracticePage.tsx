@@ -70,7 +70,6 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
 
       {wordLoadState === 'loading' && (
         <div className="mt-10" role="status" aria-live="polite" aria-label="Loading your practice queue">
-          <p className="mb-5 text-body-sm text-muted">Loading your practice queue…</p>
           <div className="grid gap-5 sm:grid-cols-3" aria-hidden="true">
             {[0, 1, 2].map((index) => (
               <Skeleton key={index} className="h-44 rounded-2xl" />

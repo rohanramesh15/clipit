@@ -951,17 +951,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     // it's about to become, not like the dashboard it just left.
     if (selectedVideoId) {
       return (
-        <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app">
+        <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app" role="status" aria-live="polite" aria-label="Loading your flashcards">
           <Skeleton className="h-[34rem] w-full max-w-[22rem] rounded-2xl" />
-          <p className="mt-5 text-body-sm text-muted" role="status">Loading your flashcards…</p>
         </div>
       );
     }
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app">
+      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app" role="status" aria-live="polite" aria-label="Loading your flashcards">
         <Skeleton className="h-24 rounded-2xl" />
         <Skeleton className="mt-8 h-72 rounded-2xl" />
-        <p className="mt-5 text-body-sm text-muted" role="status">Loading your flashcards…</p>
       </div>
     );
   }

@@ -431,9 +431,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           </div>
 
           {videos === null ? (
-            <div className="pt-6" role="status" aria-live="polite">
+            <div className="pt-6" role="status" aria-live="polite" aria-label="Loading your videos">
               <Skeleton className="h-80 w-full rounded-2xl" />
-              <p className="mt-5 text-body-sm text-muted">Loading your videos…</p>
             </div>
           ) : videos.length === 0 ? (
             <PracticeEmptyState mode="Mad Libs" />
@@ -501,9 +500,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           {back('deck')}
           <h1 className="font-heading text-section font-medium text-primary">Mad libs</h1>
         </div>
-        <div className="mx-auto mt-8 w-full max-w-2xl">
+        <div className="mx-auto mt-8 w-full max-w-2xl" role="status" aria-live="polite" aria-label="Preparing your practice">
           <Skeleton className="h-80 w-full rounded-2xl" />
-          <p className="mt-5 text-body-sm text-muted" role="status">Preparing your practice…</p>
         </div>
       </main>
     );
@@ -635,9 +633,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <div className="-ml-2 flex items-center">{back('deck')}</div>
           <span className="shrink-0 text-body-sm tabular-nums text-muted">{index + 1} / …</span>
         </header>
-        <div className="mx-auto mt-8 w-full max-w-2xl" role="status" aria-live="polite">
+        <div className="mx-auto mt-8 w-full max-w-2xl" role="status" aria-live="polite" aria-label="Preparing your next blank">
           <Skeleton className="h-80 w-full rounded-2xl" />
-          <p className="mt-5 text-body-sm text-muted">Preparing your next blank…</p>
         </div>
       </main>
     );

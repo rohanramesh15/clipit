@@ -964,7 +964,6 @@ export function ConverseV2Page(
               <Skeleton className="h-36 rounded-2xl" />
             </div>
             <Skeleton className="mt-12 h-80 w-full rounded-2xl" />
-            <p className="mt-5 text-body-sm text-muted">Loading your conversations…</p>
           </div>
         ) : videos.length === 0 ? (
           <PracticeEmptyState mode="AI chat" />

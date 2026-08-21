@@ -18,7 +18,6 @@ function AnalyticsLoadingState() {
       </div>
 
       <Skeleton className="mt-6 h-52 w-full rounded-2xl" />
-      <p className="mt-8 text-body-sm text-muted">Loading your progress…</p>
     </div>
   );
 }

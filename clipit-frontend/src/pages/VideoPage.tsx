@@ -120,9 +120,8 @@ export function VideoPage() {
 
       <section aria-label="Video history">
       {loadState === 'loading' && (
-        <div className="mt-6" role="status" aria-live="polite">
+        <div className="mt-6" role="status" aria-live="polite" aria-label="Loading your watch history">
           <Skeleton className="h-72 w-full rounded-2xl" />
-          <p className="mt-6 text-body-sm text-muted">Loading your watch history…</p>
         </div>
       )}
 
