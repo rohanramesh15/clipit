@@ -903,11 +903,11 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loaded ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 pt-3 pb-6 sm:px-8 bg-app">
+    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 pt-4 pb-6 sm:px-8 bg-app">
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-4">
+      <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-5">
         <button
           onClick={() => handleBackToDecks()}
           aria-label="End review"
@@ -970,7 +970,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       </AnimatePresence>
 
       {/* Controls */}
-      <div id="section-rating-buttons" className="mx-auto mt-4 min-h-[5.5rem] w-full max-w-[22rem]">
+      <div id="section-rating-buttons" className="mx-auto mt-5 min-h-[5.5rem] w-full max-w-[22rem]">
         {isFlipped && <RatingBar previewTimes={previewTimes} onRate={handleRating} />}
       </div>
 
