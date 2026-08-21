@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { queryClient } from '../lib/queryClient';
 import { queryPersister } from '../lib/queryPersister';
 import { queryKeys } from '../lib/queries';
+import { activateLocalLearningData, clearLocalLearningData } from '../lib/localLearningData';
 
 const API_BASE = API_BASE_URL;
 
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
       if (!accessToken || !authUserId) {
         clearCachedData();
+        clearLocalLearningData();
         setUser(null);
         setToken(null);
         setIsNewUser(false);
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
+        activateLocalLearningData(authUserId);
         const me = await fetchMe(accessToken, authUserId);
         if (active) {
           setUser(me);
@@ -86,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setToken(null);
           clearCachedData();
+          clearLocalLearningData();
           await supabase.auth.signOut();
         }
       } finally {
@@ -108,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void rememberMe; // Supabase owns secure session persistence.
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) throw new Error(error?.message || 'Login failed');
+    activateLocalLearningData(data.session.user.id);
     const me = await fetchMe(data.session.access_token, data.session.user.id);
     setToken(data.session.access_token);
     setUser(me);
@@ -133,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw new Error(error.message);
     if (!data.session) throw new Error('Check your email to confirm your account before signing in');
+    activateLocalLearningData(data.session.user.id);
     const me = await fetchMe(data.session.access_token, data.session.user.id);
     setToken(data.session.access_token);
     setUser(me);
@@ -142,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     void supabase.auth.signOut();
     clearCachedData();
+    clearLocalLearningData();
     setToken(null);
     setUser(null);
     setIsNewUser(false);
