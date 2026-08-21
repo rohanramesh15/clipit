@@ -980,11 +980,17 @@ export function ConverseV2Page(
       <div className="max-w-2xl mx-auto space-y-6">
         {messages.map((m) => {
           if (m.role === 'user') {
+            const usedHere = lemmasUsedIn(m.text, targetWords);
             return (
-              <div key={m.id} className="flex justify-end">
+              <div key={m.id} className="flex flex-col items-end gap-1.5">
                 <div className="max-w-[85%] text-xl leading-relaxed text-secondary text-right">
                   {m.text}
                 </div>
+                {usedHere.length > 0 && (
+                  <span className="flex items-center gap-1 text-meta" style={{ color: ACCENT }}>
+                    <Check className="size-3.5" aria-hidden="true" /> {usedHere.join(', ')}
+                  </span>
+                )}
               </div>
             );
           }
@@ -1068,7 +1074,7 @@ export function ConverseV2Page(
                   )}
                 </div>
                 {msgTrans[m.id]?.visible && (
-                  <div className="text-sm text-secondary italic">
+                  <div className="mt-2 border-l-2 border-subtle pl-3 text-sm text-secondary">
                     {msgTrans[m.id]?.loading ? 'Translating…' : (msgTrans[m.id]?.text || m.translation || '—')}
                   </div>
                 )}
@@ -1081,10 +1087,10 @@ export function ConverseV2Page(
                     <Lightbulb className="w-3.5 h-3.5" /> A better way to say that
                   </button>
                 ) : (
-                  <div className="rounded-xl bg-surface p-3">
+                  <div className="rounded-2xl bg-surface p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">A better way to say that</div>
-                    <div className="text-[15px] font-medium text-primary" style={{ color: PAGE }}>{m.correction.correct}</div>
-                    <div className="text-sm text-secondary mt-1">{m.correction.why_en}</div>
+                    <div className="text-body font-medium text-primary" style={{ color: PAGE }}>{m.correction.correct}</div>
+                    <div className="text-body-sm text-secondary mt-1.5">{m.correction.why_en}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
