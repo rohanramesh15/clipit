@@ -91,9 +91,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [editedDefinition, setEditedDefinition] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  const [isStreamingCards, setIsStreamingCards] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loopIntervalRef = useRef<number | null>(null);
+  const streamedCardKeysRef = useRef(new Set<string>());
+  const streamedDueKeysRef = useRef(new Set<string>());
+  const streamedSessionStartedRef = useRef(false);
 
   const cleanupYouTubePlayer = useCallback(() => {
     if (loopIntervalRef.current) {
@@ -306,6 +310,115 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     });
   }, [language, user?.id]);
 
+  // Read the streaming endpoint as Server-Sent Events. Cards are added to the
+  // active review queue one by one instead of waiting for every translation in
+  // a video to finish.
+  const streamCardsForVideo = useCallback(async (
+    videoId: string,
+    onCard: (card: FlashCard) => void,
+  ): Promise<FlashCard[]> => {
+    await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
+
+    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
+    if (!vocabRes.ok) return [];
+    const vocab = await vocabRes.json();
+    if (!vocab.total_words || !Array.isArray(vocab.vocabulary)) return [];
+
+    const rankMap: Record<string, number> = {};
+    vocab.vocabulary.forEach((word: { word: string; rank: number }) => { rankMap[word.word] = word.rank; });
+    const response = await fetch(`${API_BASE_URL}/flashcard-data/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: videoId,
+        words: vocab.vocabulary.map((word: { word: string }) => word.word),
+        word_source: 'essential',
+        language,
+      }),
+    });
+    if (!response.ok || !response.body) throw new Error('Flashcard stream unavailable');
+
+    const cards: FlashCard[] = [];
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+    let buffer = '';
+
+    const handleEvent = async (rawEvent: string) => {
+      const lines = rawEvent.split('\n');
+      const type = lines.find((line) => line.startsWith('event:'))?.slice(6).trim();
+      const data = lines.filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
+      if (type === 'error') throw new Error(JSON.parse(data || '{}').detail || 'Unable to generate flashcards');
+      if (type !== 'card' || !data) return;
+
+      const rawCard = JSON.parse(data) as FlashCard;
+      const card: FlashCard = {
+        ...rawCard,
+        card_type: 'video',
+        video_id: rawCard.video_id || videoId,
+        rank: rankMap[rawCard.target_word],
+      };
+      if (videoId.startsWith('netflix_') && !await checkScreenshotExists(videoId, card.timestamp ?? 0)) return;
+      const word = card.dictionary_form || card.target_word;
+      if (getDeletedCards(language).has(word)) return;
+
+      cards.push(card);
+      onCard(card);
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      let separator = buffer.indexOf('\n\n');
+      while (separator !== -1) {
+        const event = buffer.slice(0, separator);
+        buffer = buffer.slice(separator + 2);
+        await handleEvent(event);
+        separator = buffer.indexOf('\n\n');
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) await handleEvent(buffer);
+    return cards;
+  }, [language]);
+
+  const beginProgressiveSession = useCallback(() => {
+    streamedCardKeysRef.current = new Set();
+    streamedDueKeysRef.current = new Set();
+    streamedSessionStartedRef.current = false;
+    setCards([]);
+    setDueCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSessionStats({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
+    setIsStreamingCards(true);
+    setLoadState('loading');
+  }, []);
+
+  const appendStreamedCard = useCallback((card: FlashCard) => {
+    const word = card.dictionary_form || card.target_word;
+    if (streamedCardKeysRef.current.has(word)) return;
+    streamedCardKeysRef.current.add(word);
+    setCards((current) => [...current, card]);
+
+    if (!getDueCards([word]).includes(word) || streamedDueKeysRef.current.has(word)) return;
+    streamedDueKeysRef.current.add(word);
+    setDueCards((current) => [...current, card]);
+    if (!streamedSessionStartedRef.current) {
+      streamedSessionStartedRef.current = true;
+      setLoadState('loaded');
+      startSession();
+    }
+  }, [startSession]);
+
+  const finishProgressiveSession = useCallback((loadedCards: FlashCard[]) => {
+    setIsStreamingCards(false);
+    if (!loadedCards.length) {
+      setLoadState('no-vocab');
+    } else if (!streamedSessionStartedRef.current) {
+      setLoadState('session-complete');
+    }
+  }, []);
+
   // Sort cards by FSRS priority and filter to due cards
   const prepareCardsForReview = useCallback((allCards: FlashCard[]) => {
     const seen = new Set<string>();
@@ -361,19 +474,24 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return;
     }
 
-    setLoadState('loading');
+    beginProgressiveSession();
     const allCards: FlashCard[] = [];
     for (const video of videoList) {
-      const videoCards = await fetchCardsForVideo(video.video_id);
+      let videoCards: FlashCard[];
+      try {
+        videoCards = await streamCardsForVideo(video.video_id, appendStreamedCard);
+      } catch {
+        // Older deployments can still serve the bulk endpoint. Fall back to it
+        // without delaying the session when streaming is available.
+        videoCards = await fetchCardsForVideo(video.video_id);
+        videoCards.forEach(appendStreamedCard);
+      }
       allCards.push(...videoCards);
+      queryClient.setQueryData(queryKeys.flashcardDeck(user?.id ?? 0, language, video.video_id), videoCards);
     }
 
-    if (!allCards.length) {
-      setLoadState('no-vocab');
-      return;
-    }
-    prepareCardsForReview(allCards);
-  }, [fetchCardsForVideo, language, prepareCardsForReview, user?.id]);
+    finishProgressiveSession(allCards);
+  }, [appendStreamedCard, beginProgressiveSession, fetchCardsForVideo, finishProgressiveSession, language, prepareCardsForReview, streamCardsForVideo, user?.id]);
 
   // Load cards for a single video.
   const loadFlashcards = useCallback(async (videoId: string) => {
@@ -397,15 +515,17 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return;
     }
 
-    setLoadState('loading');
-    const videoCards = await fetchCardsForVideo(videoId);
-
-    if (!videoCards.length) {
-      setLoadState('no-vocab');
-      return;
+    beginProgressiveSession();
+    let videoCards: FlashCard[];
+    try {
+      videoCards = await streamCardsForVideo(videoId, appendStreamedCard);
+    } catch {
+      videoCards = await fetchCardsForVideo(videoId);
+      videoCards.forEach(appendStreamedCard);
     }
-    prepareCardsForReview(videoCards);
-  }, [fetchCardsForVideo, language, prepareCardsForReview, user?.id]);
+    queryClient.setQueryData(queryKeys.flashcardDeck(user?.id ?? 0, language, videoId), videoCards);
+    finishProgressiveSession(videoCards);
+  }, [appendStreamedCard, beginProgressiveSession, fetchCardsForVideo, finishProgressiveSession, language, prepareCardsForReview, streamCardsForVideo, user?.id]);
 
   const applyDashboard = useCallback((dashboard: FlashcardsDashboard) => {
     setCardsReviewedToday(dashboard.cardsReviewedToday);
@@ -568,6 +688,10 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       }
 
       if (currentIndex < dueCards.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+      } else if (isStreamingCards) {
+        // The current card was the end of the queue for now. Advance to the
+        // next slot; it will render as soon as the stream appends another card.
         setCurrentIndex(prev => prev + 1);
       } else {
         setLoadState('session-complete');
@@ -1053,6 +1177,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             onSaveDefinition={handleSaveDefinition}
             onCancelEdit={() => setIsEditingDefinition(false)}
           />
+        </div>
+      )}
+      {!currentCard && isStreamingCards && (
+        <div className="flex w-full min-h-0 flex-1 items-center justify-center" role="status" aria-live="polite">
+          <div className="flex items-center gap-3 text-body-sm text-muted">
+            <Skeleton className="h-5 w-5 rounded-full" />
+            Preparing your next card…
+          </div>
         </div>
       )}
 

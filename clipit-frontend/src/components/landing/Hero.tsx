@@ -58,11 +58,17 @@ export function Hero({ onGetStarted }: HeroProps) {
           }}
           className="lg:col-span-7"
         >
-          <img
-            src={landingPage}
-            alt="ClipIt tracking a YouTube video in the browser"
-            className="w-full rounded-2xl border border-subtle shadow-[0_24px_60px_-30px_rgba(76,35,35,0.55)]"
-          />
+          <div className="rounded-[1.125rem] border border-sand-mid p-1">
+            <div className="rounded-[0.9375rem] border border-sage-mid p-1">
+              <div className="rounded-[0.75rem] border border-dusk-mid p-1">
+                <img
+                  src={landingPage}
+                  alt="ClipIt tracking a YouTube video in the browser"
+                  className="w-full rounded-lg"
+                />
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </motion.section>

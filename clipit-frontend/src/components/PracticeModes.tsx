@@ -77,7 +77,7 @@ export function PracticeModes({ onOpenMode }: PracticeModesProps) {
 
             <p className={`mt-3 min-h-[5rem] text-body ${mode.body}`}>{mode.description}</p>
 
-            <div className="mt-auto pt-6">
+            <div className="mt-4">
               <mode.Visual />
             </div>
           </motion.button>
