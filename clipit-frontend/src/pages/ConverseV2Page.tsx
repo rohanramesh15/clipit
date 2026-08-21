@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
-  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle,
+  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -246,6 +246,12 @@ export function ConverseV2Page(
 
   // word popover
   const [pop, setPop] = useState<{ word: string; text: string; loading: boolean; x: number; y: number } | null>(null);
+  // Words saved from the tap-word popover — session-scoped, matching MP's own
+  // (also purely in-memory, never persisted) saved-words feature.
+  const [savedWords, setSavedWords] = useState<{ lemma: string; gloss: string }[]>([]);
+  const saveWord = useCallback((lemma: string, gloss: string) => {
+    setSavedWords((prev) => (prev.some((w) => w.lemma.toLowerCase() === lemma.toLowerCase()) ? prev : [...prev, { lemma, gloss }]));
+  }, []);
 
   // per-AI-message actions: on-demand translation + copy feedback + romanization
   const [msgTrans, setMsgTrans] = useState<Record<string, { text?: string; loading: boolean; visible: boolean }>>({});
@@ -554,6 +560,7 @@ export function ConverseV2Page(
     setTargetWords(finalWords);
     setUsedLemmas(new Set());
     setOpenTargetWord(null);
+    setSavedWords([]);
     setCoachings([]); coachReqRef.current = new Set();
     setMsgRoman({}); romanReqRef.current = new Set();
     setMsgTrans({}); setCopiedId(null);
@@ -653,6 +660,7 @@ export function ConverseV2Page(
     setMessages([]);
     setTargetWords([]);
     setUsedLemmas(new Set());
+    setSavedWords([]);
     setComposerOpen(false);
     setComposerText('');
     setNudge(null);
@@ -1321,10 +1329,10 @@ export function ConverseV2Page(
         )}
       </AnimatePresence>
 
-      {/* word popover — tapped word + its English meaning */}
+      {/* word popover — tapped word + its English meaning + save */}
       {pop && (
         <span
-          className="fixed z-50 -translate-x-1/2 -translate-y-full rounded-xl bg-primary text-app shadow-xl pointer-events-none"
+          className="fixed z-50 -translate-x-1/2 -translate-y-full rounded-xl bg-primary text-app shadow-xl"
           style={{ left: pop.x, top: pop.y - 10, maxWidth: 260 }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1334,6 +1342,20 @@ export function ConverseV2Page(
             <span className="block text-sm opacity-90">
               {pop.loading ? 'Translating…' : (pop.text || '—')}
             </span>
+            {!pop.loading && pop.text && (() => {
+              const isSaved = savedWords.some((w) => w.lemma.toLowerCase() === pop.word.toLowerCase());
+              return (
+                <button
+                  type="button"
+                  onClick={() => saveWord(pop.word, pop.text)}
+                  disabled={isSaved}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[rgba(255,255,255,0.12)] px-2 py-1 text-[11px] font-medium hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-70"
+                >
+                  {isSaved ? <Check className="w-3 h-3" aria-hidden="true" /> : <BookmarkPlus className="w-3 h-3" aria-hidden="true" />}
+                  {isSaved ? 'Saved' : 'Save word'}
+                </button>
+              );
+            })()}
           </span>
         </span>
       )}
@@ -1455,6 +1477,22 @@ export function ConverseV2Page(
                     </ul>
                   );
                 })()}
+              </section>
+
+              <section className="mt-7">
+                <h3 className="text-body-sm font-semibold text-primary">Saved words</h3>
+                {savedWords.length === 0 ? (
+                  <p className="mt-1.5 text-body-sm text-muted">Tap a word to save it.</p>
+                ) : (
+                  <ul className="mt-2.5 flex flex-wrap gap-2">
+                    {savedWords.map((word) => (
+                      <li key={word.lemma} className="rounded-md border border-subtle px-2.5 py-1.5 text-meta">
+                        <span className="font-medium text-primary">{word.lemma}</span>
+                        <span className="text-muted"> · {word.gloss}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
 
               {latestCoaching && (
