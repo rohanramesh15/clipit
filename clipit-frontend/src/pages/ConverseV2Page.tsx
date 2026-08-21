@@ -1190,7 +1190,7 @@ export function ConverseV2Page(
             onTranscriptionChange={(t) => { const x = (t || '').trim(); if (x) sendTextTurn(x); }}
             title="Speak"
             aria-label="Speak"
-            className="w-14 h-14 p-0 rounded-full bg-accent text-app hover:bg-accent shadow-lg shrink-0"
+            className="w-14 h-14 p-0 rounded-full bg-sage-ink text-app hover:bg-sage-deep shadow-lg shrink-0"
           />
 
           <div className="relative flex-1">
@@ -1201,7 +1201,7 @@ export function ConverseV2Page(
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
               placeholder={`Type in ${langName}…`}
               aria-label="Type a message"
-              className="w-full h-14 rounded-full bg-surface pl-5 pr-16 text-[15px] text-primary placeholder:text-muted outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full h-14 rounded-full bg-surface pl-5 pr-16 text-[15px] text-primary placeholder:text-muted outline-none focus:ring-2 focus:ring-sage-ink/40"
             />
             <button
               onClick={() => sendTextTurn()}
