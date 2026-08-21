@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
-  Film, MessageCircle, Languages, Volume2, Copy, Search,
+  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
-  type Profile, type DueWord, type Correction, type SuggestedReply,
+  type Profile, type DueWord, type Correction, type SuggestedReply, type CreateSessionResult,
 } from '../services/converseV2';
 import { Sparkles, RotateCcw, MessageSquarePlus } from 'lucide-react';
 import {
@@ -515,6 +515,39 @@ export function ConverseV2Page(
   // auto-start the live Gemini call. (Live-voice helpers are kept but unused.)
 
   // ── start a session from a chosen video ─────────────────────────────────────
+  // Shared setup once a session has been created — resets every per-session
+  // UI state and lands on the chat phase. Used by both a single-video start
+  // and the mixed (due-words) start.
+  const enterSession = useCallback((result: CreateSessionResult, finalWords: TargetWord[]) => {
+    setTargetWords(finalWords);
+    setUsedLemmas(new Set());
+    setOpenTargetWord(null);
+    setCoachings([]); coachReqRef.current = new Set();
+    setMsgRoman({}); romanReqRef.current = new Set();
+    setMsgTrans({}); setCopiedId(null);
+    setShownTranslations(new Set());
+    setRevealedCorrections(new Set());
+    setCorrectionVerdicts({});
+    setNudge(null);
+    setHowtoOpen(false);
+    setHowtoResult(null);
+    setComposerOpen(false);
+    setComposerText('');
+    voiceAutoStarted.current = false;
+    setVoiceStatus('off');
+    setVoiceError(null);
+    setSessionId(result.session_id);
+    setStatus('Tap the mic and speak, or type');
+    setMessages([{
+      id: `a-${result.opening.turn_id}`,
+      role: 'assistant',
+      text: result.opening.reply,
+      translation: result.opening.reply_translation,
+      turnId: result.opening.turn_id,
+    }]);
+    setPhase('chat');
+  }, []);
+
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
     setPhase('loading');
@@ -548,38 +581,33 @@ export function ConverseV2Page(
         ? words
         : (result.due_words || []).map((d: DueWord) => ({ lemma: d.lemma, gloss: d.gloss, surface: d.lemma }));
 
-      setTargetWords(finalWords);
-      setUsedLemmas(new Set());
-      setOpenTargetWord(null);
-      setCoachings([]); coachReqRef.current = new Set();
-      setMsgRoman({}); romanReqRef.current = new Set();
-      setMsgTrans({}); setCopiedId(null);
-      setShownTranslations(new Set());
-      setRevealedCorrections(new Set());
-      setCorrectionVerdicts({});
-      setNudge(null);
-      setHowtoOpen(false);
-      setHowtoResult(null);
-      setComposerOpen(false);
-      setComposerText('');
-      voiceAutoStarted.current = false;
-      setVoiceStatus('off');
-      setVoiceError(null);
-      setSessionId(result.session_id);
-      setStatus('Tap the mic and speak, or type');
-      setMessages([{
-        id: `a-${result.opening.turn_id}`,
-        role: 'assistant',
-        text: result.opening.reply,
-        translation: result.opening.reply_translation,
-        turnId: result.opening.turn_id,
-      }]);
-      setPhase('chat');
+      enterSession(result, finalWords);
     } catch {
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language]);
+  }, [language, enterSession]);
+
+  // "Mixed session" — the backend's own due_words seed type, which picks
+  // words across every tracked video from its own review-due tracking
+  // (independent of the flashcards feature's local FSRS state).
+  const startMixedSession = useCallback(async () => {
+    setDeck({ id: 'mixed', title: 'Mixed practice' });
+    setPhase('loading');
+    setChatError(null);
+    try {
+      const result = await createSession({ seed_type: 'due_words', language });
+      const finalWords: TargetWord[] = (result.due_words || []).map((d: DueWord) => ({
+        lemma: d.lemma,
+        gloss: d.gloss,
+        surface: d.lemma,
+      }));
+      enterSession(result, finalWords);
+    } catch {
+      setChatError('Could not start the conversation. Please try again.');
+      setPhase('deck');
+    }
+  }, [language, enterSession]);
 
   const leaveChat = useCallback(() => {
     voiceRef.current?.stop();
@@ -797,6 +825,28 @@ export function ConverseV2Page(
                 );
               })}
             </ul>
+
+            <section
+              aria-labelledby="mixed-title"
+              className="mt-10 flex flex-col gap-4 rounded-2xl bg-sage-soft p-5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <h2 id="mixed-title" className="font-heading text-body font-semibold text-sage-deep">
+                  Mixed session
+                </h2>
+                <p className="mt-0.5 text-body-sm text-sage-ink">
+                  Practice a mix of words pulled from across your videos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={startMixedSession}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-4 py-2.5 text-body-sm font-semibold text-sage-deep hover:bg-surface-hover transition-colors"
+              >
+                <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
+                Start
+              </button>
+            </section>
           </>
         )}
       </div>
