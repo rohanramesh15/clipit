@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
-  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play, ChevronDown,
+  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -18,7 +18,7 @@ import {
 } from '../services/madlibs';
 import { VoiceSession, VoiceEvent } from '../lib/voiceSession';
 import { getDueCards } from '../services/fsrs';
-import { getDeletedCards } from '../utils/flashcardStorage';
+import { getDeletedCards, relativeDay } from '../utils/flashcardStorage';
 import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -41,6 +41,13 @@ const hexA = (hex: string, a: number) => {
 type Phase = 'deck' | 'loading' | 'chat' | 'empty';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
 type NavPage = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
+type DeckSort = 'due' | 'recent';
+
+const DECK_PAGE_SIZE = 5;
+const deckSorts: { value: DeckSort; label: string }[] = [
+  { value: 'due', label: 'Most due' },
+  { value: 'recent', label: 'Recently watched' },
+];
 
 interface TargetWord {
   lemma: string;    // dictionary form (sent to the backend, shown on the pill)
@@ -216,6 +223,10 @@ export function ConverseV2Page(
   const [recentSession, setRecentSession] = useState<RecentSession | null>(null);
   const [resuming, setResuming] = useState(false);
   const [deckQuery, setDeckQuery] = useState('');
+  const [deckSort, setDeckSort] = useState<DeckSort>('due');
+  const [isDeckSortOpen, setIsDeckSortOpen] = useState(false);
+  const [visibleDecks, setVisibleDecks] = useState(DECK_PAGE_SIZE);
+  const deckSortRef = useRef<HTMLDivElement>(null);
 
   // active session
   const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
@@ -323,17 +334,28 @@ export function ConverseV2Page(
     return () => { alive = false; };
   }, [phase, token]);
 
-  // Per-video word lists (with due state) for the deck-picker badges and the
-  // expand-to-preview word chips, matching flashcards' own DeckBrowser: a
-  // cheap vocabulary fetch cross-referenced against the local FSRS review
-  // state (deliberately the same approximation flashcards uses — this page
-  // has no per-video backend due-check of its own).
+  // Per-video word lists provide the same word-count and due-count metadata as
+  // Flashcards' deck browser. Due state is the same local-FSRS approximation
+  // used there; the lists themselves are not shown in this picker.
   const [deckWords, setDeckWords] = useState<Record<string, { word: string; due: boolean }[]>>({});
   const deckDueCounts = useMemo(
     () => Object.fromEntries(Object.entries(deckWords).map(([id, words]) => [id, words.filter((w) => w.due).length])),
     [deckWords],
   );
-  const [openVideoId, setOpenVideoId] = useState<string | null>(null);
+  useEffect(() => {
+    function closeDeckSort(event: PointerEvent) {
+      if (deckSortRef.current && !deckSortRef.current.contains(event.target as Node)) setIsDeckSortOpen(false);
+    }
+    function closeDeckSortOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsDeckSortOpen(false);
+    }
+    document.addEventListener('pointerdown', closeDeckSort);
+    document.addEventListener('keydown', closeDeckSortOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeDeckSort);
+      document.removeEventListener('keydown', closeDeckSortOnEscape);
+    };
+  }, []);
   useEffect(() => {
     if (!videos || !videos.length) return;
     let alive = true;
@@ -833,67 +855,40 @@ export function ConverseV2Page(
 
   const usedCount = usedLemmas.size;
   const latestCoaching = coachings.length ? coachings[coachings.length - 1] : null;
+  const currentDeckSort = deckSorts.find((option) => option.value === deckSort) ?? deckSorts[0];
+  const matchingDecks = useMemo(() => {
+    const needle = deckQuery.trim().toLowerCase();
+    return (videos ?? [])
+      .filter((video) => !needle || video.title.toLowerCase().includes(needle))
+      .sort((a, b) => {
+        if (deckSort === 'due') return (deckDueCounts[b.video_id] ?? 0) - (deckDueCounts[a.video_id] ?? 0);
+        return b.tracked_at - a.tracked_at;
+      });
+  }, [deckDueCounts, deckQuery, deckSort, videos]);
+  const shownDecks = matchingDecks.slice(0, visibleDecks);
 
   // ============================================================================
   // Deck picker
   // ============================================================================
   const header = (back: () => void, label: string) => (
-    <div className="-ml-2 flex items-center gap-2 mb-6">
+    <div className="-ml-2 flex items-center gap-2">
       <NavigationIconButton direction="back" label={label} onClick={back} />
-      <h1 className="font-heading text-section text-primary">AI chat</h1>
+      <h1 className="font-heading text-section font-medium text-primary">AI chat</h1>
     </div>
   );
 
   if (phase === 'deck') {
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-4xl mx-auto">
-        {header(() => onNavigate?.('practice'), 'Back to Practice')}
+      <div className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
+        {header(() => onNavigate?.('practice'), 'Back')}
 
-        {recentSession && (
-          <section
-            aria-labelledby="resume-title"
-            className="mb-6 flex items-center gap-4 rounded-2xl bg-sage-soft p-4"
-          >
-            {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
-              <img
-                src={`https://img.youtube.com/vi/${recentSession.seed_video_id}/mqdefault.jpg`}
-                alt=""
-                loading="lazy"
-                className="hidden h-16 w-24 shrink-0 rounded-lg object-cover sm:block"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <h2 id="resume-title" className="truncate font-heading text-body font-semibold text-sage-deep">
-                {recentSession.seed_label || 'Continue your conversation'}
-              </h2>
-              <p className="mt-0.5 truncate text-meta text-sage-ink">
-                {recentSession.turn_count} {recentSession.turn_count === 1 ? 'message' : 'messages'}
-                {recentSession.last_line ? ` · ${recentSession.last_line}` : ''}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={resumeLastSession}
-              disabled={resuming}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-body-sm font-semibold text-[#ffffff] disabled:opacity-60"
-              style={{ background: ACCENT }}
-            >
-              {resuming ? <LoadingAnimation className="h-4 w-4" /> : <Play className="size-4" aria-hidden="true" />}
-              Continue
-            </button>
-          </section>
-        )}
-
-        {chatError && (
-          <div className="mb-4 text-body-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
-        )}
+        {chatError && <div className="mt-6 text-body-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>}
 
         {videos === null ? (
-          <div className="space-y-3">
+          <div className="mt-8 space-y-3">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="bg-surface rounded-2xl p-5 flex items-center gap-5">
-                <Skeleton className="w-32 aspect-video rounded-lg shrink-0" />
+              <div key={i} className="flex items-center gap-5 rounded-2xl bg-surface p-5">
+                <Skeleton className="aspect-video w-24 shrink-0 rounded-lg" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-2/3 rounded" />
                   <Skeleton className="h-3 w-1/3 rounded" />
@@ -904,140 +899,186 @@ export function ConverseV2Page(
         ) : videos.length === 0 ? (
           <PracticeEmptyState mode="AI chat" />
         ) : (
-          <section aria-labelledby="sources-title">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="sources-title" className="font-heading text-body font-semibold text-primary">Your videos</h2>
-              <label className="relative w-full sm:w-64">
-                <span className="sr-only">Search videos</span>
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-                <input
-                  type="search"
-                  value={deckQuery}
-                  onChange={(e) => setDeckQuery(e.target.value)}
-                  placeholder="Search your videos"
-                  className="w-full rounded-xl border border-subtle bg-app py-2 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:outline-none"
-                  style={{ borderColor: 'var(--border-subtle)' }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-                />
-              </label>
-            </div>
-
-            {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).length === 0 ? (
-              <p className="mt-6 text-body-sm text-muted">Nothing matches "{deckQuery}".</p>
-            ) : (
-            <ul className="mt-3 divide-y divide-[color:var(--border-subtle)] border-y border-subtle">
-              {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).map((v, i) => {
-                const isNetflix = v.video_id.startsWith('netflix_');
-                const words = deckWords[v.video_id] || [];
-                const due = deckDueCounts[v.video_id] ?? 0;
-                const open = openVideoId === v.video_id;
-                return (
-                  <motion.li
-                    key={v.video_id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                  >
-                    <div className="flex items-center gap-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setOpenVideoId(open ? null : v.video_id)}
-                        aria-expanded={open}
-                        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left"
-                      >
-                        <span className="h-10 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-hover flex items-center justify-center">
-                          {isNetflix ? (
-                            <Film className="w-4 h-4" style={{ color: ACCENT }} />
-                          ) : (
-                            <img
-                              src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
-                              alt=""
-                              className="w-full h-full object-cover"
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-body font-medium text-primary">{v.title}</span>
-                          <span className="mt-0.5 block text-meta text-muted">{isNetflix ? 'Netflix' : 'YouTube'}</span>
-                        </span>
-                        <span
-                          className={`shrink-0 rounded-md px-2 py-1 text-meta font-medium ${
-                            due > 0 ? 'bg-sage-soft text-sage-ink' : 'text-muted'
-                          }`}
-                        >
-                          {due > 0 ? `${due} due` : words.length ? `${words.length} words` : ''}
-                        </span>
-                        <ChevronDown
-                          className={`size-4 shrink-0 text-muted transition-transform duration-200 ease-swift ${open ? 'rotate-180' : ''}`}
-                          aria-hidden="true"
-                        />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => startFromVideo(v)}
-                        className="shrink-0 rounded-xl bg-sage-soft px-3 py-1.5 text-body-sm font-semibold text-sage-ink hover:bg-sage-ink hover:text-[#ffffff] transition-colors"
-                      >
-                        Start
-                      </button>
+          <>
+            <section className="mt-8 space-y-4" aria-label="Conversation actions">
+              {recentSession && (
+                <section aria-labelledby="resume-title" className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
+                  <div className="flex min-w-0 items-center gap-4">
+                    {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
+                      <img
+                        src={`https://img.youtube.com/vi/${recentSession.seed_video_id}/mqdefault.jpg`}
+                        alt=""
+                        loading="lazy"
+                        className="hidden h-11 w-[4.25rem] shrink-0 rounded-lg object-cover sm:block"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <h2 id="resume-title" className="truncate font-heading text-lead text-sage-deep">Continue your conversation</h2>
+                      <p className="mt-0.5 truncate text-body-sm text-sage-ink">
+                        {recentSession.seed_label || 'Previous conversation'} · {recentSession.turn_count} {recentSession.turn_count === 1 ? 'message' : 'messages'}
+                      </p>
                     </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resumeLastSession}
+                    disabled={resuming}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-body-sm font-semibold text-[#ffffff] disabled:opacity-60"
+                    style={{ background: ACCENT }}
+                  >
+                    {resuming ? <LoadingAnimation className="h-4 w-4" /> : <Play className="size-4" aria-hidden="true" />}
+                    Continue
+                  </button>
+                </section>
+              )}
 
-                    <AnimatePresence initial={false}>
-                      {open && words.length > 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                          className="overflow-hidden"
+              <section aria-labelledby="mixed-title" className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
+                <div>
+                  <h2 id="mixed-title" className="font-heading text-lead text-sage-deep">Start a mixed chat</h2>
+                  <p className="text-body-sm text-sage-ink">Practice words pulled from across your videos.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={startMixedSession}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-sage-deep transition-colors hover:bg-surface-hover"
+                >
+                  <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
+                  Start chat
+                </button>
+              </section>
+            </section>
+
+            <section aria-labelledby="sources-title" className="mt-14">
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
+                <h2 id="sources-title" className="font-heading text-card-title text-primary">Your videos</h2>
+                <div className="flex flex-1 items-center justify-end gap-3">
+                  <label className="relative w-full max-w-xs">
+                    <span className="sr-only">Search videos</span>
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={deckQuery}
+                      onChange={(e) => {
+                        setDeckQuery(e.target.value);
+                        setVisibleDecks(DECK_PAGE_SIZE);
+                      }}
+                      placeholder="Search a video"
+                      className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:outline-none"
+                      onFocus={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                    />
+                  </label>
+                  <div className="relative shrink-0" ref={deckSortRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsDeckSortOpen((open) => !open)}
+                      aria-haspopup="listbox"
+                      aria-expanded={isDeckSortOpen}
+                      className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                    >
+                      {currentDeckSort.label}
+                      <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isDeckSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                      <span className="sr-only">Sort videos</span>
+                    </button>
+                    <AnimatePresence>
+                      {isDeckSortOpen && (
+                        <motion.ul
+                          role="listbox"
+                          aria-label="Sort videos"
+                          initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                          transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                          className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right space-y-1 rounded-xl border border-subtle bg-app p-2 shadow-lg"
                         >
-                          <ul className="flex flex-wrap gap-1.5 pb-4 pl-[4.75rem]">
-                            {words.map((w) => (
-                              <li
-                                key={w.word}
-                                className={`rounded-md border px-2 py-1 text-meta ${
-                                  w.due ? 'border-subtle bg-sage-soft text-sage-ink' : 'border-subtle text-secondary'
-                                }`}
-                              >
-                                {w.word}
+                          {deckSorts.map((option) => {
+                            const isSelected = option.value === deckSort;
+                            return (
+                              <li key={option.value} role="option" aria-selected={isSelected}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDeckSort(option.value);
+                                    setVisibleDecks(DECK_PAGE_SIZE);
+                                    setIsDeckSortOpen(false);
+                                  }}
+                                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${isSelected ? 'bg-sage-soft font-medium text-sage-ink' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
+                                >
+                                  <span className="flex-1 text-left">{option.label}</span>
+                                  {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
+                                </button>
                               </li>
-                            ))}
-                          </ul>
-                        </motion.div>
+                            );
+                          })}
+                        </motion.ul>
                       )}
                     </AnimatePresence>
-                  </motion.li>
-                );
-              })}
-            </ul>
-            )}
-          </section>
-        )}
+                  </div>
+                </div>
+              </div>
 
-        {videos !== null && videos.length > 0 && (
-          <section
-            aria-labelledby="mixed-title"
-            className="mt-10 flex flex-col gap-4 rounded-2xl bg-sage-soft p-5 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="min-w-0">
-              <h2 id="mixed-title" className="font-heading text-body font-semibold text-sage-deep">
-                Mixed session
-              </h2>
-              <p className="mt-0.5 text-body-sm text-sage-ink">
-                Practice a mix of words pulled from across your videos.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={startMixedSession}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-4 py-2.5 text-body-sm font-semibold text-sage-deep hover:bg-surface-hover transition-colors"
-            >
-              <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
-              Start
-            </button>
-          </section>
+              {matchingDecks.length === 0 ? (
+                <p className="py-16 text-center text-body text-muted">Nothing matches "{deckQuery}".</p>
+              ) : (
+                <ul>
+                  {shownDecks.map((video) => {
+                    const isNetflix = video.video_id.startsWith('netflix_');
+                    const words = deckWords[video.video_id];
+                    const due = deckDueCounts[video.video_id] ?? 0;
+                    const videoUrl = isNetflix
+                      ? `https://www.netflix.com/watch/${video.video_id.replace('netflix_', '')}`
+                      : `https://www.youtube.com/watch?v=${video.video_id}`;
+                    return (
+                      <li key={video.video_id} className="flex items-center gap-5 border-b border-subtle py-4">
+                        <a
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`Open on ${isNetflix ? 'Netflix' : 'YouTube'}`}
+                          className="group/thumb relative block h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-hover"
+                        >
+                          {isNetflix ? (
+                            <div className="flex h-full w-full items-center justify-center bg-[#B20710]/10"><Film className="h-5 w-5 text-[#B20710]" aria-hidden="true" /></div>
+                          ) : (
+                            <img src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`} alt="" className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-150 ease-swift group-hover/thumb:bg-black/40 group-hover/thumb:opacity-100"><ExternalLink className="h-4 w-4 text-[#ffffff]" aria-hidden="true" /></div>
+                        </a>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-body font-semibold text-primary">{video.title}</p>
+                          <p className="mt-0.5 truncate text-body-sm text-muted">
+                            {isNetflix ? 'Netflix' : 'YouTube'} · {relativeDay(video.tracked_at)}{words !== undefined && ` · ${words.length} words`}
+                          </p>
+                        </div>
+                        <p className={`hidden w-20 shrink-0 text-right text-body-sm font-semibold sm:block ${due > 0 ? 'text-sage-ink' : 'text-muted'}`}>
+                          {words === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Ready'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => startFromVideo(video)}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sage-soft px-3.5 py-2 text-body-sm font-semibold text-sage-ink transition-colors duration-150 ease-swift hover:bg-sage-ink hover:text-[#ffffff]"
+                        >
+                          <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                          Start chat
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              {visibleDecks < matchingDecks.length && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleDecks((count) => count + DECK_PAGE_SIZE)}
+                  className="mt-6 w-full rounded-xl py-2.5 text-body-sm font-semibold text-muted transition-colors duration-150 ease-swift hover:text-primary"
+                >
+                  Show {Math.min(DECK_PAGE_SIZE, matchingDecks.length - visibleDecks)} more of {matchingDecks.length}
+                </button>
+              )}
+            </section>
+          </>
         )}
       </div>
     );
