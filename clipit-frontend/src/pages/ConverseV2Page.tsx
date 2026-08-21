@@ -969,7 +969,7 @@ export function ConverseV2Page(
                     <button
                       onClick={() => toggleMsgTrans(m.id, m.text, m.translation)}
                       aria-label="Translate"
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${msgTrans[m.id]?.visible ? 'bg-black/5 text-primary' : 'text-muted hover:text-primary hover:bg-black/5'}`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${msgTrans[m.id]?.visible ? 'bg-sage-soft text-sage-ink' : 'text-muted hover:text-primary hover:bg-black/5'}`}
                     >
                       <Languages className="w-4 h-4" />
                     </button>
