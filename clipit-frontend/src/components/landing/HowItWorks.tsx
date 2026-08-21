@@ -128,7 +128,7 @@ export function HowItWorks() {
 
                 {index < loopStages.length - 1 && (
                   <span
-                    className="pointer-events-none absolute left-1/2 top-full z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-app text-accent md:left-auto md:right-[-46px] md:top-28 md:translate-x-0 md:translate-y-0"
+                    className="pointer-events-none absolute left-1/2 top-full z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-app text-accent md:left-auto md:right-[-46px] md:top-1/2 md:translate-x-0 md:-translate-y-1/2"
                     aria-hidden="true"
                   >
                     <ChevronRight className="h-4 w-4 rotate-90 md:rotate-0" strokeWidth={2.5} />
