@@ -27,7 +27,7 @@ export function NavigationIconButton({ direction, label, onClick, disabled, clas
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className={`inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary disabled:opacity-40 ${className}`}
+      className={`inline-flex items-center rounded-xl p-2 text-secondary transition-all duration-150 ease-swift hover:-translate-x-0.5 hover:text-primary disabled:opacity-40 ${className}`}
     >
       <NavigationIcon direction={direction} />
     </button>

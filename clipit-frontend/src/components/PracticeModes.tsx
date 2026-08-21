@@ -70,7 +70,7 @@ export function PracticeModes({ onOpenMode }: PracticeModesProps) {
           >
             <div className="flex items-center gap-3">
               <h3 className={`font-heading text-card-title ${mode.heading}`}>{mode.label}</h3>
-              <span className={`ml-auto inline-flex shrink-0 items-center rounded-xl p-2 ${mode.heading}`} aria-hidden="true">
+              <span className={`ml-auto inline-flex shrink-0 items-center rounded-xl p-2 transition-transform duration-150 ease-swift group-hover:translate-x-1 ${mode.heading}`} aria-hidden="true">
                 <NavigationIcon direction="forward" />
               </span>
             </div>
