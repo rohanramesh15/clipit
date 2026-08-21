@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 export type WordStatus = 'due' | 'learning' | 'new';
 
@@ -37,9 +37,12 @@ const WORDS_PER_PAGE = 10;
 interface WordQueueProps {
   words: QueuedWord[];
   languageName: string;
+  sourceVideoCount?: number;
+  preparingVideoCount?: number;
+  onRefresh?: () => void;
 }
 
-export function WordQueue({ words, languageName }: WordQueueProps) {
+export function WordQueue({ words, languageName, sourceVideoCount = 0, preparingVideoCount = 0, onRefresh }: WordQueueProps) {
   const [filter, setFilter] = useState<'all' | WordStatus>('due');
   const [page, setPage] = useState(0);
   const isEmpty = words.length === 0;
@@ -82,7 +85,7 @@ export function WordQueue({ words, languageName }: WordQueueProps) {
                   onClick={() => selectFilter(option.id)}
                   className={`rounded-lg px-3.5 py-1.5 text-body-sm font-medium transition-colors duration-150 ease-swift ${
                     isActive
-                      ? 'bg-accent text-on-accent'
+                      ? 'selected-surface text-accent'
                       : 'border border-medium text-secondary hover:bg-surface-hover hover:text-primary'
                   }`}
                 >
@@ -97,10 +100,33 @@ export function WordQueue({ words, languageName }: WordQueueProps) {
 
       {isEmpty ? (
         <div className="mt-6 rounded-2xl border border-dashed border-medium px-6 py-10 text-center">
-          <p className="text-body text-secondary">Nothing clipped yet.</p>
-          <p className="mt-1 text-body-sm text-muted">
-            Watch a {languageName} video with the extension on, and words show up here.
-          </p>
+          {sourceVideoCount > 0 ? (
+            <>
+              <p className="text-body text-secondary">Preparing words from your watched videos.</p>
+              <p className="mt-1 text-body-sm text-muted">
+                {preparingVideoCount > 0
+                  ? 'Captions or practice cards are still being prepared. Check again in a moment.'
+                  : 'We could not find practice words in these videos yet.'}
+              </p>
+              {onRefresh && (
+                <button
+                  type="button"
+                  onClick={onRefresh}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-semibold text-accent transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  Check again
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-body text-secondary">Nothing clipped yet.</p>
+              <p className="mt-1 text-body-sm text-muted">
+                Watch a {languageName} video with the extension on, and words show up here.
+              </p>
+            </>
+          )}
         </div>
       ) : visible.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-medium px-6 py-10 text-center text-body text-muted">

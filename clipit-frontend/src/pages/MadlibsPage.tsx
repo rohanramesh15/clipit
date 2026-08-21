@@ -334,7 +334,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         </div>
 
         {resumable && (
-          <section className="mt-8 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-label="Resume Mad Libs practice">
+          <section className="mt-8 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap" aria-label="Resume Mad Libs practice">
             <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-body font-semibold text-dusk-deep">{resumable.title}</p>
@@ -413,7 +413,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                                 type="button"
                                 onClick={() => { setSort(option.value); setVisible(PAGE_SIZE); setIsSortOpen(false); }}
                                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
-                                  isSelected ? 'bg-blush font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                                  isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                                 }`}
                               >
                                 <span className="flex-1 text-left">{option.label}</span>

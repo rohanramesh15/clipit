@@ -146,7 +146,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                             setIsSortOpen(false);
                           }}
                           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
-                            isSelected ? 'bg-blush font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                            isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                           }`}
                         >
                           <span className="flex-1 text-left">{option.label}</span>

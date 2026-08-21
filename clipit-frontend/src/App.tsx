@@ -15,7 +15,7 @@ import { VocabularyUploadPage } from './pages/VocabularyUploadPage';
 import { ConverseV2Page } from './pages/ConverseV2Page';
 import { PracticePage } from './pages/PracticePage';
 import { MadlibsPage } from './pages/MadlibsPage';
-import { Skeleton } from './components/Skeleton';
+import { PracticePageSkeleton } from './components/PracticePageSkeleton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
@@ -64,13 +64,8 @@ function AppLoadingState() {
     >
       <header className="h-[72px] border-b border-subtle bg-app/90" aria-hidden="true" />
 
-      <main className="mx-auto max-w-page px-5 pb-8 pt-16 sm:px-8">
-        <div className="mt-14 grid gap-5 sm:grid-cols-3" aria-hidden="true">
-          {[0, 1, 2].map((index) => (
-            <Skeleton key={index} className="h-44 rounded-2xl" />
-          ))}
-        </div>
-
+      <main>
+        <PracticePageSkeleton />
       </main>
     </div>
   );

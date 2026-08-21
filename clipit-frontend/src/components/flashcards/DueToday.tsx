@@ -30,7 +30,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
   if (totalDue === 0) {
     return (
       <section
-        className="flex min-h-24 flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-sand-soft px-7 py-5"
+        className="flex min-h-24 flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-sand-soft px-7 py-5 lg:flex-nowrap"
         aria-labelledby="due-heading"
       >
         <h2 id="due-heading" className="font-heading text-lead text-sand-deep">
@@ -46,14 +46,14 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
 
   return (
     <section
-      className="flex min-h-24 flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sand-soft px-7 py-5"
+      className="flex min-h-24 flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sand-soft px-7 py-5 lg:flex-nowrap"
       aria-labelledby="due-heading"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
         <h2 id="due-heading" className="font-heading text-[2rem] leading-none text-sand-deep">
           {totalDue}
         </h2>
-        <div>
+        <div className="min-w-0">
           <p className="text-body-sm font-semibold text-sand-deep">
             {totalDue === 1 ? 'word' : 'words'} due today
           </p>
@@ -63,7 +63,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex shrink-0 items-center gap-6">
         <ul className="flex items-center -space-x-4" aria-hidden="true">
           {preview.map((video) => {
             const thumb = thumbnailFor(video);

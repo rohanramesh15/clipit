@@ -6,7 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { PracticeModes } from '../components/PracticeModes';
 import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
-import { Skeleton } from '../components/Skeleton';
+import { PracticePageSkeleton } from '../components/PracticePageSkeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { homeQueueQueryOptions, RequestError } from '../lib/queries';
 
@@ -47,12 +47,21 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
     ...homeQueueQueryOptions(user?.id ?? 0, token ?? '', language),
     enabled: Boolean(user && token),
   });
-  const words = wordQueue.data ?? null;
+  const queue = wordQueue.data ?? null;
+  const words = queue?.words ?? null;
   // Cached practice data remains useful if a background refresh fails.
   const wordLoadState = words ? 'loaded' : wordQueue.isPending ? 'loading' : wordQueue.isError ? 'error' : 'loaded';
 
   const hasWatched = words !== null && words.length > 0;
   const dueCount = words ? words.filter((word) => word.status === 'due').length : 0;
+
+  if (wordLoadState === 'loading') {
+    return (
+      <div role="status" aria-live="polite" aria-label="Loading your practice queue">
+        <PracticePageSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8">
@@ -67,16 +76,6 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
           <StreakSummary dueCount={dueCount} streakDays={streak} />
         )}
       </div>
-
-      {wordLoadState === 'loading' && (
-        <div className="mt-10" role="status" aria-live="polite" aria-label="Loading your practice queue">
-          <div className="grid gap-5 sm:grid-cols-3" aria-hidden="true">
-            {[0, 1, 2].map((index) => (
-              <Skeleton key={index} className="h-44 rounded-2xl" />
-            ))}
-          </div>
-        </div>
-      )}
 
       {wordLoadState === 'error' && (
         <div className="mt-10 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-12 text-center">
@@ -107,7 +106,13 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
       {wordLoadState === 'loaded' && words && (
         <>
           <PracticeModes onOpenMode={onNavigate} />
-          <WordQueue words={words} languageName={languageName} />
+          <WordQueue
+            words={words}
+            languageName={languageName}
+            sourceVideoCount={queue.sourceVideoCount}
+            preparingVideoCount={queue.preparingVideoCount}
+            onRefresh={() => void wordQueue.refetch()}
+          />
         </>
       )}
     </div>

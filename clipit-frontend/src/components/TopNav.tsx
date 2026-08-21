@@ -121,13 +121,13 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     onClick={() => onNavigate(tab.id)}
                     aria-current={isActive ? 'page' : undefined}
                     className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-body-sm font-medium transition-colors duration-150 ease-swift ${
-                      isActive ? 'text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                      isActive ? 'selected-surface text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                     }`}
                   >
                     {isActive && (
                       <motion.span
                         layoutId="nav-pill"
-                        className="absolute inset-0 rounded-lg bg-blush"
+                        className="absolute inset-0 rounded-lg selected-surface"
                         transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                       />
                     )}
@@ -183,7 +183,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                             setIsLangPickerOpen(false);
                           }}
                           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
-                            isSelected ? 'bg-blush font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                            isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                           }`}
                         >
                           <span aria-hidden="true">{option.flag}</span>
@@ -324,7 +324,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                       }}
                       aria-current={isActive ? 'page' : undefined}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-body font-medium transition-colors duration-150 ease-swift ${
-                        isActive ? 'bg-blush text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                        isActive ? 'selected-surface text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                       }`}
                     >
                       <tab.Icon className="h-5 w-5" aria-hidden="true" />

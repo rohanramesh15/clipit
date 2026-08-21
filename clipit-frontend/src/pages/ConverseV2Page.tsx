@@ -972,7 +972,7 @@ export function ConverseV2Page(
             <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
                 <section aria-labelledby="resume-title" className="flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
-                  <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
                       <img
                         src={`https://img.youtube.com/vi/${recentSession.seed_video_id}/mqdefault.jpg`}
@@ -1001,8 +1001,8 @@ export function ConverseV2Page(
                 </section>
               )}
 
-              <section aria-labelledby="mixed-title" className={`flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 ${recentSession ? '' : 'sm:col-span-2'}`}>
-                <div className="flex min-w-0 items-center gap-4">
+              <section aria-labelledby="mixed-title" className={`flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 lg:flex-nowrap ${recentSession ? '' : 'sm:col-span-2'}`}>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   {mixedPreviewVideos.length > 0 && (
                     <ul className="flex shrink-0 items-center -space-x-3" aria-label={mixedSources.length > 0 ? `Words will be drawn from ${mixedPreviewVideos.map((video) => video.title).join(', ')}` : 'Videos available for your mixed chat'}>
                       {mixedPreviewVideos.map((video) => {
@@ -1103,7 +1103,7 @@ export function ConverseV2Page(
                                     setVisibleDecks(DECK_PAGE_SIZE);
                                     setIsDeckSortOpen(false);
                                   }}
-                                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${isSelected ? 'bg-sage-soft font-medium text-sage-ink' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
+                                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
                                 >
                                   <span className="flex-1 text-left">{option.label}</span>
                                   {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}

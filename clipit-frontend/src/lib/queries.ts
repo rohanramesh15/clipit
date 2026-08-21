@@ -25,6 +25,12 @@ export interface VideoVocabulary {
   words: string[];
 }
 
+export interface HomeQueue {
+  words: QueuedWord[];
+  sourceVideoCount: number;
+  preparingVideoCount: number;
+}
+
 export interface VocabularySettings {
   new_cards_per_day?: number;
   priority_mode?: string;
@@ -101,7 +107,9 @@ async function readJson<T>(url: string, token: string, signal: AbortSignal, init
 export const queryKeys = {
   profile: (authUserId: string) => ['profile', authUserId] as const,
   history: (userId: number, language: string) => ['history', userId, language] as const,
-  homeQueue: (userId: number, language: string) => ['home-queue', userId, language] as const,
+  // Versioned because the cached payload gained readiness metadata. Existing
+  // browser caches held only the word array and must not mask the new state.
+  homeQueue: (userId: number, language: string) => ['home-queue-v2', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
@@ -199,8 +207,12 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
       return failureCount < 2;
     },
     retryDelay: (attempt: number) => Math.min(500 * 2 ** attempt, 2_000),
-    queryFn: async ({ signal }: { signal: AbortSignal }): Promise<QueuedWord[]> => {
-      const queue = await readJson<{ cards?: FlashCard[] }>(
+    queryFn: async ({ signal }: { signal: AbortSignal }): Promise<HomeQueue> => {
+      const queue = await readJson<{
+        cards?: FlashCard[];
+        source_video_count?: number;
+        preparing_video_count?: number;
+      }>(
         `${API_BASE_URL}/videos/home/queue?lang=${language}`,
         token,
         signal,
@@ -212,7 +224,7 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
       const cardByKey = new Map(cards.map((card) => [card.dictionary_form || card.target_word, card]));
       const now = Date.now();
 
-      return sortByPriority([...cardByKey.keys()]).slice(0, 30).map((key) => {
+      const words = sortByPriority([...cardByKey.keys()]).slice(0, 30).map((key) => {
         const card = cardByKey.get(key)!;
         const stats = getCardStats(key);
         const status: WordStatus = !stats || stats.isNew ? 'new' : stats.nextDue.getTime() <= now ? 'due' : 'learning';
@@ -224,6 +236,12 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
           status,
         };
       });
+
+      return {
+        words,
+        sourceVideoCount: queue.source_video_count ?? 0,
+        preparingVideoCount: queue.preparing_video_count ?? 0,
+      };
     },
   };
 }

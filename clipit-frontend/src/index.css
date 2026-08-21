@@ -236,6 +236,13 @@ button.border-medium:not(:disabled):hover {
   border-color: var(--accent) !important;
 }
 
+/* Active tabs and menu choices share the warm surface used by Activity log.
+   This explicit utility deliberately wins over the neutral-button treatment
+   above, which otherwise turns `bg-surface` buttons white. */
+.selected-surface {
+  background-color: var(--bg-surface) !important;
+}
+
 /* Custom Scrollbar (dark default) */
 ::-webkit-scrollbar {
   width: 8px;

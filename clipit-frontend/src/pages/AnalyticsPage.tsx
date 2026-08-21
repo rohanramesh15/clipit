@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, Flame, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
 import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
@@ -12,12 +11,8 @@ import { reviewsQueryOptions, watchTimeQueryOptions } from '../lib/queries';
 function AnalyticsLoadingState() {
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
-      <div className="grid gap-6 lg:grid-cols-3" aria-hidden="true">
-        <Skeleton className="h-52 rounded-2xl" />
-        <Skeleton className="h-52 rounded-2xl lg:col-span-2" />
-      </div>
-
-      <Skeleton className="mt-6 h-52 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="mt-6 h-[16.5rem] w-full rounded-2xl" />
     </div>
   );
 }
@@ -123,15 +118,7 @@ export function AnalyticsPage() {
     };
   }, [reviewHistory, year]);
 
-  const metrics = [
-    { id: 'wordsLearned', label: 'Words learned', value: wordsLearned.toLocaleString() },
-    { id: 'totalReviews', label: 'Total reviews', value: totalReviews.toLocaleString() },
-    {
-      id: 'hoursWatched',
-      label: 'Hours watched',
-      value: hoursWatched < 1 ? `${Math.round(hoursWatched * 60)}m` : `${hoursWatched}h`,
-    },
-  ];
+  const hoursWatchedLabel = hoursWatched < 1 ? `${Math.round(hoursWatched * 60)}m` : `${hoursWatched}h`;
 
   if (isLoading) {
     return <AnalyticsLoadingState />;
@@ -143,28 +130,46 @@ export function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <header className="pb-8">
-        <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Your progress</h1>
-        <p className="mt-1 text-body text-secondary">Everything else follows from showing up.</p>
-      </header>
+      <section aria-label="Progress summary" className="flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-blush px-7 py-3 lg:flex-nowrap">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-4 lg:flex-nowrap">
+          <div className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-inverse">
+            <span className="font-heading text-section-lg leading-none tabular-nums">{streak}</span>
+            <span className="font-heading text-lead">days</span>
+          </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <StreakPanel streak={streak} longestStreak={longestStreak} lastWeek={lastWeek} />
+          <div className="shrink-0">
+            <p className="flex items-center gap-1.5 text-body font-semibold text-accent">
+              <Flame className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+              Current streak
+            </p>
+            <p className="mt-0.5 text-body text-secondary">Longest run so far: {longestStreak} days</p>
+          </div>
 
-        <section aria-labelledby="totals-heading" className="lg:col-span-2">
-          <h2 id="totals-heading" className="sr-only">
-            Totals
-          </h2>
-          <dl className="grid h-full grid-cols-1 divide-y divide-subtle border-t border-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {metrics.map((metric) => (
-              <div key={metric.id} className="flex flex-col justify-center px-0 py-5 sm:px-7 sm:first:pl-0">
-                <dt className="text-body-sm text-secondary">{metric.label}</dt>
-                <dd className="mt-1 font-heading text-section-lg tabular-nums text-primary">{metric.value}</dd>
-              </div>
+          <ul className="flex shrink-0 items-end gap-2" aria-label="Last seven days of practice">
+            {lastWeek.map((day, index) => (
+              <li key={day.date} className="flex flex-col items-center gap-1.5">
+                <span className={`h-6 w-6 rounded-lg ${day.reviews > 0 ? 'bg-accent' : 'bg-app'}`} />
+                <span className="text-meta text-secondary">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
+              </li>
             ))}
-          </dl>
-        </section>
-      </div>
+          </ul>
+        </div>
+
+        <dl className="flex shrink-0 flex-wrap items-baseline gap-x-7 gap-y-3 text-inverse sm:flex-nowrap">
+          <div className="flex items-baseline gap-2 whitespace-nowrap">
+            <dd className="font-heading text-section tabular-nums">{wordsLearned.toLocaleString()}</dd>
+            <dt className="text-body text-secondary">Words learned</dt>
+          </div>
+          <div className="flex items-baseline gap-2 whitespace-nowrap">
+            <dd className="font-heading text-section tabular-nums">{totalReviews.toLocaleString()}</dd>
+            <dt className="text-body text-secondary">Total reviews</dt>
+          </div>
+          <div className="flex items-baseline gap-2 whitespace-nowrap">
+            <dd className="font-heading text-section tabular-nums">{hoursWatchedLabel}</dd>
+            <dt className="text-body text-secondary">Hours watched</dt>
+          </div>
+        </dl>
+      </section>
 
       <div className="mt-6">
         <ActivityHeatmap days={days} year={year} />

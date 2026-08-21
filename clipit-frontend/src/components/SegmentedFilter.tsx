@@ -32,7 +32,7 @@ export function SegmentedFilter<T extends string>({ options, value, onChange, la
             {isActive && (
               <motion.span
                 layoutId="segment-pill"
-                className="absolute inset-0 rounded-md bg-blush"
+                className="absolute inset-0 rounded-md selected-surface"
                 transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
               />
             )}

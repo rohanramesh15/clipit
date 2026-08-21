@@ -195,7 +195,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                         }}
                         aria-pressed={isActive}
                         className={`rounded-md px-3.5 py-1.5 text-body-sm font-semibold transition-colors duration-150 ease-swift ${
-                          isActive ? 'bg-blush text-accent' : 'text-secondary hover:text-primary'
+                          isActive ? 'selected-surface text-accent' : 'text-secondary hover:text-primary'
                         }`}
                       >
                         {option.label}
