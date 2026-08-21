@@ -698,48 +698,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const currentStats = currentCard ? getCardStats(currentCard.dictionary_form || currentCard.target_word) : null;
   const previewTimes = currentCard ? previewNextReviews(currentCard.dictionary_form || currentCard.target_word) : null;
 
-  // ── Loading (skeleton mirrors the review layout) ──────────────
+  // ── Loading (skeleton reserved for major sections only) ────────
   if (loadState === 'loading') {
     return (
       <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app">
-        <div className="flex items-center gap-3 mb-6">
-          <Skeleton className="w-9 h-9 rounded-lg" />
-          <Skeleton className="h-9 w-40 rounded-lg" />
-        </div>
-
-        <div className="bg-surface rounded-2xl p-5 mb-8">
-          <Skeleton className="h-4 w-44 rounded mb-3" />
-          <div className="flex gap-3">
-            <Skeleton className="flex-1 h-14 rounded-xl" />
-            <Skeleton className="w-24 h-14 rounded-xl" />
-          </div>
-          <Skeleton className="h-4 w-56 rounded mt-3" />
-        </div>
-
-        <div className="flex items-center justify-between mb-4">
-          <Skeleton className="h-4 w-28 rounded" />
-          <Skeleton className="h-9 w-28 rounded-lg" />
-        </div>
-
-        <Skeleton className="h-12 w-full rounded-xl mb-4" />
-
-        <div className="flex gap-2 mb-5">
-          <Skeleton className="h-8 w-16 rounded-lg" />
-          <Skeleton className="h-8 w-14 rounded-lg" />
-          <Skeleton className="h-8 w-16 rounded-lg" />
-        </div>
-
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-surface rounded-xl p-5 flex items-center gap-5">
-              <Skeleton className="w-32 h-[72px] rounded-lg shrink-0" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-2/3 rounded" />
-                <Skeleton className="h-3 w-1/3 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <Skeleton className="h-9 w-40 rounded-lg mb-8" />
+        <Skeleton className="h-[4.75rem] rounded-2xl mb-8" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }

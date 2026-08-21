@@ -19,25 +19,7 @@ function thumbnailFor(video: TrackedVideo): string | null {
 
 export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTodayProps) {
   if (isLoadingDue) {
-    return (
-      <section className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-blush px-7 py-5">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-9 w-12 rounded" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-28 rounded" />
-            <Skeleton className="h-3 w-40 rounded" />
-          </div>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center -space-x-4">
-            {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-11 w-[4.25rem] rounded-lg border-2 border-blush" />
-            ))}
-          </div>
-          <Skeleton className="h-10 w-32 rounded-xl" />
-        </div>
-      </section>
-    );
+    return <Skeleton className="h-[4.75rem] rounded-2xl" />;
   }
 
   const withDue = [...videos]
@@ -48,13 +30,13 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
   if (totalDue === 0) {
     return (
       <section
-        className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-blush px-7 py-5"
+        className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-sand-soft px-7 py-5"
         aria-labelledby="due-heading"
       >
-        <h2 id="due-heading" className="font-heading text-lead text-primary">
+        <h2 id="due-heading" className="font-heading text-lead text-sand-deep">
           Nothing due today
         </h2>
-        <p className="text-body-sm text-secondary">Your next words come back soon.</p>
+        <p className="text-body-sm text-sand-ink">Your next words come back soon.</p>
       </section>
     );
   }
@@ -64,18 +46,18 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
 
   return (
     <section
-      className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-blush px-7 py-5"
+      className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sand-soft px-7 py-5"
       aria-labelledby="due-heading"
     >
       <div className="flex items-center gap-4">
-        <h2 id="due-heading" className="font-heading text-[2rem] leading-none text-primary">
+        <h2 id="due-heading" className="font-heading text-[2rem] leading-none text-sand-deep">
           {totalDue}
         </h2>
         <div>
-          <p className="text-body-sm font-semibold text-primary">
+          <p className="text-body-sm font-semibold text-sand-deep">
             {totalDue === 1 ? 'word' : 'words'} due today
           </p>
-          <p className="text-meta text-secondary">
+          <p className="text-meta text-sand-ink">
             across {withDue.length} {withDue.length === 1 ? 'video' : 'videos'}, mixed in scheduled order
           </p>
         </div>
@@ -91,13 +73,13 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
                   <img
                     src={thumb}
                     alt=""
-                    className="h-11 w-[4.25rem] rounded-lg border-2 border-blush object-cover"
+                    className="h-11 w-[4.25rem] rounded-lg border-2 border-sand-soft object-cover"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-blush bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
+                  <div className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-sand-soft bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
                     N
                   </div>
                 )}
@@ -105,7 +87,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
             );
           })}
           {hidden > 0 && (
-            <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-blush bg-surface-hover text-meta font-semibold text-primary">
+            <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-sand-soft bg-sand-mid text-meta font-semibold text-sand-deep">
               +{hidden}
             </li>
           )}
@@ -113,7 +95,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
 
         <button
           onClick={onStartAll}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-sand-ink px-5 py-2.5 text-body-sm font-semibold text-[#ffffff] transition-colors duration-150 ease-swift hover:bg-sand-deep"
         >
           <PlayIcon className="h-4 w-4" aria-hidden="true" />
           Start review
