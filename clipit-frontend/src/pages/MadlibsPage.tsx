@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Play, RotateCcw, Search, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -496,7 +496,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
               <ul>
                 {reviewList.map((answer, i) => (
                   <li key={`${answer.item.id}-${i}`} className="flex items-start gap-4 border-b border-subtle py-4">
-                    <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${answer.correct ? 'bg-success/15 text-success' : 'bg-error/15 text-error'}`}>
+                    <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${answer.correct ? 'bg-sage-ink/15 text-sage-ink' : 'bg-accent/15 text-accent'}`}>
                       {answer.correct ? <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> : <X className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -581,9 +581,9 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
               const chosen = option === selected;
               const state = revealed
                 ? answer
-                  ? 'bg-success text-white'
+                  ? 'bg-sage-ink text-white'
                   : chosen
-                    ? 'bg-error text-white'
+                    ? 'bg-accent text-on-accent'
                     : 'bg-surface text-muted opacity-60'
                 : 'bg-surface text-primary hover:bg-surface-hover';
               return (
@@ -608,7 +608,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <AnimatePresence>
             {revealed && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-6 flex items-center justify-between gap-4">
-                <span className={`text-body-sm font-semibold ${selected === item.answer ? 'text-success' : 'text-error'}`}>
+                <span className={`text-body-sm font-semibold ${selected === item.answer ? 'text-sage-ink' : 'text-accent'}`}>
                   {selected === item.answer ? 'Correct!' : `Answer: ${item.answer}`}
                 </span>
                 <button type="button" onClick={next} className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent hover:bg-accent-hover">
@@ -625,9 +625,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
 function BlankSlot({ revealed, answer, correct }: { revealed: boolean; answer: string; correct: boolean }) {
   if (!revealed) return <span className="mx-1 inline-block min-w-[5ch] border-b-[3px] border-accent">&nbsp;</span>;
-  const style: CSSProperties = { background: correct ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)' };
   return (
-    <span className={`mx-1 inline-block rounded-md px-2 font-bold ${correct ? 'text-success' : 'text-error'}`} style={style}>
+    <span className={`mx-1 inline-block rounded-md px-2 font-bold ${correct ? 'bg-sage-ink/15 text-sage-ink' : 'bg-accent/15 text-accent'}`}>
       {answer}
     </span>
   );
