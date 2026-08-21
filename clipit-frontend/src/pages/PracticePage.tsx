@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
@@ -49,11 +49,37 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   });
   const queue = wordQueue.data ?? null;
   const words = queue?.words ?? null;
+  const [isResyncingCaptions, setIsResyncingCaptions] = useState(false);
   // Cached practice data remains useful if a background refresh fails.
   const wordLoadState = words ? 'loaded' : wordQueue.isPending ? 'loading' : wordQueue.isError ? 'error' : 'loaded';
 
   const hasWatched = words !== null && words.length > 0;
   const dueCount = words ? words.filter((word) => word.status === 'due').length : 0;
+  const resyncableVideoIds = (queue?.missingCaptionVideos || [])
+    .filter((video) => video.platform === 'youtube')
+    .map((video) => video.video_id);
+
+  useEffect(() => {
+    const finishResync = () => {
+      setIsResyncingCaptions(false);
+      void wordQueue.refetch();
+    };
+    const failResync = () => setIsResyncingCaptions(false);
+    window.addEventListener('clipit:caption-resync-complete', finishResync);
+    window.addEventListener('clipit:caption-resync-failed', failResync);
+    return () => {
+      window.removeEventListener('clipit:caption-resync-complete', finishResync);
+      window.removeEventListener('clipit:caption-resync-failed', failResync);
+    };
+  }, [wordQueue.refetch]);
+
+  const resyncCaptions = () => {
+    if (resyncableVideoIds.length === 0) return;
+    setIsResyncingCaptions(true);
+    window.dispatchEvent(new CustomEvent('clipit:resync-captions', {
+      detail: { videoIds: resyncableVideoIds, lang: language },
+    }));
+  };
 
   if (wordLoadState === 'loading') {
     return (
@@ -113,6 +139,9 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
             preparingVideoCount={queue.preparingVideoCount}
             unavailableVideoCount={queue.unavailableVideoCount}
             onRefresh={() => void wordQueue.refetch()}
+            resyncableVideoCount={resyncableVideoIds.length}
+            isResyncing={isResyncingCaptions}
+            onResync={resyncCaptions}
           />
         </>
       )}

@@ -30,6 +30,13 @@ export interface HomeQueue {
   sourceVideoCount: number;
   preparingVideoCount: number;
   unavailableVideoCount: number;
+  missingCaptionVideos: MissingCaptionVideo[];
+}
+
+export interface MissingCaptionVideo {
+  video_id: string;
+  title: string;
+  platform: 'youtube' | 'netflix';
 }
 
 export interface VocabularySettings {
@@ -69,19 +76,6 @@ interface FlashCard {
   video_title?: string | null;
 }
 
-const DELETED_CARDS_KEY = 'lipit_deleted_cards';
-
-function getDeletedCards(language: string): Set<string> {
-  try {
-    const stored = localStorage.getItem(DELETED_CARDS_KEY);
-    if (!stored) return new Set();
-    const parsed = JSON.parse(stored);
-    return new Set(parsed[language] || []);
-  } catch {
-    return new Set();
-  }
-}
-
 export class RequestError extends Error {
   constructor(message: string, readonly status?: number, readonly isTimeout = false) {
     super(message);
@@ -110,7 +104,7 @@ export const queryKeys = {
   history: (userId: number, language: string) => ['history', userId, language] as const,
   // Versioned when Home's response contract changes so an old, long-lived
   // queue cannot hide newly available watched-video vocabulary.
-  homeQueue: (userId: number, language: string) => ['home-queue-v6', userId, language] as const,
+  homeQueue: (userId: number, language: string) => ['home-queue-v7', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
@@ -214,19 +208,20 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
         source_video_count?: number;
         preparing_video_count?: number;
         unavailable_video_count?: number;
+        missing_caption_videos?: MissingCaptionVideo[];
       }>(
         `${API_BASE_URL}/videos/home/queue?lang=${language}`,
         token,
         signal,
       );
-      const deleted = getDeletedCards(language);
-      const cards = (queue.cards || []).filter(
-        (card) => !deleted.has(card.dictionary_form || card.target_word),
-      );
+      // This is an inventory of words captured from watched videos, not a
+      // practice deck.  A locally dismissed flashcard must not make a real
+      // caption word disappear from the inventory.
+      const cards = queue.cards || [];
       const cardByKey = new Map(cards.map((card) => [card.dictionary_form || card.target_word, card]));
       const now = Date.now();
 
-      const words = sortByPriority([...cardByKey.keys()]).slice(0, 30).map((key) => {
+      const words = sortByPriority([...cardByKey.keys()]).map((key) => {
         const card = cardByKey.get(key)!;
         const stats = getCardStats(key);
         const status: WordStatus = !stats || stats.isNew ? 'new' : stats.nextDue.getTime() <= now ? 'due' : 'learning';
@@ -244,6 +239,7 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
         sourceVideoCount: queue.source_video_count ?? 0,
         preparingVideoCount: queue.preparing_video_count ?? 0,
         unavailableVideoCount: queue.unavailable_video_count ?? 0,
+        missingCaptionVideos: Array.isArray(queue.missing_caption_videos) ? queue.missing_caption_videos : [],
       };
     },
   };
