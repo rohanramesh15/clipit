@@ -701,13 +701,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // ── Loading (skeleton mirrors the review layout) ──────────────
   if (loadState === 'loading') {
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-white">
+      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app">
         <div className="flex items-center gap-3 mb-6">
           <Skeleton className="w-9 h-9 rounded-lg" />
           <Skeleton className="h-9 w-40 rounded-lg" />
         </div>
 
-        <div className="bg-sand-tint rounded-2xl p-5 mb-8">
+        <div className="bg-surface rounded-2xl p-5 mb-8">
           <Skeleton className="h-4 w-44 rounded mb-3" />
           <div className="flex gap-3">
             <Skeleton className="flex-1 h-14 rounded-xl" />
@@ -731,7 +731,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-sand-tint rounded-xl p-5 flex items-center gap-5">
+            <div key={i} className="bg-surface rounded-xl p-5 flex items-center gap-5">
               <Skeleton className="w-32 h-[72px] rounded-lg shrink-0" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-2/3 rounded" />
@@ -747,17 +747,17 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // ── Error ────────────────────────────────────────────────────
   if (loadState === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-white">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-app">
         <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
           <AlertCircle className="w-7 h-7 text-red-500" />
         </div>
-        <p className="text-sand-deep font-semibold">Couldn't load flashcards</p>
-        <p className="text-sand-ink text-sm text-center max-w-sm">
+        <p className="text-primary font-semibold">Couldn't load flashcards</p>
+        <p className="text-secondary text-sm text-center max-w-sm">
           Make sure the ClipIt server is running and accessible.
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-2 px-5 py-2.5 rounded-xl bg-sand-ink text-white text-sm font-semibold hover:bg-sand-deep transition-colors">
+          className="mt-2 px-5 py-2.5 rounded-xl bg-accent text-on-accent text-sm font-semibold hover:bg-accent-hover transition-colors">
           Try again
         </button>
       </div>
@@ -768,27 +768,27 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   if (loadState === 'deck-select') {
     const hasNoVideos = videos.length === 0;
     return (
-      <div className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-white">
+      <div className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-app">
         <div className="-ml-2 flex items-center gap-2">
           <button
             onClick={() => onNavigate?.('practice')}
             aria-label="Back"
-            className="inline-flex items-center rounded-xl p-2 text-sand-ink transition-colors duration-150 ease-swift hover:text-sand-deep"
+            className="inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
 
-          <h1 className="font-heading text-section font-medium text-sand-deep" id="section-deck-select">
+          <h1 className="font-heading text-section font-medium text-primary" id="section-deck-select">
             Flash cards
           </h1>
         </div>
 
         {hasNoVideos ? (
           <div className="mt-10 flex flex-col items-center gap-5 py-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-sand-soft flex items-center justify-center">
-              <Tv className="w-8 h-8 text-sand-ink" />
+            <div className="w-16 h-16 rounded-full bg-surface-hover flex items-center justify-center">
+              <Tv className="w-8 h-8 text-primary" />
             </div>
-            <p className="text-sand-ink text-sm max-w-sm">
+            <p className="text-secondary text-sm max-w-sm">
               You haven't watched any videos yet. Install the Clip It extension, then watch something on YouTube or
               Netflix — we'll turn the words you hear into flashcards.
             </p>
@@ -796,7 +796,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full max-w-xs px-6 py-3 bg-sand-ink hover:bg-sand-deep text-[#ffffff] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full max-w-xs px-6 py-3 bg-accent hover:bg-accent-hover text-on-accent font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <Tv className="w-5 h-5" />
               Get Clip It Extension
@@ -832,12 +832,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // ── No vocab ─────────────────────────────────────────────────
   if (loadState === 'no-vocab') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-white">
-        <div className="w-14 h-14 rounded-full bg-sand-soft flex items-center justify-center text-3xl">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-app">
+        <div className="w-14 h-14 rounded-full bg-surface-hover flex items-center justify-center text-3xl">
           {language === 'uk' ? '🇺🇦' : language === 'en' ? '🇬🇧' : '🈚'}
         </div>
-        <p className="text-sand-deep font-semibold">No common {languageName} words found</p>
-        <p className="text-sand-ink text-sm text-center max-w-sm">
+        <p className="text-primary font-semibold">No common {languageName} words found</p>
+        <p className="text-secondary text-sm text-center max-w-sm">
           {selectedVideoId === 'all'
             ? `None of the tracked videos had ${languageName} words matching the frequency list.`
             : `No ${languageName} words from the frequency list were found in this video.`}
@@ -846,13 +846,13 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           {videos.length > 1 && selectedVideoId !== 'all' && (
             <button
               onClick={() => loadAllVideos(videos)}
-              className="px-5 py-2.5 rounded-xl bg-sand-ink text-white text-sm font-semibold hover:bg-sand-deep transition-colors">
+              className="px-5 py-2.5 rounded-xl bg-accent text-on-accent text-sm font-semibold hover:bg-accent-hover transition-colors">
               Try all videos
             </button>
           )}
           <button
             onClick={handleBackToDecks}
-            className="px-5 py-2.5 rounded-xl bg-sand-soft text-sand-deep text-sm font-semibold hover:bg-sand-mid transition-colors">
+            className="px-5 py-2.5 rounded-xl bg-surface-hover text-primary text-sm font-semibold hover:bg-blush transition-colors">
             Back to Decks
           </button>
         </div>
@@ -863,7 +863,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // ── Time-Gated Complete (daily goal reached) ────────────────
   if (loadState === 'time-gated-complete') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <SessionSummary
           variant="goal-reached"
           stats={sessionStats}
@@ -885,7 +885,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // ── Session Complete ─────────────────────────────────────────
   if (loadState === 'session-complete') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <SessionSummary
           variant="complete"
           stats={sessionStats}
@@ -905,7 +905,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loaded ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-white">
+    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app">
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
@@ -913,15 +913,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         <button
           onClick={() => handleBackToDecks()}
           aria-label="Back to decks"
-          className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-sand-ink hover:text-sand-deep hover:bg-sand-soft transition-colors">
+          className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-surface-hover transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div id="section-deck-select" className="min-w-0">
-          <h1 className="text-xl font-heading font-medium text-sand-deep">Daily Review</h1>
+          <h1 className="text-xl font-heading font-medium text-primary">Daily Review</h1>
           <button
             type="button"
             onClick={() => handleBackToDecks()}
-            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs text-sand-ink hover:text-sand-deep transition-colors mt-0.5 group cursor-pointer w-full max-w-full">
+            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs text-secondary hover:text-primary transition-colors mt-0.5 group cursor-pointer w-full max-w-full">
             {selectedVideoId === 'all' ? (
               <>
                 <Layers className="w-3 h-3 shrink-0 mr-0.5" />
@@ -933,34 +933,34 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 <span className="truncate min-w-0">{selectedVideoTitle}</span>
               </>
             )}
-            <span className="text-sand-ink/70 whitespace-nowrap">· Change deck</span>
+            <span className="text-muted whitespace-nowrap">· Change deck</span>
           </button>
         </div>
         <div className="text-right shrink-0 w-[112px]">
           {session.isExtended ? (
             <>
-              <div className="text-2xl font-bold text-sand-ink">
+              <div className="text-2xl font-bold text-primary">
                 {Math.max(0, deckProgressTotal - currentIndex)}
-                <span className="text-sand-ink/60 text-lg"> left</span>
+                <span className="text-muted text-lg"> left</span>
               </div>
-              <div className="text-xs text-sand-ink mt-1">
+              <div className="text-xs text-muted mt-1">
                 Today: {dailyGoalReviewed} / {session.sessionCap}
               </div>
             </>
           ) : (
             <>
-              <div className="text-2xl font-bold text-sand-ink">
+              <div className="text-2xl font-bold text-primary">
                 {deckProgressReviewed}
-                <span className="text-sand-ink/60 text-lg"> / {deckProgressTotal}</span>
+                <span className="text-muted text-lg"> / {deckProgressTotal}</span>
               </div>
-              <div className="w-24 h-1.5 bg-sand-soft rounded-full mt-1.5 overflow-hidden">
+              <div className="w-24 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
                 <motion.div
-                  className="h-full bg-sand-ink"
+                  className="h-full bg-accent"
                   animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <div className="text-xs text-sand-ink mt-1">
+              <div className="text-xs text-muted mt-1">
                 Today: {dailyGoalReviewed} / {session.sessionCap}
               </div>
             </>
@@ -998,8 +998,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mt-4 w-full max-w-[22rem] px-4 py-2 rounded-lg bg-sand-tint border border-sand-mid/60 text-xs text-sand-ink flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-sand-ink" />
+            className="mt-4 w-full max-w-[22rem] px-4 py-2 rounded-lg bg-surface border border-subtle text-xs text-secondary flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-secondary" />
             Next review for "{lastRatingInfo.word}" in {lastRatingInfo.nextDue}
           </motion.div>
         )}
@@ -1010,7 +1010,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         {isFlipped ? (
           <RatingBar previewTimes={previewTimes} onRate={handleRating} />
         ) : (
-          <p className="pt-4 text-center text-meta text-sand-ink">Space to flip · Esc to leave</p>
+          <p className="pt-4 text-center text-meta text-muted">Space to flip · Esc to leave</p>
         )}
       </div>
 
@@ -1028,20 +1028,20 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+              className="bg-app rounded-2xl p-6 max-w-sm w-full shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-500" />
               </div>
-              <h3 className="text-lg font-bold text-sand-deep text-center mb-2">Delete Flashcard?</h3>
-              <p className="text-sm text-sand-ink text-center mb-6">
+              <h3 className="text-lg font-bold text-primary text-center mb-2">Delete Flashcard?</h3>
+              <p className="text-sm text-secondary text-center mb-6">
                 Remove this flashcard? The word can reappear with a new clip when you watch more content.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-sand-soft text-sand-deep font-medium hover:bg-sand-mid transition-colors"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-surface-hover text-primary font-medium hover:bg-blush transition-colors"
                 >
                   Cancel
                 </button>

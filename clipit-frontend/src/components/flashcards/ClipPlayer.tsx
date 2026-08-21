@@ -48,7 +48,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
   };
 
   return (
-    <div className="w-full h-full relative bg-gradient-to-br from-sand-deep to-sand-ink">
+    <div className="w-full h-full relative bg-gradient-to-br from-primary to-secondary">
       {hasAudio && (
         <audio
           ref={audioRef}
@@ -133,14 +133,14 @@ function TTSCardPlaceholder({ word, language }: { word: string; language: string
   }, [word, playAudio]);
 
   return (
-    <div className="w-full h-full relative bg-gradient-to-br from-sand-deep/20 to-sand-mid/30 flex flex-col items-center justify-center">
-      <div className="w-20 h-20 rounded-full bg-sand-tint/40 flex items-center justify-center mb-4">
+    <div className="w-full h-full relative bg-gradient-to-br from-accent/20 to-primary/10 flex flex-col items-center justify-center">
+      <div className="w-20 h-20 rounded-full bg-app/40 flex items-center justify-center mb-4">
         <button
           onClick={playAudio}
           className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
             isPlaying
-              ? 'bg-sand-ink text-white scale-110'
-              : 'bg-white/80 text-sand-ink hover:bg-sand-ink hover:text-[#ffffff]'
+              ? 'bg-accent text-[#ffffff] scale-110'
+              : 'bg-app/80 text-secondary hover:bg-accent hover:text-[#ffffff]'
           }`}
         >
           <Volume2 className={`w-8 h-8 ${isPlaying ? 'animate-pulse' : ''}`} />
@@ -157,7 +157,7 @@ function HighlightedSentence({ sentence, word }: { sentence: string; word: strin
     <>
       {parts.map((part, i) =>
         part === word ? (
-          <span key={i} className="font-bold text-sand-mid">
+          <span key={i} className="font-bold text-accent">
             {part}
           </span>
         ) : (
@@ -191,7 +191,7 @@ export function ClipPlayer({
   const isNetflix = card.video_id?.startsWith('netflix_') ?? false;
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black ring-1 ring-sand-mid/60">
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black ring-1 ring-black/10">
       {card.card_type !== 'video' ? (
         <TTSCardPlaceholder word={card.target_word} language={language} />
       ) : isNetflix ? (
@@ -208,7 +208,7 @@ export function ClipPlayer({
               onRevertToTTS();
             }}
             disabled={isReverting}
-            className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-sand-ink/90 hover:text-[#ffffff] disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-accent/90 hover:text-[#ffffff] disabled:opacity-50"
             title="Revert to TTS-only"
           >
             <RotateCcw className={`h-4 w-4 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -232,7 +232,7 @@ export function ClipPlayer({
             {card.sentence ? (
               <HighlightedSentence sentence={card.sentence} word={card.target_word} />
             ) : (
-              <span className="text-sand-mid">{card.target_word}</span>
+              <span className="text-accent">{card.target_word}</span>
             )}
           </p>
           {isRevealed && card.sentence_translation && card.sentence_translation !== 'No translation available' && (

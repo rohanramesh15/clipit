@@ -6,7 +6,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { PracticeModes } from '../components/PracticeModes';
 import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
-import { WatchNudge } from '../components/WatchNudge';
 import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { homeQueueQueryOptions } from '../lib/queries';
@@ -64,12 +63,9 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
             : `Welcome${firstName ? `, ${firstName}` : ''}.`}
         </h1>
 
-        {wordLoadState === 'loaded' &&
-          (hasWatched ? (
-            <StreakSummary dueCount={dueCount} streakDays={streak} />
-          ) : (
-            <WatchNudge language={language} languageName={languageName} />
-          ))}
+        {wordLoadState === 'loaded' && hasWatched && (
+          <StreakSummary dueCount={dueCount} streakDays={streak} />
+        )}
       </div>
 
       {wordLoadState === 'loading' && (
