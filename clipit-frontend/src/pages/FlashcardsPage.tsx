@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '../components/Skeleton';
 import {
   AlertCircle,
-  Tv,
   Clock,
   Trash2,
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { mapWithConcurrency } from '../lib/network';
 import { FlashCard, TrackedVideo, LoadState, Page } from '../types/flashcards';
 import { getDeletedCards, formatNextReview } from '../utils/flashcardStorage';
 import { DueToday } from '../components/flashcards/DueToday';
+import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { DeckBrowser } from '../components/flashcards/DeckBrowser';
 import { ReviewCard } from '../components/flashcards/ReviewCard';
 import { RatingBar } from '../components/flashcards/RatingBar';
@@ -998,24 +998,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         </div>
 
         {hasNoVideos ? (
-          <div className="mt-10 flex flex-col items-center gap-5 py-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-surface-hover flex items-center justify-center">
-              <Tv className="w-8 h-8 text-primary" />
-            </div>
-            <p className="text-secondary text-sm max-w-sm">
-              You haven't watched any videos yet. Install the Clip It extension, then watch something on YouTube or
-              Netflix. We'll turn the words you hear into flashcards.
-            </p>
-            <a
-              href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full max-w-xs px-6 py-3 bg-accent hover:bg-accent-hover text-on-accent font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <Tv className="w-5 h-5" />
-              Get Clip It Extension
-            </a>
-          </div>
+          <PracticeEmptyState mode="Flash cards" />
         ) : (
           <>
             <div className="mt-8">

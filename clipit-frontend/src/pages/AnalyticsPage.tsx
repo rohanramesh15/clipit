@@ -130,7 +130,7 @@ export function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <section aria-label="Progress summary" className="flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-blush px-7 py-3 lg:flex-nowrap">
+      <section aria-label="Progress summary" className="flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-subtle bg-surface px-7 py-3 lg:flex-nowrap">
         <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-4 lg:flex-nowrap">
           <div className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-inverse">
             <span className="font-heading text-section-lg leading-none tabular-nums">{streak}</span>
