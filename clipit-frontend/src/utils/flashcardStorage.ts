@@ -41,7 +41,10 @@ export function formatNextReview(date: Date): string {
 }
 
 // Human label for how long ago a video was watched, e.g. "Today" / "3 days ago".
-export function relativeDay(trackedAtMs: number): string {
+// The backend sends Unix seconds, while a few cached frontend callers may
+// already have milliseconds. Normalize both forms before comparing to Date.now.
+export function relativeDay(trackedAt: number): string {
+  const trackedAtMs = trackedAt < 100_000_000_000 ? trackedAt * 1000 : trackedAt;
   const days = Math.round((Date.now() - trackedAtMs) / 86_400_000);
   if (days <= 0) return 'Today';
   if (days === 1) return 'Yesterday';

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ExternalLink, Film, PlayIcon, SearchIcon, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, Film, PlayIcon, SearchIcon, Trash2, X } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
 
@@ -250,44 +250,60 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-inverse/40 p-5"
             onClick={() => !isDeletingVideo && setShowDeleteVideoConfirm(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl bg-app p-6 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-video-title"
+              aria-describedby="delete-video-description"
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+              className="relative w-full max-w-md rounded-2xl border border-subtle bg-app p-6 shadow-lg"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
-                <Trash2 className="h-6 w-6 text-red-500" aria-hidden="true" />
-              </div>
-              <h3 className="mb-2 text-center text-lead font-bold text-primary">Delete Video & Flashcards?</h3>
-              <p className="mb-2 text-center text-body-sm text-secondary">Are you sure you want to delete:</p>
-              <p className="mb-4 line-clamp-2 px-4 text-center text-body-sm font-medium text-primary">
-                "{showDeleteVideoConfirm.title}"
+              <button
+                type="button"
+                onClick={() => setShowDeleteVideoConfirm(null)}
+                disabled={isDeletingVideo}
+                className="absolute right-4 top-4 rounded-lg p-1.5 text-muted transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Close</span>
+              </button>
+
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
+                <Trash2 className="h-5 w-5" />
+              </span>
+              <h3 id="delete-video-title" className="mt-4 font-heading text-card-title font-medium text-primary">
+                Delete video and flashcards?
+              </h3>
+              <p id="delete-video-description" className="mt-2 text-body text-secondary">
+                <span className="font-semibold text-primary">{showDeleteVideoConfirm.title}</span> will be removed from
+                your watch history along with all flashcards made from its words.
               </p>
-              <p className="mb-6 text-center text-meta text-muted">
-                This will remove the video from your watch history and delete all flashcards associated with it.
-              </p>
-              <div className="flex gap-3">
+              <div className="mt-6 space-y-2">
                 <button
+                  type="button"
                   onClick={() => setShowDeleteVideoConfirm(null)}
                   disabled={isDeletingVideo}
-                  className="flex-1 rounded-xl bg-surface-hover px-4 py-2.5 font-medium text-primary transition-colors hover:bg-blush disabled:opacity-50"
+                  className="w-full rounded-xl px-4 py-2.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleConfirmDeleteVideo}
                   disabled={isDeletingVideo}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-error/90 disabled:opacity-70"
                 >
                   {isDeletingVideo ? (
                     <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Deleting...
+                      Deleting…
                     </>
                   ) : (
                     <>

@@ -57,8 +57,13 @@ export function VideoPage() {
   const history = useQuery({
     ...historyQueryOptions(user?.id ?? 0, token ?? '', language),
     enabled: Boolean(user && token),
-    refetchInterval: 30_000,
+    // Extension writes happen outside the web app's query cache. Keep this
+    // lightweight list in sync while it is visible, and always verify it when
+    // the learner opens or returns to Watch History.
+    refetchInterval: 5_000,
     refetchIntervalInBackground: false,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
   const videos = useMemo(
     () => (history.data || []).map((video) => mapVideo(video, language)),

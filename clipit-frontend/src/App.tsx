@@ -23,7 +23,7 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { queryClient } from './lib/queryClient';
-import { historyQueryOptions, homeQueueQueryOptions, reviewsQueryOptions, watchTimeQueryOptions } from './lib/queries';
+import { historyQueryOptions, homeQueueQueryOptions, queryKeys, reviewsQueryOptions, watchTimeQueryOptions } from './lib/queries';
 type Page =
 'video' |
 'practice' |
@@ -206,6 +206,30 @@ function AppInner() {
       queryClient.ensureQueryData(watchTimeQueryOptions(user.id, token, language)),
       queryClient.ensureQueryData(reviewsQueryOptions(user.id, token)),
     ]);
+  }, [language, token, user]);
+
+  // The extension dispatches this event in open ClipIt tabs after its track
+  // request succeeds. Fetch history right away so a newly watched video does
+  // not wait for the normal polling interval or the persisted query cache.
+  useEffect(() => {
+    if (!user || !token) return;
+
+    const refreshTrackedVideos = (event: Event) => {
+      const { lang } = (event as CustomEvent<{ lang?: string }>).detail || {};
+      if (lang && lang !== language) return;
+
+      void queryClient.fetchQuery({
+        ...historyQueryOptions(user.id, token, language),
+        staleTime: 0,
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.watchTime(user.id, language) });
+      }).catch(() => {});
+    };
+
+    window.addEventListener('clipit:video-tracked', refreshTrackedVideos);
+    return () => window.removeEventListener('clipit:video-tracked', refreshTrackedVideos);
   }, [language, token, user]);
 
   const renderPage = () => {

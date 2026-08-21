@@ -40,6 +40,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-account-title"
+        aria-describedby="delete-account-description"
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -60,10 +61,10 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
           <Trash2 className="h-5 w-5" />
         </span>
 
-        <h2 id="delete-account-title" className="mt-4 font-heading text-card-title text-primary">
+        <h2 id="delete-account-title" className="mt-4 font-heading text-card-title font-medium text-primary">
           Delete your account?
         </h2>
-        <p className="mt-2 text-body text-secondary">
+        <p id="delete-account-description" className="mt-2 text-body text-secondary">
           This <span className="font-semibold text-primary">cannot be undone</span>. Everything tied to your account is
           erased permanently, including:
         </p>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import { ClipDemo } from './ClipDemo';
+import landingPage from '../../assets/landing_page.png';
 import { motionEase, motionTiming } from '../../lib/motion';
 
 const heroSequence = {
@@ -58,7 +58,11 @@ export function Hero({ onGetStarted }: HeroProps) {
           }}
           className="lg:col-span-7"
         >
-          <ClipDemo />
+          <img
+            src={landingPage}
+            alt="ClipIt tracking a YouTube video in the browser"
+            className="w-full rounded-2xl border border-subtle shadow-[0_24px_60px_-30px_rgba(76,35,35,0.55)]"
+          />
         </motion.div>
       </div>
     </motion.section>
