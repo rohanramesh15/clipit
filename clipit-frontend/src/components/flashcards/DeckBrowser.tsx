@@ -104,7 +104,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 setVisible(PAGE_SIZE);
               }}
               placeholder="Search a video"
-              className="w-full rounded-xl border border-sand-mid/60 bg-sand-tint py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-sand-ink focus:outline-none"
+              className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
             />
           </label>
           <div className="relative shrink-0" ref={sortRef}>
@@ -113,7 +113,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
               onClick={() => setIsSortOpen((open) => !open)}
               aria-haspopup="listbox"
               aria-expanded={isSortOpen}
-              className="flex items-center gap-2 rounded-lg border border-sand-mid/60 bg-sand-tint px-3 py-1.5 text-body-sm font-medium text-sand-deep transition-colors duration-150 ease-swift hover:bg-sand-soft"
+              className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
             >
               {currentSort.label}
               <ChevronDown
@@ -132,7 +132,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
                   transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                  className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right rounded-xl border border-sand-mid/60 bg-app p-2 shadow-lg"
+                  className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
                 >
                   {sorts.map((option) => {
                     const isSelected = option.value === sort;
@@ -146,7 +146,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                             setIsSortOpen(false);
                           }}
                           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
-                            isSelected ? 'bg-sand-soft font-medium text-sand-deep' : 'text-secondary hover:bg-sand-soft hover:text-sand-deep'
+                            isSelected ? 'bg-blush font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
                           }`}
                         >
                           <span className="flex-1 text-left">{option.label}</span>
@@ -208,7 +208,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 </div>
                 <p
                   className={`hidden w-20 shrink-0 text-right text-body-sm font-semibold sm:block ${
-                    due > 0 ? 'text-sand-ink' : 'text-muted'
+                    due > 0 ? 'text-accent' : 'text-muted'
                   }`}
                 >
                   {count === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Caught up'}
@@ -216,7 +216,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 <button
                   onClick={() => onStudyVideo(video.video_id, video.title)}
                   disabled={due === 0}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sand-soft px-3.5 py-2 text-body-sm font-semibold text-sand-deep transition-colors duration-150 ease-swift enabled:hover:bg-sand-mid disabled:opacity-40"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-surface-hover px-3.5 py-2 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift enabled:hover:bg-blush disabled:opacity-40"
                 >
                   <PlayIcon className="h-3.5 w-3.5" aria-hidden="true" />
                   Review
@@ -237,7 +237,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
       {visible < results.length && (
         <button
           onClick={() => setVisible((count) => count + PAGE_SIZE)}
-          className="mt-6 w-full rounded-xl py-2.5 text-body-sm font-semibold text-muted transition-colors duration-150 ease-swift hover:text-sand-deep"
+          className="mt-6 w-full rounded-xl py-2.5 text-body-sm font-semibold text-muted transition-colors duration-150 ease-swift hover:text-primary"
         >
           Show {Math.min(PAGE_SIZE, results.length - visible)} more of {results.length}
         </button>
