@@ -7,8 +7,7 @@ import { PracticeModes } from '../components/PracticeModes';
 import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
 import { PracticePageSkeleton } from '../components/PracticePageSkeleton';
-import { getAnalyticsSummary } from '../services/fsrs';
-import { homeQueueQueryOptions, RequestError } from '../lib/queries';
+import { homeQueueQueryOptions, RequestError, reviewsQueryOptions } from '../lib/queries';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -33,18 +32,36 @@ function pickGreeting(): string {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function getCurrentStreak(reviewedAt: string[]): number {
+  const activeDays = new Set(reviewedAt.map((date) => date.split('T')[0]));
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  if (!activeDays.has(cursor.toISOString().split('T')[0])) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streak = 0;
+  while (activeDays.has(cursor.toISOString().split('T')[0])) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 export function PracticePage({ onNavigate }: PracticePageProps) {
   const { user, token } = useAuth();
   const { language, languageName } = useLanguage();
   const firstName = (user?.full_name || user?.email?.split('@')[0] || '').split(' ')[0];
 
-  const { streak, greeting } = useMemo(
-    () => ({ streak: getAnalyticsSummary().streak, greeting: pickGreeting() }),
-    [],
-  );
+  const greeting = useMemo(() => pickGreeting(), []);
 
   const wordQueue = useQuery({
     ...homeQueueQueryOptions(user?.id ?? 0, token ?? '', language),
+    enabled: Boolean(user && token),
+  });
+  const reviews = useQuery({
+    ...reviewsQueryOptions(user?.id ?? 0, token ?? ''),
     enabled: Boolean(user && token),
   });
   const queue = wordQueue.data ?? null;
@@ -54,6 +71,10 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
 
   const hasWatched = words !== null && words.length > 0;
   const dueCount = words ? words.filter((word) => word.status === 'due').length : 0;
+  const streak = useMemo(
+    () => getCurrentStreak((reviews.data?.reviews || []).map((review) => review.reviewed_at)),
+    [reviews.data?.reviews],
+  );
 
   if (wordLoadState === 'loading') {
     return (
@@ -72,7 +93,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
             : `Welcome${firstName ? `, ${firstName}` : ''}.`}
         </h1>
 
-        {wordLoadState === 'loaded' && hasWatched && (
+        {streak > 0 && (
           <StreakSummary dueCount={dueCount} streakDays={streak} />
         )}
       </div>
