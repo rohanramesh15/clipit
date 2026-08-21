@@ -700,6 +700,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loading (skeleton reserved for major sections only) ────────
   if (loadState === 'loading') {
+    // Loading flashcards for a specific deck/review session looks like the card
+    // it's about to become, not like the dashboard it just left.
+    if (selectedVideoId) {
+      return (
+        <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app">
+          <Skeleton className="h-9 w-full max-w-md rounded-xl mb-6" />
+          <Skeleton className="h-[34rem] w-full max-w-[22rem] rounded-2xl" />
+        </div>
+      );
+    }
     return (
       <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app">
         <Skeleton className="h-9 w-40 rounded-lg mb-8" />
