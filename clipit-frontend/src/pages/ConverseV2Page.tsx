@@ -7,7 +7,7 @@ import {
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
-  getRecentSession, getMixedSources, resumeSession,
+  getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord, type Correction, type SuggestedReply,
   type RecentSession, type MixedSourceVideo,
 } from '../services/converseV2';
@@ -302,6 +302,10 @@ export function ConverseV2Page(
   const vUserId = useRef<string | null>(null);
   const vAsstId = useRef<string | null>(null);
   const voiceAutoStarted = useRef(false);
+  // Tracks which session is currently on screen, so a target-word lookup
+  // that resolves after the user has already left (or started a different
+  // session) can tell it's stale and skip applying itself.
+  const activeSessionRef = useRef<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -661,6 +665,7 @@ export function ConverseV2Page(
   // indicator standing in for the opening line, instead of a blank loading
   // screen for however long that line's LLM call takes.
   const enterChatShell = useCallback(() => {
+    activeSessionRef.current = null;
     resetSessionUI();
     setSessionId(null);
     setStatus('Tap the mic and speak, or type');
@@ -670,6 +675,7 @@ export function ConverseV2Page(
   }, [resetSessionUI]);
 
   const enterSession = useCallback((sessionId: number, finalWords: TargetWord[], initialMessages: ChatMessage[]) => {
+    activeSessionRef.current = sessionId;
     resetSessionUI();
     setTargetWords(finalWords);
     setSessionId(sessionId);
@@ -684,44 +690,52 @@ export function ConverseV2Page(
     setChatError(null);
     enterChatShell();
     try {
-      // Only 8 words ever get kept below, so only fetch/translate a small
-      // buffer above that (some get dropped for missing a lemma) instead of
-      // the 30-word pool Mad Libs needs.
-      const cards: FlashCard[] = await fetchVideoCards(video.video_id, language, 12);
-      // Build the target words (dictionary form + gloss + surface), dedup by lemma.
-      const seen = new Set<string>();
-      const words: TargetWord[] = [];
-      for (const c of cards) {
-        const lemma = (c.dictionary_form || c.target_word || '').trim();
-        if (!lemma) continue;
-        const key = lemma.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        words.push({ lemma, gloss: c.english || '', surface: (c.target_word || lemma).trim(), clipLine: c.sentence || undefined });
-        if (words.length >= 8) break;
-      }
-
+      // The opening line only needs the video title (see generate_opening's
+      // "video" branch), not the resolved target words — so show it as soon
+      // as it's ready instead of waiting on the slower, translation-heavy
+      // word lookup first.
       const result = await createSession({
         seed_type: 'video',
         video_id: video.video_id,
         seed_label: video.title,
         language,
-        seed_words: words.map((w) => ({ lemma: w.lemma, gloss: w.gloss })),
       }, token);
 
-      // Prefer the words we built (they carry surface forms for usage detection);
-      // fall back to whatever the backend echoed.
-      const finalWords: TargetWord[] = words.length
-        ? words
-        : (result.due_words || []).map((d: DueWord) => ({ lemma: d.lemma, gloss: d.gloss, surface: d.lemma }));
-
-      enterSession(result.session_id, finalWords, [{
+      enterSession(result.session_id, [], [{
         id: `a-${result.opening.turn_id}`,
         role: 'assistant',
         text: result.opening.reply,
         translation: result.opening.reply_translation,
         turnId: result.opening.turn_id,
       }]);
+
+      // Target words load in the background and fill in once ready — the
+      // conversation is already usable before this resolves. If the user has
+      // since left or started a different session, skip applying it.
+      try {
+        // Only 8 words are kept below, so only fetch/translate a small
+        // buffer above that (some get dropped for missing a lemma) instead
+        // of the 30-word pool Mad Libs needs.
+        const cards: FlashCard[] = await fetchVideoCards(video.video_id, language, 12);
+        const seen = new Set<string>();
+        const words: TargetWord[] = [];
+        for (const c of cards) {
+          const lemma = (c.dictionary_form || c.target_word || '').trim();
+          if (!lemma) continue;
+          const key = lemma.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          words.push({ lemma, gloss: c.english || '', surface: (c.target_word || lemma).trim(), clipLine: c.sentence || undefined });
+          if (words.length >= 8) break;
+        }
+        if (words.length && activeSessionRef.current === result.session_id) {
+          setTargetWords(words);
+          void setSessionTargetWords(result.session_id, words.map((w) => ({ lemma: w.lemma, gloss: w.gloss })), token);
+        }
+      } catch {
+        // Target words are a nice-to-have on top of an already-usable chat;
+        // a failure here shouldn't surface as a session-start error.
+      }
     } catch {
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
@@ -792,6 +806,7 @@ export function ConverseV2Page(
   }, [recentSession, token, resuming, enterSession]);
 
   const leaveChat = useCallback(() => {
+    activeSessionRef.current = null;
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
@@ -943,16 +958,13 @@ export function ConverseV2Page(
         {chatError && <div className="mt-6 text-body-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>}
 
         {videos === null ? (
-          <div className="mt-8 space-y-3">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-5 rounded-2xl bg-surface p-5">
-                <Skeleton className="aspect-video w-24 shrink-0 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-2/3 rounded" />
-                  <Skeleton className="h-3 w-1/3 rounded" />
-                </div>
-              </div>
-            ))}
+          <div className="mt-8" role="status" aria-live="polite">
+            <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">
+              <Skeleton className="h-36 rounded-2xl" />
+              <Skeleton className="h-36 rounded-2xl" />
+            </div>
+            <Skeleton className="mt-12 h-80 w-full rounded-2xl" />
+            <p className="mt-5 text-body-sm text-muted">Loading your conversations…</p>
           </div>
         ) : videos.length === 0 ? (
           <PracticeEmptyState mode="AI chat" />
