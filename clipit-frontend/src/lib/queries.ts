@@ -16,6 +16,11 @@ export interface BackendVideo {
   episode_title?: string | null;
 }
 
+export interface CachedMadlibDeck<Card> {
+  cards: Card[];
+  isComplete: boolean;
+}
+
 export interface ReviewEntry {
   word: string;
   language: string;
@@ -67,6 +72,8 @@ export const queryKeys = {
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
+  madlibDeck: (userId: number, language: string, videoId: string) =>
+    ['madlib-deck', userId, language, videoId] as const,
   watchTime: (userId: number, language: string) => ['watch-time', userId, language] as const,
   reviews: (userId: number) => ['reviews', userId] as const,
 };

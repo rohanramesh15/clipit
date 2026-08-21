@@ -3,13 +3,15 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Play, RotateCcw, Search, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { fetchTrackedVideos, fetchVideoCards, buildMadlibItems, fetchVideoWordCount, type MadlibItem, type TrackedVideo } from '../services/madlibs';
+import { buildMadlibItem, buildMadlibItems, fetchTrackedVideos, fetchVideoWordCount, streamVideoCards, type FlashCard, type MadlibItem, type TrackedVideo } from '../services/madlibs';
 import { relativeDay } from '../utils/flashcardStorage';
 import { saveMadlibProgress, clearMadlibProgress, getMostRecentMadlibProgress, type MadlibProgress } from '../utils/madlibsStorage';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
+import { queryClient } from '../lib/queryClient';
+import { type CachedMadlibDeck, queryKeys } from '../lib/queries';
 
 type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 interface MadlibsPageProps { onNavigate: (page: Page) => void; }
@@ -23,6 +25,7 @@ interface AnswerRecord {
 }
 
 const PAGE_SIZE = 6;
+const MAX_MADLIB_ITEMS = 12;
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'words', label: 'Most words' },
   { value: 'recent', label: 'Recently watched' },
@@ -30,6 +33,10 @@ const SORTS: { value: SortKey; label: string }[] = [
 
 function isNetflix(videoId: string): boolean {
   return videoId.startsWith('netflix_');
+}
+
+function cardKey(card: FlashCard): string {
+  return `${card.dictionary_form || card.target_word}\u0000${card.sentence || ''}`;
 }
 
 function VideoThumb({ video, dimmed }: { video: TrackedVideo; dimmed?: boolean }) {
@@ -52,7 +59,7 @@ function VideoThumb({ video, dimmed }: { video: TrackedVideo; dimmed?: boolean }
 
 export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   const { language } = useLanguage();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [phase, setPhase] = useState<Phase>('deck');
   const [videos, setVideos] = useState<TrackedVideo[] | null>(null);
   const [wordCounts, setWordCounts] = useState<Record<string, number>>({});
@@ -69,6 +76,11 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   const [showHint, setShowHint] = useState(false);
   const [answers, setAnswers] = useState<AnswerRecord[]>([]);
   const [resumable, setResumable] = useState<MadlibProgress | null>(null);
+  const [isStreamingCards, setIsStreamingCards] = useState(false);
+  const rawCardsRef = useRef<FlashCard[]>([]);
+  const rawCardKeysRef = useRef(new Set<string>());
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const streamRunRef = useRef(0);
 
   useEffect(() => {
     if (phase !== 'deck') return;
@@ -117,23 +129,90 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     };
   }, []);
 
+  useEffect(() => () => streamAbortRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (phase === 'loading' && items.length > 0) setPhase('playing');
+  }, [items.length, phase]);
+
   const resetRound = () => { setIndex(0); setSelected(null); setRevealed(false); setShowHint(false); setAnswers([]); };
 
-  const startDeck = useCallback(async (video: TrackedVideo) => {
+  const stopDeckStream = useCallback(() => {
+    streamRunRef.current += 1;
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setIsStreamingCards(false);
+  }, []);
+
+  const startDeck = useCallback((video: TrackedVideo) => {
+    stopDeckStream();
     setDeck({ id: video.video_id, title: video.title });
     resetRound();
     setPhase('loading');
-    setItems(buildMadlibItems(await fetchVideoCards(video.video_id, language)));
-    setPhase('playing');
-  }, [language]);
+    const cacheKey = queryKeys.madlibDeck(user?.id ?? 0, language, video.video_id);
+    const cached = queryClient.getQueryData<CachedMadlibDeck<FlashCard>>(cacheKey);
+    rawCardsRef.current = cached?.cards ?? [];
+    rawCardKeysRef.current = new Set(rawCardsRef.current.map(cardKey));
+    const cachedItems = buildMadlibItems(rawCardsRef.current, MAX_MADLIB_ITEMS);
+    setItems(cachedItems);
+    if (cachedItems.length > 0 || cached?.isComplete) setPhase('playing');
+    if (cached?.isComplete) return;
 
-  const replay = useCallback(async () => {
+    const run = ++streamRunRef.current;
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+    setIsStreamingCards(true);
+
+    const appendNewItems = () => {
+      setItems((current) => {
+        if (current.length >= MAX_MADLIB_ITEMS) return current;
+        const present = new Set(current.map((item) => item.id));
+        const additions = rawCardsRef.current.flatMap((card, position) => {
+          const item = buildMadlibItem(card, rawCardsRef.current, `${card.dictionary_form || card.target_word}-${position}`);
+          return item && !present.has(item.id) ? [item] : [];
+        }).slice(0, MAX_MADLIB_ITEMS - current.length);
+        if (!additions.length) return current;
+        return [...current, ...additions];
+      });
+    };
+
+    void streamVideoCards(video.video_id, language, {
+      token,
+      signal: controller.signal,
+      onCard: (card) => {
+        if (streamRunRef.current !== run) return;
+        const key = cardKey(card);
+        if (rawCardKeysRef.current.has(key)) return;
+        rawCardKeysRef.current.add(key);
+        rawCardsRef.current = [...rawCardsRef.current, card];
+        queryClient.setQueryData<CachedMadlibDeck<FlashCard>>(cacheKey, (current) => ({
+          cards: [...(current?.cards ?? []), card],
+          isComplete: false,
+        }));
+        appendNewItems();
+      },
+    }).then(() => {
+      if (streamRunRef.current !== run) return;
+      queryClient.setQueryData<CachedMadlibDeck<FlashCard>>(cacheKey, {
+        cards: rawCardsRef.current,
+        isComplete: true,
+      });
+      streamAbortRef.current = null;
+      setIsStreamingCards(false);
+      setPhase((current) => current === 'loading' ? 'playing' : current);
+    }).catch((error: unknown) => {
+      if (streamRunRef.current !== run || controller.signal.aborted) return;
+      console.error('Unable to stream Mad Libs cards', error);
+      streamAbortRef.current = null;
+      setIsStreamingCards(false);
+      setPhase((current) => current === 'loading' ? 'playing' : current);
+    });
+  }, [language, stopDeckStream, token, user?.id]);
+
+  const replay = useCallback(() => {
     if (!deck) return;
-    resetRound();
-    setPhase('loading');
-    setItems(buildMadlibItems(await fetchVideoCards(deck.id, language)));
-    setPhase('playing');
-  }, [deck, language]);
+    startDeck({ video_id: deck.id, title: deck.title, tracked_at: Date.now() });
+  }, [deck, startDeck]);
 
   const resumeDeck = useCallback((progress: MadlibProgress) => {
     setDeck({ id: progress.videoId, title: progress.title });
@@ -163,6 +242,13 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
   const next = useCallback(() => {
     if (index + 1 >= items.length) {
+      if (isStreamingCards) {
+        setIndex((value) => value + 1);
+        setSelected(null);
+        setRevealed(false);
+        setShowHint(false);
+        return;
+      }
       if (deck) clearMadlibProgress(language, deck.id);
       setPhase('done');
       return;
@@ -171,7 +257,13 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     setSelected(null);
     setRevealed(false);
     setShowHint(false);
-  }, [index, items.length, deck, language]);
+  }, [index, items.length, deck, isStreamingCards, language]);
+
+  useEffect(() => {
+    if (phase !== 'playing' || isStreamingCards || items.length === 0 || index < items.length) return;
+    if (deck) clearMadlibProgress(language, deck.id);
+    setPhase('done');
+  }, [deck, index, isStreamingCards, items.length, language, phase]);
 
   // 1–4 pick an option before reveal, Enter advances once it's revealed.
   useEffect(() => {
@@ -192,7 +284,10 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     <NavigationIconButton
       direction="back"
       label={target === 'practice' ? 'Back to Practice' : 'Back to videos'}
-      onClick={() => (target === 'practice' ? onNavigate('practice') : setPhase('deck'))}
+      onClick={() => {
+        stopDeckStream();
+        target === 'practice' ? onNavigate('practice') : setPhase('deck');
+      }}
     />
   );
 
@@ -521,7 +616,27 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   }
 
   const item = items[index];
-  const progress = ((index + (revealed ? 1 : 0)) / items.length) * 100;
+  const progress = items.length
+    ? (Math.min(index + (revealed ? 1 : 0), items.length) / items.length) * 100
+    : 0;
+
+  if (!item) {
+    return (
+      <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-4 sm:px-8">
+        <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4">
+          <div className="-ml-2 flex items-center">{back('deck')}</div>
+          <span className="shrink-0 text-body-sm tabular-nums text-muted">{index + 1} / …</span>
+        </header>
+        <div className="mx-auto mt-16 flex w-full max-w-2xl flex-col items-center gap-4 text-center" role="status" aria-live="polite">
+          <LoadingAnimation className="h-12 w-12" />
+          <div>
+            <p className="text-body font-semibold text-primary">Preparing your next blank…</p>
+            <p className="mt-1 text-body-sm text-secondary">This card will appear as soon as it&apos;s ready.</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-4 sm:px-8">
@@ -617,7 +732,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                   {selected === item.answer ? 'Correct!' : `Answer: ${item.answer}`}
                 </span>
                 <button type="button" onClick={next} className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent hover:bg-accent-hover">
-                  {index + 1 >= items.length ? 'Finish' : 'Next'}
+                {isStreamingCards || index + 1 < items.length ? 'Next' : 'Finish'}
                 </button>
               </motion.div>
             )}

@@ -1014,7 +1014,7 @@ export function ConverseV2Page(
                 <button
                   type="button"
                   onClick={startMixedSession}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-primary transition-colors hover:bg-surface-hover"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-body-sm font-semibold text-[#4c2323] transition-colors duration-150 ease-swift hover:bg-[#f7f1ea] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
                   Start chat
@@ -1120,7 +1120,7 @@ export function ConverseV2Page(
                         </a>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-body font-semibold text-primary">{video.title}</p>
-                          <p className="mt-0.5 truncate text-body-sm text-muted">
+                          <p className="mt-0.5 break-words text-body-sm text-muted">
                             {isNetflix ? 'Netflix' : 'YouTube'} · {relativeDay(video.tracked_at)}{words !== undefined && ` · ${words.length} words`}
                           </p>
                         </div>
