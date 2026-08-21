@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, Film, PlayIcon, SearchIcon, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, Film, PlayIcon, SearchIcon, Trash2 } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
 
@@ -23,6 +23,13 @@ const sorts: { value: SortKey; label: string }[] = [
 
 function sourceOf(video: TrackedVideo): 'YouTube' | 'Netflix' {
   return video.video_id.startsWith('netflix_') ? 'Netflix' : 'YouTube';
+}
+
+function videoUrlFor(video: TrackedVideo): string {
+  if (video.video_id.startsWith('netflix_')) {
+    return `https://www.netflix.com/watch/${video.video_id.replace('netflix_', '')}`;
+  }
+  return `https://www.youtube.com/watch?v=${video.video_id}`;
 }
 
 export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDeleteVideo }: DeckBrowserProps) {
@@ -167,7 +174,13 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
             const isNetflix = sourceOf(video) === 'Netflix';
             return (
               <li key={video.video_id} className="flex items-center gap-5 border-b border-subtle py-4">
-                <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-hover">
+                <a
+                  href={videoUrlFor(video)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open on ${sourceOf(video)}`}
+                  className="group/thumb relative block h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-hover"
+                >
                   {isNetflix ? (
                     <div className="flex h-full w-full items-center justify-center bg-[#B20710]/10">
                       <Film className="h-5 w-5 text-[#B20710]" aria-hidden="true" />
@@ -182,7 +195,10 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                       }}
                     />
                   )}
-                </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-150 ease-swift group-hover/thumb:bg-black/40 group-hover/thumb:opacity-100">
+                    <ExternalLink className="h-4 w-4 text-[#ffffff]" aria-hidden="true" />
+                  </div>
+                </a>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-semibold text-primary">{video.title}</p>
                   <p className="mt-0.5 truncate text-body-sm text-muted">
