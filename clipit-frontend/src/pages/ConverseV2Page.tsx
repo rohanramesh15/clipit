@@ -645,7 +645,10 @@ export function ConverseV2Page(
     setPhase('loading');
     setChatError(null);
     try {
-      const cards: FlashCard[] = await fetchVideoCards(video.video_id, language);
+      // Only 8 words ever get kept below, so only fetch/translate a small
+      // buffer above that (some get dropped for missing a lemma) instead of
+      // the 30-word pool Mad Libs needs.
+      const cards: FlashCard[] = await fetchVideoCards(video.video_id, language, 12);
       // Build the target words (dictionary form + gloss + surface), dedup by lemma.
       const seen = new Set<string>();
       const words: TargetWord[] = [];

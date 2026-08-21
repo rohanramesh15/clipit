@@ -62,12 +62,17 @@ export async function fetchVideoWordCount(videoId: string, language: string): Pr
 
 // ── Fetch the extracted words + example sentences for one video ───────────────
 // Mirrors the Flash Cards loader (subtitles → vocabulary → flashcard-data).
-export async function fetchVideoCards(videoId: string, language: string): Promise<FlashCard[]> {
+// `limit` controls how many candidate words are fetched and translated —
+// callers that only keep a handful (e.g. AI chat keeps 8) should pass a
+// smaller number so the backend isn't translating words that get discarded.
+// Mad Libs needs more headroom since it filters out words that don't
+// literally appear in their sentence, so it keeps the default of 30.
+export async function fetchVideoCards(videoId: string, language: string, limit = 30): Promise<FlashCard[]> {
   try {
     // Ensure subtitles are processed (best-effort).
     await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`).catch(() => {});
 
-    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=30&lang=${language}`);
+    const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=${limit}&lang=${language}`);
     if (!vocabRes.ok) return [];
     const vocab = await vocabRes.json();
     if (!vocab.total_words) return [];
