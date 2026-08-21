@@ -837,7 +837,7 @@ export function ConverseV2Page(
   // Deck picker
   // ============================================================================
   const header = (back: () => void, label: string) => (
-    <div className="flex items-center gap-3 mb-6">
+    <div className="-ml-2 flex items-center gap-2 mb-6">
       <NavigationIconButton direction="back" label={label} onClick={back} />
       <h1 className="font-heading text-section text-primary">AI chat</h1>
     </div>
@@ -1073,7 +1073,7 @@ export function ConverseV2Page(
       {/* header — spans the full width here, wider than the reading column below (matches MP) */}
       <div className="shrink-0 border-b border-subtle">
         <div className="flex h-16 items-center gap-4">
-          <NavigationIconButton direction="back" label="Back to videos" onClick={() => setShowLeaveConfirm(true)} className="shrink-0" />
+          <NavigationIconButton direction="back" label="Back to videos" onClick={() => setShowLeaveConfirm(true)} className="-ml-2 shrink-0" />
 
           <span className="hidden h-9 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-hover items-center justify-center sm:flex">
             {deck?.id.startsWith('netflix_') ? (
