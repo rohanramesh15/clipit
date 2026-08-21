@@ -334,11 +334,10 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         </div>
 
         {resumable && (
-          <section className="mt-8 flex flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-labelledby="madlibs-continue">
+          <section className="mt-8 flex flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-label="Resume Mad Libs practice">
             <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
             <div className="min-w-0 flex-1">
-              <p id="madlibs-continue" className="text-meta font-semibold uppercase tracking-wider text-dusk-ink">Continue</p>
-              <p className="mt-1 truncate text-body font-semibold text-dusk-deep">{resumable.title}</p>
+              <p className="truncate text-body font-semibold text-dusk-deep">{resumable.title}</p>
               <p className="mt-1 text-body-sm text-dusk-ink">{resumable.answers.length} of {resumable.items.length} blanks filled</p>
               <div className="mt-2 flex gap-1">
                 {resumable.items.map((resumeItem, i) => (
@@ -632,7 +631,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   if (!item) {
     return (
       <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-4 sm:px-8">
-        <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4">
+        <header className="mx-auto flex h-9 w-full max-w-2xl items-center justify-between gap-4">
           <div className="-ml-2 flex items-center">{back('deck')}</div>
           <span className="shrink-0 text-body-sm tabular-nums text-muted">{index + 1} / …</span>
         </header>
@@ -646,7 +645,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
   return (
     <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-4 sm:px-8">
-      <header className="mx-auto flex w-full max-w-2xl shrink-0 items-center justify-between">
+      <header className="mx-auto flex h-9 w-full max-w-2xl shrink-0 items-center justify-between">
         <div className="-ml-2 flex items-center">{back('deck')}</div>
         <div className="flex items-center gap-3">
           <div

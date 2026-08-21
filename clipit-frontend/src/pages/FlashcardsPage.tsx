@@ -1124,7 +1124,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div id="section-deck-select" className="flex w-full shrink-0 items-center justify-between mb-4">
+      <div id="section-deck-select" className="flex h-9 w-full shrink-0 items-center justify-between mb-4">
         <NavigationIconButton direction="back" label="Back" onClick={() => handleBackToDecks()} className="-ml-2" />
         <div className="flex items-center gap-3">
           <div

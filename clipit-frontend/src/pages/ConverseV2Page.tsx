@@ -1195,7 +1195,7 @@ export function ConverseV2Page(
     <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto">
       {/* header — spans the full width here, wider than the reading column below (matches MP) */}
       <div className="shrink-0 border-b border-subtle">
-        <div className="flex h-16 items-center gap-4">
+        <div className="flex h-9 items-center gap-3">
           <NavigationIconButton direction="back" label="Back to videos" onClick={leaveChat} className="-ml-2 shrink-0" />
 
           <span className="hidden h-9 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-hover items-center justify-center sm:flex">
@@ -1243,7 +1243,7 @@ export function ConverseV2Page(
             type="button"
             onClick={() => setCoachOpen((v) => !v)}
             aria-pressed={coachOpen}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-medium transition-colors ${
+            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-body-sm font-medium transition-colors ${
               coachOpen ? 'bg-sage-soft text-sage-ink' : 'text-secondary hover:bg-surface-hover hover:text-primary'
             }`}
           >
