@@ -12,7 +12,7 @@ export function PracticeEmptyState({ mode }: PracticeEmptyStateProps) {
       <div className="text-center">
         <p className="text-body font-semibold text-primary">You haven't watched any videos yet.</p>
         <p className="mt-2 max-w-sm text-body-sm text-secondary">
-          Install the ClipIt extension, then watch something on YouTube or Netflix — we'll use the words you hear in {mode}.
+          Install the ClipIt extension, then watch something on YouTube or Netflix. We'll use the words you hear in {mode}.
         </p>
       </div>
 

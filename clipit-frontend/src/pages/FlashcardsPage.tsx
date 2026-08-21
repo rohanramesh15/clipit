@@ -899,7 +899,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             </div>
             <p className="text-secondary text-sm max-w-sm">
               You haven't watched any videos yet. Install the Clip It extension, then watch something on YouTube or
-              Netflix — we'll turn the words you hear into flashcards.
+              Netflix. We'll turn the words you hear into flashcards.
             </p>
             <a
               href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
