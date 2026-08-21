@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Play, RotateCcw, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { ExternalLink, Play, Volume2, VolumeX } from 'lucide-react';
 import { API_BASE_URL } from '../../config';
 import { FlashCard } from '../../types/flashcards';
 import { speak } from '../../utils/speech';
@@ -169,9 +169,6 @@ interface ClipPlayerProps {
   /** Mount point for the real YouTube iframe player — its lifecycle is owned by the parent page. */
   playerContainerRef: React.RefObject<HTMLDivElement>;
   isRevealed: boolean;
-  onRevertToTTS: () => void;
-  isReverting: boolean;
-  onDeleteCard: () => void;
 }
 
 export function ClipPlayer({
@@ -179,9 +176,6 @@ export function ClipPlayer({
   language,
   playerContainerRef,
   isRevealed,
-  onRevertToTTS,
-  isReverting,
-  onDeleteCard,
 }: ClipPlayerProps) {
   const isNetflix = card.video_id?.startsWith('netflix_') ?? false;
 
@@ -194,37 +188,6 @@ export function ClipPlayer({
       ) : (
         <div ref={playerContainerRef} className="h-full w-full" />
       )}
-
-      <div className="absolute right-1.5 top-1.5 flex gap-1">
-        {card.card_type === 'video' && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRevertToTTS();
-            }}
-            disabled={isReverting}
-            aria-label="Revert to TTS-only flashcard"
-            className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-accent/90 hover:text-[#ffffff] disabled:opacity-50"
-            title="Revert to TTS-only"
-          >
-            <RotateCcw className={`h-4 w-4 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteCard();
-          }}
-          aria-label="Delete this flashcard"
-          className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-red-500/80 hover:text-[#ffffff]"
-          title="Delete this flashcard"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
-
       {card.sentence !== undefined && (
         <div className="absolute inset-x-0 bottom-0 bg-black/60 px-4 py-2.5 text-center">
           <p className="text-sm font-medium leading-snug text-[#ffffff]">

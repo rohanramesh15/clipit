@@ -60,5 +60,5 @@ export function getWordFontSize(text: string): string {
   if (len > 15) return 'text-xl md:text-2xl';
   if (len > 12) return 'text-2xl md:text-3xl';
   if (len > 8) return 'text-3xl md:text-4xl';
-  return 'text-4xl md:text-5xl';
+  return 'text-3xl md:text-4xl';
 }

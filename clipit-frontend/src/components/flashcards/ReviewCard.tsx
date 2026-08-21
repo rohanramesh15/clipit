@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Pencil, RotateCw } from 'lucide-react';
+import { Clock, Pencil, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import { FlashCard } from '../../types/flashcards';
 import { getWordFontSize } from '../../utils/flashcardStorage';
 import { ClipPlayer } from './ClipPlayer';
@@ -30,7 +30,7 @@ interface ReviewCardProps {
 }
 
 const faceClasses =
-  'absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm [backface-visibility:hidden]';
+  'absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-subtle bg-surface p-4 shadow-sm sm:p-5 [backface-visibility:hidden]';
 
 export function ReviewCard({
   card,
@@ -55,11 +55,11 @@ export function ReviewCard({
       : null;
 
   return (
-    <div className="mx-auto w-full max-w-[22rem] [perspective:1600px]">
+    <div className="mx-auto w-full max-w-[23rem] [perspective:1600px]">
       <motion.div
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-        className="relative h-[26rem] w-full [transform-style:preserve-3d]"
+        className="relative h-[25rem] w-full sm:h-[26rem] [transform-style:preserve-3d]"
       >
         {/* Front — the clip and the word */}
         <div
@@ -67,7 +67,7 @@ export function ReviewCard({
           aria-hidden={isFlipped}
           onClick={isFlipped ? undefined : onFlip}
         >
-          <div className="flex shrink-0 items-center justify-between">
+          <div className="flex shrink-0 items-center justify-between gap-2">
             {stats?.isNew === false ? (
               <span className="flex items-center gap-1 rounded-full border border-subtle px-2.5 py-1 text-meta font-semibold text-secondary">
                 <Clock className="h-3 w-3" aria-hidden="true" />
@@ -78,7 +78,36 @@ export function ReviewCard({
                 New word
               </span>
             )}
-            {timeStr && <span className="text-meta tabular-nums text-muted">{timeStr}</span>}
+            <div className="flex items-center gap-1">
+              {card.card_type === 'video' && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRevertToTTS();
+                  }}
+                  disabled={isReverting}
+                  aria-label="Revert to TTS-only flashcard"
+                  title="Revert to TTS-only"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-hover text-secondary hover:bg-blush hover:text-accent disabled:opacity-50"
+                >
+                  <RotateCcw className={`h-3.5 w-3.5 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDeleteCard();
+                }}
+                aria-label="Delete this flashcard"
+                title="Delete this flashcard"
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-hover text-secondary hover:bg-red-500/10 hover:text-red-600"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+              {timeStr && <span className="ml-1 border-l border-subtle pl-2 text-meta tabular-nums text-muted">{timeStr}</span>}
+            </div>
           </div>
 
           <div className="mt-3 shrink-0" onClick={(event) => event.stopPropagation()}>
@@ -87,19 +116,16 @@ export function ReviewCard({
               language={language}
               playerContainerRef={playerContainerRef}
               isRevealed={isFlipped}
-              onRevertToTTS={onRevertToTTS}
-              isReverting={isReverting}
-              onDeleteCard={onDeleteCard}
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-3 text-center">
-            <h2 className={`${getWordFontSize(card.target_word)} font-heading leading-tight text-primary`}>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-2 text-center">
+            <h2 className={`${getWordFontSize(card.target_word)} font-heading font-medium leading-tight text-primary`}>
               {card.target_word}
             </h2>
             {/* TTS-only cards already have a dedicated pronunciation control via ClipPlayer's placeholder above. */}
             {card.card_type === 'video' && (
-              <div className="mt-2" onClick={(event) => event.stopPropagation()}>
+              <div className="mt-3" onClick={(event) => event.stopPropagation()}>
                 <PronounceButton
                   text={card.target_word}
                   language={language}
@@ -115,7 +141,7 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="flex shrink-0 items-center justify-center gap-1.5 border-t border-subtle pt-3 text-meta text-muted"
+            className="mx-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface-hover px-3 py-2 text-meta font-medium text-secondary hover:bg-blush hover:text-accent"
             aria-label="Show the definition"
           >
             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -216,7 +242,7 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="shrink-0 text-center text-meta text-muted"
+            className="mx-auto shrink-0 rounded-lg bg-surface-hover px-3 py-2 text-meta font-medium text-secondary hover:bg-blush hover:text-accent"
             aria-label="Show the prompt"
           >
             Show prompt
