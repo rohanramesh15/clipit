@@ -3,11 +3,10 @@ declare function gtag(...args: unknown[]): void;
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '../components/Skeleton';
 import {
-  ArrowLeft,
+  X,
   ChevronLeft,
   AlertCircle,
   Tv,
-  Layers,
   Clock,
   Trash2,
 } from 'lucide-react';
@@ -30,7 +29,7 @@ import { SessionSummary } from '../components/flashcards/SessionSummary';
 const flashcardsPageTips: HelpTip[] = [
   {
     id: 'deck-select',
-    text: 'Switch between decks or review all cards at once.',
+    text: 'Your progress through this session. Tap the X or press Esc to leave anytime.',
     targetId: 'section-deck-select',
     position: 'bottom',
   },
@@ -73,7 +72,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [dueCounts, setDueCounts] = useState<Record<string, number>>({}); // video_id -> # due cards
   const [isLoadingDue, setIsLoadingDue] = useState(true);
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
-  const [selectedVideoTitle, setSelectedVideoTitle] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('Loading watch history...');
@@ -309,7 +307,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setCurrentIndex(0);
     setIsFlipped(false);
     setSelectedVideoId('all');
-    setSelectedVideoTitle('All Videos');
     setLastRatingInfo(null);
 
     const allCards: FlashCard[] = [];
@@ -327,7 +324,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   }, [fetchCardsForVideo, prepareCardsForReview]);
 
   // Load cards for a single video.
-  const loadFlashcards = useCallback(async (videoId: string, videoTitle: string) => {
+  const loadFlashcards = useCallback(async (videoId: string) => {
     setLoadState('loading');
     setLoadingMsg('Fetching subtitles...');
     setCards([]);
@@ -335,7 +332,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setCurrentIndex(0);
     setIsFlipped(false);
     setSelectedVideoId(videoId);
-    setSelectedVideoTitle(videoTitle);
     setLastRatingInfo(null);
 
     setLoadingMsg('Extracting vocabulary...');
@@ -410,7 +406,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const currentCard = dueCards[currentIndex];
   const deckProgressTotal = dueCards.length;
   const deckProgressReviewed = Math.min(session.sessionReviewed, deckProgressTotal);
-  const dailyGoalReviewed = Math.min(session.cardsReviewed, session.sessionCap);
 
   // Handle rating a card
   function handleRating(rating: Rating) {
@@ -659,7 +654,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
         if (selectedVideoId === video.video_id) {
           setSelectedVideoId('all');
-          setSelectedVideoTitle('All Videos');
         }
       }
     } catch (error) {
@@ -676,7 +670,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setCurrentIndex(0);
     setIsFlipped(false);
     setSelectedVideoId('');
-    setSelectedVideoTitle('');
     resetSession();
 
     try {
@@ -883,63 +876,29 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div className="w-full max-w-md grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 mb-5">
+      <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-5">
         <button
           onClick={() => handleBackToDecks()}
-          aria-label="Back to decks"
-          className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-surface-hover transition-colors">
-          <ArrowLeft className="w-5 h-5" />
+          aria-label="End review"
+          className="-ml-2 rounded-xl p-2 text-muted transition-colors duration-150 ease-swift hover:text-sand-deep">
+          <X className="h-5 w-5" aria-hidden="true" />
         </button>
-        <div id="section-deck-select" className="min-w-0">
-          <h1 className="text-xl font-heading font-medium text-primary">Daily Review</h1>
-          <button
-            type="button"
-            onClick={() => handleBackToDecks()}
-            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs text-secondary hover:text-primary transition-colors mt-0.5 group cursor-pointer w-full max-w-full">
-            {selectedVideoId === 'all' ? (
-              <>
-                <Layers className="w-3 h-3 shrink-0 mr-0.5" />
-                <span className="truncate min-w-0">All Videos</span>
-              </>
-            ) : (
-              <>
-                <span className="w-3 h-3 mr-0.5" />
-                <span className="truncate min-w-0">{selectedVideoTitle}</span>
-              </>
-            )}
-            <span className="text-muted whitespace-nowrap">· Change deck</span>
-          </button>
+        <div
+          className="h-1 flex-1 overflow-hidden rounded-full bg-sand-soft"
+          role="progressbar"
+          aria-valuenow={deckProgressReviewed}
+          aria-valuemin={0}
+          aria-valuemax={deckProgressTotal}
+          aria-label="Review progress">
+          <motion.div
+            className="h-full rounded-full bg-sand-ink"
+            animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
+            transition={{ duration: 0.3 }}
+          />
         </div>
-        <div className="text-right shrink-0 w-[112px]">
-          {session.isExtended ? (
-            <>
-              <div className="text-2xl font-bold text-primary">
-                {Math.max(0, deckProgressTotal - currentIndex)}
-                <span className="text-muted text-lg"> left</span>
-              </div>
-              <div className="text-xs text-muted mt-1">
-                Today: {dailyGoalReviewed} / {session.sessionCap}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-2xl font-bold text-primary">
-                {deckProgressReviewed}
-                <span className="text-muted text-lg"> / {deckProgressTotal}</span>
-              </div>
-              <div className="w-24 h-1.5 bg-surface-hover rounded-full mt-1.5 overflow-hidden">
-                <motion.div
-                  className="h-full bg-accent"
-                  animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-              <div className="text-xs text-muted mt-1">
-                Today: {dailyGoalReviewed} / {session.sessionCap}
-              </div>
-            </>
-          )}
-        </div>
+        <span className="w-14 shrink-0 text-right text-body-sm tabular-nums text-muted">
+          {deckProgressReviewed} / {deckProgressTotal}
+        </span>
       </div>
 
       {/* Flashcard */}

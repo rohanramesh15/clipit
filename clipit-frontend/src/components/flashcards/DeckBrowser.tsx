@@ -8,7 +8,7 @@ interface DeckBrowserProps {
   videos: TrackedVideo[];
   wordCounts: Record<string, number>;
   dueCounts: Record<string, number>;
-  onStudyVideo: (videoId: string, title: string) => void;
+  onStudyVideo: (videoId: string) => void;
   onDeleteVideo: (video: TrackedVideo) => Promise<void>;
 }
 
@@ -214,7 +214,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   {count === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Caught up'}
                 </p>
                 <button
-                  onClick={() => onStudyVideo(video.video_id, video.title)}
+                  onClick={() => onStudyVideo(video.video_id)}
                   disabled={due === 0}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-surface-hover px-3.5 py-2 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift enabled:hover:bg-blush disabled:opacity-40"
                 >
