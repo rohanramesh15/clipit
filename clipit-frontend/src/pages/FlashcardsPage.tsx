@@ -3,7 +3,6 @@ declare function gtag(...args: unknown[]): void;
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '../components/Skeleton';
 import {
-  X,
   ChevronLeft,
   AlertCircle,
   Tv,
@@ -903,16 +902,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loaded ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 pt-4 pb-6 sm:px-8 bg-app">
+    <div className="h-[calc(100vh-104px)] md:h-[calc(100vh-136px)] overflow-hidden flex flex-col items-center max-w-page mx-auto px-5 pt-4 pb-6 sm:px-8 bg-app">
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
       <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-5">
         <button
           onClick={() => handleBackToDecks()}
-          aria-label="End review"
-          className="-ml-2 rounded-xl p-2 text-muted transition-colors duration-150 ease-swift hover:text-primary">
-          <X className="h-5 w-5" aria-hidden="true" />
+          aria-label="Back"
+          className="-ml-2 inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary">
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
         <div
           className="h-1 flex-1 overflow-hidden rounded-full bg-surface-hover"
@@ -934,7 +933,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
       {/* Flashcard */}
       {currentCard && (
-        <div id="section-flashcard" className="w-full">
+        <div id="section-flashcard" className="flex w-full min-h-0 flex-1 items-center justify-center">
           <ReviewCard
             card={currentCard}
             stats={currentStats}

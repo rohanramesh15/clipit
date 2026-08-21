@@ -59,7 +59,7 @@ export function ReviewCard({
       <motion.div
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-        className="relative h-[29rem] max-h-full w-full [transform-style:preserve-3d]"
+        className="relative h-full max-h-[29rem] w-full [transform-style:preserve-3d]"
       >
         {/* Front — the clip and the word */}
         <div
@@ -98,7 +98,7 @@ export function ReviewCard({
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-4 text-center">
             <h2 className={`${getWordFontSize(card.target_word)} font-heading leading-tight text-primary`}>
               {card.target_word}
             </h2>
