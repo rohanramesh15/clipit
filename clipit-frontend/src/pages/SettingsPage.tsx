@@ -125,8 +125,8 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   return (
     <div className="mx-auto w-full max-w-page px-5 pb-24 pt-8 sm:px-8">
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] lg:gap-14">
-        <div className="min-w-0">
-          <header className="sticky top-[72px] z-40 flex flex-wrap items-start justify-between gap-4 bg-app pb-8">
+        <div className="min-w-0 lg:sticky lg:top-[72px] lg:z-40 lg:self-start">
+          <header className="flex flex-wrap items-start justify-between gap-4 bg-app pb-8">
             <div>
               <div className="-ml-2 flex items-center gap-2">
                 <NavigationIconButton direction="back" label="Back to Practice" onClick={() => onNavigate('practice')} />
