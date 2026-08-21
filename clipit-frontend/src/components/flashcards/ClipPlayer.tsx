@@ -5,7 +5,7 @@ import { FlashCard } from '../../types/flashcards';
 import { speak } from '../../utils/speech';
 
 // Netflix video placeholder component with screenshot and audio support
-function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; timestamp: number }) {
+function NetflixVideoPlaceholder({ videoId, timestamp, isRevealed }: { videoId: string; timestamp: number; isRevealed: boolean }) {
   const [hasScreenshot, setHasScreenshot] = useState<boolean | null>(null);
   const [hasAudio, setHasAudio] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -34,6 +34,13 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
     }
   }, [hasAudio]);
 
+  // Pause when the card flips to its back face.
+  useEffect(() => {
+    if (isRevealed && audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [isRevealed]);
+
   const toggleAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!audioRef.current) return;
@@ -48,7 +55,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp }: { videoId: string; time
   };
 
   return (
-    <div className="w-full h-full relative bg-gradient-to-br from-sand-deep to-sand-ink">
+    <div className="w-full h-full relative bg-gradient-to-br from-primary to-secondary">
       {hasAudio && (
         <audio
           ref={audioRef}
@@ -133,14 +140,14 @@ function TTSCardPlaceholder({ word, language }: { word: string; language: string
   }, [word, playAudio]);
 
   return (
-    <div className="w-full h-full relative bg-gradient-to-br from-sand-ink/20 to-sand-deep/10 flex flex-col items-center justify-center">
+    <div className="w-full h-full relative bg-gradient-to-br from-accent/20 to-primary/10 flex flex-col items-center justify-center">
       <div className="w-20 h-20 rounded-full bg-app/40 flex items-center justify-center mb-4">
         <button
           onClick={playAudio}
           className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
             isPlaying
-              ? 'bg-sand-ink text-[#ffffff] scale-110'
-              : 'bg-app/80 text-sand-deep hover:bg-sand-ink hover:text-[#ffffff]'
+              ? 'bg-accent text-[#ffffff] scale-110'
+              : 'bg-app/80 text-secondary hover:bg-accent hover:text-[#ffffff]'
           }`}
         >
           <Volume2 className={`w-8 h-8 ${isPlaying ? 'animate-pulse' : ''}`} />
@@ -157,7 +164,7 @@ function HighlightedSentence({ sentence, word }: { sentence: string; word: strin
     <>
       {parts.map((part, i) =>
         part === word ? (
-          <span key={i} className="font-bold text-sand-mid">
+          <span key={i} className="font-bold text-accent">
             {part}
           </span>
         ) : (
@@ -195,7 +202,7 @@ export function ClipPlayer({
       {card.card_type !== 'video' ? (
         <TTSCardPlaceholder word={card.target_word} language={language} />
       ) : isNetflix ? (
-        <NetflixVideoPlaceholder videoId={card.video_id!} timestamp={card.timestamp ?? 0} />
+        <NetflixVideoPlaceholder videoId={card.video_id!} timestamp={card.timestamp ?? 0} isRevealed={isRevealed} />
       ) : (
         <div ref={playerContainerRef} className="h-full w-full" />
       )}
@@ -208,7 +215,7 @@ export function ClipPlayer({
               onRevertToTTS();
             }}
             disabled={isReverting}
-            className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-sand-ink/90 hover:text-[#ffffff] disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/60 text-white/70 transition-colors hover:bg-accent/90 hover:text-[#ffffff] disabled:opacity-50"
             title="Revert to TTS-only"
           >
             <RotateCcw className={`h-4 w-4 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -232,7 +239,7 @@ export function ClipPlayer({
             {card.sentence ? (
               <HighlightedSentence sentence={card.sentence} word={card.target_word} />
             ) : (
-              <span className="text-sand-mid">{card.target_word}</span>
+              <span className="text-accent">{card.target_word}</span>
             )}
           </p>
           {isRevealed && card.sentence_translation && card.sentence_translation !== 'No translation available' && (

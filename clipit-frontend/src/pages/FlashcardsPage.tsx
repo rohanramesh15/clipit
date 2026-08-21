@@ -207,6 +207,17 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     };
   }, [currentIndex, loadState, dueCards, cleanupYouTubePlayer]);
 
+  // Pause the clip when the card flips to its back face — the video shouldn't
+  // keep playing behind a definition the user is now reading.
+  useEffect(() => {
+    if (!isFlipped || !playerRef.current) return;
+    try {
+      playerRef.current.pauseVideo();
+    } catch {
+      // Player not ready yet
+    }
+  }, [isFlipped]);
+
   // Check if a Netflix screenshot exists for a given video/timestamp
   const checkScreenshotExists = async (videoId: string, timestamp: number): Promise<boolean> => {
     try {
@@ -300,6 +311,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Load cards for "All Videos" mode
   const loadAllVideos = useCallback(async (videoList: TrackedVideo[]) => {
+    window.history.replaceState({}, '', `${window.location.pathname}?video=all`);
     setLoadState('loading');
     setLoadingMsg('Loading flashcards from all videos...');
     setCards([]);
@@ -325,6 +337,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Load cards for a single video.
   const loadFlashcards = useCallback(async (videoId: string) => {
+    window.history.replaceState({}, '', `${window.location.pathname}?video=${encodeURIComponent(videoId)}`);
     setLoadState('loading');
     setLoadingMsg('Fetching subtitles...');
     setCards([]);
@@ -371,6 +384,23 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     }
     bootstrap();
   }, [language, token, setCardsReviewedToday]);
+
+  // Resume a review session across a refresh: loadAllVideos/loadFlashcards write
+  // ?video=<id|all> to the URL when a session starts, and handleBackToDecks
+  // clears it. Runs once, right after bootstrap lands on the dashboard.
+  const hasResumedFromUrl = useRef(false);
+  useEffect(() => {
+    if (hasResumedFromUrl.current || loadState !== 'deck-select') return;
+    hasResumedFromUrl.current = true;
+
+    const resumeVideoId = new URLSearchParams(window.location.search).get('video');
+    if (!resumeVideoId) return;
+    if (resumeVideoId === 'all') {
+      void loadAllVideos(videos);
+    } else {
+      void loadFlashcards(resumeVideoId);
+    }
+  }, [loadState, videos, loadAllVideos, loadFlashcards]);
 
   // Fetch per-video word counts and due counts (for the dashboard) so the deck
   // browser can show counts, and DueToday can show an aggregate due-count,
@@ -664,6 +694,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Go back to deck selection
   async function handleBackToDecks() {
     cleanupYouTubePlayer();
+    window.history.replaceState({}, '', window.location.pathname);
 
     setCards([]);
     setDueCards([]);
@@ -872,26 +903,26 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Loaded ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app">
+    <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 pt-3 pb-6 sm:px-8 bg-app">
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-5">
+      <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-4">
         <button
           onClick={() => handleBackToDecks()}
           aria-label="End review"
-          className="-ml-2 rounded-xl p-2 text-muted transition-colors duration-150 ease-swift hover:text-sand-deep">
+          className="-ml-2 rounded-xl p-2 text-muted transition-colors duration-150 ease-swift hover:text-primary">
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
         <div
-          className="h-1 flex-1 overflow-hidden rounded-full bg-sand-soft"
+          className="h-1 flex-1 overflow-hidden rounded-full bg-surface-hover"
           role="progressbar"
           aria-valuenow={deckProgressReviewed}
           aria-valuemin={0}
           aria-valuemax={deckProgressTotal}
           aria-label="Review progress">
           <motion.div
-            className="h-full rounded-full bg-sand-ink"
+            className="h-full rounded-full bg-accent"
             animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
             transition={{ duration: 0.3 }}
           />
@@ -939,12 +970,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       </AnimatePresence>
 
       {/* Controls */}
-      <div id="section-rating-buttons" className="mx-auto mt-6 min-h-[5.5rem] w-full max-w-[22rem]">
-        {isFlipped ? (
-          <RatingBar previewTimes={previewTimes} onRate={handleRating} />
-        ) : (
-          <p className="pt-4 text-center text-meta text-muted">Space to flip · Esc to leave</p>
-        )}
+      <div id="section-rating-buttons" className="mx-auto mt-4 min-h-[5.5rem] w-full max-w-[22rem]">
+        {isFlipped && <RatingBar previewTimes={previewTimes} onRate={handleRating} />}
       </div>
 
       {/* Delete Confirmation Modal */}
