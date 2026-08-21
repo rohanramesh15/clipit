@@ -910,7 +910,14 @@ export function ConverseV2Page(
           const verdict = correctionVerdicts[m.id];
           const isLast = m.id === lastAssistantId;
           return (
-            <div key={m.id} className="flex flex-col items-start gap-2">
+            <div key={m.id} className="flex items-start gap-3">
+              <div
+                aria-hidden="true"
+                className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage-ink"
+              >
+                <MessageCircle className="h-4 w-4" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
               <div className="max-w-[90%] text-xl leading-relaxed text-primary font-medium">
                 <TappableText text={m.text} targets={m.targets} onWordTap={handleWordTap} />
               </div>
@@ -1033,11 +1040,32 @@ export function ConverseV2Page(
                   </div>
                 )}
               </div>
+              </div>
             </div>
           );
         })}
 
-        {sending && <div className="text-sm text-muted">Tutor is writing…</div>}
+        {sending && (
+          <div className="flex items-center gap-3">
+            <div
+              aria-hidden="true"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage-ink"
+            >
+              <MessageCircle className="h-4 w-4" />
+            </div>
+            <span className="flex items-center gap-1.5" role="status" aria-live="polite">
+              {[0, 1, 2].map((dot) => (
+                <motion.span
+                  key={dot}
+                  className="h-1.5 w-1.5 rounded-full bg-sage-ink"
+                  animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear', delay: dot * 0.14 }}
+                />
+              ))}
+              <span className="sr-only">Tutor is writing</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* dock */}
