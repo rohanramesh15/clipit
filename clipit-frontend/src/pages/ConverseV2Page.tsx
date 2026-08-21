@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
-  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play,
+  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play, ChevronDown,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -321,11 +321,17 @@ export function ConverseV2Page(
     return () => { alive = false; };
   }, [token]);
 
-  // Per-video due-word counts for the deck-picker badges, matching flashcards'
-  // own DeckBrowser: a cheap vocabulary fetch cross-referenced against the
-  // local FSRS review state (deliberately the same approximation flashcards
-  // uses — this page has no per-video backend due-check of its own).
-  const [deckDueCounts, setDeckDueCounts] = useState<Record<string, number>>({});
+  // Per-video word lists (with due state) for the deck-picker badges and the
+  // expand-to-preview word chips, matching flashcards' own DeckBrowser: a
+  // cheap vocabulary fetch cross-referenced against the local FSRS review
+  // state (deliberately the same approximation flashcards uses — this page
+  // has no per-video backend due-check of its own).
+  const [deckWords, setDeckWords] = useState<Record<string, { word: string; due: boolean }[]>>({});
+  const deckDueCounts = useMemo(
+    () => Object.fromEntries(Object.entries(deckWords).map(([id, words]) => [id, words.filter((w) => w.due).length])),
+    [deckWords],
+  );
+  const [openVideoId, setOpenVideoId] = useState<string | null>(null);
   useEffect(() => {
     if (!videos || !videos.length) return;
     let alive = true;
@@ -333,19 +339,20 @@ export function ConverseV2Page(
       videos.map(async (v) => {
         try {
           const res = await fetch(`${API_BASE_URL}/vocabulary/${v.video_id}?limit=20&lang=${language}`);
-          if (!res.ok) return [v.video_id, 0] as const;
+          if (!res.ok) return [v.video_id, []] as const;
           const data = await res.json();
           const words: string[] = (data.vocabulary || []).map((w: { word: string }) => w.word);
           const deleted = getDeletedCards(language);
           const remaining = words.filter((w) => !deleted.has(w));
-          return [v.video_id, getDueCards(remaining).length] as const;
+          const due = new Set(getDueCards(remaining));
+          return [v.video_id, remaining.map((word) => ({ word, due: due.has(word) }))] as const;
         } catch {
-          return [v.video_id, 0] as const;
+          return [v.video_id, []] as const;
         }
       }),
     ).then((entries) => {
       if (!alive) return;
-      setDeckDueCounts(Object.fromEntries(entries));
+      setDeckWords(Object.fromEntries(entries));
     });
     return () => { alive = false; };
   }, [videos, language]);
@@ -881,23 +888,6 @@ export function ConverseV2Page(
           <div className="mb-4 text-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
         )}
 
-        {videos !== null && videos.length > 0 && (
-          <label className="relative mb-6 block">
-            <span className="sr-only">Search videos</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-            <input
-              type="search"
-              value={deckQuery}
-              onChange={(e) => setDeckQuery(e.target.value)}
-              placeholder="Search your videos"
-              className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:outline-none"
-              style={{ borderColor: 'var(--border-subtle)' }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-            />
-          </label>
-        )}
-
         {videos === null ? (
           <div className="space-y-3">
             {[0, 1, 2, 3].map((i) => (
@@ -912,14 +902,35 @@ export function ConverseV2Page(
           </div>
         ) : videos.length === 0 ? (
           <PracticeEmptyState mode="AI chat" />
-        ) : videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).length === 0 ? (
-          <p className="text-body-sm text-muted">Nothing matches "{deckQuery}".</p>
         ) : (
-          <>
-            <h2 className="mb-1 font-heading text-body font-semibold text-primary">Your videos</h2>
-            <ul className="divide-y divide-[color:var(--border-subtle)] border-y border-subtle">
+          <section aria-labelledby="sources-title">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="sources-title" className="font-heading text-body font-semibold text-primary">Your videos</h2>
+              <label className="relative w-full sm:w-64">
+                <span className="sr-only">Search videos</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={deckQuery}
+                  onChange={(e) => setDeckQuery(e.target.value)}
+                  placeholder="Search your videos"
+                  className="w-full rounded-xl border border-subtle bg-app py-2 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:outline-none"
+                  style={{ borderColor: 'var(--border-subtle)' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                />
+              </label>
+            </div>
+
+            {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).length === 0 ? (
+              <p className="mt-6 text-body-sm text-muted">Nothing matches "{deckQuery}".</p>
+            ) : (
+            <ul className="mt-3 divide-y divide-[color:var(--border-subtle)] border-y border-subtle">
               {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).map((v, i) => {
                 const isNetflix = v.video_id.startsWith('netflix_');
+                const words = deckWords[v.video_id] || [];
+                const due = deckDueCounts[v.video_id] ?? 0;
+                const open = openVideoId === v.video_id;
                 return (
                   <motion.li
                     key={v.video_id}
@@ -927,62 +938,105 @@ export function ConverseV2Page(
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   >
-                    <button
-                      onClick={() => startFromVideo(v)}
-                      className="group flex w-full items-center gap-3 py-3 text-left"
-                    >
-                      <span className="h-10 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-hover flex items-center justify-center">
-                        {isNetflix ? (
-                          <Film className="w-4 h-4" style={{ color: ACCENT }} />
-                        ) : (
-                          <img
-                            src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-body font-medium text-primary">{v.title}</span>
-                        <span className="mt-0.5 block text-meta text-muted">{isNetflix ? 'Netflix' : 'YouTube'}</span>
-                      </span>
-                      {(deckDueCounts[v.video_id] ?? 0) > 0 && (
-                        <span className="hidden shrink-0 rounded-md bg-sage-soft px-2 py-1 text-meta font-medium text-sage-ink sm:block">
-                          {deckDueCounts[v.video_id]} due
+                    <div className="flex items-center gap-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setOpenVideoId(open ? null : v.video_id)}
+                        aria-expanded={open}
+                        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left"
+                      >
+                        <span className="h-10 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-hover flex items-center justify-center">
+                          {isNetflix ? (
+                            <Film className="w-4 h-4" style={{ color: ACCENT }} />
+                          ) : (
+                            <img
+                              src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
                         </span>
-                      )}
-                      <span className="shrink-0 rounded-md bg-sage-soft px-3 py-1.5 text-body-sm font-semibold text-sage-ink transition-colors group-hover:bg-sage-ink group-hover:text-[#ffffff]">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-body font-medium text-primary">{v.title}</span>
+                          <span className="mt-0.5 block text-meta text-muted">{isNetflix ? 'Netflix' : 'YouTube'}</span>
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-md px-2 py-1 text-meta font-medium ${
+                            due > 0 ? 'bg-sage-soft text-sage-ink' : 'text-muted'
+                          }`}
+                        >
+                          {due > 0 ? `${due} due` : words.length ? `${words.length} words` : ''}
+                        </span>
+                        <ChevronDown
+                          className={`size-4 shrink-0 text-muted transition-transform duration-200 ease-swift ${open ? 'rotate-180' : ''}`}
+                          aria-hidden="true"
+                        />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => startFromVideo(v)}
+                        className="shrink-0 rounded-xl bg-sage-soft px-3 py-1.5 text-body-sm font-semibold text-sage-ink hover:bg-sage-ink hover:text-[#ffffff] transition-colors"
+                      >
                         Start
-                      </span>
-                    </button>
+                      </button>
+                    </div>
+
+                    <AnimatePresence initial={false}>
+                      {open && words.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <ul className="flex flex-wrap gap-1.5 pb-4 pl-[4.75rem]">
+                            {words.map((w) => (
+                              <li
+                                key={w.word}
+                                className={`rounded-md border px-2 py-1 text-meta ${
+                                  w.due ? 'border-subtle bg-sage-soft text-sage-ink' : 'border-subtle text-secondary'
+                                }`}
+                              >
+                                {w.word}
+                              </li>
+                            ))}
+                          </ul>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.li>
                 );
               })}
             </ul>
+            )}
+          </section>
+        )}
 
-            <section
-              aria-labelledby="mixed-title"
-              className="mt-10 flex flex-col gap-4 rounded-2xl bg-sage-soft p-5 sm:flex-row sm:items-center sm:justify-between"
+        {videos !== null && videos.length > 0 && (
+          <section
+            aria-labelledby="mixed-title"
+            className="mt-10 flex flex-col gap-4 rounded-2xl bg-sage-soft p-5 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0">
+              <h2 id="mixed-title" className="font-heading text-body font-semibold text-sage-deep">
+                Mixed session
+              </h2>
+              <p className="mt-0.5 text-body-sm text-sage-ink">
+                Practice a mix of words pulled from across your videos.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={startMixedSession}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-4 py-2.5 text-body-sm font-semibold text-sage-deep hover:bg-surface-hover transition-colors"
             >
-              <div className="min-w-0">
-                <h2 id="mixed-title" className="font-heading text-body font-semibold text-sage-deep">
-                  Mixed session
-                </h2>
-                <p className="mt-0.5 text-body-sm text-sage-ink">
-                  Practice a mix of words pulled from across your videos.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={startMixedSession}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-4 py-2.5 text-body-sm font-semibold text-sage-deep hover:bg-surface-hover transition-colors"
-              >
-                <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
-                Start
-              </button>
-            </section>
-          </>
+              <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
+              Start
+            </button>
+          </section>
         )}
       </div>
     );
