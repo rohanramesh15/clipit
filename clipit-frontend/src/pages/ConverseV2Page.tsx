@@ -973,7 +973,7 @@ export function ConverseV2Page(
                     >
                       <Languages className="w-4 h-4" />
                     </button>
-                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                       Translate
                     </span>
                   </span>
@@ -985,7 +985,7 @@ export function ConverseV2Page(
                     >
                       <Volume2 className="w-4 h-4" />
                     </button>
-                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                       Listen
                     </span>
                   </span>
@@ -1000,7 +1000,7 @@ export function ConverseV2Page(
                         >
                           {regenLoading ? <LoadingAnimation className="h-4 w-4" /> : <RotateCcw className="w-4 h-4" />}
                         </button>
-                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                           Another response
                         </span>
                       </span>
@@ -1013,7 +1013,7 @@ export function ConverseV2Page(
                         >
                           {suggestLoading ? <LoadingAnimation className="h-4 w-4" /> : <MessageSquarePlus className="w-4 h-4" />}
                         </button>
-                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30" style={{ background: '#2d1919', color: '#fff' }}>
+                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-[11px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                           Suggest reply
                         </span>
                       </span>
