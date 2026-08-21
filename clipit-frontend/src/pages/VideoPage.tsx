@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Play as PlayIcon } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../components/EmptyState';
@@ -105,19 +105,15 @@ export function VideoPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
-      <header className="pb-8">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pb-8">
         <div>
           <h1 className="font-heading text-section font-medium text-primary">Watch history</h1>
           <p className="mt-1 text-body text-secondary">{languageName} videos the ClipIt extension tracked for you.</p>
         </div>
+        <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
       </header>
 
-      <section aria-labelledby="history-library">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
-          <h2 id="history-library" className="font-heading text-card-title text-primary">Your videos</h2>
-          <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
-        </div>
-
+      <section aria-label="Video history">
       {loadState === 'loading' && (
         <div className="mt-6" role="status" aria-live="polite">
           <div className="space-y-0" aria-hidden="true">
@@ -164,18 +160,6 @@ export function VideoPage() {
             description={filter === 'all'
               ? 'Get the extension, turn it on, then watch YouTube or Netflix to record videos here.'
               : `Get the extension, turn it on, then watch ${filter === 'youtube' ? 'YouTube' : 'Netflix'} to record videos here.`}
-            visual={
-              <div className="mx-auto grid max-w-md grid-cols-3 gap-3" aria-hidden="true">
-                {[0, 1, 2].map((tile) => (
-                  <div key={tile} className="space-y-2" style={{ opacity: 1 - tile * 0.25 }}>
-                    <div className="flex aspect-video items-center justify-center rounded-lg bg-blush">
-                      <PlayIcon className="h-5 w-5 text-accent/50" />
-                    </div>
-                    <div className="h-2.5 w-3/4 rounded-md bg-blush" />
-                  </div>
-                ))}
-              </div>
-            }
           >
             <a
               href={EXTENSION_URL}

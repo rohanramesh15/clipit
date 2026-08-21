@@ -1,5 +1,4 @@
 import React from 'react';
-import { Plus, Tv, BookOpen } from 'lucide-react';
 
 export type NavPage =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -24,10 +23,7 @@ export function PracticeEmptyState({
   languageName,
 }: PracticeEmptyStateProps) {
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center gap-6 px-4">
-      <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
-        <BookOpen className="w-8 h-8 text-accent" />
-      </div>
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center gap-5 px-4">
       <div className="text-center">
         <p className="text-xl text-primary font-semibold mb-2">{title}</p>
         <p className="text-secondary text-sm max-w-sm">{subtitle}</p>
@@ -38,7 +34,6 @@ export function PracticeEmptyState({
           onClick={() => onNavigate('vocabulary')}
           className="w-full px-6 py-3 bg-accent hover:bg-accent/90 text-app font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
         >
-          <Plus className="w-5 h-5" />
           Upload Your Own List
         </button>
         <a
@@ -47,7 +42,6 @@ export function PracticeEmptyState({
           rel="noopener noreferrer"
           className="w-full px-6 py-3 bg-surface border border-white/10 hover:border-white/20 text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
         >
-          <Tv className="w-5 h-5" />
           Get Clip It Extension
         </a>
       </div>
