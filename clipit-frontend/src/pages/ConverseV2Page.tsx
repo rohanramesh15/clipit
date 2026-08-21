@@ -224,7 +224,6 @@ export function ConverseV2Page(
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState<string | null>(null);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   // Closed by default: the drawer overlays the chat at every width here (there's
   // no MP-style xl-and-up sidebar variant), so auto-opening it would cover the
   // conversation immediately on a narrower screen.
@@ -733,7 +732,6 @@ export function ConverseV2Page(
     setNudge(null);
     setHowtoOpen(false);
     setHowtoResult(null);
-    setShowLeaveConfirm(false);
     setPhase('deck');
   }, []);
 
@@ -1076,7 +1074,7 @@ export function ConverseV2Page(
       {/* header — spans the full width here, wider than the reading column below (matches MP) */}
       <div className="shrink-0 border-b border-subtle">
         <div className="flex h-16 items-center gap-4">
-          <NavigationIconButton direction="back" label="Back to videos" onClick={() => setShowLeaveConfirm(true)} className="-ml-2 shrink-0" />
+          <NavigationIconButton direction="back" label="Back to videos" onClick={leaveChat} className="-ml-2 shrink-0" />
 
           <span className="hidden h-9 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-hover items-center justify-center sm:flex">
             {deck?.id.startsWith('netflix_') ? (
@@ -1438,46 +1436,6 @@ export function ConverseV2Page(
       </div>
       </div>
 
-      {/* leave-chat confirmation */}
-      <AnimatePresence>
-        {showLeaveConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowLeaveConfirm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface rounded-2xl p-6 w-full max-w-sm shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lead font-bold text-primary mb-2">Leave this conversation?</h3>
-              <p className="text-body-sm text-secondary mb-6">
-                You can pick up where you left off from the Resume card next time you come back.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={leaveChat}
-                  className="w-full px-4 py-2.5 rounded-xl text-[#ffffff] font-semibold text-body-sm"
-                  style={{ background: ACCENT }}
-                >
-                  Leave
-                </button>
-                <button
-                  onClick={() => setShowLeaveConfirm(false)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-app text-secondary hover:text-primary font-semibold text-body-sm transition-colors"
-                >
-                  Keep talking
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* word popover — tapped word + its English meaning + save */}
       {pop && (
@@ -1692,7 +1650,7 @@ export function ConverseV2Page(
             <div className="shrink-0 border-t border-subtle p-4">
               <button
                 type="button"
-                onClick={() => setShowLeaveConfirm(true)}
+                onClick={leaveChat}
                 className="w-full rounded-xl px-4 py-2.5 text-body-sm font-semibold text-[#ffffff] transition-colors"
                 style={{ background: ACCENT }}
               >
