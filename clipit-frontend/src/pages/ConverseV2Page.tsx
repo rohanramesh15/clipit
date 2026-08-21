@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle,
-  ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy,
+  ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy, Search,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -207,6 +207,7 @@ export function ConverseV2Page(
 
   // deck picker
   const [videos, setVideos] = useState<TrackedVideo[] | null>(null);
+  const [deckQuery, setDeckQuery] = useState('');
 
   // active session
   const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
@@ -716,6 +717,23 @@ export function ConverseV2Page(
           <div className="mb-4 text-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
         )}
 
+        {videos !== null && videos.length > 0 && (
+          <label className="relative mb-6 block">
+            <span className="sr-only">Search videos</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+            <input
+              type="search"
+              value={deckQuery}
+              onChange={(e) => setDeckQuery(e.target.value)}
+              placeholder="Search your videos"
+              className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:outline-none"
+              style={{ borderColor: 'var(--border-subtle)' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+            />
+          </label>
+        )}
+
         {videos === null ? (
           <div className="space-y-3">
             {[0, 1, 2, 3].map((i) => (
@@ -730,9 +748,11 @@ export function ConverseV2Page(
           </div>
         ) : videos.length === 0 ? (
           <PracticeEmptyState mode="AI chat" />
+        ) : videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).length === 0 ? (
+          <p className="text-body-sm text-muted">Nothing matches "{deckQuery}".</p>
         ) : (
           <div className="space-y-3">
-            {videos.map((v, i) => {
+            {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).map((v, i) => {
               const isNetflix = v.video_id.startsWith('netflix_');
               return (
                 <motion.button
@@ -759,7 +779,7 @@ export function ConverseV2Page(
                     <span className="block text-sm font-medium text-primary truncate">{v.title}</span>
                     <span className="block text-xs text-muted">Talk through its words by voice</span>
                   </span>
-                  <ChevronRight className="w-5 h-5 shrink-0 text-muted group-hover:text-accent transition-colors" />
+                  <ChevronRight className="w-5 h-5 shrink-0 text-muted group-hover:text-sage-ink transition-colors" />
                 </motion.button>
               );
             })}
