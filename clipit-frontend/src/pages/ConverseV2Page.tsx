@@ -879,8 +879,9 @@ export function ConverseV2Page(
       });
   }, [deckDueCounts, deckQuery, deckSort, videos]);
   const shownDecks = matchingDecks.slice(0, visibleDecks);
-  const mixedPreviewVideos = mixedSources.length > 0 ? mixedSources : (videos ?? []).slice(0, 5);
-  const additionalMixedVideoCount = mixedSources.length === 0 ? Math.max(0, (videos?.length ?? 0) - mixedPreviewVideos.length) : 0;
+  const mixedAllSources = mixedSources.length > 0 ? mixedSources : (videos ?? []);
+  const mixedPreviewVideos = mixedAllSources.slice(0, 2);
+  const additionalMixedVideoCount = Math.max(0, mixedAllSources.length - mixedPreviewVideos.length);
 
   // ============================================================================
   // Deck picker
@@ -915,9 +916,9 @@ export function ConverseV2Page(
           <PracticeEmptyState mode="AI chat" />
         ) : (
           <>
-            <section className="mt-8 space-y-4" aria-label="Conversation actions">
+            <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
-                <section aria-labelledby="resume-title" className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
+                <section aria-labelledby="resume-title" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 items-center gap-4">
                     {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
                       <img
@@ -948,29 +949,21 @@ export function ConverseV2Page(
                 </section>
               )}
 
-              <section aria-labelledby="mixed-title" className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
-                <div>
-                  <h2 id="mixed-title" className="font-heading text-lead text-sage-deep">Start a mixed chat</h2>
-                  <p className="text-body-sm text-sage-ink">
-                    {mixedSources.length > 0
-                      ? `Practice words pulled from ${mixedSources.length} ${mixedSources.length === 1 ? 'video' : 'videos'}.`
-                      : 'Practice words pulled from your tracked videos.'}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-5">
+              <section aria-labelledby="mixed-title" className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 ${recentSession ? '' : 'sm:col-span-2'}`}>
+                <div className="flex min-w-0 items-center gap-4">
                   {mixedPreviewVideos.length > 0 && (
-                    <ul className="flex items-center -space-x-3" aria-label={mixedSources.length > 0 ? `Words will be drawn from ${mixedPreviewVideos.map((video) => video.title).join(', ')}` : 'Videos available for your mixed chat'}>
+                    <ul className="flex shrink-0 items-center -space-x-3" aria-label={mixedSources.length > 0 ? `Words will be drawn from ${mixedPreviewVideos.map((video) => video.title).join(', ')}` : 'Videos available for your mixed chat'}>
                       {mixedPreviewVideos.map((video) => {
                         const isNetflix = video.video_id.startsWith('netflix_');
                         return (
                           <li key={video.video_id} title={video.title}>
                             {isNetflix ? (
-                              <span className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-sage-soft bg-[#B20710]/10 text-meta font-bold text-[#B20710]">N</span>
+                              <span className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-surface bg-[#B20710]/10 text-meta font-bold text-[#B20710]">N</span>
                             ) : (
                               <img
                                 src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
                                 alt={video.title}
-                                className="h-11 w-[4.25rem] rounded-lg border-2 border-sage-soft object-cover"
+                                className="h-11 w-[4.25rem] rounded-lg border-2 border-surface object-cover"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                               />
                             )}
@@ -978,21 +971,29 @@ export function ConverseV2Page(
                         );
                       })}
                       {additionalMixedVideoCount > 0 && (
-                        <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-sage-soft bg-sage-mid text-meta font-semibold text-sage-deep">
+                        <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-surface bg-sand-mid text-meta font-semibold text-sand-deep">
                           +{additionalMixedVideoCount}
                         </li>
                       )}
                     </ul>
                   )}
-                  <button
-                    type="button"
-                    onClick={startMixedSession}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-sage-deep transition-colors hover:bg-surface-hover"
-                  >
-                    <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
-                    Start chat
-                  </button>
+                  <div className="min-w-0">
+                    <h2 id="mixed-title" className="truncate font-heading text-lead text-primary">Start a mixed chat</h2>
+                    <p className="truncate text-body-sm text-secondary">
+                      {mixedSources.length > 0
+                        ? `Words from ${mixedSources.length} ${mixedSources.length === 1 ? 'video' : 'videos'}`
+                        : 'Words from your tracked videos'}
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={startMixedSession}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-primary transition-colors hover:bg-surface-hover"
+                >
+                  <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
+                  Start chat
+                </button>
               </section>
             </section>
 
