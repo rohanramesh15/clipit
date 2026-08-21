@@ -397,11 +397,11 @@ export function ConverseV2Page(
       coachReqRef.current.add(m.id);
       setCoachings((prev) => [...prev, { id: m.id, english: text, corrected: '', explanation: '', advancedTopic: '', advancedDetail: '', loading: true }]);
       setAdvancedOpen(false);
-      coachEnglish(sessionId, text, language)
+      coachEnglish(sessionId, text, language, token)
         .then((r) => setCoachings((prev) => prev.map((c) => (c.id === m.id ? { ...c, corrected: r.corrected, explanation: r.explanation, advancedTopic: r.advanced_topic, advancedDetail: r.advanced_detail, loading: false } : c))))
         .catch(() => setCoachings((prev) => prev.map((c) => (c.id === m.id ? { ...c, loading: false } : c))));
     }
-  }, [messages, language, sessionId]);
+  }, [messages, language, sessionId, token]);
 
   // Speak a message aloud in the target language (Web Speech).
   const speak = useCallback((text: string) => {
@@ -445,7 +445,7 @@ export function ConverseV2Page(
     if (!targetId) return;
     setRegenLoading(true);
     try {
-      const r = await regenerateTurn(sessionId, language);
+      const r = await regenerateTurn(sessionId, language, token);
       const id = targetId;
       setMessages((prev) => prev.map((mm) => (mm.id === id ? {
         ...mm, text: r.reply, translation: r.reply_translation, correction: r.correction,
@@ -460,14 +460,14 @@ export function ConverseV2Page(
     } finally {
       setRegenLoading(false);
     }
-  }, [sessionId, language, regenLoading, messages]);
+  }, [sessionId, language, regenLoading, messages, token]);
 
   // Suggest reply — fetch things the learner could say next.
   const handleSuggestReply = useCallback(async () => {
     if (sessionId == null || suggestLoading) return;
     setSuggestLoading(true);
     try {
-      const r = await suggestReplies(sessionId, language);
+      const r = await suggestReplies(sessionId, language, token);
       let li: string | null = null;
       for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === 'assistant') { li = messages[i].id; break; } }
       setMessages((prev) => prev.map((mm) => (mm.id === li ? { ...mm, suggestedReplies: r.suggested_replies } : mm)));
@@ -475,7 +475,7 @@ export function ConverseV2Page(
     } catch { /* ignore */ } finally {
       setSuggestLoading(false);
     }
-  }, [sessionId, language, suggestLoading, messages]);
+  }, [sessionId, language, suggestLoading, messages, token]);
 
   // ── close popover on scroll / outside click / escape ────────────────────────
   useEffect(() => {
@@ -738,7 +738,7 @@ export function ConverseV2Page(
     setSending(true);
     setStatus('Tutor is writing…');
     try {
-      const result = await sendTurn(sessionId, text, language);
+      const result = await sendTurn(sessionId, text, language, token);
       setMessages((prev) => [...prev, {
         id: `a-${result.turn_id}`,
         role: 'assistant',
@@ -757,7 +757,7 @@ export function ConverseV2Page(
     } finally {
       setSending(false);
     }
-  }, [composerText, sending, sessionId, language]);
+  }, [composerText, sending, sessionId, language, token]);
 
   const handleWordTap = useCallback(async (word: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -775,14 +775,14 @@ export function ConverseV2Page(
     if (sessionId == null) return;
     setHintLoading(true);
     try {
-      const { hint_en } = await getHint(sessionId, language);
+      const { hint_en } = await getHint(sessionId, language, token);
       setNudge(hint_en);
     } catch {
       setNudge('Try answering with one short sentence — even a few words helps.');
     } finally {
       setHintLoading(false);
     }
-  }, [sessionId, language]);
+  }, [sessionId, language, token]);
 
   const runHowto = useCallback(async () => {
     if (sessionId == null) return;
@@ -791,13 +791,13 @@ export function ConverseV2Page(
     setHowtoLoading(true);
     setHowtoResult(null);
     try {
-      setHowtoResult(await howDoISay(sessionId, english, language));
+      setHowtoResult(await howDoISay(sessionId, english, language, token));
     } catch {
       setHowtoResult({ spanish: '', note_en: "Couldn't fetch a phrasing." });
     } finally {
       setHowtoLoading(false);
     }
-  }, [sessionId, howtoInput, language]);
+  }, [sessionId, howtoInput, language, token]);
 
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
