@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Play as PlayIcon, RefreshCw } from 'lucide-react';
+import { AlertCircle, History as HistoryIcon, Play as PlayIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../components/EmptyState';
@@ -104,26 +104,48 @@ export function VideoPage() {
   }
 
   return (
-    <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <header className="pb-6">
+    <main className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
+      <header className="grid gap-8 rounded-2xl bg-sand-soft px-6 py-8 sm:px-9 sm:py-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
-          <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Watch history</h1>
-          <p className="mt-1 text-body text-secondary">{languageName} videos the ClipIt extension tracked for you.</p>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1.5 text-meta font-bold uppercase tracking-[0.14em] text-sand-deep">
+            <HistoryIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            Your library
+          </div>
+          <h1 className="font-heading text-display text-sand-deep sm:text-display-lg">Watch history</h1>
+          <p className="mt-3 max-w-xl text-body text-sand-ink">
+            Every {languageName} video ClipIt tracks is ready to become your next practice session.
+          </p>
+        </div>
+        <div className="flex gap-3 text-sand-deep">
+          <div className="min-w-28 rounded-xl bg-white/20 px-4 py-3">
+            <p className="text-meta font-bold uppercase tracking-wide text-sand-ink">Videos</p>
+            <p className="mt-1 font-heading text-card-title">{loadState === 'loading' ? '—' : videos.length}</p>
+          </div>
+          <div className="min-w-36 rounded-xl bg-white/20 px-4 py-3">
+            <p className="text-meta font-bold uppercase tracking-wide text-sand-ink">Updates</p>
+            <p className="mt-1 text-body-sm font-bold">Automatically</p>
+          </div>
         </div>
       </header>
 
-      <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
+      <section className="mt-12" aria-labelledby="history-library-heading">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <p className="text-meta font-bold uppercase tracking-[0.14em] text-muted">Saved by ClipIt</p>
+            <h2 id="history-library-heading" className="mt-1 font-heading text-section text-primary">Your videos</h2>
+          </div>
+          <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
+        </div>
 
-      {loadState === 'loading' && (
-        <div className="mt-6" role="status" aria-live="polite">
-          <div className="space-y-4" aria-hidden="true">
+        {loadState === 'loading' && (
+          <div className="mt-6" role="status" aria-live="polite">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="flex flex-col gap-4 rounded-2xl border border-subtle bg-surface p-4 sm:flex-row">
-                <Skeleton className="aspect-video w-full shrink-0 rounded-lg sm:w-52" />
-                <div className="flex flex-1 flex-col justify-center gap-3 py-1">
-                  <Skeleton className="h-5 w-3/4 rounded-md" />
-                  <Skeleton className="h-4 w-1/3 rounded-md" />
-                </div>
+              <div key={i} className="overflow-hidden rounded-2xl bg-surface p-4">
+                <Skeleton className="aspect-video w-full rounded-xl" />
+                <Skeleton className="mt-5 h-5 w-4/5 rounded-md" />
+                <Skeleton className="mt-2 h-4 w-2/5 rounded-md" />
+                <Skeleton className="mt-6 h-10 w-full rounded-xl" />
               </div>
             ))}
           </div>
@@ -134,8 +156,8 @@ export function VideoPage() {
         </div>
       )}
 
-      {loadState === 'error' && (
-        <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-subtle bg-surface px-6 py-16 text-center">
+        {loadState === 'error' && (
+        <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-16 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
             <AlertCircle className="h-6 w-6" />
           </span>
@@ -153,10 +175,13 @@ export function VideoPage() {
         </div>
       )}
 
-      {loadState === 'loaded' && visible.length === 0 && (
+        {loadState === 'loaded' && visible.length === 0 && (
         <div className="mt-6">
           <EmptyState
-            title={filter === 'all' ? 'Nothing tracked yet' : `No ${filter === 'youtube' ? 'YouTube' : 'Netflix'} videos yet`}
+            title={filter === 'all' ? 'No videos yet' : `No ${filter === 'youtube' ? 'YouTube' : 'Netflix'} videos yet`}
+            description={filter === 'all'
+              ? 'Get the extension, turn it on, then watch YouTube or Netflix to record videos here.'
+              : `Get the extension, turn it on, then watch ${filter === 'youtube' ? 'YouTube' : 'Netflix'} to record videos here.`}
             visual={
               <div className="mx-auto grid max-w-md grid-cols-3 gap-3" aria-hidden="true">
                 {[0, 1, 2].map((tile) => (
@@ -171,35 +196,19 @@ export function VideoPage() {
             }
           >
             <a
-              href="https://www.youtube.com"
+              href={EXTENSION_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
             >
-              Browse YouTube
-            </a>
-            <a
-              href="https://www.netflix.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-subtle px-5 py-2.5 text-body-sm font-semibold text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-            >
-              Browse Netflix
-            </a>
-            <a
-              href={EXTENSION_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-body-sm text-muted underline decoration-transparent underline-offset-2 transition-colors duration-150 ease-swift hover:text-accent hover:decoration-accent/40"
-            >
-              Need the extension?
+              Get the ClipIt extension
             </a>
           </EmptyState>
         </div>
       )}
 
-      {loadState === 'loaded' && visible.length > 0 && (
-        <ul className="mt-6 space-y-4">
+        {loadState === 'loaded' && visible.length > 0 && (
+        <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence initial={false}>
             {visible.map((video, index) => (
               <motion.li
@@ -208,7 +217,7 @@ export function VideoPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.24, delay: 0.04 * index, ease: [0.23, 1, 0.32, 1] }}
+                transition={{ duration: 0.24, delay: Math.min(0.04 * index, 0.24), ease: [0.23, 1, 0.32, 1] }}
               >
                 <VideoHistoryItem video={video} onRemove={setPendingRemoval} />
               </motion.li>
@@ -216,6 +225,8 @@ export function VideoPage() {
           </AnimatePresence>
         </ul>
       )}
+
+      </section>
 
       <AnimatePresence>
         {pendingRemoval && (
@@ -227,6 +238,6 @@ export function VideoPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </main>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ExternalLink, Trash2, BookOpen, Play } from 'lucide-react';
 
 export type Platform = 'youtube' | 'netflix';
@@ -67,23 +67,23 @@ interface VideoHistoryItemProps {
 export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
   const episode = episodeLine(video);
   return (
-    <article className="group flex flex-col gap-4 rounded-2xl border border-subtle bg-surface p-4 sm:flex-row">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-surface">
       <a
         href={watchUrl(video)}
         target="_blank"
         rel="noopener noreferrer"
-        className="relative block w-full shrink-0 overflow-hidden rounded-lg sm:w-52"
+        className="relative block aspect-video w-full shrink-0 overflow-hidden"
       >
         <Thumbnail video={video} />
         <span
-          className={`absolute left-2 top-2 rounded-md px-2 py-0.5 text-meta font-semibold text-white ${
+          className={`absolute left-3 top-3 rounded-lg px-2 py-1 text-meta font-bold text-white ${
             video.platform === 'netflix' ? 'bg-[#b20710]' : 'bg-[#ff0000]'
           }`}
         >
           {PLATFORM_LABEL[video.platform]}
         </span>
         {video.subtitles && (
-          <span className="absolute right-2 top-2 rounded-md bg-inverse/80 px-2 py-0.5 text-meta font-semibold text-cream">
+          <span className="absolute right-3 top-3 rounded-lg bg-inverse/80 px-2 py-1 text-meta font-bold text-cream backdrop-blur-sm">
             {video.subtitles}
           </span>
         )}
@@ -92,42 +92,18 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
         </span>
       </a>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-2 text-lead font-semibold text-primary">{video.title}</h3>
-            {episode && <p className="mt-1 truncate text-body-sm text-secondary">{episode}</p>}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 ease-swift focus-within:opacity-100 group-hover:opacity-100">
-            <a
-              href={watchUrl(video)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Open on ${PLATFORM_LABEL[video.platform]}`}
-              className="rounded-lg p-2 text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-            >
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Open on {PLATFORM_LABEL[video.platform]}</span>
-            </a>
-            <button
-              type="button"
-              onClick={() => onRemove(video)}
-              title="Remove from history"
-              className="rounded-lg p-2 text-secondary transition-colors duration-150 ease-swift hover:bg-blush hover:text-accent"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Remove {video.title} from history</span>
-            </button>
-          </div>
+      <div className="flex min-w-0 flex-1 flex-col p-5">
+        <div className="min-w-0 flex-1">
+          <h3 className="line-clamp-2 font-heading text-card-title text-primary">{video.title}</h3>
+          {episode && <p className="mt-1 truncate text-body-sm text-secondary">{episode}</p>}
         </div>
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-4 text-body-sm">
-          <span className="text-muted">{video.trackedAt}</span>
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-body-sm">
+          <span className="font-semibold text-muted">{video.trackedAt}</span>
           {video.subtitles ? (
             <span className="flex items-center gap-1.5 text-secondary">
-              <BookOpen className="h-4 w-4 text-muted" aria-hidden="true" />
-              Subtitles tracked
+              <BookOpen className="h-4 w-4 text-sand-ink" aria-hidden="true" />
+              Subtitles ready
             </span>
           ) : (
             <span className="text-muted">No subtitles found</span>
@@ -137,6 +113,28 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
               {video.newWords} new words
             </span>
           )}
+        </div>
+
+        <div className="mt-6 flex items-center gap-2">
+          <a
+            href={watchUrl(video)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-sand-soft px-4 py-3 text-body-sm font-bold text-sand-deep hover:bg-sand-mid"
+          >
+            <Play className="h-4 w-4" aria-hidden="true" />
+            Open video
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+          <button
+            type="button"
+            onClick={() => onRemove(video)}
+            title="Remove from history"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-blush hover:text-accent"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only">Remove {video.title} from history</span>
+          </button>
         </div>
       </div>
     </article>
