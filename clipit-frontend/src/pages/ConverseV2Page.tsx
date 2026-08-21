@@ -911,7 +911,7 @@ export function ConverseV2Page(
                             title={w.gloss}
                             className={
                               'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all ' +
-                              (used ? 'text-white' : 'bg-app text-secondary')
+                              (used ? 'text-[#ffffff]' : 'bg-app text-secondary')
                             }
                             style={used ? { background: PAGE } : undefined}
                           >
@@ -1040,7 +1040,7 @@ export function ConverseV2Page(
                     <div className="text-sm text-secondary mt-1">{m.correction.why_en}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <button
-                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-white' : 'bg-surface-hover text-secondary hover:text-primary')}
+                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
                         style={verdict === 'fine' ? { background: ACCENT } : undefined}
                         disabled={!!verdict}
                         onClick={() => handleCorrectionFb(m.id, m.turnId, 'fine')}
@@ -1048,7 +1048,7 @@ export function ConverseV2Page(
                         Mine was fine
                       </button>
                       <button
-                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-white' : 'bg-surface-hover text-secondary hover:text-primary')}
+                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
                         style={verdict === 'wrong' ? { background: ACCENT } : undefined}
                         disabled={!!verdict}
                         onClick={() => handleCorrectionFb(m.id, m.turnId, 'wrong')}
@@ -1158,7 +1158,7 @@ export function ConverseV2Page(
                 <button
                   onClick={runHowto}
                   disabled={howtoLoading || !howtoInput.trim()}
-                  className="px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg text-sm font-semibold text-[#ffffff] disabled:opacity-50"
                   style={{ background: ACCENT }}
                 >
                   {howtoLoading ? <LoadingAnimation className="h-4 w-4" /> : 'Translate'}
@@ -1170,7 +1170,7 @@ export function ConverseV2Page(
                   {howtoResult.note_en && <div className="text-xs text-muted mt-1">{howtoResult.note_en}</div>}
                   <button
                     onClick={() => pickSuggestion(howtoResult!.spanish)}
-                    className="mt-2 text-xs font-semibold px-2.5 py-1 rounded-lg text-white"
+                    className="mt-2 text-xs font-semibold px-2.5 py-1 rounded-lg text-[#ffffff]"
                     style={{ background: ACCENT }}
                   >
                     Use this
@@ -1247,7 +1247,7 @@ export function ConverseV2Page(
               <div className="flex flex-col gap-2">
                 <button
                   onClick={leaveChat}
-                  className="w-full px-4 py-2.5 rounded-xl text-white font-semibold text-sm"
+                  className="w-full px-4 py-2.5 rounded-xl text-[#ffffff] font-semibold text-sm"
                   style={{ background: ACCENT }}
                 >
                   Leave & delete
