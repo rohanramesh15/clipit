@@ -73,7 +73,7 @@ Using the already-authenticated `flyctl` session:
 - Confirm both machines report healthy and `/api/health` responds (matches the check already configured in `fly.toml`).
 
 ### Step 7 — Production verification — **Claude**
-- Test a fresh signup, login, and a couple of core flows against `https://theclipitapp.com` end-to-end.
+- Test a fresh signup, login, and a couple of core flows against `https://www.joinclipit.com` end-to-end.
 - Spot-check the Supabase dashboard (table editor / logs) to confirm writes are landing.
 - Watch Fly logs and Supabase's connection/error metrics for pool exhaustion or connectivity issues over the following 24–48 hours before considering Phase 1 fully closed.
 
@@ -87,7 +87,7 @@ Using the already-authenticated `flyctl` session:
 3. `vector` extension + both HNSW indexes present.
 4. Boot app against Supabase → `Base.metadata.create_all()` is a no-op (proves Alembic is authoritative, not silently relying on the create_all footgun).
 5. Functional pass: signup/login, tracked video + flashcard + vocab CRUD, one pgvector similarity-search round trip.
-6. Post-cutover: Fly logs show clean `alembic upgrade head` + healthy machines; `theclipitapp.com` signup/login works end-to-end against Supabase; Supabase dashboard shows real writes.
+6. Post-cutover: Fly logs show clean `alembic upgrade head` + healthy machines; `www.joinclipit.com` signup/login works end-to-end against Supabase; Supabase dashboard shows real writes.
 
 ## Update: this plan's production cutover (Steps 6-9) was never executed
 
