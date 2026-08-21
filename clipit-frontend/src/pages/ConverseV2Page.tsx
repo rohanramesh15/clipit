@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle,
-  ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy, Search,
+  Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
+  Film, MessageCircle, Languages, Volume2, Copy, Search,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -41,6 +41,7 @@ interface TargetWord {
   lemma: string;    // dictionary form (sent to the backend, shown on the pill)
   gloss: string;    // English meaning
   surface: string;  // the form as it appeared in the video (helps detect usage)
+  clipLine?: string; // the sentence this word came from, if the source card had one
 }
 
 interface ChatMessage {
@@ -217,7 +218,11 @@ export function ConverseV2Page(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [headerExpanded, setHeaderExpanded] = useState(false);
+  // Closed by default: the drawer overlays the chat at every width here (there's
+  // no MP-style xl-and-up sidebar variant), so auto-opening it would cover the
+  // conversation immediately on a narrower screen.
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [openTargetWord, setOpenTargetWord] = useState<string | null>(null);
 
   // text composer / scaffolding
   const [composerOpen, setComposerOpen] = useState(false);
@@ -525,7 +530,7 @@ export function ConverseV2Page(
         const key = lemma.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        words.push({ lemma, gloss: c.english || '', surface: (c.target_word || lemma).trim() });
+        words.push({ lemma, gloss: c.english || '', surface: (c.target_word || lemma).trim(), clipLine: c.sentence || undefined });
         if (words.length >= 8) break;
       }
 
@@ -545,6 +550,7 @@ export function ConverseV2Page(
 
       setTargetWords(finalWords);
       setUsedLemmas(new Set());
+      setOpenTargetWord(null);
       setCoachings([]); coachReqRef.current = new Set();
       setMsgRoman({}); romanReqRef.current = new Set();
       setMsgTrans({}); setCopiedId(null);
@@ -825,116 +831,64 @@ export function ConverseV2Page(
   // ============================================================================
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] max-w-2xl mx-auto">
-      {/* header + word tracker */}
-      <div className="shrink-0">
-        <div className="flex items-center gap-3 mb-4">
+      {/* header */}
+      <div className="shrink-0 border-b border-subtle">
+        <div className="flex h-16 items-center gap-4">
           <NavigationIconButton direction="back" label="Back to videos" onClick={() => setShowLeaveConfirm(true)} className="shrink-0" />
-          {/* Clickable summary line — expands the video header below. */}
-          <button
-            onClick={() => setHeaderExpanded((v) => !v)}
-            aria-expanded={headerExpanded}
-            aria-controls="conversation-deck-details"
-            className="group flex flex-1 items-center justify-between gap-3 min-w-0 rounded-lg px-2 py-1 -mx-2 hover:bg-surface-hover transition-colors"
-          >
-            <h1 className="font-heading font-semibold text-xs text-secondary truncate">
+
+          <span className="hidden h-9 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-hover items-center justify-center sm:flex">
+            {deck?.id.startsWith('netflix_') ? (
+              <Film className="w-4 h-4" style={{ color: ACCENT }} />
+            ) : deck?.id ? (
+              <img
+                src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : null}
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-heading font-semibold text-sm text-primary">
               {deck?.title || 'Voice Chat'}
             </h1>
-            <span className="flex items-center gap-2.5 shrink-0">
-              {targetWords.length > 0 && (
-                <>
-                  <span className="hidden items-center gap-1.5 sm:flex" aria-hidden="true">
-                    {targetWords.map((w) => {
-                      const done = usedLemmas.has(w.lemma);
-                      return (
-                        <motion.span
-                          key={w.lemma}
-                          animate={done ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-                          transition={{ duration: 0.26, ease: [0.23, 1, 0.32, 1] }}
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ background: done ? ACCENT : 'var(--bg-surface-hover)' }}
-                        />
-                      );
-                    })}
-                  </span>
-                  <span className="text-xs font-medium text-secondary tabular-nums">
-                    {usedCount} / {targetWords.length} words used
-                  </span>
-                </>
-              )}
-              <ChevronDown
-                className={
-                  'w-4 h-4 text-muted transition-transform group-hover:text-secondary ' +
-                  (headerExpanded ? 'rotate-180' : '')
-                }
-              />
-            </span>
+          </div>
+
+          {targetWords.length > 0 && (
+            <div className="hidden items-center gap-3 md:flex">
+              <span className="flex items-center gap-1.5" aria-hidden="true">
+                {targetWords.map((w) => {
+                  const done = usedLemmas.has(w.lemma);
+                  return (
+                    <motion.span
+                      key={w.lemma}
+                      animate={done ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.26, ease: [0.23, 1, 0.32, 1] }}
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ background: done ? ACCENT : 'var(--bg-surface-hover)' }}
+                    />
+                  );
+                })}
+              </span>
+              <p className="text-xs text-secondary">
+                <span className="font-semibold text-primary tabular-nums">{usedCount}</span>/{targetWords.length} words
+              </p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setCoachOpen((v) => !v)}
+            aria-pressed={coachOpen}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-medium transition-colors ${
+              coachOpen ? 'bg-sage-soft text-sage-ink' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Coach</span>
           </button>
         </div>
-
-        {/* Expandable video header: thumbnail, name, words to practice. */}
-        <AnimatePresence initial={false}>
-          {headerExpanded && (
-            <motion.div
-              id="conversation-deck-details"
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-            >
-              <div className="bg-surface rounded-2xl p-4 mb-4">
-                <div className="flex items-center gap-4">
-                  <span className="relative w-28 aspect-video shrink-0 rounded-lg overflow-hidden bg-surface-hover flex items-center justify-center">
-                    {deck?.id.startsWith('netflix_') ? (
-                      <Film className="w-5 h-5" style={{ color: ACCENT }} />
-                    ) : deck?.id ? (
-                      <img
-                        src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : null}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-heading font-semibold text-sm text-primary leading-snug line-clamp-2">
-                      {deck?.title || 'Voice Chat'}
-                    </p>
-                    {targetWords.length > 0 && (
-                      <p className="text-xs text-muted mt-1">
-                        {usedCount} of {targetWords.length} words used
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {targetWords.length > 0 && (
-                  <>
-                    <p className="text-xs uppercase tracking-wide text-muted mt-4 mb-2">Words to practice</p>
-                    <div className="flex flex-wrap gap-2">
-                      {targetWords.map((w) => {
-                        const used = usedLemmas.has(w.lemma);
-                        return (
-                          <span
-                            key={w.lemma}
-                            title={w.gloss}
-                            className={
-                              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all ' +
-                              (used ? 'text-[#ffffff]' : 'bg-app text-secondary')
-                            }
-                            style={used ? { background: PAGE } : undefined}
-                          >
-                            {used && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                            {w.lemma}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* transcript */}
@@ -1289,46 +1243,139 @@ export function ConverseV2Page(
         </span>
       )}
 
-      {/* Right-margin panel: when you speak English, how to say it in the target language */}
-      <aside className="hidden xl:block fixed right-6 top-28 w-80 max-h-[calc(100vh-10rem)] overflow-y-auto pr-1 z-20">
-        {latestCoaching ? (
-          <div key={latestCoaching.id}>
-            <p className="text-xs uppercase tracking-wide text-muted mb-1">Corrected message</p>
-            <p className="text-2xl font-heading font-bold text-primary mb-4">
-              {latestCoaching.loading ? '…' : (latestCoaching.corrected || '—')}
-            </p>
+      {/* Coach drawer — target words with clip context, plus English-fallback coaching */}
+      <AnimatePresence>
+        {coachOpen && (
+          <motion.aside
+            initial={{ x: 24, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 24, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
+            aria-label="Session coach"
+            className="fixed inset-y-0 right-0 z-20 flex w-[340px] max-w-full flex-col border-l border-subtle bg-app shadow-2xl"
+          >
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-subtle px-5">
+              <h2 className="font-heading text-body font-semibold text-primary">Coach</h2>
+              <button
+                type="button"
+                onClick={() => setCoachOpen(false)}
+                aria-label="Close coach panel"
+                className="grid size-9 place-items-center rounded-lg text-secondary hover:bg-surface-hover hover:text-primary"
+              >
+                <X className="size-5" aria-hidden="true" />
+              </button>
+            </div>
 
-            {!latestCoaching.loading && latestCoaching.explanation && (
-              <div className="rounded-2xl p-5" style={{ background: PAGE }}>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  Explanation
-                </p>
-                <p className="text-base leading-relaxed" style={{ color: '#fff' }}>
-                  {latestCoaching.explanation}
-                </p>
-                {latestCoaching.advancedDetail && (
-                  <button
-                    onClick={() => setAdvancedOpen((v) => !v)}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-sm font-semibold"
-                    style={{ color: PAGE }}
-                  >
-                    <Sparkles className="w-4 h-4" /> Advanced feedback
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="flex-1 overflow-y-auto px-5 py-6">
+              {targetWords.length > 0 && (
+                <section className="rounded-2xl border border-subtle bg-surface p-4">
+                  <p className="text-card-title text-primary">
+                    {usedCount}
+                    <span className="text-body font-normal text-muted">/{targetWords.length} words used</span>
+                  </p>
 
-            {advancedOpen && latestCoaching.advancedDetail && (
-              <div className="mt-5 pt-5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                {latestCoaching.advancedTopic && (
-                  <h4 className="font-heading font-bold mb-3" style={{ color: PAGE }}>{latestCoaching.advancedTopic}</h4>
-                )}
-                <p className="text-sm leading-relaxed text-primary">{latestCoaching.advancedDetail}</p>
-              </div>
-            )}
-          </div>
-        ) : null}
-      </aside>
+                  <ul className="mt-3">
+                    {targetWords.map((w) => {
+                      const done = usedLemmas.has(w.lemma);
+                      const open = openTargetWord === w.lemma;
+                      return (
+                        <li key={w.lemma}>
+                          <button
+                            type="button"
+                            onClick={() => setOpenTargetWord(open ? null : w.lemma)}
+                            aria-expanded={open}
+                            className="flex w-full items-center justify-between gap-3 py-1.5 text-left"
+                          >
+                            <span className="flex min-w-0 items-center gap-2.5">
+                              <span
+                                aria-hidden="true"
+                                className="grid size-5 shrink-0 place-items-center rounded-full border transition-colors"
+                                style={done ? { background: ACCENT, borderColor: ACCENT, color: '#ffffff' } : { borderColor: 'var(--border-medium)' }}
+                              >
+                                {done && <Check className="size-3.5" />}
+                              </span>
+                              <span className={`truncate text-body-sm ${done ? 'font-medium text-primary' : 'text-secondary'}`}>
+                                {w.lemma}
+                              </span>
+                            </span>
+                            <span className="shrink-0 text-meta text-muted">{w.gloss}</span>
+                          </button>
+
+                          <AnimatePresence initial={false}>
+                            {open && w.clipLine && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                                className="overflow-hidden"
+                              >
+                                <p className="ml-7 border-l-2 border-subtle py-1 pl-3 text-meta text-secondary">
+                                  "{w.clipLine}"
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
+              {latestCoaching && (
+                <section className="mt-7">
+                  <h3 className="text-body-sm font-semibold text-primary">Said in English</h3>
+                  <p className="mt-2 text-lead font-medium text-primary">
+                    {latestCoaching.loading ? '…' : (latestCoaching.corrected || '—')}
+                  </p>
+
+                  {!latestCoaching.loading && latestCoaching.explanation && (
+                    <div className="mt-3 rounded-2xl p-4" style={{ background: PAGE }}>
+                      <p className="text-meta font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        Explanation
+                      </p>
+                      <p className="mt-2 text-body-sm leading-relaxed text-[#ffffff]">
+                        {latestCoaching.explanation}
+                      </p>
+                      {latestCoaching.advancedDetail && (
+                        <button
+                          type="button"
+                          onClick={() => setAdvancedOpen((v) => !v)}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#ffffff] px-3 py-1.5 text-body-sm font-semibold"
+                          style={{ color: PAGE }}
+                        >
+                          <Sparkles className="w-4 h-4" aria-hidden="true" /> Advanced feedback
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {advancedOpen && latestCoaching.advancedDetail && (
+                    <div className="mt-4 border-t border-subtle pt-4">
+                      {latestCoaching.advancedTopic && (
+                        <h4 className="font-heading font-bold text-primary" style={{ color: PAGE }}>{latestCoaching.advancedTopic}</h4>
+                      )}
+                      <p className="mt-2 text-body-sm leading-relaxed text-primary">{latestCoaching.advancedDetail}</p>
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-subtle p-4">
+              <button
+                type="button"
+                onClick={() => setShowLeaveConfirm(true)}
+                className="w-full rounded-xl px-4 py-2.5 text-body-sm font-semibold text-[#ffffff] transition-colors"
+                style={{ background: ACCENT }}
+              >
+                End session
+              </button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
