@@ -238,7 +238,7 @@ export function SettingsPage() {
           <div className="mt-2 w-full border-t border-subtle">
             <SettingRow
               label="AI voice"
-              description="Tap a voice to hear a short sample. Your selected voice becomes your default voice. No need to save."
+              description="Tap a voice to hear a short sample. Your selected voice becomes your default voice."
               layout="stacked"
             >
               <VoiceSelector
