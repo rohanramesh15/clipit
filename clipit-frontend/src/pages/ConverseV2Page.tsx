@@ -1364,7 +1364,26 @@ export function ConverseV2Page(
             <div className="flex-1 overflow-y-auto px-5 py-6">
               {targetWords.length > 0 && (
                 <section className="rounded-2xl border border-subtle bg-surface p-4">
-                  <p className="text-card-title text-primary">
+                  <div className="flex items-center gap-3">
+                    <span className="h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-hover flex items-center justify-center">
+                      {deck?.id.startsWith('netflix_') ? (
+                        <Film className="w-4 h-4" style={{ color: ACCENT }} />
+                      ) : deck?.id ? (
+                        <img
+                          src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : null}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-body-sm font-medium text-primary">{deck?.title}</p>
+                      <p className="truncate text-meta text-muted">{deck?.id.startsWith('netflix_') ? 'Netflix' : 'YouTube'}</p>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-card-title text-primary">
                     {usedCount}
                     <span className="text-body font-normal text-muted">/{targetWords.length} words used</span>
                   </p>
