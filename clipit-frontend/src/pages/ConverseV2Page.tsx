@@ -1363,12 +1363,12 @@ export function ConverseV2Page(
                   placeholder="Say it in English…"
                   onChange={(e) => setHowtoInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runHowto(); } }}
-                  className="flex-1 rounded-lg bg-app px-3 py-2 text-body-sm text-primary placeholder:text-muted outline-none"
+                  className="flex-1 rounded-xl bg-app px-3 py-2 text-body-sm text-primary placeholder:text-muted outline-none"
                 />
                 <button
                   onClick={runHowto}
                   disabled={howtoLoading || !howtoInput.trim()}
-                  className="px-3 py-2 rounded-lg text-body-sm font-semibold text-[#ffffff] disabled:opacity-50"
+                  className="px-3 py-2 rounded-xl text-body-sm font-semibold text-[#ffffff] disabled:opacity-50"
                   style={{ background: ACCENT }}
                 >
                   {howtoLoading ? <LoadingAnimation className="h-4 w-4" /> : 'Translate'}
