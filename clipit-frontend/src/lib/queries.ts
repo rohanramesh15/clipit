@@ -64,6 +64,9 @@ export const queryKeys = {
   profile: (authUserId: string) => ['profile', authUserId] as const,
   history: (userId: number, language: string) => ['history', userId, language] as const,
   homeQueue: (userId: number, language: string) => ['home-queue', userId, language] as const,
+  flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
+  flashcardDeck: (userId: number, language: string, videoId: string) =>
+    ['flashcard-deck', userId, language, videoId] as const,
   watchTime: (userId: number, language: string) => ['watch-time', userId, language] as const,
   reviews: (userId: number) => ['reviews', userId] as const,
 };

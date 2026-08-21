@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 declare function gtag(...args: unknown[]): void;
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '../components/Skeleton';
@@ -50,6 +50,13 @@ interface FlashcardsPageProps {
   onNavigate?: (page: Page) => void;
 }
 
+interface FlashcardsDashboard {
+  cardsReviewedToday: number;
+  videos: TrackedVideo[];
+  wordCounts: Record<string, number>;
+  dueCounts: Record<string, number>;
+}
+
 export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const { language, languageName } = useLanguage();
   const { token, user } = useAuth();
@@ -63,17 +70,21 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setCardsReviewedToday,
     getGoalLabel,
   } = useReviewSession();
-  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const dashboardKey = useMemo(
+    () => queryKeys.flashcardDashboard(user?.id ?? 0, language),
+    [language, user?.id],
+  );
+  const cachedDashboard = queryClient.getQueryData<FlashcardsDashboard>(dashboardKey);
+  const [loadState, setLoadState] = useState<LoadState>(() => (cachedDashboard ? 'deck-select' : 'loading'));
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [dueCards, setDueCards] = useState<FlashCard[]>([]);
-  const [videos, setVideos] = useState<TrackedVideo[]>([]);
-  const [wordCounts, setWordCounts] = useState<Record<string, number>>({}); // video_id -> # words
-  const [dueCounts, setDueCounts] = useState<Record<string, number>>({}); // video_id -> # due cards
-  const [isLoadingDue, setIsLoadingDue] = useState(true);
+  const [videos, setVideos] = useState<TrackedVideo[]>(() => cachedDashboard?.videos ?? []);
+  const [wordCounts, setWordCounts] = useState<Record<string, number>>(() => cachedDashboard?.wordCounts ?? {}); // video_id -> # words
+  const [dueCounts, setDueCounts] = useState<Record<string, number>>(() => cachedDashboard?.dueCounts ?? {}); // video_id -> # due cards
+  const [isLoadingDue, setIsLoadingDue] = useState(() => !cachedDashboard);
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('Loading watch history...');
   const [lastRatingInfo, setLastRatingInfo] = useState<{ word: string; nextDue: string } | null>(null);
   const [sessionStats, setSessionStats] = useState({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
   const [isEditingDefinition, setIsEditingDefinition] = useState(false);
@@ -241,52 +252,59 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Fetch flashcards for a single video. Returns cards array (empty if failed/no vocab).
   const fetchCardsForVideo = useCallback(async (videoId: string): Promise<FlashCard[]> => {
-    try {
-      await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
+    return queryClient.fetchQuery({
+      queryKey: queryKeys.flashcardDeck(user?.id ?? 0, language, videoId),
+      // Raw card payloads remain valid until a card/video mutation changes them.
+      staleTime: Infinity,
+      queryFn: async () => {
+        try {
+          await fetch(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`);
 
-      const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
-      if (!vocabRes.ok) return [];
-      const vocab = await vocabRes.json();
-      if (!vocab.total_words) return [];
+          const vocabRes = await fetch(`${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`);
+          if (!vocabRes.ok) return [];
+          const vocab = await vocabRes.json();
+          if (!vocab.total_words) return [];
 
-      const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
-      const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
-      });
-      if (!fcRes.ok) return [];
-      const fc = await fcRes.json();
+          const wordList = vocab.vocabulary.map((v: { word: string }) => v.word);
+          const fcRes = await fetch(`${API_BASE_URL}/flashcard-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video_id: videoId, words: wordList, word_source: 'essential', language }),
+          });
+          if (!fcRes.ok) return [];
+          const fc = await fcRes.json();
 
-      const rankMap: Record<string, number> = {};
-      vocab.vocabulary.forEach((v: { word: string; rank: number }) => { rankMap[v.word] = v.rank; });
-      let cards = (fc.flashcards || []).map((card: FlashCard) => ({
-        ...card,
-        card_type: 'video',
-        video_id: card.video_id || videoId,
-        rank: rankMap[card.target_word],
-      }));
+          const rankMap: Record<string, number> = {};
+          vocab.vocabulary.forEach((v: { word: string; rank: number }) => { rankMap[v.word] = v.rank; });
+          let cards = (fc.flashcards || []).map((card: FlashCard) => ({
+            ...card,
+            card_type: 'video' as const,
+            video_id: card.video_id || videoId,
+            rank: rankMap[card.target_word],
+          }));
 
-      if (videoId.startsWith('netflix_') && cards.length > 0) {
-        const screenshotChecks = await Promise.all(
-          cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp ?? 0))
-        );
-        const cardsWithScreenshots = cards.filter((_: FlashCard, i: number) => screenshotChecks[i]);
-        console.log(`[ClipIt] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
-        cards = cardsWithScreenshots;
-      }
+          if (videoId.startsWith('netflix_') && cards.length > 0) {
+            const screenshotChecks = await Promise.all(
+              cards.map((card: FlashCard) => checkScreenshotExists(videoId, card.timestamp ?? 0))
+            );
+            const cardsWithScreenshots = cards.filter((_: FlashCard, i: number) => screenshotChecks[i]);
+            console.log(`[ClipIt] Netflix cards: ${cardsWithScreenshots.length}/${cards.length} have screenshots`);
+            cards = cardsWithScreenshots;
+          }
 
-      const deletedCards = getDeletedCards(language);
-      cards = cards.filter((card: FlashCard) => {
-        const word = card.dictionary_form || card.target_word;
-        return !deletedCards.has(word);
-      });
+          const deletedCards = getDeletedCards(language);
+          cards = cards.filter((card: FlashCard) => {
+            const word = card.dictionary_form || card.target_word;
+            return !deletedCards.has(word);
+          });
 
-      return cards;
-    } catch {
-      return [];
-    }
-  }, [language]);
+          return cards;
+        } catch {
+          return [];
+        }
+      },
+    });
+  }, [language, user?.id]);
 
   // Sort cards by FSRS priority and filter to due cards
   const prepareCardsForReview = useCallback((allCards: FlashCard[]) => {
@@ -323,8 +341,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   // Load cards for "All Videos" mode
   const loadAllVideos = useCallback(async (videoList: TrackedVideo[]) => {
     window.history.replaceState({}, '', `${window.location.pathname}?video=all`);
-    setLoadState('loading');
-    setLoadingMsg('Loading flashcards from all videos...');
     setCards([]);
     setDueCards([]);
     setCurrentIndex(0);
@@ -332,9 +348,22 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setSelectedVideoId('all');
     setLastRatingInfo(null);
 
+    const cachedDecks = videoList.map((video) =>
+      queryClient.getQueryData<FlashCard[]>(queryKeys.flashcardDeck(user?.id ?? 0, language, video.video_id)),
+    );
+    if (cachedDecks.every((deck): deck is FlashCard[] => deck !== undefined)) {
+      const cachedCards = cachedDecks.flat();
+      if (!cachedCards.length) {
+        setLoadState('no-vocab');
+      } else {
+        prepareCardsForReview(cachedCards);
+      }
+      return;
+    }
+
+    setLoadState('loading');
     const allCards: FlashCard[] = [];
     for (const video of videoList) {
-      setLoadingMsg(`Loading: ${video.title.slice(0, 40)}...`);
       const videoCards = await fetchCardsForVideo(video.video_id);
       allCards.push(...videoCards);
     }
@@ -344,13 +373,11 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return;
     }
     prepareCardsForReview(allCards);
-  }, [fetchCardsForVideo, prepareCardsForReview]);
+  }, [fetchCardsForVideo, language, prepareCardsForReview, user?.id]);
 
   // Load cards for a single video.
   const loadFlashcards = useCallback(async (videoId: string) => {
     window.history.replaceState({}, '', `${window.location.pathname}?video=${encodeURIComponent(videoId)}`);
-    setLoadState('loading');
-    setLoadingMsg('Fetching subtitles...');
     setCards([]);
     setDueCards([]);
     setCurrentIndex(0);
@@ -358,7 +385,19 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setSelectedVideoId(videoId);
     setLastRatingInfo(null);
 
-    setLoadingMsg('Extracting vocabulary...');
+    const cachedCards = queryClient.getQueryData<FlashCard[]>(
+      queryKeys.flashcardDeck(user?.id ?? 0, language, videoId),
+    );
+    if (cachedCards !== undefined) {
+      if (!cachedCards.length) {
+        setLoadState('no-vocab');
+      } else {
+        prepareCardsForReview(cachedCards);
+      }
+      return;
+    }
+
+    setLoadState('loading');
     const videoCards = await fetchCardsForVideo(videoId);
 
     if (!videoCards.length) {
@@ -366,35 +405,84 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       return;
     }
     prepareCardsForReview(videoCards);
-  }, [fetchCardsForVideo, prepareCardsForReview]);
+  }, [fetchCardsForVideo, language, prepareCardsForReview, user?.id]);
+
+  const applyDashboard = useCallback((dashboard: FlashcardsDashboard) => {
+    setCardsReviewedToday(dashboard.cardsReviewedToday);
+    setVideos(dashboard.videos);
+    setWordCounts(dashboard.wordCounts);
+    setDueCounts(dashboard.dueCounts);
+    setIsLoadingDue(false);
+    setLoadState((current) => (current === 'loading' || current === 'error' ? 'deck-select' : current));
+  }, [setCardsReviewedToday]);
+
+  const fetchDashboard = useCallback(async (): Promise<FlashcardsDashboard> => {
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    const tzOffset = new Date().getTimezoneOffset();
+    const [todayRes, filteredRes] = await Promise.all([
+      token
+        ? fetch(`${API_BASE_URL}/fsrs/reviews/today?tz_offset_minutes=${tzOffset}`, { headers })
+        : Promise.resolve(null),
+      fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers }),
+    ]);
+    if (!filteredRes.ok) throw new Error('Could not load decks');
+
+    const [todayData, filteredData] = await Promise.all([
+      todayRes?.ok ? todayRes.json() : Promise.resolve({ count: 0 }),
+      filteredRes.json(),
+    ]);
+    const vids: TrackedVideo[] = filteredData.videos || [];
+    const counts = await Promise.all(
+      vids.map(async (video) => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/vocabulary/${video.video_id}?limit=20&lang=${language}`);
+          if (!res.ok) return [video.video_id, 0, 0] as const;
+          const data = await res.json();
+          const deleted = getDeletedCards(language);
+          const remaining = (data.vocabulary || [])
+            .map((word: { word: string }) => word.word)
+            .filter((word: string) => !deleted.has(word));
+          return [video.video_id, data.total_words || 0, getDueCards(remaining).length] as const;
+        } catch {
+          return [video.video_id, 0, 0] as const;
+        }
+      }),
+    );
+
+    return {
+      cardsReviewedToday: todayData.count || 0,
+      videos: vids,
+      wordCounts: Object.fromEntries(counts.map(([id, count]) => [id, count])),
+      dueCounts: Object.fromEntries(counts.map(([id, , due]) => [id, due])),
+    };
+  }, [language, token]);
 
   useEffect(() => {
-    async function bootstrap() {
-      try {
-        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-        if (token) {
-          const tzOffset = new Date().getTimezoneOffset();
-          const todayRes = await fetch(`${API_BASE_URL}/fsrs/reviews/today?tz_offset_minutes=${tzOffset}`, { headers });
-          if (todayRes.ok) {
-            const todayData = await todayRes.json();
-            setCardsReviewedToday(todayData.count || 0);
-          }
-        }
-
-        const filteredRes = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, { headers });
-
-        if (!filteredRes.ok) throw new Error();
-        const filteredData = await filteredRes.json();
-        const vids: TrackedVideo[] = filteredData.videos || [];
-        setVideos(vids);
-
-        setLoadState('deck-select');
-      } catch {
-        setLoadState('error');
-      }
+    let alive = true;
+    const cached = queryClient.getQueryData<FlashcardsDashboard>(dashboardKey);
+    if (cached) {
+      applyDashboard(cached);
+    } else {
+      setLoadState('loading');
+      setIsLoadingDue(true);
     }
-    bootstrap();
-  }, [language, token, setCardsReviewedToday]);
+
+    void queryClient.fetchQuery({
+      queryKey: dashboardKey,
+      queryFn: fetchDashboard,
+      // Cached data renders immediately; this only refreshes it in the background.
+      staleTime: 60_000,
+    }).then(
+      (dashboard) => {
+        if (alive) applyDashboard(dashboard);
+      },
+      () => {
+        if (alive && !cached) setLoadState('error');
+      },
+    );
+
+    return () => { alive = false; };
+  }, [applyDashboard, dashboardKey, fetchDashboard]);
 
   // Resume a review session across a refresh: loadAllVideos/loadFlashcards write
   // ?video=<id|all> to the URL when a session starts, and handleBackToDecks
@@ -412,37 +500,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       void loadFlashcards(resumeVideoId);
     }
   }, [loadState, videos, loadAllVideos, loadFlashcards]);
-
-  // Fetch per-video word counts and due counts (for the dashboard) so the deck
-  // browser can show counts, and DueToday can show an aggregate due-count,
-  // without doing a full flashcard-data fetch per video.
-  useEffect(() => {
-    if (!videos.length) return;
-    let alive = true;
-    setIsLoadingDue(true);
-    Promise.all(
-      videos.map(async (v) => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/vocabulary/${v.video_id}?limit=20&lang=${language}`);
-          if (!res.ok) return [v.video_id, 0, 0] as const;
-          const data = await res.json();
-          const words: string[] = (data.vocabulary || []).map((w: { word: string }) => w.word);
-          const deleted = getDeletedCards(language);
-          const remaining = words.filter((w) => !deleted.has(w));
-          const due = getDueCards(remaining).length;
-          return [v.video_id, data.total_words || 0, due] as const;
-        } catch {
-          return [v.video_id, 0, 0] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (!alive) return;
-      setWordCounts(Object.fromEntries(entries.map(([id, count]) => [id, count])));
-      setDueCounts(Object.fromEntries(entries.map(([id, , due]) => [id, due])));
-      setIsLoadingDue(false);
-    });
-    return () => { alive = false; };
-  }, [videos, language]);
 
   const currentCard = dueCards[currentIndex];
   const deckProgressTotal = dueCards.length;
@@ -479,6 +536,9 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           if (!response.ok || !user) return;
           queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
           queryClient.removeQueries({ queryKey: queryKeys.reviews(user.id) });
+          // Keep the visible dashboard instant, but make its due counts fresh
+          // the next time it is shown.
+          queryClient.invalidateQueries({ queryKey: dashboardKey });
         })
         .catch((error) => {
           console.error('Failed to record review history:', error);
@@ -578,6 +638,14 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
     setIsFlipped(false);
 
+    if (currentCard.video_id) {
+      queryClient.setQueryData<FlashCard[]>(
+        queryKeys.flashcardDeck(user?.id ?? 0, language, currentCard.video_id),
+        (cached) => cached?.filter((card) => (card.dictionary_form || card.target_word) !== word),
+      );
+    }
+    queryClient.invalidateQueries({ queryKey: dashboardKey });
+
     try {
       await fetch(`${API_BASE_URL}/fsrs/cards/${encodeURIComponent(word)}?language=${language}`, {
         method: 'DELETE',
@@ -605,11 +673,18 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         }),
       });
       if (res.ok) {
-        setDueCards(prev => prev.map(c =>
-          c.target_word === currentCard.target_word
-            ? { ...c, card_type: 'tts', video_id: null, sentence: null, sentence_translation: null }
-            : c
-        ));
+        const toTts = (card: FlashCard) =>
+          card.target_word === currentCard.target_word
+            ? { ...card, card_type: 'tts' as const, video_id: null, sentence: null, sentence_translation: null }
+            : card;
+        setCards((prev) => prev.map(toTts));
+        setDueCards((prev) => prev.map(toTts));
+        if (currentCard.video_id) {
+          queryClient.setQueryData<FlashCard[]>(
+            queryKeys.flashcardDeck(user?.id ?? 0, language, currentCard.video_id),
+            (cached) => cached?.map(toTts),
+          );
+        }
       }
     } catch (error) {
       console.error('Failed to revert card to TTS:', error);
@@ -657,6 +732,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         };
         setCards(prev => prev.map(updateCardDefinition));
         setDueCards(prev => prev.map(updateCardDefinition));
+        if (currentCard.video_id) {
+          queryClient.setQueryData<FlashCard[]>(
+            queryKeys.flashcardDeck(user?.id ?? 0, language, currentCard.video_id),
+            (cached) => cached?.map(updateCardDefinition),
+          );
+        }
       }
     } catch (error) {
       console.error('Failed to save definition:', error);
@@ -692,6 +773,18 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
         const newVideos = videos.filter(v => v.video_id !== video.video_id);
         setVideos(newVideos);
+        queryClient.removeQueries({ queryKey: queryKeys.flashcardDeck(user?.id ?? 0, language, video.video_id) });
+        queryClient.setQueryData<FlashcardsDashboard>(dashboardKey, (cached) => {
+          if (!cached) return cached;
+          const { [video.video_id]: _wordCount, ...nextWordCounts } = cached.wordCounts;
+          const { [video.video_id]: _dueCount, ...nextDueCounts } = cached.dueCounts;
+          return {
+            ...cached,
+            videos: cached.videos.filter((item) => item.video_id !== video.video_id),
+            wordCounts: nextWordCounts,
+            dueCounts: nextDueCounts,
+          };
+        });
 
         if (selectedVideoId === video.video_id) {
           setSelectedVideoId('all');
@@ -714,16 +807,22 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     setSelectedVideoId('');
     resetSession();
 
+    const cached = queryClient.getQueryData<FlashcardsDashboard>(dashboardKey);
+    if (cached) {
+      applyDashboard(cached);
+      setLoadState('deck-select');
+      // Refresh silently after the dashboard is visible, so returning from a
+      // session never swaps the review card for a loading screen.
+      void queryClient.fetchQuery({ queryKey: dashboardKey, queryFn: fetchDashboard, staleTime: 0 })
+        .then(applyDashboard)
+        .catch(() => {});
+      return;
+    }
+
     try {
       setLoadState('loading');
-      setLoadingMsg('Loading decks...');
-      const res = await fetch(`${API_BASE_URL}/videos/history/filtered?lang=${language}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const vids: TrackedVideo[] = data.videos || [];
-      setVideos(vids);
+      const dashboard = await queryClient.fetchQuery({ queryKey: dashboardKey, queryFn: fetchDashboard });
+      applyDashboard(dashboard);
       setLoadState('deck-select');
     } catch {
       setLoadState('error');
