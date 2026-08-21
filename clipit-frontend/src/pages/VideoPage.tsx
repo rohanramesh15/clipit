@@ -57,6 +57,8 @@ export function VideoPage() {
   const history = useQuery({
     ...historyQueryOptions(user?.id ?? 0, token ?? '', language),
     enabled: Boolean(user && token),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
   const videos = useMemo(
     () => (history.data || []).map((video) => mapVideo(video, language)),
@@ -103,19 +105,11 @@ export function VideoPage() {
 
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <header className="flex items-start justify-between gap-4 pb-6">
+      <header className="pb-6">
         <div>
           <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Watch history</h1>
           <p className="mt-1 text-body text-secondary">{languageName} videos the ClipIt extension tracked for you.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void history.refetch()}
-          className="mt-1 flex shrink-0 items-center gap-2 rounded-xl border border-subtle px-4 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-        >
-          <RefreshCw className="h-4 w-4" aria-hidden="true" />
-          Refresh
-        </button>
       </header>
 
       <SegmentedFilter options={options} value={filter} onChange={setFilter} label="Filter history by platform" />
