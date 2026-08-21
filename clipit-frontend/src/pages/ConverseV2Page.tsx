@@ -15,6 +15,9 @@ import {
   type TrackedVideo, type FlashCard,
 } from '../services/madlibs';
 import { VoiceSession, VoiceEvent } from '../lib/voiceSession';
+import { getDueCards } from '../services/fsrs';
+import { getDeletedCards } from '../utils/flashcardStorage';
+import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
@@ -296,6 +299,35 @@ export function ConverseV2Page(
     fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
     return () => { alive = false; };
   }, [language, token]);
+
+  // Per-video due-word counts for the deck-picker badges, matching flashcards'
+  // own DeckBrowser: a cheap vocabulary fetch cross-referenced against the
+  // local FSRS review state (deliberately the same approximation flashcards
+  // uses — this page has no per-video backend due-check of its own).
+  const [deckDueCounts, setDeckDueCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!videos || !videos.length) return;
+    let alive = true;
+    Promise.all(
+      videos.map(async (v) => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/vocabulary/${v.video_id}?limit=20&lang=${language}`);
+          if (!res.ok) return [v.video_id, 0] as const;
+          const data = await res.json();
+          const words: string[] = (data.vocabulary || []).map((w: { word: string }) => w.word);
+          const deleted = getDeletedCards(language);
+          const remaining = words.filter((w) => !deleted.has(w));
+          return [v.video_id, getDueCards(remaining).length] as const;
+        } catch {
+          return [v.video_id, 0] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (!alive) return;
+      setDeckDueCounts(Object.fromEntries(entries));
+    });
+    return () => { alive = false; };
+  }, [videos, language]);
 
   // ── auto-scroll transcript ──────────────────────────────────────────────────
   useEffect(() => {
@@ -817,6 +849,11 @@ export function ConverseV2Page(
                         <span className="block truncate text-body font-medium text-primary">{v.title}</span>
                         <span className="mt-0.5 block text-meta text-muted">{isNetflix ? 'Netflix' : 'YouTube'}</span>
                       </span>
+                      {(deckDueCounts[v.video_id] ?? 0) > 0 && (
+                        <span className="hidden shrink-0 rounded-md bg-sage-soft px-2 py-1 text-meta font-medium text-sage-ink sm:block">
+                          {deckDueCounts[v.video_id]} due
+                        </span>
+                      )}
                       <span className="shrink-0 rounded-md bg-sage-soft px-3 py-1.5 text-body-sm font-semibold text-sage-ink transition-colors group-hover:bg-sage-ink group-hover:text-[#ffffff]">
                         Start
                       </span>
