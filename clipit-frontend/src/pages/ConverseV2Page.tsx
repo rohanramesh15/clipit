@@ -219,8 +219,8 @@ export function ConverseV2Page(
   const [profile, setProfile] = useState<Profile | null>(null);
 
   // deck picker
-  const [videos, setVideos] = useState<TrackedVideo[] | null>([{ video_id: 'dQw4w9WgXcQ', title: 'Video 1', tracked_at: 0 }] as TrackedVideo[]);
-  const [recentSession, setRecentSession] = useState<RecentSession | null>({ session_id: 1, seed_type: 'video', seed_label: '[K-Drama] Single Wife ep.1 (eng sub)', seed_video_id: 'dQw4w9WgXcQ', started_at: '', turn_count: 1, last_line: '' } as RecentSession);
+  const [videos, setVideos] = useState<TrackedVideo[] | null>(null);
+  const [recentSession, setRecentSession] = useState<RecentSession | null>(null);
   const [resuming, setResuming] = useState(false);
   const [deckQuery, setDeckQuery] = useState('');
   const [mixedSources, setMixedSources] = useState<MixedSourceVideo[]>([]);
@@ -319,8 +319,10 @@ export function ConverseV2Page(
   }, []);
 
   useEffect(() => {
-    // TEMP PREVIEW DISABLED
-    return;
+    let alive = true;
+    setVideos(null);
+    fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
+    return () => { alive = false; };
   }, [language, token]);
 
   // Most recent session, for the Resume card — only sessions created after
@@ -328,13 +330,25 @@ export function ConverseV2Page(
   // Re-fetches every time the dashboard is shown (not just on mount), so a
   // session you just left shows up in the Resume card without a page reload.
   useEffect(() => {
-    // TEMP PREVIEW DISABLED
-    return;
+    if (phase !== 'deck') return;
+    if (!token) { setRecentSession(null); return; }
+    let alive = true;
+    getRecentSession(token)
+      .then((r) => { if (alive) setRecentSession(r.session); })
+      .catch(() => { if (alive) setRecentSession(null); });
+    return () => { alive = false; };
   }, [phase, token]);
 
   useEffect(() => {
-    // TEMP PREVIEW DISABLED
-    return;
+    if (phase !== 'deck' || !token) {
+      setMixedSources([]);
+      return;
+    }
+    let alive = true;
+    getMixedSources(language, token)
+      .then((result) => { if (alive) setMixedSources(result.videos); })
+      .catch(() => { if (alive) setMixedSources([]); });
+    return () => { alive = false; };
   }, [language, phase, token]);
 
   // Per-video word lists provide the same word-count and due-count metadata as
