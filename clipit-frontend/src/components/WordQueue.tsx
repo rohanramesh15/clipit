@@ -38,24 +38,14 @@ interface WordQueueProps {
   words: QueuedWord[];
   languageName: string;
   sourceVideoCount?: number;
-  preparingVideoCount?: number;
-  unavailableVideoCount?: number;
-  resyncableVideoCount?: number;
-  isResyncing?: boolean;
   onRefresh?: () => void;
-  onResync?: () => void;
 }
 
 export function WordQueue({
   words,
   languageName,
   sourceVideoCount = 0,
-  preparingVideoCount = 0,
-  unavailableVideoCount = 0,
-  resyncableVideoCount = 0,
-  isResyncing = false,
   onRefresh,
-  onResync,
 }: WordQueueProps) {
   const [filter, setFilter] = useState<'all' | WordStatus>('all');
   const [page, setPage] = useState(0);
@@ -112,42 +102,15 @@ export function WordQueue({
         )}
       </div>
 
-      {unavailableVideoCount > 0 && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-dashed border-medium px-5 py-4">
-          <p className="text-body-sm text-secondary">
-            {resyncableVideoCount > 0
-              ? `${resyncableVideoCount} watched ${resyncableVideoCount === 1 ? 'video needs' : 'videos need'} their captions resynced.`
-              : 'Some watched videos still need their captions captured while they are open.'}
-          </p>
-          {resyncableVideoCount > 0 && onResync && (
-            <button
-              type="button"
-              onClick={onResync}
-              disabled={isResyncing}
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-semibold text-accent transition-colors duration-150 ease-swift hover:bg-surface-hover disabled:cursor-wait disabled:opacity-60"
-            >
-              <RefreshCw className={`h-4 w-4 ${isResyncing ? 'animate-spin' : ''}`} aria-hidden="true" />
-              {isResyncing ? 'Resyncing captions…' : 'Resync captions'}
-            </button>
-          )}
-        </div>
-      )}
-
       {isEmpty ? (
         <div className="mt-6 rounded-2xl border border-dashed border-medium px-6 py-10 text-center">
           {sourceVideoCount > 0 ? (
             <>
               <p className="text-body text-secondary">
-                {unavailableVideoCount > 0 ? 'We need captions from some watched videos.' : 'No practice words found yet.'}
+                No words available yet.
               </p>
               <p className="mt-1 text-body-sm text-muted">
-                {preparingVideoCount > 0
-                  ? 'The extension is still sending captions. Check again shortly.'
-                  : unavailableVideoCount > 0
-                    ? resyncableVideoCount > 0
-                      ? 'Use Resync captions to recover YouTube captions without reopening each video.'
-                      : 'Open those videos with the ClipIt extension running to capture their captions, then check again.'
-                    : 'We could not find practice words in these videos yet.'}
+                Keep watching with the extension active, then check again.
               </p>
               {onRefresh && (
                 <button

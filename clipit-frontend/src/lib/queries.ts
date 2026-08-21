@@ -28,15 +28,6 @@ export interface VideoVocabulary {
 export interface HomeQueue {
   words: QueuedWord[];
   sourceVideoCount: number;
-  preparingVideoCount: number;
-  unavailableVideoCount: number;
-  missingCaptionVideos: MissingCaptionVideo[];
-}
-
-export interface MissingCaptionVideo {
-  video_id: string;
-  title: string;
-  platform: 'youtube' | 'netflix';
 }
 
 export interface VocabularySettings {
@@ -104,7 +95,7 @@ export const queryKeys = {
   history: (userId: number, language: string) => ['history', userId, language] as const,
   // Versioned when Home's response contract changes so an old, long-lived
   // queue cannot hide newly available watched-video vocabulary.
-  homeQueue: (userId: number, language: string) => ['home-queue-v7', userId, language] as const,
+  homeQueue: (userId: number, language: string) => ['home-queue-v8', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
@@ -206,9 +197,6 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
       const queue = await readJson<{
         cards?: FlashCard[];
         source_video_count?: number;
-        preparing_video_count?: number;
-        unavailable_video_count?: number;
-        missing_caption_videos?: MissingCaptionVideo[];
       }>(
         `${API_BASE_URL}/videos/home/queue?lang=${language}`,
         token,
@@ -237,9 +225,6 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
       return {
         words,
         sourceVideoCount: queue.source_video_count ?? 0,
-        preparingVideoCount: queue.preparing_video_count ?? 0,
-        unavailableVideoCount: queue.unavailable_video_count ?? 0,
-        missingCaptionVideos: Array.isArray(queue.missing_caption_videos) ? queue.missing_caption_videos : [],
       };
     },
   };
