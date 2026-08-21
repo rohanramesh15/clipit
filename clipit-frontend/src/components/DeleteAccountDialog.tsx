@@ -61,7 +61,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
           Delete your account?
         </h2>
         <p id="delete-account-description" className="mt-2 text-body text-secondary">
-          This <span className="font-semibold text-primary">cannot be undone</span>. Everything tied to your account is
+          <span className="whitespace-nowrap">This <span className="font-semibold text-primary">can't be undone</span>.</span> Everything tied to your account is
           erased permanently, including:
         </p>
         <ul className="mt-3 space-y-1.5 text-body-sm text-secondary">

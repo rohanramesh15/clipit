@@ -123,11 +123,11 @@ export function VoiceSelector({ voices, selectedId, onSelect, getSampleUrl }: Vo
           );
         })}
       </div>
-      <p className="mt-3 text-meta text-muted" role={errorId ? 'alert' : undefined}>
-        {errorId
-          ? 'Sample playback failed. Check your connection and tap the voice again to retry.'
-          : 'Tap a voice to hear a short sample.'}
-      </p>
+      {errorId && (
+        <p className="mt-3 text-meta text-muted" role="alert">
+          Sample playback failed. Check your connection and tap the voice again to retry.
+        </p>
+      )}
     </div>
   );
 }

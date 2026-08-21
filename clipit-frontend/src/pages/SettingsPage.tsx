@@ -167,7 +167,7 @@ export function SettingsPage() {
         <div className="mt-2 w-full border-t border-subtle">
           <SettingRow
             label="Daily goal"
-            description={`How much time can you give it each day? This sets your card target — about ${cardTarget} cards a day.`}
+            description={`How much time would you like to learn each day? This sets a daily target of about ${cardTarget} cards.`}
           >
             <div role="group" aria-label="Daily goal" className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface p-1">
               {DAILY_GOAL_OPTIONS.map((option) => {
@@ -238,7 +238,7 @@ export function SettingsPage() {
           <div className="mt-2 w-full border-t border-subtle">
             <SettingRow
               label="AI voice"
-              description="Tap a voice to hear a short sample."
+              description="Tap a voice to hear a short sample. Your selected voice becomes your default voice. No need to save."
               layout="stacked"
             >
               <VoiceSelector
