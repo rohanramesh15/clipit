@@ -7,9 +7,9 @@ import {
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
-  getRecentSession, resumeSession,
+  getRecentSession, getMixedSources, resumeSession,
   type Profile, type DueWord, type Correction, type SuggestedReply,
-  type RecentSession,
+  type RecentSession, type MixedSourceVideo,
 } from '../services/converseV2';
 import { Sparkles, RotateCcw, MessageSquarePlus } from 'lucide-react';
 import {
@@ -223,6 +223,7 @@ export function ConverseV2Page(
   const [recentSession, setRecentSession] = useState<RecentSession | null>(null);
   const [resuming, setResuming] = useState(false);
   const [deckQuery, setDeckQuery] = useState('');
+  const [mixedSources, setMixedSources] = useState<MixedSourceVideo[]>([]);
   const [deckSort, setDeckSort] = useState<DeckSort>('due');
   const [isDeckSortOpen, setIsDeckSortOpen] = useState(false);
   const [visibleDecks, setVisibleDecks] = useState(DECK_PAGE_SIZE);
@@ -333,6 +334,18 @@ export function ConverseV2Page(
       .catch(() => { if (alive) setRecentSession(null); });
     return () => { alive = false; };
   }, [phase, token]);
+
+  useEffect(() => {
+    if (phase !== 'deck' || !token) {
+      setMixedSources([]);
+      return;
+    }
+    let alive = true;
+    getMixedSources(language, token)
+      .then((result) => { if (alive) setMixedSources(result.videos); })
+      .catch(() => { if (alive) setMixedSources([]); });
+    return () => { alive = false; };
+  }, [language, phase, token]);
 
   // Per-video word lists provide the same word-count and due-count metadata as
   // Flashcards' deck browser. Due state is the same local-FSRS approximation
@@ -936,16 +949,43 @@ export function ConverseV2Page(
               <section aria-labelledby="mixed-title" className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
                 <div>
                   <h2 id="mixed-title" className="font-heading text-lead text-sage-deep">Start a mixed chat</h2>
-                  <p className="text-body-sm text-sage-ink">Practice words pulled from across your videos.</p>
+                  <p className="text-body-sm text-sage-ink">
+                    {mixedSources.length > 0
+                      ? `Practice words pulled from ${mixedSources.length} ${mixedSources.length === 1 ? 'video' : 'videos'}.`
+                      : 'Practice words pulled from across your videos.'}
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={startMixedSession}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-sage-deep transition-colors hover:bg-surface-hover"
-                >
-                  <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
-                  Start chat
-                </button>
+                <div className="flex flex-wrap items-center gap-5">
+                  {mixedSources.length > 0 && (
+                    <ul className="flex items-center -space-x-3" aria-label={`Words will be drawn from ${mixedSources.map((video) => video.title).join(', ')}`}>
+                      {mixedSources.map((video) => {
+                        const isNetflix = video.video_id.startsWith('netflix_');
+                        return (
+                          <li key={video.video_id} title={video.title}>
+                            {isNetflix ? (
+                              <span className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-sage-soft bg-[#B20710]/10 text-meta font-bold text-[#B20710]">N</span>
+                            ) : (
+                              <img
+                                src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
+                                alt={video.title}
+                                className="h-11 w-[4.25rem] rounded-lg border-2 border-sage-soft object-cover"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    onClick={startMixedSession}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-sage-deep transition-colors hover:bg-surface-hover"
+                  >
+                    <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
+                    Start chat
+                  </button>
+                </div>
               </section>
             </section>
 

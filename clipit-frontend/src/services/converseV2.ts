@@ -23,6 +23,13 @@ export interface Profile {
 export interface DueWord {
   lemma: string;
   gloss: string;
+  source_video_id?: string;
+  source_video_title?: string;
+}
+
+export interface MixedSourceVideo {
+  video_id: string;
+  title: string;
 }
 
 export interface MockVideo {
@@ -56,6 +63,7 @@ export interface CreateSessionResult {
   session_id: number;
   level: Level;
   due_words: DueWord[];
+  source_videos: MixedSourceVideo[];
   opening: { turn_id: number; reply: string; reply_translation: string };
 }
 
@@ -110,6 +118,12 @@ export interface RecentSession {
 
 export const getRecentSession = (token: string) =>
   getJson<{ session: RecentSession | null }>('/sessions/recent', token);
+
+export const getMixedSources = (language: string, token: string) =>
+  getJson<{ word_count: number; max_words: number; videos: MixedSourceVideo[] }>(
+    `/mixed-sources?language=${encodeURIComponent(language)}`,
+    token,
+  );
 
 export interface ResumeTurn {
   turn_id: number;
