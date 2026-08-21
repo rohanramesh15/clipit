@@ -24,10 +24,10 @@ import { SpeechInput } from '../components/ai-elements/speech-input';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 
-// App accent (matches --accent in index.css).
-const ACCENT = '#C4625A';
-// Voice Chat card color — used for non-button accents so the page echoes its card.
-const PAGE = '#D98A6E';
+// AI chat's brand accent — matches the sage tokens the "AI chat" tile uses on
+// the home screen (see tailwind.config.js `sage`), not the app's generic coral.
+const ACCENT = '#4a7043'; // sage-ink
+const PAGE = '#2e4a2a'; // sage-deep — used for non-button accents so the page echoes its card.
 const hexA = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
