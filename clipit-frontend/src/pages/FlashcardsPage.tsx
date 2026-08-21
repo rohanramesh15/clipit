@@ -810,7 +810,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 dueCounts={dueCounts}
                 isLoadingDue={isLoadingDue}
                 onStartAll={() => loadAllVideos(videos)}
-                onStartVideo={loadFlashcards}
               />
             </div>
 

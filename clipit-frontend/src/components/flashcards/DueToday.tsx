@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, PlayIcon } from 'lucide-react';
+import { PlayIcon } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { Skeleton } from '../Skeleton';
 
@@ -10,7 +10,6 @@ interface DueTodayProps {
   /** True while due counts are still being computed in the background. */
   isLoadingDue: boolean;
   onStartAll: () => void;
-  onStartVideo: (videoId: string, title: string) => void;
 }
 
 function thumbnailFor(video: TrackedVideo): string | null {
@@ -18,19 +17,24 @@ function thumbnailFor(video: TrackedVideo): string | null {
   return `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`;
 }
 
-export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll, onStartVideo }: DueTodayProps) {
+export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTodayProps) {
   if (isLoadingDue) {
     return (
-      <section className="grid gap-10 rounded-2xl bg-blush px-8 py-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-3 w-20 rounded" />
-          <Skeleton className="h-14 w-48 rounded" />
-          <Skeleton className="h-11 w-36 rounded-xl" />
+      <section className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-blush px-7 py-5">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-9 w-12 rounded" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-4 w-28 rounded" />
+            <Skeleton className="h-3 w-40 rounded" />
+          </div>
         </div>
-        <div className="space-y-2 rounded-xl bg-app/60 p-2">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-lg" />
-          ))}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center -space-x-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-11 w-[4.25rem] rounded-lg border-2 border-blush" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-32 rounded-xl" />
         </div>
       </section>
     );
@@ -44,90 +48,76 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll, onStartV
   if (totalDue === 0) {
     return (
       <section
-        className="flex flex-col items-start gap-3 rounded-2xl bg-blush px-8 py-10"
+        className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-blush px-7 py-5"
         aria-labelledby="due-heading"
       >
-        <p className="text-meta font-semibold uppercase tracking-[0.08em] text-secondary">Due today</p>
-        <h2 id="due-heading" className="font-heading text-section text-primary">
-          Nothing to review
+        <h2 id="due-heading" className="font-heading text-lead text-primary">
+          Nothing due today
         </h2>
-        <p className="max-w-sm text-body text-secondary">
-          Your next words come back soon. Watch something and the words you pick will land here.
-        </p>
+        <p className="text-body-sm text-secondary">Your next words come back soon.</p>
       </section>
     );
   }
 
-  const topVideos = withDue.slice(0, 3);
-  const hiddenVideos = withDue.length - topVideos.length;
+  const preview = withDue.slice(0, 5);
+  const hidden = withDue.length - preview.length;
 
   return (
     <section
-      className="grid gap-10 rounded-2xl bg-blush px-8 py-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center"
+      className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-blush px-7 py-5"
       aria-labelledby="due-heading"
     >
-      <div>
-        <p className="text-meta font-semibold uppercase tracking-[0.08em] text-secondary">Due today</p>
-        <h2 id="due-heading" className="mt-4 flex items-baseline gap-3 font-heading text-[3.5rem] leading-none text-primary">
+      <div className="flex items-center gap-4">
+        <h2 id="due-heading" className="font-heading text-[2rem] leading-none text-primary">
           {totalDue}
-          <span className="font-sans text-body font-normal text-secondary">
-            {totalDue === 1 ? 'word' : 'words'} across {withDue.length} {withDue.length === 1 ? 'video' : 'videos'}
-          </span>
         </h2>
+        <div>
+          <p className="text-body-sm font-semibold text-primary">
+            {totalDue === 1 ? 'word' : 'words'} due today
+          </p>
+          <p className="text-meta text-secondary">
+            across {withDue.length} {withDue.length === 1 ? 'video' : 'videos'}, mixed in scheduled order
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6">
+        <ul className="flex items-center -space-x-4" aria-hidden="true">
+          {preview.map((video) => {
+            const thumb = thumbnailFor(video);
+            return (
+              <li key={video.video_id}>
+                {thumb ? (
+                  <img
+                    src={thumb}
+                    alt=""
+                    className="h-11 w-[4.25rem] rounded-lg border-2 border-blush object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-blush bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
+                    N
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {hidden > 0 && (
+            <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-blush bg-surface-hover text-meta font-semibold text-primary">
+              +{hidden}
+            </li>
+          )}
+        </ul>
+
         <button
           onClick={onStartAll}
-          className="mt-7 inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-body font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
         >
           <PlayIcon className="h-4 w-4" aria-hidden="true" />
           Start review
         </button>
-        <p className="mt-3 text-meta text-secondary">Mixed across every video, in scheduled order</p>
-      </div>
-
-      <div className="rounded-xl bg-app/60 p-2">
-        <ul>
-          {topVideos.map((video) => {
-            const thumb = thumbnailFor(video);
-            return (
-              <li key={video.video_id}>
-                <button
-                  onClick={() => onStartVideo(video.video_id, video.title)}
-                  className="group flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors duration-150 ease-swift hover:bg-app"
-                >
-                  {thumb ? (
-                    <img
-                      src={thumb}
-                      alt=""
-                      className="h-10 w-16 shrink-0 rounded-md object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="flex h-10 w-16 shrink-0 items-center justify-center rounded-md bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
-                      N
-                    </div>
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body-sm font-medium text-primary">{video.title}</span>
-                    <span className="mt-0.5 block text-meta text-secondary">
-                      {dueCounts[video.video_id] ?? 0} due
-                    </span>
-                  </span>
-                  <ChevronRight
-                    className="h-4 w-4 shrink-0 text-secondary transition-transform duration-150 ease-swift group-hover:translate-x-0.5"
-                    aria-hidden="true"
-                  />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {hiddenVideos > 0 && (
-          <p className="px-2 pb-1 pt-2 text-meta text-secondary">
-            +{hiddenVideos} more {hiddenVideos === 1 ? 'video' : 'videos'} with words due
-          </p>
-        )}
       </div>
     </section>
   );
