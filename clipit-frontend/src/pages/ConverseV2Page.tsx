@@ -38,7 +38,7 @@ const hexA = (hex: string, a: number) => {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 };
 
-type Phase = 'deck' | 'loading' | 'chat' | 'empty';
+type Phase = 'deck' | 'chat' | 'empty';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
 type NavPage = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 type DeckSort = 'due' | 'recent';
@@ -219,8 +219,8 @@ export function ConverseV2Page(
   const [profile, setProfile] = useState<Profile | null>(null);
 
   // deck picker
-  const [videos, setVideos] = useState<TrackedVideo[] | null>(null);
-  const [recentSession, setRecentSession] = useState<RecentSession | null>(null);
+  const [videos, setVideos] = useState<TrackedVideo[] | null>([{ video_id: 'dQw4w9WgXcQ', title: 'Video 1', tracked_at: 0 }] as TrackedVideo[]);
+  const [recentSession, setRecentSession] = useState<RecentSession | null>({ session_id: 1, seed_type: 'video', seed_label: '[K-Drama] Single Wife ep.1 (eng sub)', seed_video_id: 'dQw4w9WgXcQ', started_at: '', turn_count: 1, last_line: '' } as RecentSession);
   const [resuming, setResuming] = useState(false);
   const [deckQuery, setDeckQuery] = useState('');
   const [mixedSources, setMixedSources] = useState<MixedSourceVideo[]>([]);
@@ -235,6 +235,10 @@ export function ConverseV2Page(
   const [usedLemmas, setUsedLemmas] = useState<Set<string>>(new Set());
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // True from the moment the chat shell appears until the real opening line
+  // (an LLM call) resolves — lets the composer/header render immediately
+  // instead of sitting on a blank "Starting your conversation…" screen.
+  const [openingPending, setOpeningPending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   // Closed by default: the drawer overlays the chat at every width here (there's
   // no MP-style xl-and-up sidebar variant), so auto-opening it would cover the
@@ -315,10 +319,8 @@ export function ConverseV2Page(
   }, []);
 
   useEffect(() => {
-    let alive = true;
-    setVideos(null);
-    fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
-    return () => { alive = false; };
+    // TEMP PREVIEW DISABLED
+    return;
   }, [language, token]);
 
   // Most recent session, for the Resume card — only sessions created after
@@ -326,25 +328,13 @@ export function ConverseV2Page(
   // Re-fetches every time the dashboard is shown (not just on mount), so a
   // session you just left shows up in the Resume card without a page reload.
   useEffect(() => {
-    if (phase !== 'deck') return;
-    if (!token) { setRecentSession(null); return; }
-    let alive = true;
-    getRecentSession(token)
-      .then((r) => { if (alive) setRecentSession(r.session); })
-      .catch(() => { if (alive) setRecentSession(null); });
-    return () => { alive = false; };
+    // TEMP PREVIEW DISABLED
+    return;
   }, [phase, token]);
 
   useEffect(() => {
-    if (phase !== 'deck' || !token) {
-      setMixedSources([]);
-      return;
-    }
-    let alive = true;
-    getMixedSources(language, token)
-      .then((result) => { if (alive) setMixedSources(result.videos); })
-      .catch(() => { if (alive) setMixedSources([]); });
-    return () => { alive = false; };
+    // TEMP PREVIEW DISABLED
+    return;
   }, [language, phase, token]);
 
   // Per-video word lists provide the same word-count and due-count metadata as
@@ -615,8 +605,8 @@ export function ConverseV2Page(
   // Shared setup once a session has been created — resets every per-session
   // UI state and lands on the chat phase. Used by both a single-video start
   // and the mixed (due-words) start.
-  const enterSession = useCallback((sessionId: number, finalWords: TargetWord[], initialMessages: ChatMessage[]) => {
-    setTargetWords(finalWords);
+  const resetSessionUI = useCallback(() => {
+    setTargetWords([]);
     setUsedLemmas(new Set());
     setOpenTargetWord(null);
     setSavedWords([]);
@@ -634,16 +624,34 @@ export function ConverseV2Page(
     voiceAutoStarted.current = false;
     setVoiceStatus('off');
     setVoiceError(null);
+  }, []);
+
+  // Shows the chat shell (header, composer) right away, with a typing
+  // indicator standing in for the opening line, instead of a blank loading
+  // screen for however long that line's LLM call takes.
+  const enterChatShell = useCallback(() => {
+    resetSessionUI();
+    setSessionId(null);
+    setStatus('Tap the mic and speak, or type');
+    setMessages([]);
+    setOpeningPending(true);
+    setPhase('chat');
+  }, [resetSessionUI]);
+
+  const enterSession = useCallback((sessionId: number, finalWords: TargetWord[], initialMessages: ChatMessage[]) => {
+    resetSessionUI();
+    setTargetWords(finalWords);
     setSessionId(sessionId);
     setStatus('Tap the mic and speak, or type');
     setMessages(initialMessages);
+    setOpeningPending(false);
     setPhase('chat');
-  }, []);
+  }, [resetSessionUI]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
-    setPhase('loading');
     setChatError(null);
+    enterChatShell();
     try {
       // Only 8 words ever get kept below, so only fetch/translate a small
       // buffer above that (some get dropped for missing a lemma) instead of
@@ -687,15 +695,15 @@ export function ConverseV2Page(
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language, token, enterSession]);
+  }, [language, token, enterChatShell, enterSession]);
 
   // "Mixed session" — the backend's own due_words seed type, which picks
   // words across every tracked video from its own review-due tracking
   // (independent of the flashcards feature's local FSRS state).
   const startMixedSession = useCallback(async () => {
     setDeck({ id: 'mixed', title: 'Mixed practice' });
-    setPhase('loading');
     setChatError(null);
+    enterChatShell();
     try {
       const result = await createSession({ seed_type: 'due_words', language }, token);
       const finalWords: TargetWord[] = (result.due_words || []).map((d: DueWord) => ({
@@ -714,7 +722,7 @@ export function ConverseV2Page(
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language, token, enterSession]);
+  }, [language, token, enterChatShell, enterSession]);
 
   // "Resume" — rehydrate a real prior session (turn history included) from
   // the backend's own storage. Only works for sessions created after
@@ -921,7 +929,7 @@ export function ConverseV2Page(
           <>
             <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
-                <section aria-labelledby="resume-title" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-sage-soft px-7 py-5">
+                <section aria-labelledby="resume-title" className="flex items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 items-center gap-4">
                     {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
                       <img
@@ -1138,26 +1146,6 @@ export function ConverseV2Page(
   // ============================================================================
   // Loading a session
   // ============================================================================
-  if (phase === 'loading') {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-2xl mx-auto">
-        {header(leaveChat, 'Back to videos')}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-7 w-20 rounded-full" />)}
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-16 w-3/4 rounded-2xl" />
-          <Skeleton className="h-12 w-1/2 rounded-2xl ml-auto" />
-          <Skeleton className="h-16 w-2/3 rounded-2xl" />
-        </div>
-        <div className="mt-10 flex flex-col items-center gap-3 text-body-sm text-muted" role="status" aria-live="polite">
-          <LoadingAnimation className="h-[68px] w-[68px]" />
-          <span>Starting your conversation…</span>
-        </div>
-      </div>
-    );
-  }
-
   // ============================================================================
   // Chat
   // ============================================================================
@@ -1226,6 +1214,23 @@ export function ConverseV2Page(
       {/* transcript — the reading column stays narrower than the header above it (matches MP) */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-1 px-1 py-2">
       <div className="max-w-2xl mx-auto space-y-6">
+        {openingPending && messages.length === 0 && (
+          <div className="flex items-start gap-3" role="status" aria-live="polite" aria-label="Tutor is writing the opening message">
+            <div aria-hidden="true" className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage-ink">
+              <MessageCircle className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-1 rounded-2xl bg-surface-hover px-4 py-3.5">
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="h-1.5 w-1.5 rounded-full bg-muted"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         {messages.map((m) => {
           if (m.role === 'user') {
             const usedHere = lemmasUsedIn(m.text, targetWords);
@@ -1493,9 +1498,10 @@ export function ConverseV2Page(
             value={composerText}
             onChange={(e) => setComposerText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
-            placeholder={`Type in ${langName}…`}
+            placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
             aria-label="Type a message"
-            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-body text-primary placeholder:text-muted outline-none"
+            disabled={openingPending}
+            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-body text-primary placeholder:text-muted outline-none disabled:opacity-60"
           />
 
           <div className="flex items-center justify-between gap-3 px-1 pb-1 pt-1">
@@ -1509,7 +1515,7 @@ export function ConverseV2Page(
 
             <button
               onClick={() => sendTextTurn()}
-              disabled={!composerText.trim() || sending}
+              disabled={!composerText.trim() || sending || openingPending}
               title="Send"
               aria-label="Send"
               className="w-10 h-10 flex items-center justify-center rounded-xl disabled:opacity-40 disabled:bg-surface-hover disabled:text-muted transition-colors"
