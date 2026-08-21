@@ -965,8 +965,7 @@ export function ConverseV2Page(
                     type="button"
                     onClick={resumeLastSession}
                     disabled={resuming}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-body-sm font-semibold text-[#ffffff] disabled:opacity-60"
-                    style={{ background: ACCENT }}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-sage-ink px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-sage-deep disabled:opacity-60"
                   >
                     {resuming ? <LoadingAnimation className="h-4 w-4" /> : <Play className="size-4" aria-hidden="true" />}
                     Continue
@@ -1014,9 +1013,9 @@ export function ConverseV2Page(
                 <button
                   type="button"
                   onClick={startMixedSession}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-body-sm font-semibold text-[#4c2323] transition-colors duration-150 ease-swift hover:bg-[#f7f1ea] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
                 >
-                  <Shuffle className="size-4" style={{ color: ACCENT }} aria-hidden="true" />
+                  <Shuffle className="size-4 text-sage-ink" aria-hidden="true" />
                   Start chat
                 </button>
               </section>
@@ -1130,7 +1129,7 @@ export function ConverseV2Page(
                         <button
                           type="button"
                           onClick={() => startFromVideo(video)}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sage-soft px-3.5 py-2 text-body-sm font-semibold text-sage-ink transition-colors duration-150 ease-swift hover:bg-sage-ink hover:text-[#ffffff]"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sage-soft px-3.5 py-2 text-body-sm font-semibold text-sage-ink transition-colors duration-150 ease-swift hover:bg-sage-mid"
                         >
                           <Play className="h-3.5 w-3.5" aria-hidden="true" />
                           Start chat
