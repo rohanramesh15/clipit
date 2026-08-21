@@ -125,7 +125,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   return (
     <div className="mx-auto w-full max-w-page px-5 pb-24 pt-8 sm:px-8">
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] lg:gap-14">
-        <div className="min-w-0 lg:sticky lg:top-[72px] lg:z-40 lg:self-start">
+        <div className="min-w-0 lg:sticky lg:top-24 lg:z-40 lg:self-start">
           <header className="flex flex-wrap items-start justify-between gap-4 bg-app pb-8">
             <div>
               <div className="-ml-2 flex items-center gap-2">
@@ -166,7 +166,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
           </section>
         </div>
 
-        <div className="min-w-0">
+        <div className="min-w-0 lg:pt-2">
           <section aria-labelledby="learning-heading" className="w-full">
             <h2 id="learning-heading" className="font-heading text-card-title text-primary">
               Learning
