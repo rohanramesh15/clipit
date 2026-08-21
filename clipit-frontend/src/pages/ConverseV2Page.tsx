@@ -312,14 +312,17 @@ export function ConverseV2Page(
 
   // Most recent session, for the Resume card — only sessions created after
   // real per-user scoping was added are resumable (see backend user_id).
+  // Re-fetches every time the dashboard is shown (not just on mount), so a
+  // session you just left shows up in the Resume card without a page reload.
   useEffect(() => {
+    if (phase !== 'deck') return;
     if (!token) { setRecentSession(null); return; }
     let alive = true;
     getRecentSession(token)
       .then((r) => { if (alive) setRecentSession(r.session); })
       .catch(() => { if (alive) setRecentSession(null); });
     return () => { alive = false; };
-  }, [token]);
+  }, [phase, token]);
 
   // Per-video word lists (with due state) for the deck-picker badges and the
   // expand-to-preview word chips, matching flashcards' own DeckBrowser: a
