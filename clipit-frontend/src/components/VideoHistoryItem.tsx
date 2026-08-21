@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ExternalLink, Trash2, BookOpen, Play } from 'lucide-react';
+import { useState } from 'react';
+import { ExternalLink, Trash2, Play } from 'lucide-react';
 
 export type Platform = 'youtube' | 'netflix';
 
@@ -67,39 +67,32 @@ interface VideoHistoryItemProps {
 export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
   const episode = episodeLine(video);
   return (
-    <article className="group flex flex-col gap-4 rounded-2xl border border-subtle bg-surface p-4 sm:flex-row">
+    <article className="group flex items-center gap-5 border-b border-subtle py-4">
       <a
         href={watchUrl(video)}
         target="_blank"
         rel="noopener noreferrer"
-        className="relative block w-full shrink-0 overflow-hidden rounded-lg sm:w-52"
+        className="relative block h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-hover"
       >
         <Thumbnail video={video} />
         <span
-          className={`absolute left-2 top-2 rounded-md px-2 py-0.5 text-meta font-semibold text-white ${
+          className={`absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-meta font-semibold text-white ${
             video.platform === 'netflix' ? 'bg-[#b20710]' : 'bg-[#ff0000]'
           }`}
         >
           {PLATFORM_LABEL[video.platform]}
         </span>
-        {video.subtitles && (
-          <span className="absolute right-2 top-2 rounded-md bg-inverse/80 px-2 py-0.5 text-meta font-semibold text-cream">
-            {video.subtitles}
-          </span>
-        )}
         <span className="absolute inset-0 flex items-center justify-center bg-inverse/40 opacity-0 transition-opacity duration-150 ease-swift group-hover:opacity-100">
-          <Play className="h-8 w-8 text-cream" aria-hidden="true" />
+          <Play className="h-4 w-4 text-cream" aria-hidden="true" />
         </span>
       </a>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-2 text-lead font-semibold text-primary">{video.title}</h3>
-            {episode && <p className="mt-1 truncate text-body-sm text-secondary">{episode}</p>}
-          </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-body font-semibold text-primary">{video.title}</h3>
+        {episode ? <p className="mt-0.5 truncate text-body-sm text-muted">{episode}</p> : <p className="mt-0.5 truncate text-body-sm text-muted">{PLATFORM_LABEL[video.platform]} · {video.trackedAt}{video.subtitles ? ' · Subtitles tracked' : ''}</p>}
+      </div>
 
-          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 ease-swift focus-within:opacity-100 group-hover:opacity-100">
+      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 ease-swift focus-within:opacity-100 group-hover:opacity-100">
             <a
               href={watchUrl(video)}
               target="_blank"
@@ -119,25 +112,6 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
               <Trash2 className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">Remove {video.title} from history</span>
             </button>
-          </div>
-        </div>
-
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-4 text-body-sm">
-          <span className="text-muted">{video.trackedAt}</span>
-          {video.subtitles ? (
-            <span className="flex items-center gap-1.5 text-secondary">
-              <BookOpen className="h-4 w-4 text-muted" aria-hidden="true" />
-              Subtitles tracked
-            </span>
-          ) : (
-            <span className="text-muted">No subtitles found</span>
-          )}
-          {video.newWords > 0 && (
-            <span className="rounded-md bg-sand-soft px-2 py-0.5 text-meta font-semibold text-sand-ink">
-              {video.newWords} new words
-            </span>
-          )}
-        </div>
       </div>
     </article>
   );

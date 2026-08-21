@@ -119,7 +119,7 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-page px-5 pb-24 pt-8 sm:px-8">
+    <div className="w-full max-w-3xl px-5 pb-24 pt-8 sm:px-8">
       <header className="flex flex-wrap items-start justify-between gap-4 pb-8">
         <div>
           <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
