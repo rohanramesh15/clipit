@@ -124,45 +124,47 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
   return (
     <div className="mx-auto w-full max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <header className="flex flex-wrap items-start justify-between gap-4 pb-8">
-        <div>
-          <div className="-ml-2 flex items-center gap-2">
-            <NavigationIconButton direction="back" label="Back to Practice" onClick={() => onNavigate('practice')} />
-            <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
-          </div>
-          <p className="mt-1 text-body text-secondary">Changes save as you make them.</p>
-        </div>
-        <div aria-live="polite" className="h-7">
-          <AnimatePresence>
-            {savedAt !== null && (
-              <motion.span
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                className="flex items-center gap-1.5 rounded-lg bg-blush px-3 py-1.5 text-body-sm font-medium text-accent"
-              >
-                <Check className="h-4 w-4" aria-hidden="true" />
-                Saved
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-      </header>
-
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] lg:gap-14">
-        <section aria-labelledby="profile-heading" className="w-full rounded-2xl border border-subtle bg-surface p-5">
-          <h2 id="profile-heading" className="sr-only">
-            Profile
-          </h2>
-          <div className="flex items-center gap-4">
-            <Avatar user={user} size={48} textClassName="text-body font-semibold" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-body font-semibold text-primary">{user?.full_name || user?.email?.split('@')[0] || 'User'}</p>
-              <p className="truncate text-body-sm text-muted">{user?.email ?? ''}</p>
+        <div className="min-w-0">
+          <header className="sticky top-[72px] z-40 flex flex-wrap items-start justify-between gap-4 bg-app pb-8">
+            <div>
+              <div className="-ml-2 flex items-center gap-2">
+                <NavigationIconButton direction="back" label="Back to Practice" onClick={() => onNavigate('practice')} />
+                <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
+              </div>
+              <p className="mt-1 text-body text-secondary">Changes save as you make them.</p>
             </div>
-          </div>
-        </section>
+            <div aria-live="polite" className="h-7">
+              <AnimatePresence>
+                {savedAt !== null && (
+                  <motion.span
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                    className="flex items-center gap-1.5 rounded-lg bg-blush px-3 py-1.5 text-body-sm font-medium text-accent"
+                  >
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                    Saved
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          </header>
+
+          <section aria-labelledby="profile-heading" className="w-full rounded-2xl border border-subtle bg-surface p-5">
+            <h2 id="profile-heading" className="sr-only">
+              Profile
+            </h2>
+            <div className="flex items-center gap-4">
+              <Avatar user={user} size={48} textClassName="text-body font-semibold" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-body font-semibold text-primary">{user?.full_name || user?.email?.split('@')[0] || 'User'}</p>
+                <p className="truncate text-body-sm text-muted">{user?.email ?? ''}</p>
+              </div>
+            </div>
+          </section>
+        </div>
 
         <div className="min-w-0">
           <section aria-labelledby="learning-heading" className="w-full">
