@@ -107,9 +107,9 @@ async function readJson<T>(url: string, token: string, signal: AbortSignal, init
 export const queryKeys = {
   profile: (authUserId: string) => ['profile', authUserId] as const,
   history: (userId: number, language: string) => ['history', userId, language] as const,
-  // Versioned because the cached payload gained readiness metadata. This also
-  // discards empty responses saved before the matching backend was deployed.
-  homeQueue: (userId: number, language: string) => ['home-queue-v3', userId, language] as const,
+  // Versioned when Home's response contract changes so an old, long-lived
+  // queue cannot hide newly available watched-video vocabulary.
+  homeQueue: (userId: number, language: string) => ['home-queue-v4', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
