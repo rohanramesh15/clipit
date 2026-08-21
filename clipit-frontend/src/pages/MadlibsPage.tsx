@@ -8,7 +8,6 @@ import { relativeDay } from '../utils/flashcardStorage';
 import { saveMadlibProgress, clearMadlibProgress, getMostRecentMadlibProgress, type MadlibProgress } from '../utils/madlibsStorage';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
-import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 import { queryClient } from '../lib/queryClient';
 import { type CachedMadlibDeck, historyQueryOptions, queryKeys, videoVocabularyQueryOptions } from '../lib/queries';
@@ -637,12 +636,9 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <div className="-ml-2 flex items-center">{back('deck')}</div>
           <span className="shrink-0 text-body-sm tabular-nums text-muted">{index + 1} / …</span>
         </header>
-        <div className="mx-auto mt-16 flex w-full max-w-2xl flex-col items-center gap-4 text-center" role="status" aria-live="polite">
-          <LoadingAnimation className="h-12 w-12" />
-          <div>
-            <p className="text-body font-semibold text-primary">Preparing your next blank…</p>
-            <p className="mt-1 text-body-sm text-secondary">This card will appear as soon as it&apos;s ready.</p>
-          </div>
+        <div className="mx-auto mt-8 w-full max-w-2xl" role="status" aria-live="polite">
+          <Skeleton className="h-80 w-full rounded-2xl" />
+          <p className="mt-5 text-body-sm text-muted">Preparing your next blank…</p>
         </div>
       </main>
     );

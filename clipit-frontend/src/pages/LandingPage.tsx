@@ -38,7 +38,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         className="fixed inset-x-0 top-0 z-50 bg-app"
       >
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
-          <a href="#top" className="flex items-center" aria-label="ClipIt home">
+          <a href="#top" className="brand-logo flex items-center" aria-label="ClipIt home">
             <Logo size="text-4xl" img="w-12 h-12" stroke="2px" />
           </a>
 

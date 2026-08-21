@@ -70,21 +70,10 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
 
       {wordLoadState === 'loading' && (
         <div className="mt-10" role="status" aria-live="polite" aria-label="Loading your practice queue">
-          <div className="mb-5 flex items-center gap-3 text-body-sm text-muted">
-            <div className="home-loading-boxes" aria-hidden="true">
-              <span className="home-loading-box" />
-              <span className="home-loading-box" />
-              <span className="home-loading-box" />
-            </div>
-            <span>Loading your practice queue…</span>
-          </div>
+          <p className="mb-5 text-body-sm text-muted">Loading your practice queue…</p>
           <div className="grid gap-5 sm:grid-cols-3" aria-hidden="true">
             {[0, 1, 2].map((index) => (
-              <div key={index} className="rounded-2xl bg-surface p-5">
-                <Skeleton className="mb-7 h-10 w-10 rounded-xl" />
-                <Skeleton className="mb-3 h-5 w-28 rounded-md" />
-                <Skeleton className="h-4 w-full rounded-md" />
-              </div>
+              <Skeleton key={index} className="h-44 rounded-2xl" />
             ))}
           </div>
         </div>

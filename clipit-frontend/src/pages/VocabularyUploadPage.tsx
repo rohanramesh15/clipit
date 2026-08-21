@@ -386,13 +386,9 @@ export function VocabularyUploadPage({ onBack }: { onBack?: () => void } = {}) {
         animate={{ opacity: 1 }}
         className="min-h-screen pb-20 max-w-3xl mx-auto px-4 pt-8"
       >
-        <Skeleton className="h-9 w-48 rounded-lg mb-3" />
-        <Skeleton className="h-5 w-72 rounded mb-10" />
-        <div className="space-y-3">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
-          ))}
-        </div>
+        <Skeleton className="h-44 w-full rounded-2xl" />
+        <Skeleton className="mt-8 h-72 w-full rounded-2xl" />
+        <p className="mt-5 text-body-sm text-muted" role="status">Loading your vocabulary…</p>
       </motion.div>
     );
   }

@@ -1,9 +1,8 @@
 import React from 'react';
 
 /**
- * Static placeholder box used to preserve layout while the shared loader plays.
- * Shape it with Tailwind sizing/radius classes (e.g. `h-14 w-full rounded-2xl`)
- * so the skeleton mirrors the real UI box it stands in for.
+ * A single, softly pulsing placeholder for a major page region. Keep callers
+ * coarse: one card, list, chart, or panel rather than simulated text lines.
  */
 export function Skeleton({
   className = '',

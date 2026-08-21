@@ -98,7 +98,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
         <button
           type="button"
           onClick={() => onNavigate('practice')}
-          className="flex shrink-0 items-center"
+          className="brand-logo flex shrink-0 items-center"
         >
           <img src={clipitLogo} alt="" className="-mt-1 h-12 w-12 shrink-0 object-contain" />
           <span

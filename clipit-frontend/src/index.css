@@ -57,6 +57,11 @@
   --card-vc-bg: #f1ecff; --card-vc-text: #544a93; /* voice chat — violet */
   --card-ml-bg: #ecf3ff; --card-ml-text: #3a5a92; /* mad libs — blue */
 }
+html {
+  /* Stop the browser's own rubber-band bounce past the top/bottom of the
+     page — scrolling should hard-stop at the real content edges. */
+  overscroll-behavior-y: none;
+}
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
@@ -64,6 +69,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
   transition: background-color var(--motion-base) var(--motion-ease), color var(--motion-base) var(--motion-ease);
 }
 
@@ -88,79 +94,40 @@ a[href]:active {
   transform: translateY(0) scale(0.98);
 }
 
+/* The wordmark is a navigation link, not an actionable control — keep it
+   visually stable on press instead of shrinking like a button would. */
+button.brand-logo:active,
+a.brand-logo:active {
+  transform: none;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
-/* ── Skeleton loading placeholders ─────────────────────────────────────────
-   A quiet shimmer sweeps across each box so a loading state always reads as
-   "in progress," not stalled. */
+/* ── Page loading placeholders ─────────────────────────────────────────────
+   Loading states describe the page's large structural regions, not every
+   eventual line of text or icon. A single opacity pulse is deliberately quiet
+   and keeps the whole product from feeling like a collection of shimmers. */
 .skeleton {
   /* Pages can tint their loading state by setting --skeleton-tint on a wrapper. */
   background-color: var(--skeleton-tint, rgba(0, 0, 0, 0.12));
   border-radius: 14px;
-  position: relative;
-  overflow: hidden;
+  animation: loading-box-pulse 1.5s ease-in-out infinite alternate;
 }
 
-.skeleton::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
-}
-
-@keyframes skeleton-shimmer {
-  100% {
-    transform: translateX(100%);
+@keyframes loading-box-pulse {
+  from {
+    opacity: 0.48;
+  }
+  to {
+    opacity: 0.86;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton::after {
-    animation: none;
-  }
-}
-
-/* Home only: a quiet three-box loading cue. */
-@keyframes home-loading-box {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: translateY(0);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-3px);
-  }
-}
-
-.home-loading-boxes {
-  display: inline-flex;
-  gap: 3px;
-}
-
-.home-loading-box {
-  width: 6px;
-  height: 6px;
-  border-radius: 1px;
-  background: currentColor;
-  animation: home-loading-box 750ms ease-in-out infinite;
-}
-
-.home-loading-box:nth-child(2) {
-  animation-delay: 100ms;
-}
-
-.home-loading-box:nth-child(3) {
-  animation-delay: 200ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-loading-box {
+  .skeleton {
     animation: none;
   }
 }

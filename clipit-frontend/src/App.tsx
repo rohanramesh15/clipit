@@ -16,7 +16,6 @@ import { ConverseV2Page } from './pages/ConverseV2Page';
 import { PracticePage } from './pages/PracticePage';
 import { MadlibsPage } from './pages/MadlibsPage';
 import { Skeleton } from './components/Skeleton';
-import { LoadingAnimation } from './components/LoadingAnimation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
@@ -72,10 +71,7 @@ function AppLoadingState() {
           ))}
         </div>
 
-        <div className="mt-10 flex items-center gap-3 text-body-sm text-muted">
-          <LoadingAnimation className="h-7 w-7" />
-          <p>Loading your learning space…</p>
-        </div>
+        <p className="mt-10 text-body-sm text-muted">Loading your learning space…</p>
       </main>
     </div>
   );

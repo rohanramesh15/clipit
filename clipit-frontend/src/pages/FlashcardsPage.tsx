@@ -952,16 +952,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     if (selectedVideoId) {
       return (
         <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app">
-          <Skeleton className="h-9 w-full max-w-md rounded-xl mb-6" />
           <Skeleton className="h-[34rem] w-full max-w-[22rem] rounded-2xl" />
+          <p className="mt-5 text-body-sm text-muted" role="status">Loading your flashcards…</p>
         </div>
       );
     }
     return (
       <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app">
-        <Skeleton className="h-9 w-40 rounded-lg mb-8" />
-        <Skeleton className="h-[4.75rem] rounded-2xl mb-8" />
-        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="mt-8 h-72 rounded-2xl" />
+        <p className="mt-5 text-body-sm text-muted" role="status">Loading your flashcards…</p>
       </div>
     );
   }
@@ -1170,10 +1170,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       )}
       {!currentCard && isStreamingCards && (
         <div className="flex w-full min-h-0 flex-1 items-center justify-center" role="status" aria-live="polite">
-          <div className="flex items-center gap-3 text-body-sm text-muted">
-            <Skeleton className="h-5 w-5 rounded-full" />
-            Preparing your next card…
-          </div>
+          <p className="text-body-sm text-muted">Preparing your next card…</p>
         </div>
       )}
 

@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { StreakPanel } from '../components/StreakPanel';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
 import { Skeleton } from '../components/Skeleton';
-import { LoadingAnimation } from '../components/LoadingAnimation';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,34 +12,13 @@ import { reviewsQueryOptions, watchTimeQueryOptions } from '../lib/queries';
 function AnalyticsLoadingState() {
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
-      <header className="pb-8" aria-hidden="true">
-        <Skeleton className="h-9 w-52 rounded-lg" />
-        <Skeleton className="mt-3 h-5 w-80 max-w-full rounded-md" />
-      </header>
-
       <div className="grid gap-6 lg:grid-cols-3" aria-hidden="true">
-        <section className="rounded-2xl bg-surface p-6">
-          <Skeleton className="mb-8 h-5 w-28 rounded-md" />
-          <Skeleton className="h-12 w-24 rounded-lg" />
-          <Skeleton className="mt-8 h-20 w-full rounded-xl" />
-        </section>
-        <section className="lg:col-span-2">
-          <div className="grid h-full grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-0">
-            {[0, 1, 2].map((index) => (
-              <div key={index} className="py-5 sm:px-7 sm:first:pl-0">
-                <Skeleton className="h-5 w-24 rounded-md" />
-                <Skeleton className="mt-3 h-10 w-16 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </section>
+        <Skeleton className="h-52 rounded-2xl" />
+        <Skeleton className="h-52 rounded-2xl lg:col-span-2" />
       </div>
 
       <Skeleton className="mt-6 h-52 w-full rounded-2xl" />
-      <div className="mt-8 flex items-center gap-3 text-body-sm text-muted">
-        <LoadingAnimation className="h-7 w-7" />
-        <p>Loading your progress…</p>
-      </div>
+      <p className="mt-8 text-body-sm text-muted">Loading your progress…</p>
     </div>
   );
 }
