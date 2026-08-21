@@ -109,7 +109,7 @@ export const queryKeys = {
   history: (userId: number, language: string) => ['history', userId, language] as const,
   // Versioned when Home's response contract changes so an old, long-lived
   // queue cannot hide newly available watched-video vocabulary.
-  homeQueue: (userId: number, language: string) => ['home-queue-v4', userId, language] as const,
+  homeQueue: (userId: number, language: string) => ['home-queue-v5', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
