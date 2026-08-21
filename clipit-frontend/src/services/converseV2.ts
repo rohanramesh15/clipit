@@ -185,5 +185,14 @@ export const romanize = async (text: string, language: string = 'ko'): Promise<s
 export const sessionFeedback = (sessionId: number, kind: 'too_easy' | 'too_hard', token?: string | null) =>
   postJson<{ ok: boolean; difficulty_nudge: number }>(`/session/${sessionId}/session-feedback`, { kind }, token);
 
+// Attaches target words to a session after it's already started — used when
+// the opening line was shown before word lookup finished, so the words can
+// be filled in once ready instead of blocking the greeting on them.
+export const setSessionTargetWords = (
+  sessionId: number,
+  words: { lemma: string; gloss: string }[],
+  token?: string | null,
+) => postJson<{ ok: boolean }>(`/session/${sessionId}/target-words`, { words }, token);
+
 export const correctionFeedback = (turnId: number, verdict: 'fine' | 'wrong') =>
   postJson<{ ok: boolean }>('/correction-feedback', { turn_id: turnId, verdict });
