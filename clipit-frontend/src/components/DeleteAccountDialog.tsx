@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 const ERASED_ITEMS = [
   'Vocabulary lists and saved words',
@@ -57,11 +57,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
           <span className="sr-only">Close</span>
         </button>
 
-        <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
-          <Trash2 className="h-5 w-5" />
-        </span>
-
-        <h2 id="delete-account-title" className="mt-4 font-heading text-card-title font-medium text-primary">
+        <h2 id="delete-account-title" className="pr-10 font-heading text-card-title font-medium text-primary">
           Delete your account?
         </h2>
         <p id="delete-account-description" className="mt-2 text-body text-secondary">
@@ -88,7 +84,7 @@ export function DeleteAccountDialog({ isDeleting, error, onCancel, onConfirm }: 
             type="button"
             onClick={onConfirm}
             disabled={isDeleting}
-            className="w-full rounded-xl bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-70"
+            className="w-full rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
           >
             {isDeleting ? 'Deleting…' : 'Delete account permanently'}
           </button>

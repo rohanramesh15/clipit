@@ -238,7 +238,7 @@ export function SettingsPage() {
           <div className="mt-2 w-full border-t border-subtle">
             <SettingRow
               label="AI voice"
-              description="The voice your tutor speaks with in AI chat. Hear one before you commit to it."
+              description="Tap a voice to hear a short sample."
               layout="stacked"
             >
               <VoiceSelector

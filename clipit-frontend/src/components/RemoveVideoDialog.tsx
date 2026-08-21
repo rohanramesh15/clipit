@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { TrackedVideo } from './VideoHistoryItem';
 
 interface RemoveVideoDialogProps {
@@ -50,11 +50,7 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
           <span className="sr-only">Close</span>
         </button>
 
-        <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-blush text-accent" aria-hidden="true">
-          <Trash2 className="h-5 w-5" />
-        </span>
-
-        <h2 id="remove-title" className="mt-4 font-heading text-card-title text-primary">
+        <h2 id="remove-title" className="pr-10 font-heading text-card-title text-primary">
           Remove from history?
         </h2>
         <p className="mt-2 text-body text-secondary">
@@ -67,7 +63,7 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
             type="button"
             onClick={() => onRemove(false)}
             disabled={isRemoving}
-            className="w-full rounded-xl bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-70"
+            className="w-full rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
           >
             {isRemoving ? 'Removing…' : 'Remove video only'}
           </button>

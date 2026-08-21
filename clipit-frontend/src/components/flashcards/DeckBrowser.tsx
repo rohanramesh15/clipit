@@ -276,10 +276,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 <span className="sr-only">Close</span>
               </button>
 
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
-                <Trash2 className="h-5 w-5" />
-              </span>
-              <h3 id="delete-video-title" className="mt-4 font-heading text-card-title font-medium text-primary">
+              <h3 id="delete-video-title" className="pr-10 font-heading text-card-title font-medium text-primary">
                 Delete video and flashcards?
               </h3>
               <p id="delete-video-description" className="mt-2 text-body text-secondary">
@@ -299,17 +296,14 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   type="button"
                   onClick={handleConfirmDeleteVideo}
                   disabled={isDeletingVideo}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-70"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
                 >
                   {isDeletingVideo ? (
                     <>
                       Deleting…
                     </>
                   ) : (
-                    <>
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      Delete
-                    </>
+                    'Delete'
                   )}
                 </button>
               </div>
