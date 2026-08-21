@@ -225,7 +225,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
                   transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                  className="absolute right-0 top-full mt-2 w-64 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
+                  className="absolute right-0 top-full mt-2 w-64 origin-top-right rounded-2xl border border-subtle bg-app p-2 shadow-lg"
                 >
                   <div className="border-b border-subtle px-3 pb-3 pt-2">
                     <div className="min-w-0">
