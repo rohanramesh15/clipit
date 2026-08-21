@@ -211,13 +211,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <h1 className="font-heading text-section font-medium text-primary">Mad libs</h1>
         </div>
 
-        <section className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-dusk-soft px-7 py-5" aria-labelledby="madlibs-intro">
-          <h2 id="madlibs-intro" className="font-heading text-lead text-dusk-deep">Fill in the blanks</h2>
-          <p className="text-body-sm text-dusk-ink">Practice words in the real sentences from videos you watched.</p>
-        </section>
-
         {resumable && (
-          <section className="mt-6 flex flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-labelledby="madlibs-continue">
+          <section className="mt-8 flex flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-labelledby="madlibs-continue">
             <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
             <div className="min-w-0 flex-1">
               <p id="madlibs-continue" className="text-meta font-semibold uppercase tracking-wider text-dusk-ink">Continue</p>
