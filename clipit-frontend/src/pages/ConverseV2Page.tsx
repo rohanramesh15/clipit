@@ -994,7 +994,7 @@ export function ConverseV2Page(
                     type="button"
                     onClick={resumeLastSession}
                     disabled={resuming}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-sage-ink px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-sage-deep disabled:opacity-60"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-60"
                   >
                     {resuming ? <LoadingAnimation className="h-4 w-4" /> : <Play className="size-4" aria-hidden="true" />}
                     Continue
@@ -1044,7 +1044,7 @@ export function ConverseV2Page(
                   onClick={startMixedSession}
                   className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
                 >
-                  <Shuffle className="size-4 text-sage-ink" aria-hidden="true" />
+                  <Shuffle className="size-4 text-accent" aria-hidden="true" />
                   Start chat
                 </button>
               </section>
@@ -1158,7 +1158,7 @@ export function ConverseV2Page(
                         <button
                           type="button"
                           onClick={() => startFromVideo(video)}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sage-soft px-3.5 py-2 text-body-sm font-semibold text-sage-ink transition-colors duration-150 ease-swift hover:bg-sage-mid"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-surface-hover px-3.5 py-2 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-blush"
                         >
                           <Play className="h-3.5 w-3.5" aria-hidden="true" />
                           Start chat
