@@ -8,9 +8,10 @@ import { supabase } from '../lib/supabaseClient';
 
 interface ForgotPasswordPageProps {
   onNavigate: (view: 'landing' | 'login') => void;
+  onBack: () => void;
 }
 
-export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
+export function ForgotPasswordPage({ onNavigate, onBack }: ForgotPasswordPageProps) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +39,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   if (sent) {
     return (
       <AuthLayout
-        onBack={() => onNavigate('login')}
+        onBack={onBack}
         title="Check your email"
         subtitle={`If an account exists for ${email || 'that address'}, a reset link is on its way.`}
         switchPrompt={{ text: 'Remembered it?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}
@@ -62,7 +63,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
   return (
     <AuthLayout
-      onBack={() => onNavigate('login')}
+      onBack={onBack}
       title="Forgot your password?"
       subtitle="Enter the email on your account and we'll send a reset link."
       switchPrompt={{ text: 'Remembered it?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}

@@ -22,7 +22,7 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { queryClient } from './lib/queryClient';
-import { historyQueryOptions, homeQueueQueryOptions, queryKeys, reviewsQueryOptions, watchTimeQueryOptions } from './lib/queries';
+import { historyQueryOptions, homeQueueQueryOptions, queryKeys } from './lib/queries';
 type Page =
 'video' |
 'practice' |
@@ -101,11 +101,26 @@ function AppInner() {
     setActivePage(page);
     window.history.pushState({}, '', PAGE_PATHS[page]);
   };
-  // Privacy is the one AppView (outside the main app) that also gets a real,
-  // reload-safe URL - it's a standalone legal page people link to directly.
+  // Auth views share the landing URL, but still get their own history entries.
+  // That lets both the browser Back button and AuthLayout's back control return
+  // to the exact auth screen a learner came from (for example Sign up → Sign in
+  // → Back returns to Sign up rather than the landing page).
   const navigateToView = (view: AppView) => {
     setAppView(view);
-    if (view === 'privacy') window.history.pushState({}, '', '/privacy');
+    if (view === 'privacy') {
+      window.history.pushState({}, '', '/privacy');
+    } else if (view !== 'app' && view !== 'onboarding' && view !== 'reset-password') {
+      window.history.pushState({ clipitView: view }, '', '/');
+    }
+  };
+
+  const goBackFromAuth = () => {
+    const state = window.history.state as { clipitView?: AppView } | null;
+    if (state?.clipitView && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    setAppView('landing');
   };
 
   // Check URL for reset token and privacy page on mount
@@ -123,11 +138,26 @@ function AppInner() {
     }
   }, []);
 
-  // Browser back/forward: re-derive the page from the URL the user landed on.
+  // Browser back/forward: restore the precise auth view when it is an
+  // in-app history entry, otherwise derive the app page from the URL.
   useEffect(() => {
     const onPopState = () => {
+      const state = window.history.state as { clipitView?: AppView } | null;
+      if (state?.clipitView) {
+        setAppView(state.clipitView);
+        return;
+      }
       const page = pageForPath(window.location.pathname);
-      if (page) setActivePage(page);
+      if (page) {
+        setActivePage(page);
+        setAppView('app');
+        return;
+      }
+      if (window.location.pathname === '/privacy') {
+        setAppView('privacy');
+        return;
+      }
+      setAppView('landing');
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -149,10 +179,23 @@ function AppInner() {
         }
         return v;
       });
+    } else if (token) {
+      // A Supabase session is already confirmed. Render the normal app shell
+      // while /auth/me establishes the local profile and numeric user ID.
+      // This avoids turning a slow backend wake-up into a blank login screen.
+      setAppView((v) => {
+        if (isNewUser) return v;
+        if (v === 'landing' || v === 'login' || v === 'signup') {
+          setActivePage('practice');
+          window.history.replaceState({}, '', PAGE_PATHS.practice);
+          return 'app';
+        }
+        return v;
+      });
     } else {
       setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
-  }, [isLoading, user, isNewUser]);
+  }, [isLoading, isNewUser, token, user]);
   // The app is light-only now — force the class/localStorage the same way
   // the landing page already does, so nothing can leave a stale 'dark' value
   // (e.g. from before this changed) lingering for the next visit.
@@ -169,17 +212,12 @@ function AppInner() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activePage, appView]);
 
-  // Populate the shared cache after sign-in. ensureQueryData only calls the
-  // backend when a cache entry does not exist, including after an IndexedDB
-  // restore, so returning users do not re-fetch this data on every visit.
+  // Populate only Home's first-visible data after sign-in. Progress data is
+  // intentionally fetched when its tab is opened instead of competing with
+  // the initial queue request on a cold backend.
   useEffect(() => {
     if (!user || !token) return;
-    void Promise.allSettled([
-      queryClient.ensureQueryData(historyQueryOptions(user.id, token, language)),
-      queryClient.ensureQueryData(homeQueueQueryOptions(queryClient, user.id, token, language)),
-      queryClient.ensureQueryData(watchTimeQueryOptions(user.id, token, language)),
-      queryClient.ensureQueryData(reviewsQueryOptions(user.id, token)),
-    ]);
+    void queryClient.ensureQueryData(homeQueueQueryOptions(user.id, token, language));
   }, [language, token, user]);
 
   // The extension dispatches this event in open ClipIt tabs after its track
@@ -238,16 +276,16 @@ function AppInner() {
     return <LandingPage onNavigate={navigateToView} />;
   }
   if (appView === 'login') {
-    return <LoginPage onNavigate={setAppView} />;
+    return <LoginPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
   }
   if (appView === 'signup') {
-    return <SignupPage onNavigate={setAppView} />;
+    return <SignupPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
   }
   if (appView === 'onboarding') {
     return <OnboardingPage onComplete={() => { navigateToPage('practice'); setAppView('app'); }} />;
   }
   if (appView === 'forgot-password') {
-    return <ForgotPasswordPage onNavigate={setAppView} />;
+    return <ForgotPasswordPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
   }
   if (appView === 'reset-password') {
     return <ResetPasswordPage onNavigate={setAppView} />;

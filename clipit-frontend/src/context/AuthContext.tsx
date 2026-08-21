@@ -76,12 +76,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
+      // The Supabase session is sufficient to enter the authenticated shell.
+      // Keep the slower local-profile bridge off the critical rendering path;
+      // pages that need the local numeric ID stay in their own loading state
+      // until this request resolves.
+      activateLocalLearningData(authUserId);
+      setToken(accessToken);
+      setIsLoading(false);
       try {
-        activateLocalLearningData(authUserId);
         const me = await fetchMe(accessToken, authUserId);
         if (active) {
           setUser(me);
-          setToken(accessToken);
           if (me.is_new_user) setIsNewUser(true);
         }
       } catch {
@@ -93,7 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await supabase.auth.signOut();
         }
       } finally {
-        if (active) setIsLoading(false);
+        // isLoading only represents restoring the Supabase session. The
+        // profile bridge above intentionally continues in the background.
       }
     };
 
@@ -113,10 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) throw new Error(error?.message || 'Login failed');
     activateLocalLearningData(data.session.user.id);
-    const me = await fetchMe(data.session.access_token, data.session.user.id);
     setToken(data.session.access_token);
-    setUser(me);
-    if (me.is_new_user) setIsNewUser(true);
+    setIsLoading(false);
+    // onAuthStateChange performs the single, shared /auth/me bridge request.
   };
 
   const loginWithGoogle = async (): Promise<{ isNewUser: boolean }> => {
@@ -139,10 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message);
     if (!data.session) throw new Error('Check your email to confirm your account before signing in');
     activateLocalLearningData(data.session.user.id);
-    const me = await fetchMe(data.session.access_token, data.session.user.id);
     setToken(data.session.access_token);
-    setUser(me);
+    setIsLoading(false);
     setIsNewUser(true);
+    // onAuthStateChange performs the single, shared /auth/me bridge request.
   };
 
   const logout = () => {

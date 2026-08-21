@@ -12,9 +12,10 @@ import { FormError } from '../components/auth/FormError';
 
 interface LoginPageProps {
   onNavigate: (view: 'landing' | 'signup' | 'app' | 'forgot-password') => void;
+  onBack: () => void;
 }
 
-export function LoginPage({ onNavigate }: LoginPageProps) {
+export function LoginPage({ onNavigate, onBack }: LoginPageProps) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +41,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
   return (
     <AuthLayout
-      onBack={() => onNavigate('landing')}
+      onBack={onBack}
       title="Welcome back"
       subtitle="Sign in to keep learning from what you watch."
       switchPrompt={{ text: 'New to ClipIt?', linkLabel: 'Create an account', onClick: () => onNavigate('signup') }}

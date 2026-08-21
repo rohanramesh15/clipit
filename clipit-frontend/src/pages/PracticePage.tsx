@@ -9,7 +9,6 @@ import { StreakSummary } from '../components/StreakSummary';
 import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { homeQueueQueryOptions } from '../lib/queries';
-import { queryClient } from '../lib/queryClient';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -45,7 +44,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
   );
 
   const wordQueue = useQuery({
-    ...homeQueueQueryOptions(queryClient, user?.id ?? 0, token ?? '', language),
+    ...homeQueueQueryOptions(user?.id ?? 0, token ?? '', language),
     enabled: Boolean(user && token),
   });
   const words = wordQueue.data ?? null;

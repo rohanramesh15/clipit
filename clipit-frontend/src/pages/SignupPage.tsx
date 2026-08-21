@@ -10,11 +10,12 @@ import { FormError } from '../components/auth/FormError';
 
 interface SignupPageProps {
   onNavigate: (view: 'landing' | 'login' | 'onboarding') => void;
+  onBack: () => void;
 }
 
 type Step = 'choose' | 'email';
 
-export function SignupPage({ onNavigate }: SignupPageProps) {
+export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
   const { register } = useAuth();
   const [step, setStep] = useState<Step>('choose');
   const [firstName, setFirstName] = useState('');
@@ -62,7 +63,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
   if (step === 'choose') {
     return (
       <AuthLayout
-        onBack={() => onNavigate('landing')}
+        onBack={onBack}
         title="Sign up"
         subtitle="Turn what you watch into practice."
         switchPrompt={{ text: 'Already have an account?', linkLabel: 'Sign in', onClick: () => onNavigate('login') }}

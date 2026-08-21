@@ -1,8 +1,7 @@
-import type { QueryClient } from '@tanstack/react-query';
 import type { QueuedWord, WordStatus } from '../components/WordQueue';
 import { API_BASE_URL } from '../config';
 import { getCardStats, sortByPriority } from '../services/fsrs';
-import { fetchWithTimeout, mapWithConcurrency } from './network';
+import { fetchWithTimeout } from './network';
 
 export interface BackendVideo {
   video_id: string;
@@ -60,6 +59,7 @@ interface FlashCard {
   dictionary_form: string;
   english: string;
   video_id: string | null;
+  video_title?: string | null;
 }
 
 const DELETED_CARDS_KEY = 'lipit_deleted_cards';
@@ -176,48 +176,17 @@ export function reviewsQueryOptions(userId: number, token: string) {
   };
 }
 
-async function fetchCardsForVideo(videoId: string, language: string, token: string, signal: AbortSignal): Promise<FlashCard[]> {
-  try {
-    await readJson(`${API_BASE_URL}/subtitles/${videoId}?lang=${language}`, token, signal);
-    const vocabulary = await readJson<{ total_words?: number; vocabulary?: { word: string }[] }>(
-      `${API_BASE_URL}/vocabulary/${videoId}?limit=20&lang=${language}`,
-      token,
-      signal,
-    );
-    if (!vocabulary.total_words || !Array.isArray(vocabulary.vocabulary)) return [];
-
-    const flashcards = await readJson<{ flashcards?: FlashCard[] }>(`${API_BASE_URL}/flashcard-data`, token, signal, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        video_id: videoId,
-        words: vocabulary.vocabulary.map((item) => item.word),
-        word_source: 'essential',
-        language,
-      }),
-    });
-    return (flashcards.flashcards || []).map((card) => ({ ...card, video_id: card.video_id || videoId }));
-  } catch {
-    return [];
-  }
-}
-
-export function homeQueueQueryOptions(queryClient: QueryClient, userId: number, token: string, language: string) {
+export function homeQueueQueryOptions(userId: number, token: string, language: string) {
   return {
     queryKey: queryKeys.homeQueue(userId, language),
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<QueuedWord[]> => {
-      const [vocabulary, videos] = await Promise.all([
-        readJson<{ flashcards?: FlashCard[] }>(`${API_BASE_URL}/vocab/lists/flashcards?language=${language}`, token, signal),
-        queryClient.fetchQuery(historyQueryOptions(userId, token, language)),
-      ]);
-      const videoTitles = new Map(videos.map((video) => [video.video_id, video.title]));
-      const videoCards = await mapWithConcurrency(
-        videos.slice(0, 8),
-        2,
-        (video) => fetchCardsForVideo(video.video_id, language, token, signal),
+      const queue = await readJson<{ cards?: FlashCard[] }>(
+        `${API_BASE_URL}/videos/home/queue?lang=${language}`,
+        token,
+        signal,
       );
       const deleted = getDeletedCards(language);
-      const cards = [...(vocabulary.flashcards || []), ...videoCards.flat()].filter(
+      const cards = (queue.cards || []).filter(
         (card) => !deleted.has(card.dictionary_form || card.target_word),
       );
       const cardByKey = new Map(cards.map((card) => [card.dictionary_form || card.target_word, card]));
@@ -231,7 +200,7 @@ export function homeQueueQueryOptions(queryClient: QueryClient, userId: number, 
           id: key,
           word: card.dictionary_form || card.target_word,
           meaning: card.english,
-          video: (card.video_id && videoTitles.get(card.video_id)) || 'Your vocabulary list',
+          video: card.video_title || 'Your vocabulary list',
           status,
         };
       });
