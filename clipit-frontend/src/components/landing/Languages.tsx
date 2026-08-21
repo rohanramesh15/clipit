@@ -56,7 +56,7 @@ export function Languages() {
             const Flag = flags[language.id];
             return (
               <li key={language.id} className="relative">
-                <span className="relative z-10 flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-sage-soft">
+                <span className="relative z-10 flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface">
                   <span className="block h-3/5 w-3/5">
                     <Flag />
                   </span>
