@@ -767,17 +767,14 @@ export function ConverseV2Page(
   const header = (back: () => void, label: string) => (
     <div className="flex items-center gap-3 mb-6">
       <NavigationIconButton direction="back" label={label} onClick={back} />
-      <h1 className="font-heading font-bold text-xl text-primary">Voice Chat</h1>
+      <h1 className="font-heading text-section text-primary">AI chat</h1>
     </div>
   );
 
   if (phase === 'deck') {
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+      <div className="min-h-[calc(100vh-4rem)] max-w-4xl mx-auto">
         {header(() => onNavigate?.('practice'), 'Back to Practice')}
-        <p className="text-secondary mb-8">
-          Pick a video to talk about — we'll weave the words it taught you into the conversation.
-        </p>
 
         {chatError && (
           <div className="mb-4 text-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
@@ -917,8 +914,8 @@ export function ConverseV2Page(
   // Chat
   // ============================================================================
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-2xl mx-auto">
-      {/* header */}
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto">
+      {/* header — spans the full width here, wider than the reading column below (matches MP) */}
       <div className="shrink-0 border-b border-subtle">
         <div className="flex h-16 items-center gap-4">
           <NavigationIconButton direction="back" label="Back to videos" onClick={() => setShowLeaveConfirm(true)} className="shrink-0" />
@@ -978,8 +975,9 @@ export function ConverseV2Page(
         </div>
       </div>
 
-      {/* transcript */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-1 px-1 py-2 space-y-6">
+      {/* transcript — the reading column stays narrower than the header above it (matches MP) */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-1 px-1 py-2">
+      <div className="max-w-2xl mx-auto space-y-6">
         {messages.map((m) => {
           if (m.role === 'user') {
             return (
@@ -1169,9 +1167,11 @@ export function ConverseV2Page(
           </div>
         )}
       </div>
+      </div>
 
       {/* dock */}
       <div className="shrink-0 pt-3">
+      <div className="max-w-2xl mx-auto">
         <AnimatePresence>
           {nudge && (
             <motion.div
@@ -1271,6 +1271,7 @@ export function ConverseV2Page(
             : chatError ? <span style={{ color: ACCENT }}>{chatError}</span>
             : status}
         </div>
+      </div>
       </div>
 
       {/* leave-chat confirmation */}
