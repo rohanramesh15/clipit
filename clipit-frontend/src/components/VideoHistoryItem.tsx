@@ -75,13 +75,11 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
         className="relative block h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-hover"
       >
         <Thumbnail video={video} />
-        <span
-          className={`absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-meta font-semibold text-white ${
-            video.platform === 'netflix' ? 'bg-[#b20710]' : 'bg-[#ff0000]'
-          }`}
-        >
-          {PLATFORM_LABEL[video.platform]}
-        </span>
+        {video.platform === 'netflix' && (
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-[#b20710] px-1.5 py-0.5 text-meta font-semibold text-white">
+            {PLATFORM_LABEL[video.platform]}
+          </span>
+        )}
         <span className="absolute inset-0 flex items-center justify-center bg-inverse/40 opacity-0 transition-opacity duration-150 ease-swift group-hover:opacity-100">
           <Play className="h-4 w-4 text-cream" aria-hidden="true" />
         </span>
