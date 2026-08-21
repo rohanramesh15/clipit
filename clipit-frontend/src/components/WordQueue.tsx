@@ -39,10 +39,11 @@ interface WordQueueProps {
   languageName: string;
   sourceVideoCount?: number;
   preparingVideoCount?: number;
+  unavailableVideoCount?: number;
   onRefresh?: () => void;
 }
 
-export function WordQueue({ words, languageName, sourceVideoCount = 0, preparingVideoCount = 0, onRefresh }: WordQueueProps) {
+export function WordQueue({ words, languageName, sourceVideoCount = 0, preparingVideoCount = 0, unavailableVideoCount = 0, onRefresh }: WordQueueProps) {
   const [filter, setFilter] = useState<'all' | WordStatus>('due');
   const [page, setPage] = useState(0);
   const isEmpty = words.length === 0;
@@ -102,11 +103,15 @@ export function WordQueue({ words, languageName, sourceVideoCount = 0, preparing
         <div className="mt-6 rounded-2xl border border-dashed border-medium px-6 py-10 text-center">
           {sourceVideoCount > 0 ? (
             <>
-              <p className="text-body text-secondary">Preparing words from your watched videos.</p>
+              <p className="text-body text-secondary">
+                {unavailableVideoCount > 0 ? 'We need captions from some watched videos.' : 'No practice words found yet.'}
+              </p>
               <p className="mt-1 text-body-sm text-muted">
                 {preparingVideoCount > 0
-                  ? 'Captions or practice cards are still being prepared. Check again in a moment.'
-                  : 'We could not find practice words in these videos yet.'}
+                  ? 'The extension is still sending captions. Check again shortly.'
+                  : unavailableVideoCount > 0
+                    ? 'Open those videos with the ClipIt extension running to capture their captions, then check again.'
+                    : 'We could not find practice words in these videos yet.'}
               </p>
               {onRefresh && (
                 <button

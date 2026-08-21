@@ -29,6 +29,7 @@ export interface HomeQueue {
   words: QueuedWord[];
   sourceVideoCount: number;
   preparingVideoCount: number;
+  unavailableVideoCount: number;
 }
 
 export interface VocabularySettings {
@@ -109,7 +110,7 @@ export const queryKeys = {
   history: (userId: number, language: string) => ['history', userId, language] as const,
   // Versioned when Home's response contract changes so an old, long-lived
   // queue cannot hide newly available watched-video vocabulary.
-  homeQueue: (userId: number, language: string) => ['home-queue-v5', userId, language] as const,
+  homeQueue: (userId: number, language: string) => ['home-queue-v6', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
@@ -212,6 +213,7 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
         cards?: FlashCard[];
         source_video_count?: number;
         preparing_video_count?: number;
+        unavailable_video_count?: number;
       }>(
         `${API_BASE_URL}/videos/home/queue?lang=${language}`,
         token,
@@ -241,6 +243,7 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
         words,
         sourceVideoCount: queue.source_video_count ?? 0,
         preparingVideoCount: queue.preparing_video_count ?? 0,
+        unavailableVideoCount: queue.unavailable_video_count ?? 0,
       };
     },
   };

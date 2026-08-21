@@ -111,6 +111,7 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
             languageName={languageName}
             sourceVideoCount={queue.sourceVideoCount}
             preparingVideoCount={queue.preparingVideoCount}
+            unavailableVideoCount={queue.unavailableVideoCount}
             onRefresh={() => void wordQueue.refetch()}
           />
         </>
