@@ -30,7 +30,7 @@ interface ReviewCardProps {
 }
 
 const faceClasses =
-  'absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm [backface-visibility:hidden]';
+  'absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-subtle bg-surface p-6 shadow-sm [backface-visibility:hidden]';
 
 export function ReviewCard({
   card,
@@ -59,7 +59,7 @@ export function ReviewCard({
       <motion.div
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-        className="relative h-full max-h-[29rem] w-full [transform-style:preserve-3d]"
+        className="relative h-full max-h-[31rem] w-full [transform-style:preserve-3d]"
       >
         {/* Front — the clip and the word */}
         <div
@@ -98,13 +98,13 @@ export function ReviewCard({
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-4 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-5 text-center">
             <h2 className={`${getWordFontSize(card.target_word)} font-heading leading-tight text-primary`}>
               {card.target_word}
             </h2>
             {/* TTS-only cards already have a dedicated pronunciation control via ClipPlayer's placeholder above. */}
             {card.card_type === 'video' && (
-              <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+              <div className="mt-4" onClick={(event) => event.stopPropagation()}>
                 <PronounceButton
                   text={card.target_word}
                   language={language}
@@ -114,7 +114,7 @@ export function ReviewCard({
             )}
           </div>
 
-          <p className="flex shrink-0 items-center justify-center gap-1.5 border-t border-subtle pt-4 text-meta text-muted">
+          <p className="flex shrink-0 items-center justify-center gap-1.5 border-t border-subtle pt-5 text-meta text-muted">
             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
             Tap the card or press space to flip
           </p>
@@ -193,7 +193,7 @@ export function ReviewCard({
             )}
 
             {card.sentence && (
-              <div className="mt-5 border-t border-subtle pt-4">
+              <div className="mt-6 border-t border-subtle pt-5">
                 <p className="text-body text-primary">
                   {card.sentence.split(new RegExp(`(${card.target_word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g')).map((part, i) =>
                     part === card.target_word ? (

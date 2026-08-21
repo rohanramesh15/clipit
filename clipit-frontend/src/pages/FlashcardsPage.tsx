@@ -110,6 +110,18 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     });
   }, []);
 
+  // The review session's layout is sized to fit the viewport exactly (see
+  // the 'loaded' render below) — force the page itself to never scroll so a
+  // few pixels of measurement slack can't reintroduce a scrollbar.
+  useEffect(() => {
+    if (loadState !== 'loaded') return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [loadState]);
+
   // Load YouTube IFrame API
   useEffect(() => {
     if (!(window as any).YT) {
