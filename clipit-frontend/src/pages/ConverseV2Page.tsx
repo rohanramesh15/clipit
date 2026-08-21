@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle,
-  ChevronRight, ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy, Search,
+  ChevronDown, Film, Check, MessageCircle, Languages, Volume2, Copy, Search,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
@@ -751,39 +751,47 @@ export function ConverseV2Page(
         ) : videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).length === 0 ? (
           <p className="text-body-sm text-muted">Nothing matches "{deckQuery}".</p>
         ) : (
-          <div className="space-y-3">
-            {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).map((v, i) => {
-              const isNetflix = v.video_id.startsWith('netflix_');
-              return (
-                <motion.button
-                  key={v.video_id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                  onClick={() => startFromVideo(v)}
-                  className="group w-full flex items-center gap-5 bg-surface rounded-2xl p-5 text-left hover:bg-surface-hover transition-colors"
-                >
-                  <span className="relative w-32 aspect-video shrink-0 rounded-lg overflow-hidden bg-surface-hover flex items-center justify-center">
-                    {isNetflix ? (
-                      <Film className="w-5 h-5" style={{ color: ACCENT }} />
-                    ) : (
-                      <img
-                        src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    )}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-primary truncate">{v.title}</span>
-                    <span className="block text-xs text-muted">Talk through its words by voice</span>
-                  </span>
-                  <ChevronRight className="w-5 h-5 shrink-0 text-muted group-hover:text-sage-ink transition-colors" />
-                </motion.button>
-              );
-            })}
-          </div>
+          <>
+            <h2 className="mb-1 font-heading text-body font-semibold text-primary">Your videos</h2>
+            <ul className="divide-y divide-[color:var(--border-subtle)] border-y border-subtle">
+              {videos.filter((v) => v.title.toLowerCase().includes(deckQuery.trim().toLowerCase())).map((v, i) => {
+                const isNetflix = v.video_id.startsWith('netflix_');
+                return (
+                  <motion.li
+                    key={v.video_id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                  >
+                    <button
+                      onClick={() => startFromVideo(v)}
+                      className="group flex w-full items-center gap-3 py-3 text-left"
+                    >
+                      <span className="h-10 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-hover flex items-center justify-center">
+                        {isNetflix ? (
+                          <Film className="w-4 h-4" style={{ color: ACCENT }} />
+                        ) : (
+                          <img
+                            src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-body font-medium text-primary">{v.title}</span>
+                        <span className="mt-0.5 block text-meta text-muted">{isNetflix ? 'Netflix' : 'YouTube'}</span>
+                      </span>
+                      <span className="shrink-0 rounded-md bg-sage-soft px-3 py-1.5 text-body-sm font-semibold text-sage-ink transition-colors group-hover:bg-sage-ink group-hover:text-[#ffffff]">
+                        Start
+                      </span>
+                    </button>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </div>
     );
