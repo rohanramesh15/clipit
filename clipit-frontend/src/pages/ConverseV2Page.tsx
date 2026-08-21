@@ -134,7 +134,7 @@ function TappableText({
             key={i}
             onClick={(e) => onWordTap(clean, e)}
             className={
-              'cursor-pointer rounded-md px-1 py-0.5 transition-colors hover:bg-black/5 ' +
+              'cursor-pointer rounded-md px-1 py-0.5 transition-colors hover:bg-surface-hover ' +
               (isTarget ? 'font-semibold' : '')
             }
             style={isTarget ? { color: PAGE } : undefined}
@@ -763,7 +763,7 @@ export function ConverseV2Page(
                   onClick={() => startFromVideo(v)}
                   className="group w-full flex items-center gap-5 bg-surface rounded-2xl p-5 text-left hover:bg-surface-hover transition-colors"
                 >
-                  <span className="relative w-32 aspect-video shrink-0 rounded-lg overflow-hidden bg-black/5 flex items-center justify-center">
+                  <span className="relative w-32 aspect-video shrink-0 rounded-lg overflow-hidden bg-surface-hover flex items-center justify-center">
                     {isNetflix ? (
                       <Film className="w-5 h-5" style={{ color: ACCENT }} />
                     ) : (
@@ -826,7 +826,7 @@ export function ConverseV2Page(
             onClick={() => setHeaderExpanded((v) => !v)}
             aria-expanded={headerExpanded}
             aria-controls="conversation-deck-details"
-            className="group flex flex-1 items-center justify-between gap-3 min-w-0 rounded-lg px-2 py-1 -mx-2 hover:bg-black/5 transition-colors"
+            className="group flex flex-1 items-center justify-between gap-3 min-w-0 rounded-lg px-2 py-1 -mx-2 hover:bg-surface-hover transition-colors"
           >
             <h1 className="font-heading font-semibold text-xs text-secondary truncate">
               {deck?.title || 'Voice Chat'}
@@ -875,7 +875,7 @@ export function ConverseV2Page(
             >
               <div className="bg-surface rounded-2xl p-4 mb-4">
                 <div className="flex items-center gap-4">
-                  <span className="relative w-28 aspect-video shrink-0 rounded-lg overflow-hidden bg-black/5 flex items-center justify-center">
+                  <span className="relative w-28 aspect-video shrink-0 rounded-lg overflow-hidden bg-surface-hover flex items-center justify-center">
                     {deck?.id.startsWith('netflix_') ? (
                       <Film className="w-5 h-5" style={{ color: ACCENT }} />
                     ) : deck?.id ? (
@@ -969,7 +969,7 @@ export function ConverseV2Page(
                     <button
                       onClick={() => toggleMsgTrans(m.id, m.text, m.translation)}
                       aria-label="Translate"
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${msgTrans[m.id]?.visible ? 'bg-sage-soft text-sage-ink' : 'text-muted hover:text-primary hover:bg-black/5'}`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${msgTrans[m.id]?.visible ? 'bg-sage-soft text-sage-ink' : 'text-muted hover:text-primary hover:bg-surface-hover'}`}
                     >
                       <Languages className="w-4 h-4" />
                     </button>
@@ -981,7 +981,7 @@ export function ConverseV2Page(
                     <button
                       onClick={() => speak(m.text)}
                       aria-label="Listen"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface-hover transition-colors"
                     >
                       <Volume2 className="w-4 h-4" />
                     </button>
@@ -996,7 +996,7 @@ export function ConverseV2Page(
                           onClick={handleAnotherResponse}
                           disabled={regenLoading}
                           aria-label="Another response"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors disabled:opacity-60"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface-hover transition-colors disabled:opacity-60"
                         >
                           {regenLoading ? <LoadingAnimation className="h-4 w-4" /> : <RotateCcw className="w-4 h-4" />}
                         </button>
@@ -1009,7 +1009,7 @@ export function ConverseV2Page(
                           onClick={handleSuggestReply}
                           disabled={suggestLoading}
                           aria-label="Suggest reply"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-black/5 transition-colors disabled:opacity-60"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface-hover transition-colors disabled:opacity-60"
                         >
                           {suggestLoading ? <LoadingAnimation className="h-4 w-4" /> : <MessageSquarePlus className="w-4 h-4" />}
                         </button>
@@ -1034,13 +1034,13 @@ export function ConverseV2Page(
                     <Lightbulb className="w-3.5 h-3.5" /> A better way to say that
                   </button>
                 ) : (
-                  <div className="rounded-xl bg-black/5 p-3">
+                  <div className="rounded-xl bg-surface p-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">A better way to say that</div>
                     <div className="text-[15px] font-medium text-primary" style={{ color: PAGE }}>{m.correction.correct}</div>
                     <div className="text-sm text-secondary mt-1">{m.correction.why_en}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <button
-                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-white' : 'bg-surface text-secondary hover:text-primary')}
+                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-white' : 'bg-surface-hover text-secondary hover:text-primary')}
                         style={verdict === 'fine' ? { background: ACCENT } : undefined}
                         disabled={!!verdict}
                         onClick={() => handleCorrectionFb(m.id, m.turnId, 'fine')}
@@ -1048,7 +1048,7 @@ export function ConverseV2Page(
                         Mine was fine
                       </button>
                       <button
-                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-white' : 'bg-surface text-secondary hover:text-primary')}
+                        className={'text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-white' : 'bg-surface-hover text-secondary hover:text-primary')}
                         style={verdict === 'wrong' ? { background: ACCENT } : undefined}
                         disabled={!!verdict}
                         onClick={() => handleCorrectionFb(m.id, m.turnId, 'wrong')}
