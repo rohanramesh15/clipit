@@ -277,7 +277,7 @@ function AppInner() {
         <div className="min-h-screen w-full bg-app font-sans text-primary selection:bg-accent selection:text-app">
           <TopNav activePage={activePage} onNavigate={navigateToPage} />
 
-          <main className="p-4 md:p-8 overflow-x-hidden">
+          <main className="p-4 md:p-8 overflow-x-clip">
             <AnimatePresence initial={false} mode="popLayout">
               <motion.div
                 key={activePage}
