@@ -11,7 +11,8 @@ import { reviewsQueryOptions, watchTimeQueryOptions } from '../lib/queries';
 function AnalyticsLoadingState() {
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
-      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-8 w-32 rounded-lg" />
+      <Skeleton className="mt-8 h-24 w-full rounded-2xl" />
       <Skeleton className="mt-6 h-[16.5rem] w-full rounded-2xl" />
     </div>
   );
@@ -130,6 +131,10 @@ export function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pb-8">
+        <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
+      </header>
+
       <section aria-label="Progress summary" className="flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-subtle bg-surface px-7 py-3 lg:flex-nowrap">
         <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-4 lg:flex-nowrap">
           <div className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-inverse">
