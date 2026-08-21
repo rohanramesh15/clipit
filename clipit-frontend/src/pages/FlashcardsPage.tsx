@@ -918,29 +918,31 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       <HelpOverlay tips={flashcardsPageTips} />
 
       {/* Header stats */}
-      <div id="section-deck-select" className="mx-auto flex w-full max-w-md shrink-0 items-center gap-4 mb-5">
+      <div id="section-deck-select" className="flex w-full shrink-0 items-center justify-between mb-4">
         <button
           onClick={() => handleBackToDecks()}
           aria-label="Back"
           className="-ml-2 inline-flex items-center rounded-xl p-2 text-secondary transition-colors duration-150 ease-swift hover:text-primary">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
-        <div
-          className="h-1 flex-1 overflow-hidden rounded-full bg-surface-hover"
-          role="progressbar"
-          aria-valuenow={deckProgressReviewed}
-          aria-valuemin={0}
-          aria-valuemax={deckProgressTotal}
-          aria-label="Review progress">
-          <motion.div
-            className="h-full rounded-full bg-accent"
-            animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
-            transition={{ duration: 0.3 }}
-          />
+        <div className="flex items-center gap-3">
+          <div
+            className="h-2 w-32 sm:w-48 overflow-hidden rounded-full bg-surface-hover"
+            role="progressbar"
+            aria-valuenow={deckProgressReviewed}
+            aria-valuemin={0}
+            aria-valuemax={deckProgressTotal}
+            aria-label="Review progress">
+            <motion.div
+              className="h-full rounded-full bg-accent"
+              animate={{ width: `${deckProgressTotal ? Math.min(100, (deckProgressReviewed / deckProgressTotal) * 100) : 0}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+          <span className="shrink-0 text-right text-body-sm tabular-nums text-muted">
+            {deckProgressReviewed} / {deckProgressTotal}
+          </span>
         </div>
-        <span className="w-14 shrink-0 text-right text-body-sm tabular-nums text-muted">
-          {deckProgressReviewed} / {deckProgressTotal}
-        </span>
       </div>
 
       {/* Flashcard */}
