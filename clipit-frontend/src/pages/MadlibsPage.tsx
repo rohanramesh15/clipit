@@ -334,7 +334,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         </div>
 
         {resumable && (
-          <section className="mt-8 flex flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-label="Resume Mad Libs practice">
+          <section className="mt-8 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5" aria-label="Resume Mad Libs practice">
             <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-body font-semibold text-dusk-deep">{resumable.title}</p>

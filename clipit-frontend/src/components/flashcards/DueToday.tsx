@@ -30,7 +30,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
   if (totalDue === 0) {
     return (
       <section
-        className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-sand-soft px-7 py-5"
+        className="flex min-h-24 flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-sand-soft px-7 py-5"
         aria-labelledby="due-heading"
       >
         <h2 id="due-heading" className="font-heading text-lead text-sand-deep">
@@ -46,7 +46,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
 
   return (
     <section
-      className="flex flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sand-soft px-7 py-5"
+      className="flex min-h-24 flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sand-soft px-7 py-5"
       aria-labelledby="due-heading"
     >
       <div className="flex items-center gap-4">
@@ -73,13 +73,13 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
                   <img
                     src={thumb}
                     alt=""
-                    className="h-11 w-[4.25rem] rounded-lg border-2 border-sand-soft object-cover"
+                    className="h-14 w-24 rounded-lg border-2 border-sand-soft object-cover"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-sand-soft bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
+                  <div className="flex h-14 w-24 items-center justify-center rounded-lg border-2 border-sand-soft bg-[#B20710]/10 text-meta font-bold text-[#B20710]">
                     N
                   </div>
                 )}
@@ -87,7 +87,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
             );
           })}
           {hidden > 0 && (
-            <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-sand-soft bg-sand-mid text-meta font-semibold text-sand-deep">
+            <li className="flex h-14 w-14 items-center justify-center rounded-lg border-2 border-sand-soft bg-sand-mid text-meta font-semibold text-sand-deep">
               +{hidden}
             </li>
           )}

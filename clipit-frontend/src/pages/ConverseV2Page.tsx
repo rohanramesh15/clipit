@@ -972,14 +972,14 @@ export function ConverseV2Page(
           <>
             <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
-                <section aria-labelledby="resume-title" className="flex items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
+                <section aria-labelledby="resume-title" className="flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 items-center gap-4">
                     {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
                       <img
                         src={`https://img.youtube.com/vi/${recentSession.seed_video_id}/mqdefault.jpg`}
                         alt=""
                         loading="lazy"
-                        className="hidden h-11 w-[4.25rem] shrink-0 rounded-lg object-cover sm:block"
+                        className="hidden h-14 w-24 shrink-0 rounded-lg object-cover sm:block"
                         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                       />
                     )}
@@ -1002,7 +1002,7 @@ export function ConverseV2Page(
                 </section>
               )}
 
-              <section aria-labelledby="mixed-title" className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 ${recentSession ? '' : 'sm:col-span-2'}`}>
+              <section aria-labelledby="mixed-title" className={`flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 ${recentSession ? '' : 'sm:col-span-2'}`}>
                 <div className="flex min-w-0 items-center gap-4">
                   {mixedPreviewVideos.length > 0 && (
                     <ul className="flex shrink-0 items-center -space-x-3" aria-label={mixedSources.length > 0 ? `Words will be drawn from ${mixedPreviewVideos.map((video) => video.title).join(', ')}` : 'Videos available for your mixed chat'}>
@@ -1011,12 +1011,12 @@ export function ConverseV2Page(
                         return (
                           <li key={video.video_id} title={video.title}>
                             {isNetflix ? (
-                              <span className="flex h-11 w-[4.25rem] items-center justify-center rounded-lg border-2 border-surface bg-[#B20710]/10 text-meta font-bold text-[#B20710]">N</span>
+                              <span className="flex h-14 w-24 items-center justify-center rounded-lg border-2 border-surface bg-[#B20710]/10 text-meta font-bold text-[#B20710]">N</span>
                             ) : (
                               <img
                                 src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
                                 alt={video.title}
-                                className="h-11 w-[4.25rem] rounded-lg border-2 border-surface object-cover"
+                                className="h-14 w-24 rounded-lg border-2 border-surface object-cover"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                               />
                             )}
@@ -1024,7 +1024,7 @@ export function ConverseV2Page(
                         );
                       })}
                       {additionalMixedVideoCount > 0 && (
-                        <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-surface bg-sand-mid text-meta font-semibold text-sand-deep">
+                        <li className="flex h-14 w-14 items-center justify-center rounded-lg border-2 border-surface bg-sand-mid text-meta font-semibold text-sand-deep">
                           +{additionalMixedVideoCount}
                         </li>
                       )}
