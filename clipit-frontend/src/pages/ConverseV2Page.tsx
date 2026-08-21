@@ -1146,32 +1146,33 @@ export function ConverseV2Page(
           )}
         </AnimatePresence>
 
-        <div className="flex items-center gap-3 mt-32">
-          <SpeechInput
-            lang={language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR'}
-            onTranscriptionChange={(t) => { const x = (t || '').trim(); if (x) sendTextTurn(x); }}
-            title="Speak"
-            aria-label="Speak"
-            className="w-14 h-14 p-0 rounded-full bg-sage-ink text-app hover:bg-sage-deep shadow-lg shrink-0"
+        <div className="mt-3 rounded-2xl border border-subtle bg-surface p-2 focus-within:border-medium transition-colors">
+          <input
+            ref={bottomInputRef}
+            value={composerText}
+            onChange={(e) => setComposerText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
+            placeholder={`Type in ${langName}…`}
+            aria-label="Type a message"
+            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-[15px] text-primary placeholder:text-muted outline-none"
           />
 
-          <div className="relative flex-1">
-            <input
-              ref={bottomInputRef}
-              value={composerText}
-              onChange={(e) => setComposerText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
-              placeholder={`Type in ${langName}…`}
-              aria-label="Type a message"
-              className="w-full h-14 rounded-full bg-surface pl-5 pr-16 text-[15px] text-primary placeholder:text-muted outline-none focus:ring-2 focus:ring-sage-ink/40"
+          <div className="flex items-center justify-between gap-3 px-1 pb-1 pt-1">
+            <SpeechInput
+              lang={language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR'}
+              onTranscriptionChange={(t) => { const x = (t || '').trim(); if (x) sendTextTurn(x); }}
+              title="Speak"
+              aria-label="Speak"
+              className="w-9 h-9 p-0 rounded-full bg-sage-soft text-sage-ink hover:bg-sage-ink hover:text-app shadow-none"
             />
+
             <button
               onClick={() => sendTextTurn()}
               disabled={!composerText.trim() || sending}
               title="Send"
               aria-label="Send"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full disabled:opacity-40 transition-opacity"
-              style={{ background: ACCENT, color: '#fff' }}
+              className="w-10 h-10 flex items-center justify-center rounded-xl disabled:opacity-40 disabled:bg-surface-hover disabled:text-muted transition-colors"
+              style={composerText.trim() && !sending ? { background: ACCENT, color: '#ffffff' } : undefined}
             >
               {sending ? <LoadingAnimation className="h-4 w-4" /> : <Send className="w-4 h-4" />}
             </button>
