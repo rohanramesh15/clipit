@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
-  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus,
+  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play,
 } from 'lucide-react';
 import {
   getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
-  type Profile, type DueWord, type Correction, type SuggestedReply, type CreateSessionResult,
+  getRecentSession, resumeSession,
+  type Profile, type DueWord, type Correction, type SuggestedReply,
+  type RecentSession,
 } from '../services/converseV2';
 import { Sparkles, RotateCcw, MessageSquarePlus } from 'lucide-react';
 import {
@@ -211,6 +213,8 @@ export function ConverseV2Page(
 
   // deck picker
   const [videos, setVideos] = useState<TrackedVideo[] | null>(null);
+  const [recentSession, setRecentSession] = useState<RecentSession | null>(null);
+  const [resuming, setResuming] = useState(false);
   const [deckQuery, setDeckQuery] = useState('');
 
   // active session
@@ -305,6 +309,17 @@ export function ConverseV2Page(
     fetchTrackedVideos(language, token).then((v) => { if (alive) setVideos(v); });
     return () => { alive = false; };
   }, [language, token]);
+
+  // Most recent session, for the Resume card — only sessions created after
+  // real per-user scoping was added are resumable (see backend user_id).
+  useEffect(() => {
+    if (!token) { setRecentSession(null); return; }
+    let alive = true;
+    getRecentSession(token)
+      .then((r) => { if (alive) setRecentSession(r.session); })
+      .catch(() => { if (alive) setRecentSession(null); });
+    return () => { alive = false; };
+  }, [token]);
 
   // Per-video due-word counts for the deck-picker badges, matching flashcards'
   // own DeckBrowser: a cheap vocabulary fetch cross-referenced against the
@@ -556,7 +571,7 @@ export function ConverseV2Page(
   // Shared setup once a session has been created — resets every per-session
   // UI state and lands on the chat phase. Used by both a single-video start
   // and the mixed (due-words) start.
-  const enterSession = useCallback((result: CreateSessionResult, finalWords: TargetWord[]) => {
+  const enterSession = useCallback((sessionId: number, finalWords: TargetWord[], initialMessages: ChatMessage[]) => {
     setTargetWords(finalWords);
     setUsedLemmas(new Set());
     setOpenTargetWord(null);
@@ -575,15 +590,9 @@ export function ConverseV2Page(
     voiceAutoStarted.current = false;
     setVoiceStatus('off');
     setVoiceError(null);
-    setSessionId(result.session_id);
+    setSessionId(sessionId);
     setStatus('Tap the mic and speak, or type');
-    setMessages([{
-      id: `a-${result.opening.turn_id}`,
-      role: 'assistant',
-      text: result.opening.reply,
-      translation: result.opening.reply_translation,
-      turnId: result.opening.turn_id,
-    }]);
+    setMessages(initialMessages);
     setPhase('chat');
   }, []);
 
@@ -612,7 +621,7 @@ export function ConverseV2Page(
         seed_label: video.title,
         language,
         seed_words: words.map((w) => ({ lemma: w.lemma, gloss: w.gloss })),
-      });
+      }, token);
 
       // Prefer the words we built (they carry surface forms for usage detection);
       // fall back to whatever the backend echoed.
@@ -620,12 +629,18 @@ export function ConverseV2Page(
         ? words
         : (result.due_words || []).map((d: DueWord) => ({ lemma: d.lemma, gloss: d.gloss, surface: d.lemma }));
 
-      enterSession(result, finalWords);
+      enterSession(result.session_id, finalWords, [{
+        id: `a-${result.opening.turn_id}`,
+        role: 'assistant',
+        text: result.opening.reply,
+        translation: result.opening.reply_translation,
+        turnId: result.opening.turn_id,
+      }]);
     } catch {
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language, enterSession]);
+  }, [language, token, enterSession]);
 
   // "Mixed session" — the backend's own due_words seed type, which picks
   // words across every tracked video from its own review-due tracking
@@ -635,18 +650,60 @@ export function ConverseV2Page(
     setPhase('loading');
     setChatError(null);
     try {
-      const result = await createSession({ seed_type: 'due_words', language });
+      const result = await createSession({ seed_type: 'due_words', language }, token);
       const finalWords: TargetWord[] = (result.due_words || []).map((d: DueWord) => ({
         lemma: d.lemma,
         gloss: d.gloss,
         surface: d.lemma,
       }));
-      enterSession(result, finalWords);
+      enterSession(result.session_id, finalWords, [{
+        id: `a-${result.opening.turn_id}`,
+        role: 'assistant',
+        text: result.opening.reply,
+        translation: result.opening.reply_translation,
+        turnId: result.opening.turn_id,
+      }]);
     } catch {
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language, enterSession]);
+  }, [language, token, enterSession]);
+
+  // "Resume" — rehydrate a real prior session (turn history included) from
+  // the backend's own storage. Only works for sessions created after
+  // per-user scoping was added; recentSession is null for anyone without one.
+  const resumeLastSession = useCallback(async () => {
+    if (!recentSession || !token || resuming) return;
+    setResuming(true);
+    setChatError(null);
+    try {
+      const result = await resumeSession(recentSession.session_id, token);
+      setDeck({ id: result.seed_video_id || 'mixed', title: result.seed_label || 'Voice Chat' });
+      const finalWords: TargetWord[] = (result.due_words || []).map((d) => ({
+        lemma: d.lemma,
+        gloss: d.gloss,
+        surface: d.lemma,
+      }));
+      enterSession(
+        result.session_id,
+        finalWords,
+        result.turns.map((t) => ({
+          id: `t-${t.turn_id}`,
+          role: t.role,
+          text: t.text,
+          translation: t.reply_translation || undefined,
+          correction: t.correction,
+          turnId: t.turn_id,
+          suggestedReplies: t.suggested_replies,
+          targets: t.used_target_words,
+        })),
+      );
+    } catch {
+      setChatError('Could not resume that conversation. Please try again.');
+    } finally {
+      setResuming(false);
+    }
+  }, [recentSession, token, resuming, enterSession]);
 
   const leaveChat = useCallback(() => {
     voiceRef.current?.stop();
@@ -783,6 +840,42 @@ export function ConverseV2Page(
     return (
       <div className="min-h-[calc(100vh-4rem)] max-w-4xl mx-auto">
         {header(() => onNavigate?.('practice'), 'Back to Practice')}
+
+        {recentSession && (
+          <section
+            aria-labelledby="resume-title"
+            className="mb-6 flex items-center gap-4 rounded-2xl bg-sage-soft p-4"
+          >
+            {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
+              <img
+                src={`https://img.youtube.com/vi/${recentSession.seed_video_id}/mqdefault.jpg`}
+                alt=""
+                loading="lazy"
+                className="hidden h-16 w-24 shrink-0 rounded-lg object-cover sm:block"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 id="resume-title" className="truncate font-heading text-body font-semibold text-sage-deep">
+                {recentSession.seed_label || 'Continue your conversation'}
+              </h2>
+              <p className="mt-0.5 truncate text-meta text-sage-ink">
+                {recentSession.turn_count} {recentSession.turn_count === 1 ? 'message' : 'messages'}
+                {recentSession.last_line ? ` · ${recentSession.last_line}` : ''}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={resumeLastSession}
+              disabled={resuming}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-body-sm font-semibold text-[#ffffff] disabled:opacity-60"
+              style={{ background: ACCENT }}
+            >
+              {resuming ? <LoadingAnimation className="h-4 w-4" /> : <Play className="size-4" aria-hidden="true" />}
+              Continue
+            </button>
+          </section>
+        )}
 
         {chatError && (
           <div className="mb-4 text-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>
@@ -1307,7 +1400,7 @@ export function ConverseV2Page(
             >
               <h3 className="text-lg font-bold text-primary mb-2">Leave this conversation?</h3>
               <p className="text-sm text-secondary mb-6">
-                Going back will end and delete this conversation. This can't be undone.
+                You can pick up where you left off from the Resume card next time you come back.
               </p>
               <div className="flex flex-col gap-2">
                 <button
@@ -1315,7 +1408,7 @@ export function ConverseV2Page(
                   className="w-full px-4 py-2.5 rounded-xl text-[#ffffff] font-semibold text-sm"
                   style={{ background: ACCENT }}
                 >
-                  Leave & delete
+                  Leave
                 </button>
                 <button
                   onClick={() => setShowLeaveConfirm(false)}

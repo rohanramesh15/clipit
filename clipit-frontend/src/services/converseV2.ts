@@ -59,18 +59,23 @@ export interface CreateSessionResult {
   opening: { turn_id: number; reply: string; reply_translation: string };
 }
 
-async function postJson<T>(path: string, body?: unknown): Promise<T> {
+async function postJson<T>(path: string, body?: unknown, token?: string | null): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   return res.json();
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+async function getJson<T>(path: string, token?: string | null): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   return res.json();
 }
@@ -82,13 +87,51 @@ export const saveOnboarding = (req: Profile) =>
 
 export const listVideos = () => getJson<{ videos: MockVideo[] }>('/videos');
 
-export const createSession = (req: {
+export const createSession = (
+  req: {
+    seed_type: SeedType;
+    video_id?: string;
+    seed_label?: string;
+    language?: string;
+    seed_words?: { lemma: string; gloss: string }[];
+  },
+  token?: string | null,
+) => postJson<CreateSessionResult>('/session', req, token);
+
+export interface RecentSession {
+  session_id: number;
   seed_type: SeedType;
-  video_id?: string;
-  seed_label?: string;
-  language?: string;
-  seed_words?: { lemma: string; gloss: string }[];
-}) => postJson<CreateSessionResult>('/session', req);
+  seed_label: string | null;
+  seed_video_id: string | null;
+  started_at: string;
+  turn_count: number;
+  last_line: string;
+}
+
+export const getRecentSession = (token: string) =>
+  getJson<{ session: RecentSession | null }>('/sessions/recent', token);
+
+export interface ResumeTurn {
+  turn_id: number;
+  role: 'user' | 'assistant';
+  text: string;
+  reply_translation: string | null;
+  correction: Correction | null;
+  used_target_words: string[];
+  suggested_replies: SuggestedReply[];
+}
+
+export interface ResumeResult {
+  session_id: number;
+  level: Level;
+  seed_label: string | null;
+  seed_video_id: string | null;
+  due_words: DueWord[];
+  turns: ResumeTurn[];
+}
+
+export const resumeSession = (sessionId: number, token: string) =>
+  getJson<ResumeResult>(`/session/${sessionId}/resume`, token);
 
 export const sendTurn = (sessionId: number, text: string, language: string = 'es') =>
   postJson<TurnResult>(`/session/${sessionId}/turn`, { text, language });
