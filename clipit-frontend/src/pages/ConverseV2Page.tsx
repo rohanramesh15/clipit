@@ -879,6 +879,8 @@ export function ConverseV2Page(
       });
   }, [deckDueCounts, deckQuery, deckSort, videos]);
   const shownDecks = matchingDecks.slice(0, visibleDecks);
+  const mixedPreviewVideos = mixedSources.length > 0 ? mixedSources : (videos ?? []).slice(0, 5);
+  const additionalMixedVideoCount = mixedSources.length === 0 ? Math.max(0, (videos?.length ?? 0) - mixedPreviewVideos.length) : 0;
 
   // ============================================================================
   // Deck picker
@@ -952,13 +954,13 @@ export function ConverseV2Page(
                   <p className="text-body-sm text-sage-ink">
                     {mixedSources.length > 0
                       ? `Practice words pulled from ${mixedSources.length} ${mixedSources.length === 1 ? 'video' : 'videos'}.`
-                      : 'Practice words pulled from across your videos.'}
+                      : 'Practice words pulled from your tracked videos.'}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-5">
-                  {mixedSources.length > 0 && (
-                    <ul className="flex items-center -space-x-3" aria-label={`Words will be drawn from ${mixedSources.map((video) => video.title).join(', ')}`}>
-                      {mixedSources.map((video) => {
+                  {mixedPreviewVideos.length > 0 && (
+                    <ul className="flex items-center -space-x-3" aria-label={mixedSources.length > 0 ? `Words will be drawn from ${mixedPreviewVideos.map((video) => video.title).join(', ')}` : 'Videos available for your mixed chat'}>
+                      {mixedPreviewVideos.map((video) => {
                         const isNetflix = video.video_id.startsWith('netflix_');
                         return (
                           <li key={video.video_id} title={video.title}>
@@ -975,6 +977,11 @@ export function ConverseV2Page(
                           </li>
                         );
                       })}
+                      {additionalMixedVideoCount > 0 && (
+                        <li className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-sage-soft bg-sage-mid text-meta font-semibold text-sage-deep">
+                          +{additionalMixedVideoCount}
+                        </li>
+                      )}
                     </ul>
                   )}
                   <button

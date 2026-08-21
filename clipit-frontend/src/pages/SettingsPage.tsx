@@ -124,7 +124,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
   return (
     <div className="mx-auto w-full max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <div className="max-w-3xl">
       <header className="flex flex-wrap items-start justify-between gap-4 pb-8">
         <div>
           <div className="-ml-2 flex items-center gap-2">
@@ -151,145 +150,128 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
         </div>
       </header>
 
-      <section aria-labelledby="profile-heading" className="w-full rounded-2xl border border-subtle bg-surface p-5">
-        <h2 id="profile-heading" className="sr-only">
-          Profile
-        </h2>
-        <div className="flex items-center gap-4">
-          <Avatar user={user} size={48} textClassName="text-body font-semibold" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-body font-semibold text-primary">
-              {user?.full_name || user?.email?.split('@')[0] || 'User'}
-            </p>
-            <p className="truncate text-body-sm text-muted">{user?.email ?? ''}</p>
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="learning-heading" className="mt-10 w-full">
-        <h2 id="learning-heading" className="font-heading text-card-title text-primary">
-          Learning
-        </h2>
-
-        <div className="mt-2 w-full border-t border-subtle">
-          <SettingRow
-            label="Daily goal"
-            description={`How much time would you like to learn each day? This sets a daily target of about ${cardTarget} cards.`}
-          >
-            <div role="group" aria-label="Daily goal" className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface p-1">
-              {DAILY_GOAL_OPTIONS.map((option) => {
-                const isActive = option.minutes === goalMinutes;
-                return (
-                  <button
-                    key={option.minutes}
-                    type="button"
-                    onClick={() => {
-                      setGoalMinutes(option.minutes);
-                      localStorage.setItem('daily_goal', String(option.minutes));
-                      markSaved();
-                    }}
-                    aria-pressed={isActive}
-                    className={`rounded-md px-3.5 py-1.5 text-body-sm font-semibold transition-colors duration-150 ease-swift ${
-                      isActive ? 'bg-blush text-accent' : 'text-secondary hover:text-primary'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </SettingRow>
-
-          <SettingRow
-            label="New cards per day"
-            description="How many unseen words enter your reviews each day. Set to 0 to only review what you already have."
-            htmlFor="new-cards"
-          >
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => saveNewCards(newCards - 5)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-              >
-                <Minus className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">Five fewer new cards</span>
-              </button>
-              <input
-                id="new-cards"
-                type="number"
-                min={0}
-                value={newCards}
-                onChange={(event) => saveNewCards(parseInt(event.target.value, 10) || 0)}
-                className="w-20 rounded-lg border border-subtle bg-app px-3 py-2 text-center text-body font-semibold tabular-nums text-primary transition-colors duration-150 ease-swift focus:border-accent focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => saveNewCards(newCards + 5)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">Five more new cards</span>
-              </button>
-              <span className="text-body-sm text-muted">cards</span>
-            </div>
-          </SettingRow>
-        </div>
-      </section>
-
-      {ttsVoices.length > 0 && (
-        <section aria-labelledby="practice-heading" className="mt-10 w-full">
-          <h2 id="practice-heading" className="font-heading text-card-title text-primary">
-            Practice
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] lg:gap-14">
+        <section aria-labelledby="profile-heading" className="w-full rounded-2xl border border-subtle bg-surface p-5">
+          <h2 id="profile-heading" className="sr-only">
+            Profile
           </h2>
-
-          <div className="mt-2 w-full border-t border-subtle">
-            <SettingRow
-              label="AI voice"
-              description="Tap a voice to hear a short sample. Your selected voice becomes your default voice."
-              layout="stacked"
-            >
-              <VoiceSelector
-                voices={ttsVoices}
-                selectedId={voiceId}
-                onSelect={handleVoiceChange}
-                getSampleUrl={getVoiceSampleUrl}
-              />
-            </SettingRow>
+          <div className="flex items-center gap-4">
+            <Avatar user={user} size={48} textClassName="text-body font-semibold" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-body font-semibold text-primary">{user?.full_name || user?.email?.split('@')[0] || 'User'}</p>
+              <p className="truncate text-body-sm text-muted">{user?.email ?? ''}</p>
+            </div>
           </div>
         </section>
-      )}
 
-      <section aria-labelledby="account-heading" className="mt-10 w-full">
-        <h2 id="account-heading" className="font-heading text-card-title text-primary">
-          Account
-        </h2>
+        <div className="min-w-0">
+          <section aria-labelledby="learning-heading" className="w-full">
+            <h2 id="learning-heading" className="font-heading text-card-title text-primary">
+              Learning
+            </h2>
 
-        <div className="mt-2 w-full border-t border-subtle">
-          <SettingRow label="Log out" description="Sign out of ClipIt on this device.">
-            <button
-              type="button"
-              onClick={logout}
-              className="flex items-center gap-2 rounded-lg border border-subtle px-3.5 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              Log out
-            </button>
-          </SettingRow>
+            <div className="mt-2 w-full border-t border-subtle">
+              <SettingRow label="Daily goal" description={`How much time would you like to learn each day? This sets a daily target of about ${cardTarget} cards.`}>
+                <div role="group" aria-label="Daily goal" className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface p-1">
+                  {DAILY_GOAL_OPTIONS.map((option) => {
+                    const isActive = option.minutes === goalMinutes;
+                    return (
+                      <button
+                        key={option.minutes}
+                        type="button"
+                        onClick={() => {
+                          setGoalMinutes(option.minutes);
+                          localStorage.setItem('daily_goal', String(option.minutes));
+                          markSaved();
+                        }}
+                        aria-pressed={isActive}
+                        className={`rounded-md px-3.5 py-1.5 text-body-sm font-semibold transition-colors duration-150 ease-swift ${
+                          isActive ? 'bg-blush text-accent' : 'text-secondary hover:text-primary'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </SettingRow>
 
-          <SettingRow
-            label="Delete account"
-            description="Permanently erase your account, decks, and review history. This can't be undone."
-          >
-            <button
-              type="button"
-              onClick={() => setIsConfirmingDelete(true)}
-              className="rounded-lg border border-error/30 px-3.5 py-2 text-body-sm font-semibold text-error transition-colors duration-150 ease-swift hover:bg-error/10"
-            >
-              Delete account
-            </button>
-          </SettingRow>
+              <SettingRow label="New cards per day" description="How many unseen words enter your reviews each day. Set to 0 to only review what you already have." htmlFor="new-cards">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => saveNewCards(newCards - 5)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                  >
+                    <Minus className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only">Five fewer new cards</span>
+                  </button>
+                  <input
+                    id="new-cards"
+                    type="number"
+                    min={0}
+                    value={newCards}
+                    onChange={(event) => saveNewCards(parseInt(event.target.value, 10) || 0)}
+                    className="w-20 rounded-lg border border-subtle bg-app px-3 py-2 text-center text-body font-semibold tabular-nums text-primary transition-colors duration-150 ease-swift focus:border-accent focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveNewCards(newCards + 5)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only">Five more new cards</span>
+                  </button>
+                  <span className="text-body-sm text-muted">cards</span>
+                </div>
+              </SettingRow>
+            </div>
+          </section>
+
+          {ttsVoices.length > 0 && (
+            <section aria-labelledby="practice-heading" className="mt-10 w-full">
+              <h2 id="practice-heading" className="font-heading text-card-title text-primary">
+                Practice
+              </h2>
+
+              <div className="mt-2 w-full border-t border-subtle">
+                <SettingRow label="AI voice" description="Tap a voice to hear a short sample. Your selected voice becomes your default voice." layout="stacked">
+                  <VoiceSelector voices={ttsVoices} selectedId={voiceId} onSelect={handleVoiceChange} getSampleUrl={getVoiceSampleUrl} />
+                </SettingRow>
+              </div>
+            </section>
+          )}
+
+          <section aria-labelledby="account-heading" className="mt-10 w-full">
+            <h2 id="account-heading" className="font-heading text-card-title text-primary">
+              Account
+            </h2>
+
+            <div className="mt-2 w-full border-t border-subtle">
+              <SettingRow label="Log out" description="Sign out of ClipIt on this device.">
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="flex items-center gap-2 rounded-lg border border-subtle px-3.5 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  Log out
+                </button>
+              </SettingRow>
+
+              <SettingRow label="Delete account" description="Permanently erase your account, decks, and review history. This can't be undone.">
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="rounded-lg border border-error/30 px-3.5 py-2 text-body-sm font-semibold text-error transition-colors duration-150 ease-swift hover:bg-error/10"
+                >
+                  Delete account
+                </button>
+              </SettingRow>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <AnimatePresence>
         {isConfirmingDelete && (
@@ -305,7 +287,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
           />
         )}
       </AnimatePresence>
-      </div>
     </div>
   );
 }
