@@ -201,6 +201,41 @@ a.brand-logo:active {
   border-color: #fcf6ed !important;
 }
 
+/* ── Neutral buttons ───────────────────────────────────────────────────────
+   Secondary actions should read as intentionally lighter than the coral
+   primary action. Replace the old gray fills with a white, outlined ghost
+   treatment everywhere a button used a neutral surface token. This is scoped
+   to buttons so cards, thumbnails, inputs, progress tracks, and disabled
+   controls retain their own structural treatment. */
+button.bg-surface:not(:disabled),
+button.bg-surface-hover:not(:disabled),
+button.bg-app.border-subtle:not(:disabled),
+button.bg-app.border-medium:not(:disabled),
+button.border-subtle:not(:disabled),
+button.border-medium:not(:disabled) {
+  background-color: var(--bg-app) !important;
+  border: 1px solid var(--border-medium) !important;
+}
+
+.light button.bg-surface:not(:disabled),
+.light button.bg-surface-hover:not(:disabled),
+.light button.bg-app.border-subtle:not(:disabled),
+.light button.bg-app.border-medium:not(:disabled),
+.light button.border-subtle:not(:disabled),
+.light button.border-medium:not(:disabled) {
+  background-color: #ffffff !important;
+  border-color: rgba(76, 35, 35, 0.18) !important;
+}
+
+button.bg-surface:not(:disabled):hover,
+button.bg-surface-hover:not(:disabled):hover,
+button.bg-app.border-subtle:not(:disabled):hover,
+button.bg-app.border-medium:not(:disabled):hover,
+button.border-subtle:not(:disabled):hover,
+button.border-medium:not(:disabled):hover {
+  border-color: var(--accent) !important;
+}
+
 /* Custom Scrollbar (dark default) */
 ::-webkit-scrollbar {
   width: 8px;
