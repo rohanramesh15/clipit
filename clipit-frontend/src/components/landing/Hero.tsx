@@ -58,16 +58,15 @@ export function Hero({ onGetStarted }: HeroProps) {
           }}
           className="lg:col-span-7"
         >
-          <div className="rounded-[1.125rem] border border-sand-mid p-1">
-            <div className="rounded-[0.9375rem] border border-sage-mid p-1">
-              <div className="rounded-[0.75rem] border border-dusk-mid p-1">
-                <img
-                  src={landingPage}
-                  alt="ClipIt tracking a YouTube video in the browser"
-                  className="w-full rounded-lg"
-                />
-              </div>
-            </div>
+          <div
+            className="rounded-2xl border-[5px] border-sand-mid"
+            style={{ boxShadow: '0 0 0 5px #b1cbac, 0 0 0 10px #b5c3e3' }}
+          >
+            <img
+              src={landingPage}
+              alt="ClipIt tracking a YouTube video in the browser"
+              className="w-full rounded-xl"
+            />
           </div>
         </motion.div>
       </div>

@@ -42,8 +42,10 @@ interface AuthLayoutProps {
 export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, children }: AuthLayoutProps) {
   return (
     <div className="light flex h-screen w-full flex-col overflow-hidden bg-app font-sans text-primary selection:bg-accent selection:text-[var(--on-accent)]" style={{ height: '100dvh' }}>
-      <header className="flex shrink-0 items-center px-5 pt-5 sm:px-8">
-        <NavigationIconButton direction="back" label="Go back" onClick={onBack} />
+      <header className="shrink-0 pt-5">
+        <div className="mx-auto flex w-full max-w-page items-center px-5 sm:px-8">
+          <NavigationIconButton direction="back" label="Go back" onClick={onBack} />
+        </div>
       </header>
 
       <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-4 sm:px-8">
