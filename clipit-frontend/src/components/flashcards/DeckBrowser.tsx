@@ -132,7 +132,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
                   transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                  className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
+                  className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right space-y-1 rounded-xl border border-subtle bg-app p-2 shadow-lg"
                 >
                   {sorts.map((option) => {
                     const isSelected = option.value === sort;
