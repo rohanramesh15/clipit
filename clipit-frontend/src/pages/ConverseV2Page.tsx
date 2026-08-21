@@ -1152,7 +1152,7 @@ export function ConverseV2Page(
                             {isNetflix ? 'Netflix' : 'YouTube'} · {relativeDay(video.tracked_at)}{words !== undefined && ` · ${words.length} words`}
                           </p>
                         </div>
-                        <p className={`hidden w-20 shrink-0 text-right text-body-sm font-semibold sm:block ${due > 0 ? 'text-sage-ink' : 'text-muted'}`}>
+                        <p className={`hidden w-20 shrink-0 text-right text-body-sm font-semibold sm:block ${due > 0 ? 'text-accent' : 'text-muted'}`}>
                           {words === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Ready'}
                         </p>
                         <button
