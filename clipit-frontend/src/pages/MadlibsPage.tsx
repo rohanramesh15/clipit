@@ -89,7 +89,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         {videos === null ? <div className="space-y-3 pt-4" role="status" aria-live="polite">
           <div className="flex items-center gap-3 text-body-sm text-muted"><LoadingAnimation className="h-7 w-7" />Loading videos…</div>
           {[0, 1, 2].map((value) => <div key={value} className="flex items-center gap-5 border-b border-subtle py-4"><Skeleton className="h-14 w-24 shrink-0 rounded-lg" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-2/3 rounded" /><Skeleton className="h-3 w-1/3 rounded" /></div></div>)}
-        </div> : videos.length === 0 ? <div className="py-12"><PracticeEmptyState onNavigate={onNavigate} /></div> : <ul>
+        </div> : videos.length === 0 ? <PracticeEmptyState mode="Mad Libs" /> : <ul>
           {videos.map((video, position) => {
             const count = wordCounts[video.video_id]; const ready = (count ?? 0) > 0;
             return <motion.li key={video.video_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(position * 0.03, 0.2) }} className="flex items-center gap-5 border-b border-subtle py-4">

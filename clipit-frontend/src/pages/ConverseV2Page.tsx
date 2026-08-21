@@ -17,7 +17,7 @@ import {
 import { VoiceSession, VoiceEvent } from '../lib/voiceSession';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { PracticeEmptyState, type NavPage } from '../components/PracticeEmptyState';
+import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { Persona, type PersonaState } from '../components/ai-elements/persona';
 import { SpeechInput } from '../components/ai-elements/speech-input';
@@ -34,6 +34,7 @@ const hexA = (hex: string, a: number) => {
 
 type Phase = 'deck' | 'loading' | 'chat' | 'empty';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
+type NavPage = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 
 interface TargetWord {
   lemma: string;    // dictionary form (sent to the backend, shown on the pill)
@@ -733,7 +734,7 @@ export function ConverseV2Page(
             ))}
           </div>
         ) : videos.length === 0 ? (
-          <PracticeEmptyState onNavigate={(p) => onNavigate?.(p)} />
+          <PracticeEmptyState mode="AI chat" />
         ) : (
           <div className="space-y-3">
             {videos.map((v, i) => {
