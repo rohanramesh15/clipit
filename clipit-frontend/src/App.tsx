@@ -188,6 +188,12 @@ function AppInner() {
         return v;
       });
     } else {
+      // A protected deep link such as /practice should fall back to the public
+      // landing page at its canonical URL, rather than rendering the landing
+      // page while leaving the authenticated route in the address bar.
+      if (pageForPath(window.location.pathname)) {
+        window.history.replaceState({}, '', '/');
+      }
       setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
     }
   }, [isLoading, isNewUser, token, user]);
