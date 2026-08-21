@@ -1462,14 +1462,18 @@ export function ConverseV2Page(
               <section className="mt-7">
                 <h3 className="text-body-sm font-semibold text-primary">Fixes</h3>
                 {(() => {
-                  const corrections = messages.filter((m) => m.role === 'user' && m.correction);
+                  // correction lives on the assistant turn (feedback about the user
+                  // turn right before it), so "said" comes from that prior message.
+                  const corrections = messages
+                    .map((m, i) => ({ m, said: i > 0 ? messages[i - 1].text : '' }))
+                    .filter(({ m }) => m.role === 'assistant' && m.correction);
                   return corrections.length === 0 ? (
                     <p className="mt-1.5 text-body-sm text-muted">Nothing yet.</p>
                   ) : (
                     <ul className="mt-2.5 space-y-2.5">
-                      {corrections.map((m) => (
+                      {corrections.map(({ m, said }) => (
                         <li key={m.id} className="border-l-2 border-subtle pl-3">
-                          <p className="text-meta text-muted line-through">{m.text}</p>
+                          <p className="text-meta text-muted line-through">{said}</p>
                           <p className="mt-0.5 text-body-sm font-medium text-primary">{m.correction!.correct}</p>
                           <p className="mt-0.5 text-meta text-secondary">{m.correction!.why_en}</p>
                         </li>
