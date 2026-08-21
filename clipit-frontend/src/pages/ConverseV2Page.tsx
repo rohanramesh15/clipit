@@ -831,11 +831,27 @@ export function ConverseV2Page(
             <h1 className="font-heading font-semibold text-xs text-secondary truncate">
               {deck?.title || 'Voice Chat'}
             </h1>
-            <span className="flex items-center gap-1.5 shrink-0">
+            <span className="flex items-center gap-2.5 shrink-0">
               {targetWords.length > 0 && (
-                <span className="text-xs font-medium text-secondary tabular-nums">
-                  {usedCount} / {targetWords.length} words used
-                </span>
+                <>
+                  <span className="hidden items-center gap-1.5 sm:flex" aria-hidden="true">
+                    {targetWords.map((w) => {
+                      const done = usedLemmas.has(w.lemma);
+                      return (
+                        <motion.span
+                          key={w.lemma}
+                          animate={done ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                          transition={{ duration: 0.26, ease: [0.23, 1, 0.32, 1] }}
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ background: done ? ACCENT : 'var(--bg-surface-hover)' }}
+                        />
+                      );
+                    })}
+                  </span>
+                  <span className="text-xs font-medium text-secondary tabular-nums">
+                    {usedCount} / {targetWords.length} words used
+                  </span>
+                </>
               )}
               <ChevronDown
                 className={
