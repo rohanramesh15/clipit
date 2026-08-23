@@ -244,7 +244,10 @@ function AppInner() {
   useEffect(() => {
     if (appView !== 'app') return;
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById('main-content')?.focus();
+      // Keep the accessibility focus handoff from being mistaken for a user
+      // scroll by the hide-on-scroll navigation. The page position is already
+      // reset by the effect above.
+      document.getElementById('main-content')?.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activePage, appView]);
