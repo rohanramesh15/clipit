@@ -52,7 +52,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
   const [isLangPickerOpen, setIsLangPickerOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const langPickerRef = useRef<HTMLDivElement>(null);
-  const isHidden = useHideOnScroll();
+  const isHidden = useHideOnScroll(8, 72, activePage);
 
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
   const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];

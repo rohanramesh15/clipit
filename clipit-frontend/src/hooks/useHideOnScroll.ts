@@ -1,13 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Hides a fixed header while the page scrolls down and reveals it again the
  * moment the user scrolls up. Small jitters are ignored, and the header is
  * always visible near the top of the page.
  */
-export function useHideOnScroll(threshold = 8, revealAbove = 72): boolean {
+export function useHideOnScroll(threshold = 8, revealAbove = 72, resetKey?: unknown): boolean {
   const [isHidden, setIsHidden] = useState(false);
   const lastY = useRef(0);
+
+  // Page changes are not user scrolling. Reset before the incoming page paints
+  // so a header hidden on the previous screen never carries into the next one.
+  useLayoutEffect(() => {
+    lastY.current = window.scrollY;
+    setIsHidden(false);
+  }, [resetKey]);
 
   useEffect(() => {
     lastY.current = window.scrollY;
