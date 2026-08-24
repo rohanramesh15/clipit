@@ -1192,10 +1192,10 @@ export function ConverseV2Page(
   // Chat
   // ============================================================================
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-page mx-auto px-5 sm:px-8">
+    <div className="-mt-2 flex flex-col h-[calc(100vh-4rem)] max-w-page mx-auto px-5 sm:px-8">
       {/* header — spans the full width here, wider than the reading column below (matches MP) */}
       <div className="shrink-0 border-b border-subtle">
-        <div className="flex h-9 items-center gap-3">
+        <div className="flex h-12 items-center gap-3">
           <NavigationIconButton direction="back" label="Back to videos" onClick={leaveChat} className="-ml-2 shrink-0" />
 
           <span className="hidden h-9 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-hover items-center justify-center sm:flex">
