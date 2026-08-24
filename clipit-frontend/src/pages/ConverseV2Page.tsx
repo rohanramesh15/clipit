@@ -79,6 +79,18 @@ function isLikelyEnglish(text: string, language: string): boolean {
   return !hasTarget && hasLatin;
 }
 
+// Random, order-independent sample — used to pick which of a mixed session's
+// source videos show as thumbnails in the chat header.
+function sampleRandom<T>(items: T[], count: number): T[] {
+  const pool = [...items];
+  const picked: T[] = [];
+  while (pool.length && picked.length < count) {
+    const i = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(i, 1)[0]);
+  }
+  return picked;
+}
+
 // ==============================================================================
 // Main page
 // ==============================================================================
@@ -115,6 +127,9 @@ export function ConverseV2Page(
 
   // active session
   const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
+  // Mixed-practice sessions draw from several videos — a random sample shown
+  // stacked in the chat header instead of a single thumbnail.
+  const [mixedThumbs, setMixedThumbs] = useState<MixedSourceVideo[]>([]);
   const [targetWords, setTargetWords] = useState<TargetWord[]>([]);
   const [usedLemmas, setUsedLemmas] = useState<Set<string>>(new Set());
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -459,6 +474,7 @@ export function ConverseV2Page(
   // UI state and lands on the chat phase. Used by both a single-video start
   // and the mixed (due-words) start.
   const resetSessionUI = useCallback(() => {
+    setMixedThumbs([]);
     setTargetWords([]);
     setUsedLemmas(new Set());
     setOpenTargetWord(null);
@@ -578,6 +594,9 @@ export function ConverseV2Page(
         translation: result.opening.reply_translation,
         turnId: result.opening.turn_id,
       }]);
+      // enterSession resets per-session UI state (including this), so set it
+      // after — a random sample of what this session actually draws from.
+      setMixedThumbs(sampleRandom(result.source_videos || [], 3));
     } catch {
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
@@ -1022,6 +1041,7 @@ export function ConverseV2Page(
         title={deck?.title || 'Voice Chat'}
         subtitle={profile ? `${langName} · ${profile.level}` : langName}
         thumbnailVideoId={deck?.id ?? null}
+        stackedVideos={mixedThumbs}
         targets={targetWords}
         usedCount={usedCount}
         coachOpen={coachOpen}
@@ -1145,7 +1165,6 @@ export function ConverseV2Page(
               advancedOpen={advancedOpen}
               onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
               onClose={() => setCoachOpen(false)}
-              onEndSession={leaveChat}
             />
           )}
         </AnimatePresence>

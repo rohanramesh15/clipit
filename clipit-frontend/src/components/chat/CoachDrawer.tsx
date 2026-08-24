@@ -25,7 +25,6 @@ interface CoachDrawerProps {
   advancedOpen: boolean;
   onToggleAdvanced: () => void;
   onClose: () => void;
-  onEndSession: () => void;
 }
 
 const EASE = [0.23, 1, 0.32, 1] as const;
@@ -50,7 +49,6 @@ export function CoachDrawer({
   advancedOpen,
   onToggleAdvanced,
   onClose,
-  onEndSession,
 }: CoachDrawerProps) {
   const used = usedLemmas.size;
   const next = targets.find((target) => !usedLemmas.has(target.lemma));
@@ -234,16 +232,6 @@ export function CoachDrawer({
             )}
           </section>
         )}
-      </div>
-
-      <div className="shrink-0 border-t border-subtle p-4">
-        <button
-          type="button"
-          onClick={onEndSession}
-          className="w-full rounded-xl bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
-        >
-          End session
-        </button>
       </div>
     </motion.aside>
   );

@@ -15,6 +15,9 @@ interface SessionHeaderProps {
   title: string;
   subtitle: string;
   thumbnailVideoId: string | null;
+  /** Mixed-practice sessions draw from several videos — a random sample of
+   * those shown stacked instead of the single thumbnail above. */
+  stackedVideos?: { video_id: string; title: string }[];
   targets: TargetWord[];
   usedCount: number;
   coachOpen: boolean;
@@ -28,6 +31,7 @@ export function SessionHeader({
   title,
   subtitle,
   thumbnailVideoId,
+  stackedVideos = [],
   targets,
   usedCount,
   coachOpen,
@@ -49,30 +53,60 @@ export function SessionHeader({
   return (
     <header className="shrink-0 border-b border-subtle bg-app">
       <div className="mx-auto flex h-16 w-full max-w-page items-center gap-4 px-5 sm:px-8">
-        <Tooltip label="Back" placement="bottom">
-          <button
-            type="button"
-            onClick={onLeave}
-            aria-label="Leave practice"
-            className="inline-flex shrink-0 items-center rounded-xl p-2 text-secondary transition-all duration-150 ease-swift hover:-translate-x-0.5 hover:text-primary"
-          >
-            <ChevronLeftIcon className="size-5" aria-hidden="true" />
-          </button>
-        </Tooltip>
+        <button
+          type="button"
+          onClick={onLeave}
+          aria-label="Leave practice"
+          className="inline-flex shrink-0 items-center rounded-xl p-2 text-secondary transition-all duration-150 ease-swift hover:-translate-x-0.5 hover:text-primary"
+        >
+          <ChevronLeftIcon className="size-5" aria-hidden="true" />
+        </button>
 
-        <span className="hidden h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-hover sm:flex">
-          {isNetflix ? (
-            <Film className="w-4 h-4 text-accent" />
-          ) : thumbnailVideoId ? (
-            <img
-              src={`https://img.youtube.com/vi/${thumbnailVideoId}/mqdefault.jpg`}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-          ) : null}
-        </span>
+        {stackedVideos.length > 0 ? (
+          <ul
+            className="hidden shrink-0 items-center -space-x-3 sm:flex"
+            aria-label={`Words drawn from ${stackedVideos.map((v) => v.title).join(', ')}`}
+          >
+            {stackedVideos.map((v) => {
+              const netflix = v.video_id.startsWith('netflix_');
+              return (
+                <li
+                  key={v.video_id}
+                  title={v.title}
+                  className="h-9 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-app bg-surface-hover"
+                >
+                  {netflix ? (
+                    <div className="flex h-full w-full items-center justify-center bg-[#B20710]/10">
+                      <Film className="h-3.5 w-3.5 text-[#B20710]" aria-hidden="true" />
+                    </div>
+                  ) : (
+                    <img
+                      src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <span className="hidden h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-hover sm:flex">
+            {isNetflix ? (
+              <Film className="w-4 h-4 text-accent" />
+            ) : thumbnailVideoId ? (
+              <img
+                src={`https://img.youtube.com/vi/${thumbnailVideoId}/mqdefault.jpg`}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : null}
+          </span>
+        )}
 
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-heading text-body font-semibold text-primary">{title}</h1>

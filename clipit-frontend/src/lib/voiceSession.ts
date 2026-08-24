@@ -72,6 +72,11 @@ export class VoiceSession {
 
     this.outputCtx = new AudioContext();
     this.playCursor = this.outputCtx.currentTime;
+    // Browsers create AudioContexts 'suspended' unless resumed within a user
+    // gesture's call stack — the getUserMedia await above already broke that
+    // chain, so without this the tutor's audio is silently never scheduled.
+    if (this.inputCtx.state === 'suspended') await this.inputCtx.resume();
+    if (this.outputCtx.state === 'suspended') await this.outputCtx.resume();
 
     // ── WebSocket ────────────────────────────────────────────────────────────
     this.ws = new WebSocket(url);
