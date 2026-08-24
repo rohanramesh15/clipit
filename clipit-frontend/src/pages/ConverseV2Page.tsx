@@ -1192,7 +1192,7 @@ export function ConverseV2Page(
   // Chat
   // ============================================================================
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-page mx-auto px-5 sm:px-8">
       {/* header — spans the full width here, wider than the reading column below (matches MP) */}
       <div className="shrink-0 border-b border-subtle">
         <div className="flex h-9 items-center gap-3">
