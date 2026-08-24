@@ -124,7 +124,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     aria-current={isActive ? 'page' : undefined}
                     variant="ghost"
                     size="sm"
-                    className={`relative ${
+                    className={`relative text-body-sm ${
                       isActive
                         ? 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent'
                         : 'hover:bg-transparent hover:text-secondary'
