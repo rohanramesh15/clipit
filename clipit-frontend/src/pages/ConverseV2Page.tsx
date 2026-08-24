@@ -792,6 +792,14 @@ export function ConverseV2Page(
   const mixedAllSources = mixedSources.length > 0 ? mixedSources : (videos ?? []);
   const mixedPreviewVideos = mixedAllSources.slice(0, 2);
   const additionalMixedVideoCount = Math.max(0, mixedAllSources.length - mixedPreviewVideos.length);
+  // Mixed sessions have no single seed video — show the videos their words
+  // came from instead, same treatment as the "Start a mixed chat" card.
+  const recentMixedVideos = useMemo(
+    () => (recentSession ? sourceVideosFromDueWords(recentSession.due_words || []) : []),
+    [recentSession],
+  );
+  const recentMixedPreview = recentMixedVideos.slice(0, 2);
+  const additionalRecentMixedCount = Math.max(0, recentMixedVideos.length - recentMixedPreview.length);
 
   // ============================================================================
   // Deck picker
@@ -837,7 +845,7 @@ export function ConverseV2Page(
               {recentSession && (
                 <section aria-labelledby="resume-title" className="flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') && (
+                    {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') ? (
                       <img
                         src={`https://img.youtube.com/vi/${recentSession.seed_video_id}/mqdefault.jpg`}
                         alt=""
@@ -845,7 +853,35 @@ export function ConverseV2Page(
                         className="hidden h-14 w-24 shrink-0 rounded-lg object-cover sm:block"
                         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                       />
-                    )}
+                    ) : recentMixedPreview.length > 0 ? (
+                      <ul
+                        className="hidden shrink-0 items-center -space-x-3 sm:flex"
+                        aria-label={`Words were drawn from ${recentMixedVideos.map((video) => video.title).join(', ')}`}
+                      >
+                        {recentMixedPreview.map((video) => {
+                          const isNetflix = video.video_id.startsWith('netflix_');
+                          return (
+                            <li key={video.video_id} title={video.title}>
+                              {isNetflix ? (
+                                <span className="flex h-14 w-24 items-center justify-center rounded-lg border-2 border-sage-soft bg-[#B20710]/10 text-meta font-bold text-[#B20710]">N</span>
+                              ) : (
+                                <img
+                                  src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
+                                  alt={video.title}
+                                  className="h-14 w-24 rounded-lg border-2 border-sage-soft object-cover"
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                />
+                              )}
+                            </li>
+                          );
+                        })}
+                        {additionalRecentMixedCount > 0 && (
+                          <li className="flex h-14 w-14 items-center justify-center rounded-lg border-2 border-sage-soft bg-sand-mid text-meta font-semibold text-sand-deep">
+                            +{additionalRecentMixedCount}
+                          </li>
+                        )}
+                      </ul>
+                    ) : null}
                     <div className="min-w-0">
                       <h2 id="resume-title" className="truncate font-heading text-lead text-sage-deep">Continue your conversation</h2>
                       <p className="mt-0.5 truncate text-body-sm text-sage-ink">

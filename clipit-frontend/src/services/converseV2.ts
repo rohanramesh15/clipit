@@ -114,6 +114,7 @@ export interface RecentSession {
   started_at: string;
   turn_count: number;
   last_line: string;
+  due_words: DueWord[];
 }
 
 export const getRecentSession = (token: string) =>
