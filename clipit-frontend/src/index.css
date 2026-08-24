@@ -116,6 +116,12 @@ a.brand-logo:active {
   transform: none;
 }
 
+/* Back/forward chevrons are wayfinding, not a pressable action — no
+   shrink-on-press. */
+button.nav-icon-button:active {
+  transform: none;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
