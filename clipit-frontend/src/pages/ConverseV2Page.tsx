@@ -811,7 +811,7 @@ export function ConverseV2Page(
 
   if (phase === 'deck') {
     return (
-      <div className="theme-chat mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
+      <div className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
         {header(() => onNavigate?.('practice'), 'Back')}
 
         {chatError && <div className="mt-6 text-body-sm font-medium text-accent">{chatError}</div>}
@@ -870,21 +870,21 @@ export function ConverseV2Page(
                       </ul>
                     ) : null}
                     <div className="min-w-0">
-                      <h2 id="resume-title" className="truncate font-heading text-lead text-sage-deep">Continue your conversation</h2>
-                      <p className="mt-0.5 truncate text-body-sm text-sage-ink">
+                      <h2 id="resume-title" className="truncate font-heading text-lead text-primary">Continue your conversation</h2>
+                      <p className="mt-0.5 truncate text-body-sm text-secondary">
                         {recentSession.seed_label || 'Previous conversation'} · {recentSession.turn_count} {recentSession.turn_count === 1 ? 'message' : 'messages'}
                       </p>
                     </div>
                   </div>
-                  <button
+                  <Button
                     type="button"
                     onClick={resumeLastSession}
                     disabled={resuming}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:opacity-60"
+                    className="shrink-0"
                   >
                     {resuming ? <LoadingAnimation className="h-4 w-4" /> : <Play className="size-4" aria-hidden="true" />}
                     Continue
-                  </button>
+                  </Button>
                 </section>
               )}
 
@@ -925,14 +925,15 @@ export function ConverseV2Page(
                     </p>
                   </div>
                 </div>
-                <button
+                <Button
                   type="button"
                   onClick={startMixedSession}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-app px-5 py-2.5 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                  variant="secondary"
+                  className="shrink-0"
                 >
                   <Shuffle className="size-4 text-accent" aria-hidden="true" />
                   Start chat
-                </button>
+                </Button>
               </section>
             </section>
 
@@ -956,7 +957,7 @@ export function ConverseV2Page(
                   </label>
                   <DropdownMenu open={isDeckSortOpen} onOpenChange={setIsDeckSortOpen} className="shrink-0">
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="sm" className="h-auto rounded-xl bg-app px-4 py-2 text-body-sm font-semibold text-primary hover:bg-surface-hover">
+                      <Button variant="secondary" size="sm" className="h-auto rounded-xl bg-app px-4 py-2 text-body font-semibold text-primary hover:bg-surface-hover">
                         {currentDeckSort.label}
                         <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isDeckSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                         <span className="sr-only">Sort videos</span>
@@ -1011,14 +1012,16 @@ export function ConverseV2Page(
                         <p className={`hidden w-20 shrink-0 text-right text-body-sm font-semibold sm:block ${due > 0 ? 'text-accent' : 'text-muted'}`}>
                           {words === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Ready'}
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => startFromVideo(video)}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-surface-hover px-3.5 py-2 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-blush"
-                        >
-                          <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                          Start chat
-                        </button>
+                          <Button
+                            type="button"
+                            onClick={() => startFromVideo(video)}
+                            variant="secondary"
+                            size="sm"
+                            className="shrink-0"
+                          >
+                            <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                            Start chat
+                          </Button>
                       </li>
                     );
                   })}
@@ -1046,7 +1049,7 @@ export function ConverseV2Page(
   // history and a Coach drawer for target words / corrections / saved words.
   // ============================================================================
   return (
-    <div className="theme-chat -mt-2 flex h-[calc(100vh-2rem)] w-full flex-col bg-app md:h-[calc(100vh-4rem)]">
+    <div className="-mt-2 flex h-[calc(100vh-2rem)] w-full flex-col bg-app md:h-[calc(100vh-4rem)]">
       <SessionHeader
         title={deck?.title || 'Voice Chat'}
         subtitle={profile ? `${langName} · ${profile.level}` : langName}

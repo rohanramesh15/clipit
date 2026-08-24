@@ -63,15 +63,6 @@
   --card-ml-bg: #ecf3ff; --card-ml-text: #3a5a92; /* mad libs — blue */
   --shadow-pop: 0 14px 36px rgba(76, 35, 35, 0.14);
 }
-/* AI chat surfaces adopt the sage palette the "AI chat" card uses on the home
-   screen: sage-ink actions on sage-soft fills. Type, hairlines, surfaces and
-   shadows stay on the app's shared tokens. */
-.theme-chat {
-  --accent: #4a7043; /* sage-ink */
-  --accent-hover: #2e4a2a; /* sage-deep */
-  --accent-soft: #ecf2ea; /* sage-soft */
-  --accent-ring: rgba(74, 112, 67, 0.35);
-}
 html {
   /* Stop the browser's own rubber-band bounce past the top/bottom of the
      page — scrolling should hard-stop at the real content edges. */

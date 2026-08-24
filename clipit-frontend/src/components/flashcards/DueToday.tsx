@@ -51,14 +51,14 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
       aria-labelledby="due-heading"
     >
       <div className="flex min-w-0 flex-1 items-center gap-4">
-        <h2 id="due-heading" className="font-heading text-[2rem] leading-none text-sand-deep">
+        <h2 id="due-heading" className="font-heading text-section leading-none text-sand-deep">
           {totalDue}
         </h2>
         <div className="min-w-0">
-          <p className="text-body-sm font-semibold text-sand-deep">
+          <p className="text-body font-semibold text-sand-deep">
             {totalDue === 1 ? 'word' : 'words'} due today
           </p>
-          <p className="text-meta text-sand-ink">
+          <p className="text-body-sm text-sand-ink">
             across {withDue.length} {withDue.length === 1 ? 'video' : 'videos'}, mixed in scheduled order
           </p>
         </div>
