@@ -99,7 +99,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     onClick={() => onNavigate(tab.id)}
                     aria-current={isActive ? 'page' : undefined}
                     variant="ghost"
-                    size="sm"
+                    size="default"
                     className={`relative text-body ${
                       isActive
                         ? 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent'

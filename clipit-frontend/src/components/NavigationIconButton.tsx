@@ -30,7 +30,7 @@ export function NavigationIconButton({ direction, label, onClick, disabled, clas
       aria-label={label}
       variant="ghost"
       size="icon"
-      className={`nav-icon-button text-secondary hover:bg-transparent hover:text-secondary ${className}`}
+      className={`nav-icon-button text-secondary hover:-translate-x-0.5 hover:bg-transparent hover:text-primary ${className}`}
     >
       <NavigationIcon direction={direction} />
     </Button>
