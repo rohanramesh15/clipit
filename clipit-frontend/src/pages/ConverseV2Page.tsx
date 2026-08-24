@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mic, MicOff, Keyboard, Send, X, Lightbulb, HelpCircle, Check,
+  Mic, MicOff, Keyboard, ArrowUp, X, Lightbulb, HelpCircle, Check,
   Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
@@ -1544,7 +1544,7 @@ export function ConverseV2Page(
             placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
             aria-label="Type a message"
             disabled={openingPending}
-            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-body text-primary placeholder:text-muted outline-none disabled:opacity-60"
+            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-body text-primary placeholder:text-muted outline-none focus-visible:outline-none disabled:opacity-60"
           />
 
           <div className="flex items-center justify-between gap-3 px-1 pb-1 pt-1">
@@ -1564,7 +1564,7 @@ export function ConverseV2Page(
               className="w-10 h-10 flex items-center justify-center rounded-xl disabled:opacity-40 disabled:bg-surface-hover disabled:text-muted transition-colors"
               style={composerText.trim() && !sending ? { background: ACCENT, color: '#ffffff' } : undefined}
             >
-              {sending ? <LoadingAnimation className="h-4 w-4" /> : <Send className="w-4 h-4" />}
+              {sending ? <LoadingAnimation className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" strokeWidth={2.5} />}
             </button>
           </div>
         </div>
