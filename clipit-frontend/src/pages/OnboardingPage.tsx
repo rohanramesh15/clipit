@@ -651,7 +651,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={handleExtensionStepAdvance}
-                      className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-white font-bold px-8 py-4 rounded-xl transition-all text-base"
+                      className="inline-flex items-center justify-center gap-2 bg-accent text-on-accent hover:bg-accent-hover font-bold px-8 py-4 rounded-xl transition-all text-base"
                     >
                       <Puzzle className="w-5 h-5" />
                       Add to Chrome

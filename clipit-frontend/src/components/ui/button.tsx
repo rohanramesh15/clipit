@@ -13,7 +13,7 @@ const buttonVariants = cva(
         primary: 'bg-accent text-on-accent hover:bg-accent-hover',
         secondary: 'border border-subtle bg-surface text-primary hover:bg-surface-hover',
         ghost: 'bg-transparent text-secondary hover:bg-surface-hover hover:text-primary',
-        destructive: 'bg-error text-white hover:bg-error/90',
+        destructive: 'bg-error text-on-accent hover:bg-error/90',
       },
       size: {
         sm: 'h-8 px-3 text-meta',
@@ -37,9 +37,14 @@ export type ButtonProps = IconButtonProps | StandardButtonProps;
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, type, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+    const resolvedVariant = variant ?? 'primary';
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(
+          buttonVariants({ variant: resolvedVariant, size }),
+          className,
+          (resolvedVariant === 'primary' || resolvedVariant === 'destructive') && 'text-on-accent',
+        )}
         ref={ref}
         type={asChild ? undefined : type ?? 'button'}
         {...props}

@@ -37,6 +37,8 @@ import { Composer } from '../components/chat/Composer';
 import { MessageList } from '../components/chat/MessageList';
 import { SuggestionPanel } from '../components/chat/SuggestionPanel';
 import { CoachDrawer } from '../components/chat/CoachDrawer';
+import { Button } from '../components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 
 type Phase = 'deck' | 'chat' | 'empty';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
@@ -137,7 +139,6 @@ export function ConverseV2Page(
   const [deckSort, setDeckSort] = useState<DeckSort>('due');
   const [isDeckSortOpen, setIsDeckSortOpen] = useState(false);
   const [visibleDecks, setVisibleDecks] = useState(DECK_PAGE_SIZE);
-  const deckSortRef = useRef<HTMLDivElement>(null);
 
   // active session
   const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
@@ -273,20 +274,6 @@ export function ConverseV2Page(
     },
     [deckWords, language],
   );
-  useEffect(() => {
-    function closeDeckSort(event: PointerEvent) {
-      if (deckSortRef.current && !deckSortRef.current.contains(event.target as Node)) setIsDeckSortOpen(false);
-    }
-    function closeDeckSortOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsDeckSortOpen(false);
-    }
-    document.addEventListener('pointerdown', closeDeckSort);
-    document.addEventListener('keydown', closeDeckSortOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeDeckSort);
-      document.removeEventListener('keydown', closeDeckSortOnEscape);
-    };
-  }, []);
   useEffect(() => {
     if (!videos?.length || !user || !token) return;
     let alive = true;
@@ -967,53 +954,24 @@ export function ConverseV2Page(
                       className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
                     />
                   </label>
-                  <div className="relative shrink-0" ref={deckSortRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsDeckSortOpen((open) => !open)}
-                      aria-expanded={isDeckSortOpen}
-                      aria-controls="chat-video-sort-options"
-                      className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-                    >
-                      {currentDeckSort.label}
-                      <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isDeckSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-                      <span className="sr-only">Sort videos</span>
-                    </button>
-                    <AnimatePresence>
-                      {isDeckSortOpen && (
-                        <motion.ul
-                          id="chat-video-sort-options"
-                          aria-label="Sort videos"
-                          initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                          transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                          className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right space-y-1 rounded-xl border border-subtle bg-app p-2 shadow-lg"
-                        >
-                          {deckSorts.map((option) => {
-                            const isSelected = option.value === deckSort;
-                            return (
-                              <li key={option.value}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setDeckSort(option.value);
-                                    setVisibleDecks(DECK_PAGE_SIZE);
-                                    setIsDeckSortOpen(false);
-                                  }}
-                                  aria-pressed={isSelected}
-                                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
-                                >
-                                  <span className="flex-1 text-left">{option.label}</span>
-                                  {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  <DropdownMenu open={isDeckSortOpen} onOpenChange={setIsDeckSortOpen} className="shrink-0">
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="sm">
+                        {currentDeckSort.label}
+                        <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isDeckSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                        <span className="sr-only">Sort videos</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent aria-label="Sort videos" className="w-48">
+                      {deckSorts.map((option) => {
+                        const isSelected = option.value === deckSort;
+                        return <DropdownMenuItem key={option.value} onSelect={() => { setDeckSort(option.value); setVisibleDecks(DECK_PAGE_SIZE); }} className={isSelected ? 'bg-accent-soft font-medium text-accent hover:bg-accent-soft hover:text-accent' : ''}>
+                          <span className="flex-1 text-left">{option.label}</span>
+                          {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
+                        </DropdownMenuItem>;
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 

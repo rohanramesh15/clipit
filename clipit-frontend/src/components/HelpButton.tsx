@@ -12,7 +12,7 @@ export function HelpButton() {
         onClick={toggleHelpMode}
         className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
           isHelpMode
-            ? 'bg-accent text-white'
+            ? 'bg-accent text-on-accent'
             : 'bg-card text-secondary hover:text-primary hover:bg-card-hover'
         }`}
         whileHover={{ scale: 1.05 }}

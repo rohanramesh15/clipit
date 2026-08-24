@@ -13,6 +13,7 @@ import { queryClient } from '../lib/queryClient';
 import { type CachedMadlibDeck, historyQueryOptions, queryKeys, videoVocabularyQueryOptions } from '../lib/queries';
 import { mapWithConcurrency } from '../lib/network';
 import { Button } from '../components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 
 type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 interface MadlibsPageProps { onNavigate: (page: Page) => void; }
@@ -68,7 +69,6 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   const [sort, setSort] = useState<SortKey>('words');
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [visible, setVisible] = useState(PAGE_SIZE);
-  const sortRef = useRef<HTMLDivElement>(null);
   const [deck, setDeck] = useState<{ id: string; title: string } | null>(null);
   const [items, setItems] = useState<MadlibItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -141,21 +141,6 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     });
     return () => { alive = false; };
   }, [videos, language, token, user]);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (sortRef.current && !sortRef.current.contains(event.target as Node)) setIsSortOpen(false);
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsSortOpen(false);
-    }
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
 
   useEffect(() => () => streamAbortRef.current?.abort(), []);
 
@@ -383,51 +368,24 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                     className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
                   />
                 </label>
-                <div className="relative shrink-0" ref={sortRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsSortOpen((open) => !open)}
-                    aria-expanded={isSortOpen}
-                    aria-controls="madlibs-sort-options"
-                    className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-                  >
-                    {currentSort.label}
-                    <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-                    <span className="sr-only">Sort videos</span>
-                  </button>
-                  <AnimatePresence>
-                    {isSortOpen && (
-                      <motion.ul
-                        id="madlibs-sort-options"
-                        aria-label="Sort videos"
-                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                        transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                        className="absolute right-0 top-full z-20 mt-2 w-48 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-lg"
-                      >
-                        {SORTS.map((option) => {
-                          const isSelected = option.value === sort;
-                          return (
-                            <li key={option.value}>
-                              <button
-                                type="button"
-                                onClick={() => { setSort(option.value); setVisible(PAGE_SIZE); setIsSortOpen(false); }}
-                                aria-pressed={isSelected}
-                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
-                                  isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
-                                }`}
-                              >
-                                <span className="flex-1 text-left">{option.label}</span>
-                                {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </motion.ul>
-                    )}
-                  </AnimatePresence>
-                </div>
+                <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="sm">
+                      {currentSort.label}
+                      <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                      <span className="sr-only">Sort videos</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent aria-label="Sort videos" className="w-48">
+                    {SORTS.map((option) => {
+                      const isSelected = option.value === sort;
+                      return <DropdownMenuItem key={option.value} onSelect={() => { setSort(option.value); setVisible(PAGE_SIZE); }} className={isSelected ? 'bg-accent-soft font-medium text-accent hover:bg-accent-soft hover:text-accent' : ''}>
+                        <span className="flex-1 text-left">{option.label}</span>
+                        {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
+                      </DropdownMenuItem>;
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
           </div>

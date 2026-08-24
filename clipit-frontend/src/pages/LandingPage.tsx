@@ -43,11 +43,11 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <Logo size="text-4xl" img="w-12 h-12" stroke="2px" />
           </a>
 
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               onClick={() => onNavigate('login')}
               variant="ghost"
-              className="hidden px-3 text-body font-medium sm:inline-flex"
+              className="hidden px-3 text-body font-medium hover:bg-transparent hover:text-secondary sm:inline-flex"
             >
               Sign in
             </Button>
