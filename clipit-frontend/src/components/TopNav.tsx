@@ -78,9 +78,9 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
           variant="ghost"
           className="brand-logo h-auto shrink-0 gap-0 px-0 hover:bg-transparent"
         >
-          <img src={clipitLogo} alt="" className="-mt-1 h-14 w-14 shrink-0 object-contain" />
+          <img src={clipitLogo} alt="" className="-mt-1 h-13 w-13 shrink-0 object-contain" />
           <span
-            className="-ml-1 text-5xl leading-none tracking-tight"
+            className="-ml-1 text-[2.75rem] leading-none tracking-tight"
             style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: '2px #9E3B3B', paintOrder: 'stroke fill' }}
           >
             <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
@@ -100,14 +100,14 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     aria-current={isActive ? 'page' : undefined}
                     variant="ghost"
                     size="default"
-                    className={`relative text-body ${
+                    className={`relative text-body-sm ${
                       isActive
                         ? 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent'
                         : 'hover:bg-transparent hover:text-secondary'
                     }`}
                   >
                     <tab.Icon className="h-4 w-4" aria-hidden="true" />
-                    <span className="whitespace-nowrap text-body">{tab.label}</span>
+                    <span className="whitespace-nowrap text-body-sm">{tab.label}</span>
                   </Button>
                 </li>
               );
@@ -118,7 +118,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           <DropdownMenu open={isLangPickerOpen} onOpenChange={(open) => { setIsLangPickerOpen(open); if (open) setIsAccountOpen(false); }} className="hidden sm:block">
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm" className="h-auto gap-2 rounded-xl bg-app px-4 py-2 text-body font-semibold text-primary hover:bg-app hover:text-primary">
+              <Button variant="secondary" size="sm" className="h-auto gap-2 rounded-xl bg-app px-4 py-2 text-body-sm font-semibold text-primary hover:bg-app hover:text-primary">
                 <span aria-hidden="true">{currentLang.flag}</span>
                 {currentLang.name}
                 <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isLangPickerOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
