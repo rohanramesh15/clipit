@@ -172,7 +172,7 @@ export function WordQueue({
           ))}
           </ul>
           {visible.length > WORDS_PER_PAGE && (
-            <nav aria-label="Word list pagination" className="mt-4 flex items-center justify-between gap-4">
+            <nav aria-label="Word list pagination" className="mt-4 flex items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => setPage(Math.max(0, currentPage - 1))}

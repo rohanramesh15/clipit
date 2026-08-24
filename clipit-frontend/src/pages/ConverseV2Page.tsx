@@ -46,10 +46,25 @@ type NavPage = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' 
 type DeckSort = 'due' | 'recent';
 
 const DECK_PAGE_SIZE = 5;
+const SESSION_QUERY_PARAM = 'session';
 const deckSorts: { value: DeckSort; label: string }[] = [
   { value: 'due', label: 'Most due' },
   { value: 'recent', label: 'Recently watched' },
 ];
+
+function sessionIdFromLocation(): number | null {
+  const value = new URLSearchParams(window.location.search).get(SESSION_QUERY_PARAM);
+  if (!value || !/^\d+$/.test(value)) return null;
+  const sessionId = Number(value);
+  return Number.isSafeInteger(sessionId) && sessionId > 0 ? sessionId : null;
+}
+
+function setConversationSessionInUrl(sessionId: number | null) {
+  const url = new URL(window.location.href);
+  if (sessionId === null) url.searchParams.delete(SESSION_QUERY_PARAM);
+  else url.searchParams.set(SESSION_QUERY_PARAM, String(sessionId));
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
 
 interface TargetWord {
   lemma: string;    // dictionary form (sent to the backend, shown on the pill)
@@ -215,6 +230,8 @@ export function ConverseV2Page(
   const { user, token } = useAuth();
   const { language } = useLanguage();
   const langName = LANG_NAMES[language] || 'Korean';
+  const requestedSessionId = useRef(sessionIdFromLocation());
+  const [isRestoringSession, setIsRestoringSession] = useState(() => requestedSessionId.current !== null);
 
   const [phase, setPhase] = useState<Phase>('deck');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -683,6 +700,7 @@ export function ConverseV2Page(
     setMessages(initialMessages);
     setOpeningPending(false);
     setPhase('chat');
+    setConversationSessionInUrl(sessionId);
   }, [resetSessionUI]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
@@ -805,6 +823,51 @@ export function ConverseV2Page(
     }
   }, [recentSession, token, resuming, enterSession]);
 
+  // A conversation URL contains the server-side session ID, so refreshing an
+  // active chat can rehydrate its turns rather than dropping the learner back
+  // at the deck dashboard. The backend checks ownership before returning it.
+  useEffect(() => {
+    const requestedId = requestedSessionId.current;
+    if (!isRestoringSession || requestedId === null || !token) return;
+    let alive = true;
+
+    void resumeSession(requestedId, token)
+      .then((result) => {
+        if (!alive) return;
+        setDeck({ id: result.seed_video_id || 'mixed', title: result.seed_label || 'Voice Chat' });
+        const finalWords: TargetWord[] = (result.due_words || []).map((d) => ({
+          lemma: d.lemma,
+          gloss: d.gloss,
+          surface: d.lemma,
+        }));
+        enterSession(
+          result.session_id,
+          finalWords,
+          result.turns.map((t) => ({
+            id: `t-${t.turn_id}`,
+            role: t.role,
+            text: t.text,
+            translation: t.reply_translation || undefined,
+            correction: t.correction,
+            turnId: t.turn_id,
+            suggestedReplies: t.suggested_replies,
+            targets: t.used_target_words,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!alive) return;
+        setConversationSessionInUrl(null);
+        setChatError('Could not restore that conversation.');
+        setPhase('deck');
+      })
+      .finally(() => {
+        if (alive) setIsRestoringSession(false);
+      });
+
+    return () => { alive = false; };
+  }, [enterSession, isRestoringSession, token]);
+
   const leaveChat = useCallback(() => {
     activeSessionRef.current = null;
     voiceRef.current?.stop();
@@ -825,6 +888,7 @@ export function ConverseV2Page(
     setHowtoOpen(false);
     setHowtoResult(null);
     setPhase('deck');
+    setConversationSessionInUrl(null);
   }, []);
 
   // ── chat actions ────────────────────────────────────────────────────────────
@@ -949,6 +1013,17 @@ export function ConverseV2Page(
       <h1 className="font-heading text-section font-medium text-primary">AI chat</h1>
     </div>
   );
+
+  if (isRestoringSession) {
+    return (
+      <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center" role="status" aria-live="polite">
+        <div className="flex items-center gap-3 text-body text-secondary">
+          <LoadingAnimation className="h-6 w-6" />
+          <span>Restoring your conversation…</span>
+        </div>
+      </div>
+    );
+  }
 
   if (phase === 'deck') {
     return (

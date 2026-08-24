@@ -368,7 +368,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
         <section className="mt-14" aria-labelledby="madlibs-library">
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
-            <h2 id="madlibs-library" className="font-heading text-card-title text-primary">Your videos</h2>
+            <h2 id="madlibs-library" className="font-heading text-card-title font-medium text-primary">Your videos</h2>
 
             {videos !== null && videos.length > 0 && (
               <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
@@ -379,7 +379,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                     value={query}
                     onChange={(e) => { setQuery(e.target.value); setVisible(PAGE_SIZE); }}
                     placeholder="Search a video"
-                    className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
+                    className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
                   />
                 </label>
                 <div className="relative shrink-0" ref={sortRef}>
@@ -497,11 +497,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   if (phase === 'loading') {
     return (
       <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
-        <div className="-ml-2 flex items-center gap-2">
-          {back('deck')}
-          <h1 className="font-heading text-section font-medium text-primary">Mad libs</h1>
-        </div>
-        <div className="mx-auto mt-8 w-full max-w-2xl" role="status" aria-live="polite" aria-label="Preparing your practice">
+        <div className="mx-auto w-full max-w-2xl" role="status" aria-live="polite" aria-label="Preparing your practice">
           <Skeleton className="h-80 w-full rounded-2xl" />
         </div>
       </main>
