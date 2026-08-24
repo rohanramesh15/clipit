@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mic, MicOff, Keyboard, ArrowUp, X, Lightbulb, HelpCircle, Check,
-  Film, MessageCircle, Languages, Volume2, Copy, Search, Shuffle, BookmarkPlus, Play, ChevronDown, ExternalLink,
+  Check,
+  Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
-  getProfile, createSession, sendTurn, getHint, howDoISay, translate, romanize,
+  getProfile, createSession, sendTurn, romanize,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
-  type Profile, type DueWord, type Correction, type SuggestedReply,
+  type Profile, type DueWord,
   type RecentSession, type MixedSourceVideo,
 } from '../services/converseV2';
-import { Sparkles, RotateCcw, MessageSquarePlus } from 'lucide-react';
 import {
   fetchVideoCards,
   type TrackedVideo, type FlashCard,
@@ -23,22 +22,21 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
 import { Skeleton } from '../components/Skeleton';
-import { Persona, type PersonaState } from '../components/ai-elements/persona';
-import { SpeechInput } from '../components/ai-elements/speech-input';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 import { queryClient } from '../lib/queryClient';
 import { historyQueryOptions, queryKeys, type VideoVocabulary, videoVocabularyQueryOptions } from '../lib/queries';
 import { mapWithConcurrency } from '../lib/network';
-
-// AI chat's brand accent — matches the sage tokens the "AI chat" tile uses on
-// the home screen (see tailwind.config.js `sage`), not the app's generic coral.
-const ACCENT = '#4a7043'; // sage-ink
-const PAGE = '#2e4a2a'; // sage-deep — used for non-button accents so the page echoes its card.
-const hexA = (hex: string, a: number) => {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-};
+import { lemmasUsedIn } from '../lib/targetWords';
+import type { ChatMessage, SavedWord, TargetWord } from '../types/chat';
+import { SessionHeader } from '../components/chat/SessionHeader';
+import { VoiceStage } from '../components/chat/VoiceStage';
+import { VoiceControls } from '../components/chat/VoiceControls';
+import type { OrbState } from '../components/chat/VoiceOrb';
+import { Composer } from '../components/chat/Composer';
+import { MessageList } from '../components/chat/MessageList';
+import { SuggestionPanel } from '../components/chat/SuggestionPanel';
+import { CoachDrawer } from '../components/chat/CoachDrawer';
 
 type Phase = 'deck' | 'chat' | 'empty';
 type VoiceStatus = 'off' | 'connecting' | 'listening' | 'speaking';
@@ -66,24 +64,6 @@ function setConversationSessionInUrl(sessionId: number | null) {
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-interface TargetWord {
-  lemma: string;    // dictionary form (sent to the backend, shown on the pill)
-  gloss: string;    // English meaning
-  surface: string;  // the form as it appeared in the video (helps detect usage)
-  clipLine?: string; // the sentence this word came from, if the source card had one
-}
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  translation?: string;
-  correction?: Correction | null;
-  turnId?: number;
-  suggestedReplies?: SuggestedReply[];
-  targets?: string[];
-}
-
 // Target-language display names (used in UI copy + matching tweaks).
 const LANG_NAMES: Record<string, string> = { uk: 'Ukrainian', ko: 'Korean', en: 'English' };
 
@@ -99,133 +79,18 @@ function isLikelyEnglish(text: string, language: string): boolean {
   return !hasTarget && hasLatin;
 }
 
-// ── word-usage matching ───────────────────────────────────────────────────────
-// Strip combining marks + punctuation, lowercase. Keeps ALL letters (Latin,
-// Cyrillic, Hangul) so Korean/Ukrainian words match, not just Spanish.
-function norm(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .replace(/[^\p{L}\p{N}]/gu, '');
-}
-
-// Does a single user token count as a use of this target word?
-function tokenMatches(token: string, t: TargetWord): boolean {
-  const tok = norm(token);
-  if (!tok) return false;
-  for (const form of [t.lemma, t.surface]) {
-    const f = norm(form);
-    if (!f) continue;
-    if (tok === f) return true;
-    // Share a long common prefix → likely the same word, different inflection.
-    const min = Math.min(tok.length, f.length);
-    if (min >= 4) {
-      let i = 0;
-      while (i < min && tok[i] === f[i]) i++;
-      if (i >= Math.max(4, f.length - 2)) return true;
-    }
-  }
-  return false;
-}
-
-function lemmasUsedIn(text: string, targets: TargetWord[]): string[] {
-  const tokens = text.split(/\s+/);
-  const hit: string[] = [];
-  for (const t of targets) {
-    if (tokens.some((tk) => tokenMatches(tk, t))) hit.push(t.lemma);
-  }
-  return hit;
-}
-
-// ── Tappable Spanish text — tap any word for its meaning ──────────────────────
-function stripPunct(word: string): string {
-  return word.replace(/^[¿?¡!.,;:"'()«»…]+|[¿?¡!.,;:"'()«»…]+$/gu, '');
-}
-
-function TappableText({
-  text, targets = [], onWordTap,
-}: {
-  text: string;
-  targets?: string[];
-  onWordTap: (word: string, e: React.MouseEvent) => void;
-}) {
-  const targetSet = new Set(targets.map((t) => t.toLowerCase()));
-  const tokens = text.split(/(\s+)/);
-  return (
-    <span>
-      {tokens.map((tk, i) => {
-        if (/^\s+$/.test(tk) || tk === '') return <span key={i}>{tk}</span>;
-        const clean = stripPunct(tk).toLowerCase();
-        if (!clean) return <span key={i}>{tk}</span>;
-        const isTarget = targetSet.has(clean);
-        return (
-          <span
-            key={i}
-            onClick={(e) => onWordTap(clean, e)}
-            className={
-              'cursor-pointer rounded-md px-1 py-0.5 transition-colors hover:bg-surface-hover ' +
-              (isTarget ? 'font-semibold' : '')
-            }
-            style={isTarget ? { color: PAGE } : undefined}
-          >
-            {tk}
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
-// ── Voice persona — Vercel's official Rive Persona (ai-elements), driven by the
-// live voice state, with an audio-reactive halo behind it that scales with the
-// REAL audio level (mic while you speak, speaker while the tutor speaks).
-const STATUS_TO_PERSONA: Record<VoiceStatus, PersonaState> = {
-  off: 'idle',
-  connecting: 'thinking',
-  listening: 'listening',
-  speaking: 'speaking',
-};
-
-function VoicePersona({ status, level, onToggle }: { status: VoiceStatus; level: number; onToggle: () => void }) {
-  const active = status !== 'off';
-  const lvl = Math.max(0, Math.min(1, level));
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={status === 'connecting'}
-      title={active ? 'End call' : 'Start voice'}
-      aria-label={active ? 'End call' : 'Start voice'}
-      className="relative inline-flex items-center justify-center w-[96px] h-[96px] shrink-0 transition-transform active:scale-95 disabled:opacity-70"
-    >
-      {/* audio-reactive halo behind the Rive orb */}
-      {active && (
-        <span
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={{
-            background: hexA(PAGE, status === 'speaking' ? 0.22 : 0.16),
-            transform: `scale(${0.62 + lvl * 0.55})`,
-            opacity: 0.7,
-            transition: 'transform 90ms ease-out, opacity 120ms linear',
-          }}
-        />
-      )}
-      <Persona
-        state={STATUS_TO_PERSONA[status]}
-        variant="obsidian"
-        className="size-20 relative pointer-events-none"
-      />
-    </button>
-  );
-}
-
 // ==============================================================================
 // Main page
 // ==============================================================================
 
 export function ConverseV2Page(
-  { onBack, onNavigate }: { onBack?: () => void; onNavigate?: (page: NavPage) => void } = {},
+  { onBack, onNavigate, onImmersiveChange }: {
+    onBack?: () => void;
+    onNavigate?: (page: NavPage) => void;
+    // Fires whenever the chat phase (which renders its own back control and
+    // header) starts or stops, so the app shell can hide the top nav to match.
+    onImmersiveChange?: (immersive: boolean) => void;
+  } = {},
 ) {
   const { user, token } = useAuth();
   const { language } = useLanguage();
@@ -234,6 +99,7 @@ export function ConverseV2Page(
   const [isRestoringSession, setIsRestoringSession] = useState(() => requestedSessionId.current !== null);
 
   const [phase, setPhase] = useState<Phase>('deck');
+  useEffect(() => { onImmersiveChange?.(phase === 'chat'); }, [phase, onImmersiveChange]);
   const [profile, setProfile] = useState<Profile | null>(null);
 
   // deck picker
@@ -263,40 +129,29 @@ export function ConverseV2Page(
   // conversation immediately on a narrower screen.
   const [coachOpen, setCoachOpen] = useState(false);
   const [openTargetWord, setOpenTargetWord] = useState<string | null>(null);
+  // Call view (voice-first) is the default; Transcript is opt-in history.
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
 
-  // text composer / scaffolding
-  const [composerOpen, setComposerOpen] = useState(false);
+  // text composer — voice controls are the default, typing is a fallback.
+  const [typing, setTyping] = useState(false);
   const [composerText, setComposerText] = useState('');
   const [sending, setSending] = useState(false);
-  const [shownTranslations, setShownTranslations] = useState<Set<string>>(new Set());
   const [revealedCorrections, setRevealedCorrections] = useState<Set<string>>(new Set());
   const [correctionVerdicts, setCorrectionVerdicts] = useState<Record<string, 'fine' | 'wrong'>>({});
-
-  // ladder
-  const [nudge, setNudge] = useState<string | null>(null);
-  const [hintLoading, setHintLoading] = useState(false);
-  const [howtoOpen, setHowtoOpen] = useState(false);
-  const [howtoInput, setHowtoInput] = useState('');
-  const [howtoLoading, setHowtoLoading] = useState(false);
-  const [howtoResult, setHowtoResult] = useState<{ spanish: string; note_en: string } | null>(null);
   const [status, setStatus] = useState('');
 
-  // word popover
-  const [pop, setPop] = useState<{ word: string; text: string; loading: boolean; x: number; y: number } | null>(null);
   // Words saved from the tap-word popover — session-scoped, matching MP's own
   // (also purely in-memory, never persisted) saved-words feature.
-  const [savedWords, setSavedWords] = useState<{ lemma: string; gloss: string }[]>([]);
+  const [savedWords, setSavedWords] = useState<SavedWord[]>([]);
   const saveWord = useCallback((lemma: string, gloss: string) => {
     setSavedWords((prev) => (prev.some((w) => w.lemma.toLowerCase() === lemma.toLowerCase()) ? prev : [...prev, { lemma, gloss }]));
   }, []);
 
-  // per-AI-message actions: on-demand translation + copy feedback + romanization
-  const [msgTrans, setMsgTrans] = useState<Record<string, { text?: string; loading: boolean; visible: boolean }>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  // per-AI-message romanization
   const [msgRoman, setMsgRoman] = useState<Record<string, string>>({}); // id -> romanized text
   const romanReqRef = useRef<Set<string>>(new Set());
 
-  // When the learner speaks/types ENGLISH, the right panel shows the corrected
+  // When the learner speaks/types ENGLISH, the coach drawer shows the corrected
   // target-language message + explanation + advanced grammar feedback.
   interface Coaching {
     id: string; english: string; corrected: string; explanation: string;
@@ -313,20 +168,14 @@ export function ConverseV2Page(
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [voiceLevel, setVoiceLevel] = useState(0); // 0..1 live audio level for the persona
   const speakingRef = useRef(false);
   const voiceRef = useRef<VoiceSession | null>(null);
   const vUserId = useRef<string | null>(null);
   const vAsstId = useRef<string | null>(null);
-  const voiceAutoStarted = useRef(false);
   // Tracks which session is currently on screen, so a target-word lookup
   // that resolves after the user has already left (or started a different
   // session) can tell it's stale and skip applying itself.
   const activeSessionRef = useRef<number | null>(null);
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const bottomInputRef = useRef<HTMLInputElement>(null);
 
   // ── load profile (display only) + tracked videos for the deck ───────────────
   useEffect(() => {
@@ -436,12 +285,6 @@ export function ConverseV2Page(
     return () => { alive = false; };
   }, [videos, language, token, user]);
 
-  // ── auto-scroll transcript ──────────────────────────────────────────────────
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages, composerOpen, nudge, howtoOpen, sending]);
-
   // ── mark target words as used whenever the learner uses them ────────────────
   // Covers both typed turns and live voice transcripts.
   useEffect(() => {
@@ -489,37 +332,22 @@ export function ConverseV2Page(
     }
   }, [messages, language, sessionId, token]);
 
-  // Speak a message aloud in the target language (Web Speech).
-  const speak = useCallback((text: string) => {
+  // Speak a message aloud in the target language (Web Speech). onStart/onEnd
+  // let the message that requested it reflect real speaking state instead of
+  // a canned timeout.
+  const speak = useCallback((text: string, onStart?: () => void, onEnd?: () => void) => {
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR';
       u.rate = 0.9;
+      if (onStart) u.onstart = onStart;
+      if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
       window.speechSynthesis.speak(u);
-    } catch { /* ignore */ }
-  }, [language]);
-
-  const copyMsg = useCallback((id: string, text: string) => {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    }).catch(() => {});
-  }, []);
-
-  // Toggle/lazy-load the English translation for one message.
-  const toggleMsgTrans = useCallback((id: string, text: string, precomputed?: string) => {
-    setMsgTrans((prev) => {
-      const cur = prev[id];
-      if (cur) return { ...prev, [id]: { ...cur, visible: !cur.visible } };
-      return { ...prev, [id]: { text: precomputed, loading: !precomputed, visible: true } };
-    });
-    if (!msgTrans[id] && !precomputed) {
-      translate(text, language)
-        .then((t) => setMsgTrans((prev) => ({ ...prev, [id]: { text: t, loading: false, visible: true } })))
-        .catch(() => setMsgTrans((prev) => ({ ...prev, [id]: { text: '—', loading: false, visible: true } })));
+    } catch {
+      onEnd?.();
     }
-  }, [msgTrans, language]);
+  }, [language]);
 
   // Another response — regenerate the latest AI reply.
   const handleAnotherResponse = useCallback(async () => {
@@ -537,10 +365,9 @@ export function ConverseV2Page(
         ...mm, text: r.reply, translation: r.reply_translation, correction: r.correction,
         turnId: r.turn_id, suggestedReplies: r.suggested_replies, targets: r.used_target_words || [],
       } : mm)));
-      // clear caches so the new text re-romanizes / re-translates
+      // clear the cache so the new text re-romanizes
       setMsgRoman((p) => { const n = { ...p }; delete n[id]; return n; });
       romanReqRef.current.delete(id);
-      setMsgTrans((p) => { const n = { ...p }; delete n[id]; return n; });
     } catch {
       setChatError('Could not regenerate. Try again.');
     } finally {
@@ -563,22 +390,6 @@ export function ConverseV2Page(
     }
   }, [sessionId, language, suggestLoading, messages, token]);
 
-  // ── close popover on scroll / outside click / escape ────────────────────────
-  useEffect(() => {
-    if (!pop) return;
-    const close = () => setPop(null);
-    window.addEventListener('scroll', close, true);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPop(null);
-    window.addEventListener('keydown', onKey);
-    const t = setTimeout(() => window.addEventListener('click', close), 0);
-    return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('click', close);
-      clearTimeout(t);
-    };
-  }, [pop]);
-
   // ── voice wiring ────────────────────────────────────────────────────────────
   const appendVoiceChunk = useCallback((role: 'user' | 'assistant', chunk: string) => {
     const ref = role === 'user' ? vUserId : vAsstId;
@@ -595,15 +406,13 @@ export function ConverseV2Page(
   const handleVoiceEvent = useCallback((e: VoiceEvent) => {
     switch (e.type) {
       case 'connecting': setVoiceStatus('connecting'); setStatus('Connecting your mic…'); return;
-      case 'ready': speakingRef.current = false; setVoiceLevel(0); setVoiceStatus('listening'); setStatus('Listening… just talk'); return;
+      case 'ready': speakingRef.current = false; setVoiceStatus('listening'); setStatus('Listening… just talk'); return;
       case 'speaking_changed':
         speakingRef.current = e.speaking;
-        setVoiceLevel(0);
         setVoiceStatus(e.speaking ? 'speaking' : 'listening');
         setStatus(e.speaking ? 'Tutor is speaking…' : 'Your turn — just talk');
         return;
-      case 'mic_level': if (!speakingRef.current) setVoiceLevel(e.level); return;
-      case 'speaker_level': if (speakingRef.current) setVoiceLevel(e.level); return;
+      case 'mic_level': case 'speaker_level': return;
       case 'user_transcript': return appendVoiceChunk('user', e.text);
       case 'assistant_transcript': return appendVoiceChunk('assistant', e.text);
       case 'interrupted':
@@ -614,8 +423,8 @@ export function ConverseV2Page(
         }
         return;
       case 'turn_complete': vUserId.current = null; vAsstId.current = null; return;
-      case 'error': speakingRef.current = false; setVoiceLevel(0); setVoiceError(e.message); setVoiceStatus('off'); setStatus(''); return;
-      case 'closed': vUserId.current = null; vAsstId.current = null; speakingRef.current = false; setVoiceLevel(0); setVoiceStatus('off'); return;
+      case 'error': speakingRef.current = false; setVoiceError(e.message); setVoiceStatus('off'); setStatus(''); return;
+      case 'closed': vUserId.current = null; vAsstId.current = null; speakingRef.current = false; setVoiceStatus('off'); return;
     }
   }, [appendVoiceChunk]);
 
@@ -639,19 +448,11 @@ export function ConverseV2Page(
     vUserId.current = null;
     vAsstId.current = null;
     speakingRef.current = false;
-    setVoiceLevel(0);
     setVoiceStatus('off');
     setStatus('Tap the mic to talk, or the keyboard to type');
   }, []);
 
-  const toggleVoice = useCallback(() => {
-    if (voiceStatus === 'off') startVoice(); else stopVoice();
-  }, [voiceStatus, startVoice, stopVoice]);
-
   useEffect(() => () => { voiceRef.current?.stop(); voiceRef.current = null; }, []);
-
-  // Voice input is now Vercel's SpeechInput (speech → text → turn), so we do NOT
-  // auto-start the live Gemini call. (Live-voice helpers are kept but unused.)
 
   // ── start a session from a chosen video ─────────────────────────────────────
   // Shared setup once a session has been created — resets every per-session
@@ -664,16 +465,12 @@ export function ConverseV2Page(
     setSavedWords([]);
     setCoachings([]); coachReqRef.current = new Set();
     setMsgRoman({}); romanReqRef.current = new Set();
-    setMsgTrans({}); setCopiedId(null);
-    setShownTranslations(new Set());
     setRevealedCorrections(new Set());
     setCorrectionVerdicts({});
-    setNudge(null);
-    setHowtoOpen(false);
-    setHowtoResult(null);
-    setComposerOpen(false);
+    setSuggestVisibleId(null);
+    setTyping(false);
+    setTranscriptOpen(false);
     setComposerText('');
-    voiceAutoStarted.current = false;
     setVoiceStatus('off');
     setVoiceError(null);
   }, []);
@@ -874,7 +671,6 @@ export function ConverseV2Page(
     voiceRef.current = null;
     vUserId.current = null;
     vAsstId.current = null;
-    voiceAutoStarted.current = false;
     setVoiceStatus('off');
     setVoiceError(null);
     setSessionId(null);
@@ -882,11 +678,10 @@ export function ConverseV2Page(
     setTargetWords([]);
     setUsedLemmas(new Set());
     setSavedWords([]);
-    setComposerOpen(false);
+    setTyping(false);
     setComposerText('');
-    setNudge(null);
-    setHowtoOpen(false);
-    setHowtoResult(null);
+    setTranscriptOpen(false);
+    setSuggestVisibleId(null);
     setPhase('deck');
     setConversationSessionInUrl(null);
   }, []);
@@ -898,7 +693,7 @@ export function ConverseV2Page(
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     setComposerText('');
-    setNudge(null);
+    setSuggestVisibleId(null);
     setSending(true);
     setStatus('Tutor is writing…');
     try {
@@ -923,69 +718,28 @@ export function ConverseV2Page(
     }
   }, [composerText, sending, sessionId, language, token]);
 
-  const handleWordTap = useCallback(async (word: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const r = (e.target as HTMLElement).getBoundingClientRect();
-    setPop({ word, text: '', loading: true, x: r.left + r.width / 2, y: r.top });
-    try {
-      const t = await translate(word, language);
-      setPop((cur) => (cur && cur.word === word ? { ...cur, text: t, loading: false } : cur));
-    } catch {
-      setPop((cur) => (cur && cur.word === word ? { ...cur, text: '—', loading: false } : cur));
-    }
-  }, [language]);
-
-  const handleHint = useCallback(async () => {
-    if (sessionId == null) return;
-    setHintLoading(true);
-    try {
-      const { hint_en } = await getHint(sessionId, language, token);
-      setNudge(hint_en);
-    } catch {
-      setNudge('Try answering with one short sentence — even a few words helps.');
-    } finally {
-      setHintLoading(false);
-    }
-  }, [sessionId, language, token]);
-
-  const runHowto = useCallback(async () => {
-    if (sessionId == null) return;
-    const english = howtoInput.trim();
-    if (!english) return;
-    setHowtoLoading(true);
-    setHowtoResult(null);
-    try {
-      setHowtoResult(await howDoISay(sessionId, english, language, token));
-    } catch {
-      setHowtoResult({ spanish: '', note_en: "Couldn't fetch a phrasing." });
-    } finally {
-      setHowtoLoading(false);
-    }
-  }, [sessionId, howtoInput, language, token]);
-
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
     setCorrectionVerdicts((prev) => ({ ...prev, [messageId]: verdict }));
     try { await correctionFeedback(turnId, verdict); } catch { /* keep optimistic */ }
   }, [correctionVerdicts]);
 
-  const openComposer = () => { setComposerOpen(true); setNudge(null); setTimeout(() => taRef.current?.focus(), 60); };
-  const pickSuggestion = (es: string) => { setComposerText(es); setTimeout(() => bottomInputRef.current?.focus(), 60); };
-
-  const translationShownByDefault = profile?.english_support === 'lots';
-  const isTransVisible = (id: string) =>
-    translationShownByDefault ? !shownTranslations.has(id) : shownTranslations.has(id);
-  const toggleTrans = (id: string) =>
-    setShownTranslations((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-  const lastAssistantId = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === 'assistant') return messages[i].id;
-    return null;
-  }, [messages]);
+  const tutorTurn = useMemo(() => [...messages].reverse().find((m) => m.role === 'assistant'), [messages]);
+  const lastUserTurn = useMemo(() => [...messages].reverse().find((m) => m.role === 'user'), [messages]);
+  // Live in-progress transcript of what the mic is currently hearing — the
+  // in-flight voice message's text, while it's still being appended to.
+  const heard = voiceStatus === 'listening' ? (messages.find((m) => m.id === vUserId.current)?.text ?? '') : '';
+  const tutorBusy = sending || openingPending;
+  const orbState: OrbState = tutorBusy
+    ? 'thinking'
+    : voiceStatus === 'speaking' ? 'speaking'
+    : voiceStatus === 'listening' || voiceStatus === 'connecting' ? 'listening'
+    : 'idle';
+  const tutorInitial = langName.charAt(0).toUpperCase();
+  const activeSuggestions = useMemo(
+    () => messages.find((m) => m.id === suggestVisibleId)?.suggestedReplies ?? [],
+    [messages, suggestVisibleId],
+  );
 
   const usedCount = usedLemmas.size;
   const latestCoaching = coachings.length ? coachings[coachings.length - 1] : null;
@@ -1027,10 +781,10 @@ export function ConverseV2Page(
 
   if (phase === 'deck') {
     return (
-      <div className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
+      <div className="theme-chat mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
         {header(() => onNavigate?.('practice'), 'Back')}
 
-        {chatError && <div className="mt-6 text-body-sm font-medium" style={{ color: ACCENT }}>{chatError}</div>}
+        {chatError && <div className="mt-6 text-body-sm font-medium text-accent">{chatError}</div>}
 
         {videos === null ? (
           <div className="mt-8" role="status" aria-live="polite">
@@ -1139,9 +893,7 @@ export function ConverseV2Page(
                         setVisibleDecks(DECK_PAGE_SIZE);
                       }}
                       placeholder="Search a video"
-                      className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:outline-none"
-                      onFocus={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                      className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
                     />
                   </label>
                   <div className="relative shrink-0" ref={deckSortRef}>
@@ -1261,621 +1013,143 @@ export function ConverseV2Page(
   }
 
   // ============================================================================
-  // Loading a session
-  // ============================================================================
-  // ============================================================================
-  // Chat
+  // Chat — voice-first "call" view by default, with a Transcript toggle for
+  // history and a Coach drawer for target words / corrections / saved words.
   // ============================================================================
   return (
-    <div className="-mt-2 flex flex-col h-[calc(100vh-4rem)] max-w-page mx-auto px-5 sm:px-8">
-      {/* header — spans the full width here, wider than the reading column below (matches MP) */}
-      <div className="shrink-0 border-b border-subtle">
-        <div className="flex h-12 items-center gap-3">
-          <NavigationIconButton direction="back" label="Back to videos" onClick={leaveChat} className="-ml-2 shrink-0" />
+    <div className="theme-chat -mt-2 flex h-[calc(100vh-2rem)] w-full flex-col bg-app md:h-[calc(100vh-4rem)]">
+      <SessionHeader
+        title={deck?.title || 'Voice Chat'}
+        subtitle={profile ? `${langName} · ${profile.level}` : langName}
+        thumbnailVideoId={deck?.id ?? null}
+        targets={targetWords}
+        usedCount={usedCount}
+        coachOpen={coachOpen}
+        onToggleCoach={() => setCoachOpen((v) => !v)}
+        transcriptOpen={transcriptOpen}
+        onToggleTranscript={() => setTranscriptOpen((v) => !v)}
+        onLeave={leaveChat}
+      />
 
-          <span className="hidden h-9 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-hover items-center justify-center sm:flex">
-            {deck?.id.startsWith('netflix_') ? (
-              <Film className="w-4 h-4" style={{ color: ACCENT }} />
-            ) : deck?.id ? (
-              <img
-                src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
-                alt=""
-                className="w-full h-full object-cover"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        <main className="flex min-w-0 flex-1 flex-col">
+          <AnimatePresence mode="wait" initial={false}>
+            {transcriptOpen ? (
+              <motion.div
+                key="transcript"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                className="min-h-0 flex-1 overflow-y-auto"
+              >
+                <div className="mx-auto w-full max-w-reading px-4 py-8 sm:px-6">
+                  <h2 className="mb-6 font-heading text-body font-semibold text-primary">Transcript</h2>
+                  <MessageList
+                    messages={messages}
+                    language={language}
+                    tutorInitial={tutorInitial}
+                    targetWords={targetWords}
+                    thinking={tutorBusy}
+                    regenerating={regenLoading}
+                    savedWords={savedWords}
+                    onSaveWord={(w) => saveWord(w.lemma, w.gloss)}
+                    onRegenerate={handleAnotherResponse}
+                    onSuggest={handleSuggestReply}
+                    onListen={speak}
+                    romanized={msgRoman}
+                    revealedCorrections={revealedCorrections}
+                    onRevealCorrection={(id) => setRevealedCorrections((prev) => new Set(prev).add(id))}
+                    correctionVerdicts={correctionVerdicts}
+                    onCorrectionFeedback={handleCorrectionFb}
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="live"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto py-6"
+              >
+                <VoiceStage
+                  language={language}
+                  tutorInitial={tutorInitial}
+                  tutorTurn={tutorTurn}
+                  lastUserTurn={lastUserTurn}
+                  orbState={orbState}
+                  heard={heard}
+                  savedWords={savedWords}
+                  onSaveWord={(w) => saveWord(w.lemma, w.gloss)}
+                  onRegenerate={handleAnotherResponse}
+                  onSuggest={handleSuggestReply}
+                  onListen={speak}
+                  regenerating={regenLoading}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="shrink-0 bg-app">
+            <div className="mx-auto w-full max-w-reading space-y-3 px-4 pb-8 pt-2 sm:px-6">
+              <SuggestionPanel
+                suggestions={activeSuggestions}
+                onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
+                onEdit={(reply) => { setComposerText(reply.es); setSuggestVisibleId(null); setTyping(true); }}
+                onDismiss={() => setSuggestVisibleId(null)}
               />
-            ) : null}
-          </span>
 
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-heading font-semibold text-body text-primary">
-              {deck?.title || 'Voice Chat'}
-            </h1>
-          </div>
-
-          {targetWords.length > 0 && (
-            <div className="hidden items-center gap-3 md:flex">
-              <span className="flex items-center gap-1.5" aria-hidden="true">
-                {targetWords.map((w) => {
-                  const done = usedLemmas.has(w.lemma);
-                  return (
-                    <motion.span
-                      key={w.lemma}
-                      animate={done ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-                      transition={{ duration: 0.26, ease: [0.23, 1, 0.32, 1] }}
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ background: done ? ACCENT : 'var(--bg-surface-hover)' }}
-                    />
-                  );
-                })}
-              </span>
-              <p className="text-meta text-secondary">
-                <span className="font-semibold text-primary tabular-nums">{usedCount}</span>/{targetWords.length} words
-              </p>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setCoachOpen((v) => !v)}
-            aria-pressed={coachOpen}
-            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-body-sm font-medium transition-colors ${
-              coachOpen ? 'bg-sage-soft text-sage-ink' : 'text-secondary hover:bg-surface-hover hover:text-primary'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Coach</span>
-          </button>
-        </div>
-      </div>
-
-      {/* transcript — the reading column stays narrower than the header above it (matches MP) */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-1 px-1 py-2">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {openingPending && messages.length === 0 && (
-          <div className="flex items-start gap-3" role="status" aria-live="polite" aria-label="Tutor is writing the opening message">
-            <div aria-hidden="true" className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage-ink">
-              <MessageCircle className="h-4 w-4" />
-            </div>
-            <div className="flex items-center gap-1 rounded-2xl bg-surface-hover px-4 py-3.5">
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="h-1.5 w-1.5 rounded-full bg-muted"
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+              {typing ? (
+                <Composer
+                  value={composerText}
+                  onChange={setComposerText}
+                  onSend={(text) => sendTextTurn(text)}
+                  thinking={sending}
+                  placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
+                  onClose={() => setTyping(false)}
                 />
-              ))}
-            </div>
-          </div>
-        )}
-        {messages.map((m) => {
-          if (m.role === 'user') {
-            const usedHere = lemmasUsedIn(m.text, targetWords);
-            return (
-              <div key={m.id} className="flex flex-col items-end gap-1.5">
-                <div className="max-w-[85%] text-lead leading-relaxed text-secondary text-right">
-                  {m.text}
-                </div>
-                {usedHere.length > 0 && (
-                  <span className="flex items-center gap-1 text-meta" style={{ color: ACCENT }}>
-                    <Check className="size-3.5" aria-hidden="true" /> {usedHere.join(', ')}
-                  </span>
-                )}
-              </div>
-            );
-          }
-          const transVisible = isTransVisible(m.id);
-          const revealed = revealedCorrections.has(m.id);
-          const verdict = correctionVerdicts[m.id];
-          const isLast = m.id === lastAssistantId;
-          return (
-            <div key={m.id} className="flex items-start gap-3">
-              <div
-                aria-hidden="true"
-                className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage-ink"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-              <div className="max-w-[90%] text-lead leading-relaxed text-primary font-medium">
-                <TappableText text={m.text} targets={m.targets} onWordTap={handleWordTap} />
-              </div>
-              {/* romanization — the sentence written in the English alphabet */}
-              {msgRoman[m.id] ? (
-                <div className="max-w-[90%] text-lead leading-relaxed text-muted">{msgRoman[m.id]}</div>
-              ) : null}
-
-              <div className="flex flex-col gap-2 w-full">
-                {/* per-message actions */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="relative group">
-                    <button
-                      onClick={() => toggleMsgTrans(m.id, m.text, m.translation)}
-                      aria-label="Translate"
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${msgTrans[m.id]?.visible ? 'bg-sage-soft text-sage-ink' : 'text-muted hover:text-primary hover:bg-surface-hover'}`}
-                    >
-                      <Languages className="w-4 h-4" />
-                    </button>
-                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                      Translate
-                    </span>
-                  </span>
-                  <span className="relative group">
-                    <button
-                      onClick={() => speak(m.text)}
-                      aria-label="Listen"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface-hover transition-colors"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                    </button>
-                    <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                      Listen
-                    </span>
-                  </span>
-                  {isLast && (
-                    <>
-                      <span className="relative group">
-                        <button
-                          onClick={handleAnotherResponse}
-                          disabled={regenLoading}
-                          aria-label="Another response"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface-hover transition-colors disabled:opacity-60"
-                        >
-                          {regenLoading ? <LoadingAnimation className="h-4 w-4" /> : <RotateCcw className="w-4 h-4" />}
-                        </button>
-                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                          Another response
-                        </span>
-                      </span>
-                      <span className="relative group">
-                        <button
-                          onClick={handleSuggestReply}
-                          disabled={suggestLoading}
-                          aria-label="Suggest reply"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface-hover transition-colors disabled:opacity-60"
-                        >
-                          {suggestLoading ? <LoadingAnimation className="h-4 w-4" /> : <MessageSquarePlus className="w-4 h-4" />}
-                        </button>
-                        <span className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-primary text-app text-meta font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                          Suggest reply
-                        </span>
-                      </span>
-                    </>
-                  )}
-                </div>
-                {msgTrans[m.id]?.visible && (
-                  <div className="mt-2 border-l-2 border-subtle pl-3 text-body-sm text-secondary">
-                    {msgTrans[m.id]?.loading ? 'Translating…' : (msgTrans[m.id]?.text || m.translation || '—')}
-                  </div>
-                )}
-
-                {m.correction && (!revealed ? (
-                  <button
-                    onClick={() => setRevealedCorrections((prev) => new Set(prev).add(m.id))}
-                    className="self-start inline-flex items-center gap-1.5 text-meta font-medium text-muted hover:text-secondary transition-colors"
-                  >
-                    <Lightbulb className="w-3.5 h-3.5" /> A better way to say that
-                  </button>
-                ) : (
-                  <div className="rounded-2xl bg-surface p-4">
-                    <div className="text-meta font-semibold uppercase tracking-wide text-muted mb-1">A better way to say that</div>
-                    <div className="text-body font-medium text-primary" style={{ color: PAGE }}>{m.correction.correct}</div>
-                    <div className="text-body-sm text-secondary mt-1.5">{m.correction.why_en}</div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <button
-                        className={'text-meta font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'fine' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
-                        style={verdict === 'fine' ? { background: ACCENT } : undefined}
-                        disabled={!!verdict}
-                        onClick={() => handleCorrectionFb(m.id, m.turnId, 'fine')}
-                      >
-                        Mine was fine
-                      </button>
-                      <button
-                        className={'text-meta font-medium px-2.5 py-1 rounded-lg transition-colors ' + (verdict === 'wrong' ? 'text-[#ffffff]' : 'bg-surface-hover text-secondary hover:text-primary')}
-                        style={verdict === 'wrong' ? { background: ACCENT } : undefined}
-                        disabled={!!verdict}
-                        onClick={() => handleCorrectionFb(m.id, m.turnId, 'wrong')}
-                      >
-                        Not right
-                      </button>
-                      {verdict && <span className="text-meta text-muted">thanks</span>}
-                    </div>
-                  </div>
-                ))}
-
-                {isLast && suggestVisibleId === m.id && m.suggestedReplies && m.suggestedReplies.length > 0 && (
-                  <div className="mt-1 overflow-hidden rounded-2xl border border-subtle bg-surface">
-                    <ul className="divide-y divide-[color:var(--border-subtle)]">
-                      {m.suggestedReplies.slice(0, 3).map((s, i) => (
-                        <li key={i}>
-                          <button
-                            onClick={() => pickSuggestion(s.es)}
-                            className="flex w-full items-baseline gap-3 px-3 py-2.5 text-left hover:bg-surface-hover transition-colors"
-                          >
-                            <kbd
-                              aria-hidden="true"
-                              className="grid h-5 w-5 shrink-0 translate-y-0.5 place-items-center rounded-md bg-surface-hover text-meta font-medium text-muted"
-                            >
-                              {i + 1}
-                            </kbd>
-                            <span className="min-w-0 flex-1 text-body-sm font-medium text-primary">{s.es}</span>
-                            {s.en && <span className="hidden shrink-0 text-meta text-muted sm:block">{s.en}</span>}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="flex items-center justify-end border-t border-subtle px-2 py-1.5">
-                      <button
-                        onClick={() => setSuggestVisibleId(null)}
-                        aria-label="Dismiss suggestions"
-                        className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-primary transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {sending && (
-          <div className="flex items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage-ink"
-            >
-              <MessageCircle className="h-4 w-4" />
-            </div>
-            <span className="flex items-center gap-1.5" role="status" aria-live="polite">
-              {[0, 1, 2].map((dot) => (
-                <motion.span
-                  key={dot}
-                  className="h-1.5 w-1.5 rounded-full bg-sage-ink"
-                  animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear', delay: dot * 0.14 }}
+              ) : (
+                <VoiceControls
+                  live={voiceStatus !== 'off'}
+                  capturing={voiceStatus === 'listening'}
+                  connecting={voiceStatus === 'connecting'}
+                  status={status}
+                  onStart={startVoice}
+                  onStop={stopVoice}
+                  onType={() => { if (voiceStatus !== 'off') stopVoice(); setTyping(true); }}
                 />
-              ))}
-              <span className="sr-only">Tutor is writing</span>
-            </span>
-          </div>
-        )}
-      </div>
-      </div>
+              )}
 
-      {/* dock */}
-      <div className="shrink-0 pt-3">
-      <div className="max-w-2xl mx-auto">
-        <AnimatePresence>
-          {nudge && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-              className="flex items-start gap-2 rounded-2xl bg-surface p-4 mb-3"
-            >
-              <Lightbulb className="w-4 h-4 mt-0.5 shrink-0" style={{ color: PAGE }} />
-              <span className="flex-1 text-body-sm text-secondary">{nudge}</span>
-              <button type="button" onClick={() => setNudge(null)} aria-label="Dismiss tip" className="text-muted hover:text-primary"><X className="w-4 h-4" aria-hidden="true" /></button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {(voiceError || chatError) && (
+                <p className="text-center text-meta text-accent" role="status" aria-live="polite">
+                  {voiceError || chatError}
+                </p>
+              )}
+            </div>
+          </div>
+        </main>
 
         <AnimatePresence>
-          {howtoOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-              className="rounded-2xl bg-surface p-4 mb-3"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-body-sm font-semibold text-primary">How do I say…?</h4>
-                <button type="button" onClick={() => { setHowtoOpen(false); setHowtoInput(''); setHowtoResult(null); }} aria-label="Close translation helper" className="text-muted hover:text-primary"><X className="w-4 h-4" aria-hidden="true" /></button>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  autoFocus
-                  value={howtoInput}
-                  aria-label="English phrase to translate"
-                  placeholder="Say it in English…"
-                  onChange={(e) => setHowtoInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runHowto(); } }}
-                  className="flex-1 rounded-xl bg-app px-3 py-2 text-body-sm text-primary placeholder:text-muted outline-none"
-                />
-                <button
-                  onClick={runHowto}
-                  disabled={howtoLoading || !howtoInput.trim()}
-                  className="px-3 py-2 rounded-xl text-body-sm font-semibold text-[#ffffff] disabled:opacity-50"
-                  style={{ background: ACCENT }}
-                >
-                  {howtoLoading ? <LoadingAnimation className="h-4 w-4" /> : 'Translate'}
-                </button>
-              </div>
-              {howtoResult && howtoResult.spanish && (
-                <div className="mt-3 rounded-lg bg-app p-3">
-                  <div className="text-body-sm font-medium text-primary">{howtoResult.spanish}</div>
-                  {howtoResult.note_en && <div className="text-meta text-muted mt-1">{howtoResult.note_en}</div>}
-                  <button
-                    onClick={() => pickSuggestion(howtoResult!.spanish)}
-                    className="mt-2 text-meta font-semibold px-2.5 py-1 rounded-lg text-[#ffffff]"
-                    style={{ background: ACCENT }}
-                  >
-                    Use this
-                  </button>
-                </div>
-              )}
-              {howtoResult && !howtoResult.spanish && howtoResult.note_en && (
-                <div className="mt-2 text-meta text-muted">{howtoResult.note_en}</div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="mt-3 rounded-2xl border border-subtle bg-surface p-2 focus-within:border-medium transition-colors">
-          <input
-            ref={bottomInputRef}
-            value={composerText}
-            onChange={(e) => setComposerText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextTurn(); } }}
-            placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
-            aria-label="Type a message"
-            disabled={openingPending}
-            className="w-full resize-none bg-transparent px-3 pb-1 pt-2 text-body text-primary placeholder:text-muted outline-none focus-visible:outline-none disabled:opacity-60"
-          />
-
-          <div className="flex items-center justify-between gap-3 px-1 pb-1 pt-1">
-            <SpeechInput
-              lang={language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR'}
-              onTranscriptionChange={(t) => { const x = (t || '').trim(); if (x) sendTextTurn(x); }}
-              title="Speak"
-              aria-label="Speak"
-              className="w-9 h-9 p-0 rounded-full bg-sage-soft text-sage-ink hover:bg-sage-ink hover:text-app shadow-none"
+          {coachOpen && (
+            <CoachDrawer
+              deck={deck}
+              targets={targetWords}
+              usedLemmas={usedLemmas}
+              openWord={openTargetWord}
+              onToggleWord={(lemma) => setOpenTargetWord((cur) => (cur === lemma ? null : lemma))}
+              messages={messages}
+              savedWords={savedWords}
+              latestCoaching={latestCoaching}
+              advancedOpen={advancedOpen}
+              onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
+              onClose={() => setCoachOpen(false)}
+              onEndSession={leaveChat}
             />
-
-            <button
-              onClick={() => sendTextTurn()}
-              disabled={!composerText.trim() || sending || openingPending}
-              title="Send"
-              aria-label="Send"
-              className="w-10 h-10 flex items-center justify-center rounded-xl disabled:opacity-40 disabled:bg-surface-hover disabled:text-muted transition-colors"
-              style={composerText.trim() && !sending ? { background: ACCENT, color: '#ffffff' } : undefined}
-            >
-              {sending ? <LoadingAnimation className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" strokeWidth={2.5} />}
-            </button>
-          </div>
-        </div>
-
-        <div className="text-center text-meta text-muted mt-2 h-4" role="status" aria-live="polite">
-          {voiceError ? <span style={{ color: ACCENT }}>{voiceError}</span>
-            : chatError ? <span style={{ color: ACCENT }}>{chatError}</span>
-            : status}
-        </div>
+          )}
+        </AnimatePresence>
       </div>
-      </div>
-
-
-      {/* word popover — tapped word + its English meaning + save */}
-      {pop && (
-        <span
-          className="fixed z-50 -translate-x-1/2 -translate-y-full rounded-xl bg-primary text-app shadow-xl"
-          style={{ left: pop.x, top: pop.y - 10, maxWidth: 260 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="block px-3 py-2">
-            <span className="block text-body-sm font-bold">{pop.word}</span>
-            <span className="block text-meta uppercase tracking-wide opacity-60 mt-1">English meaning</span>
-            <span className="block text-body-sm opacity-90">
-              {pop.loading ? 'Translating…' : (pop.text || '—')}
-            </span>
-            {!pop.loading && pop.text && (() => {
-              const isSaved = savedWords.some((w) => w.lemma.toLowerCase() === pop.word.toLowerCase());
-              return (
-                <button
-                  type="button"
-                  onClick={() => saveWord(pop.word, pop.text)}
-                  disabled={isSaved}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[rgba(255,255,255,0.12)] px-2 py-1 text-meta font-medium hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-70"
-                >
-                  {isSaved ? <Check className="w-3 h-3" aria-hidden="true" /> : <BookmarkPlus className="w-3 h-3" aria-hidden="true" />}
-                  {isSaved ? 'Saved' : 'Save word'}
-                </button>
-              );
-            })()}
-          </span>
-        </span>
-      )}
-
-      {/* Coach drawer — target words with clip context, plus English-fallback coaching */}
-      <AnimatePresence>
-        {coachOpen && (
-          <motion.aside
-            initial={{ x: 24, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 24, opacity: 0 }}
-            transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
-            aria-label="Session coach"
-            className="fixed inset-y-0 right-0 z-20 flex w-[340px] max-w-full flex-col border-l border-subtle bg-app shadow-2xl"
-          >
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-subtle px-5">
-              <h2 className="font-heading text-body font-semibold text-primary">Coach</h2>
-              <button
-                type="button"
-                onClick={() => setCoachOpen(false)}
-                aria-label="Close coach panel"
-                className="grid size-9 place-items-center rounded-lg text-secondary hover:bg-surface-hover hover:text-primary"
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 py-6">
-              {targetWords.length > 0 && (
-                <section className="rounded-2xl border border-subtle bg-surface p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-hover flex items-center justify-center">
-                      {deck?.id.startsWith('netflix_') ? (
-                        <Film className="w-4 h-4" style={{ color: ACCENT }} />
-                      ) : deck?.id ? (
-                        <img
-                          src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : null}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-body-sm font-medium text-primary">{deck?.title}</p>
-                      <p className="truncate text-meta text-muted">{deck?.id.startsWith('netflix_') ? 'Netflix' : 'YouTube'}</p>
-                    </div>
-                  </div>
-
-                  <p className="mt-4 text-card-title text-primary">
-                    {usedCount}
-                    <span className="text-body font-normal text-muted">/{targetWords.length} words used</span>
-                  </p>
-
-                  <ul className="mt-3">
-                    {targetWords.map((w) => {
-                      const done = usedLemmas.has(w.lemma);
-                      const open = openTargetWord === w.lemma;
-                      return (
-                        <li key={w.lemma}>
-                          <button
-                            type="button"
-                            onClick={() => setOpenTargetWord(open ? null : w.lemma)}
-                            aria-expanded={open}
-                            className="flex w-full items-center justify-between gap-3 py-1.5 text-left"
-                          >
-                            <span className="flex min-w-0 items-center gap-2.5">
-                              <span
-                                aria-hidden="true"
-                                className="grid size-5 shrink-0 place-items-center rounded-full border transition-colors"
-                                style={done ? { background: ACCENT, borderColor: ACCENT, color: '#ffffff' } : { borderColor: 'var(--border-medium)' }}
-                              >
-                                {done && <Check className="size-3.5" />}
-                              </span>
-                              <span className={`truncate text-body-sm ${done ? 'font-medium text-primary' : 'text-secondary'}`}>
-                                {w.lemma}
-                              </span>
-                            </span>
-                            <span className="shrink-0 text-meta text-muted">{w.gloss}</span>
-                          </button>
-
-                          <AnimatePresence initial={false}>
-                            {open && w.clipLine && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                                className="overflow-hidden"
-                              >
-                                <p className="ml-7 border-l-2 border-subtle py-1 pl-3 text-meta text-secondary">
-                                  "{w.clipLine}"
-                                </p>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              )}
-
-              <section className="mt-7">
-                <h3 className="text-body-sm font-semibold text-primary">Fixes</h3>
-                {(() => {
-                  // correction lives on the assistant turn (feedback about the user
-                  // turn right before it), so "said" comes from that prior message.
-                  const corrections = messages
-                    .map((m, i) => ({ m, said: i > 0 ? messages[i - 1].text : '' }))
-                    .filter(({ m }) => m.role === 'assistant' && m.correction);
-                  return corrections.length === 0 ? (
-                    <p className="mt-1.5 text-body-sm text-muted">Nothing yet.</p>
-                  ) : (
-                    <ul className="mt-2.5 space-y-2.5">
-                      {corrections.map(({ m, said }) => (
-                        <li key={m.id} className="border-l-2 border-subtle pl-3">
-                          <p className="text-meta text-muted line-through">{said}</p>
-                          <p className="mt-0.5 text-body-sm font-medium text-primary">{m.correction!.correct}</p>
-                          <p className="mt-0.5 text-meta text-secondary">{m.correction!.why_en}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  );
-                })()}
-              </section>
-
-              <section className="mt-7">
-                <h3 className="text-body-sm font-semibold text-primary">Saved words</h3>
-                {savedWords.length === 0 ? (
-                  <p className="mt-1.5 text-body-sm text-muted">Tap a word to save it.</p>
-                ) : (
-                  <ul className="mt-2.5 flex flex-wrap gap-2">
-                    {savedWords.map((word) => (
-                      <li key={word.lemma} className="rounded-md border border-subtle px-2.5 py-1.5 text-meta">
-                        <span className="font-medium text-primary">{word.lemma}</span>
-                        <span className="text-muted"> · {word.gloss}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-
-              {latestCoaching && (
-                <section className="mt-7">
-                  <h3 className="text-body-sm font-semibold text-primary">Said in English</h3>
-                  <p className="mt-2 text-lead font-medium text-primary">
-                    {latestCoaching.loading ? '…' : (latestCoaching.corrected || '—')}
-                  </p>
-
-                  {!latestCoaching.loading && latestCoaching.explanation && (
-                    <div className="mt-3 rounded-2xl p-4" style={{ background: PAGE }}>
-                      <p className="text-meta font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                        Explanation
-                      </p>
-                      <p className="mt-2 text-body-sm leading-relaxed text-[#ffffff]">
-                        {latestCoaching.explanation}
-                      </p>
-                      {latestCoaching.advancedDetail && (
-                        <button
-                          type="button"
-                          onClick={() => setAdvancedOpen((v) => !v)}
-                          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#ffffff] px-3 py-1.5 text-body-sm font-semibold"
-                          style={{ color: PAGE }}
-                        >
-                          <Sparkles className="w-4 h-4" aria-hidden="true" /> Advanced feedback
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {advancedOpen && latestCoaching.advancedDetail && (
-                    <div className="mt-4 border-t border-subtle pt-4">
-                      {latestCoaching.advancedTopic && (
-                        <h4 className="font-heading font-bold text-primary" style={{ color: PAGE }}>{latestCoaching.advancedTopic}</h4>
-                      )}
-                      <p className="mt-2 text-body-sm leading-relaxed text-primary">{latestCoaching.advancedDetail}</p>
-                    </div>
-                  )}
-                </section>
-              )}
-            </div>
-
-            <div className="shrink-0 border-t border-subtle p-4">
-              <button
-                type="button"
-                onClick={leaveChat}
-                className="w-full rounded-xl px-4 py-2.5 text-body-sm font-semibold text-[#ffffff] transition-colors"
-                style={{ background: ACCENT }}
-              >
-                End session
-              </button>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

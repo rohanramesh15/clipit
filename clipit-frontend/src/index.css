@@ -22,6 +22,8 @@
   --bg-surface-hover: #2A242C;
   --accent: #E06A5F;
   --accent-hover: #F08378;
+  --accent-soft: #3a1f21;
+  --accent-ring: rgba(224, 106, 95, 0.35);
   --text-primary: #F7F1EA;
   --text-secondary: #CBBFC7;
   --text-muted: #928790;
@@ -29,6 +31,7 @@
   --border-medium: rgba(247, 241, 234, 0.18);
   /* Text sitting on the accent fill (buttons etc). */
   --on-accent: #ffffff;
+  --shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.4);
   /* Practice-card palette (dark): deep tinted backgrounds, light same-hue text */
   --card-fc-bg: #3a1f21; --card-fc-text: #eaa9ae; /* flash cards — rose */
   --card-vc-bg: #262240; --card-vc-text: #c2b8ef; /* voice chat — violet */
@@ -41,6 +44,8 @@
   --bg-surface-hover: #eeeef1;
   --accent: #C4625A;
   --accent-hover: #A84F49;
+  --accent-soft: #f8ecea;
+  --accent-ring: rgba(196, 98, 90, 0.35);
   /* Text scale — one hue family (deep red, ~hue 0°, anchored on #4c2323),
      tuned in lightness/saturation per role for a cohesive, legible read. */
   --text-primary: #4c2323;   /* headings + key text — deep maroon */
@@ -56,6 +61,16 @@
   --card-fc-bg: #ffeded; --card-fc-text: #9a3f44; /* flash cards — rose */
   --card-vc-bg: #f1ecff; --card-vc-text: #544a93; /* voice chat — violet */
   --card-ml-bg: #ecf3ff; --card-ml-text: #3a5a92; /* mad libs — blue */
+  --shadow-pop: 0 14px 36px rgba(76, 35, 35, 0.14);
+}
+/* AI chat surfaces adopt the sage palette the "AI chat" card uses on the home
+   screen: sage-ink actions on sage-soft fills. Type, hairlines, surfaces and
+   shadows stay on the app's shared tokens. */
+.theme-chat {
+  --accent: #4a7043; /* sage-ink */
+  --accent-hover: #2e4a2a; /* sage-deep */
+  --accent-soft: #ecf2ea; /* sage-soft */
+  --accent-ring: rgba(74, 112, 67, 0.35);
 }
 html {
   /* Stop the browser's own rubber-band bounce past the top/bottom of the

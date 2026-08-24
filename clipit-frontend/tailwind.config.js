@@ -13,6 +13,8 @@ export default {
         'surface-hover': 'var(--bg-surface-hover)',
         accent: 'var(--accent)',
         'accent-hover': 'var(--accent-hover)',
+        'accent-soft': 'var(--accent-soft)',
+        'accent-ring': 'var(--accent-ring)',
         'on-accent': 'var(--on-accent)',
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',
@@ -66,6 +68,10 @@ export default {
       },
       maxWidth: {
         page: '1180px',
+        reading: '46rem',
+      },
+      boxShadow: {
+        pop: 'var(--shadow-pop)',
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',

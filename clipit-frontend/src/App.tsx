@@ -107,6 +107,9 @@ function AppInner() {
     return 'landing';
   });
   const [activePage, setActivePage] = useState<Page>(() => pageForPath(window.location.pathname) || 'practice');
+  // AI chat's own conversation view replaces the top nav with its own back
+  // control while it's active, so it needs to tell us when that's the case.
+  const [chatImmersive, setChatImmersive] = useState(false);
 
   // Wrap the raw setter so every in-app navigation also updates the URL -
   // this is what makes refresh/back/forward land on the same screen. Views
@@ -234,6 +237,12 @@ function AppInner() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activePage, appView]);
 
+  // Safety net: if AI chat is left any way other than its own back button
+  // (e.g. a deep link), don't leave the top nav permanently hidden.
+  useEffect(() => {
+    if (activePage !== 'converse-v2') setChatImmersive(false);
+  }, [activePage]);
+
   // Announce SPA navigation through a meaningful document title and move the
   // keyboard cursor to the incoming page's main landmark.
   useEffect(() => {
@@ -299,7 +308,7 @@ function AppInner() {
       case 'vocabulary':
         return <VocabularyUploadPage onBack={() => navigateToPage('practice')} />;
       case 'converse-v2':
-        return <ConverseV2Page onBack={() => navigateToPage('practice')} onNavigate={navigateToPage} />;
+        return <ConverseV2Page onBack={() => navigateToPage('practice')} onNavigate={navigateToPage} onImmersiveChange={setChatImmersive} />;
       case 'settings':
         return <SettingsPage onNavigate={navigateToPage} />;
       default:
@@ -345,7 +354,7 @@ function AppInner() {
           >
             Skip to main content
           </a>
-          <TopNav activePage={activePage} onNavigate={navigateToPage} />
+          {!chatImmersive && <TopNav activePage={activePage} onNavigate={navigateToPage} />}
 
           <main id="main-content" tabIndex={-1} className="p-4 md:p-8 overflow-x-clip focus:outline-none">
             <AnimatePresence initial={false} mode="popLayout">
