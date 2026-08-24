@@ -190,14 +190,14 @@ function VoiceConverse({ token, language }: { token: string | null; language: st
         {status === 'idle' && (
           <button
             onClick={handleStart}
-            className="bg-accent text-app font-bold rounded-full px-8 py-4 inline-flex items-center gap-3 shadow-lg shadow-accent/40 hover:scale-[1.03] transition-transform">
+            className="bg-accent text-white font-bold rounded-full px-8 py-4 inline-flex items-center gap-3 hover:scale-[1.03] transition-transform">
             <Phone className="w-5 h-5" /> {copy.tapToStart}
           </button>
         )}
         {(status === 'connecting' || callActive) && (
           <button
             onClick={handleEnd}
-            className="bg-red-500 text-white font-bold rounded-full px-8 py-4 inline-flex items-center gap-3 shadow-lg shadow-red-500/40 hover:scale-[1.03] transition-transform">
+            className="bg-red-500 text-white font-bold rounded-full px-8 py-4 inline-flex items-center gap-3 hover:scale-[1.03] transition-transform">
             <PhoneOff className="w-5 h-5" /> End call
           </button>
         )}
@@ -301,7 +301,7 @@ function LevelDial({ value, onChange }: { value: Level; onChange: (v: Level) => 
           onClick={() => onChange(l)}
           aria-pressed={value === l}
           className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
-            value === l ? 'bg-accent text-app' : 'text-secondary hover:text-primary'
+            value === l ? 'bg-accent text-white' : 'text-secondary hover:text-primary'
           }`}>
           {l}
         </button>
@@ -363,7 +363,7 @@ function SummaryModal({
             )}
             <button
               onClick={onClose}
-              className="w-full bg-accent text-app font-bold py-3 rounded-full hover:bg-accent-hover transition-colors">
+              className="w-full bg-accent text-white font-bold py-3 rounded-full hover:bg-accent-hover transition-colors">
               New call
             </button>
           </div>

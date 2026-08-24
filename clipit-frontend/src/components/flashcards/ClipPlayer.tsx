@@ -85,7 +85,7 @@ function NetflixVideoPlaceholder({ videoId, timestamp, isRevealed }: { videoId: 
             href={`https://www.netflix.com/watch/${netflixId}?t=${roundedTimestamp}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#B20710] hover:bg-[#e50914] text-white text-sm font-medium transition-colors shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#B20710] hover:bg-[#e50914] text-white text-sm font-medium transition-colors"
           >
             <Play className="w-4 h-4" />
             Watch on Netflix

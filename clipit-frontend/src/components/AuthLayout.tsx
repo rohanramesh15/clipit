@@ -74,7 +74,7 @@ export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, 
                   onClick={switchPrompt.onClick}
                   variant="ghost"
                   size="sm"
-                  className="h-auto px-0 text-accent hover:bg-transparent"
+                  className="h-auto px-2 text-accent"
                 >
                   {switchPrompt.linkLabel}
                 </Button>

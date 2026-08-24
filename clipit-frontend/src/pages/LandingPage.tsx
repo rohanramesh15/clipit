@@ -47,7 +47,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <Button
               onClick={() => onNavigate('login')}
               variant="ghost"
-              className="hidden px-0 text-body font-medium sm:inline-flex"
+              className="hidden px-3 text-body font-medium sm:inline-flex"
             >
               Sign in
             </Button>

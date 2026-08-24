@@ -10,9 +10,9 @@ export function HelpButton() {
     <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
       <motion.button
         onClick={toggleHelpMode}
-        className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-colors ${
+        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
           isHelpMode
-            ? 'bg-accent text-app'
+            ? 'bg-accent text-white'
             : 'bg-card text-secondary hover:text-primary hover:bg-card-hover'
         }`}
         whileHover={{ scale: 1.05 }}
