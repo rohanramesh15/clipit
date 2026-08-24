@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Check,
+  Check, X,
   Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
@@ -89,6 +89,20 @@ function sampleRandom<T>(items: T[], count: number): T[] {
     picked.push(pool.splice(i, 1)[0]);
   }
   return picked;
+}
+
+// Resumed sessions don't carry a separate source_videos list, but every due
+// word from a mixed session already has the video it came from attached —
+// dedupe those into the same shape createSession's source_videos returns.
+function sourceVideosFromDueWords(dueWords: DueWord[]): MixedSourceVideo[] {
+  const seen = new Set<string>();
+  const videos: MixedSourceVideo[] = [];
+  for (const w of dueWords) {
+    if (!w.source_video_id || seen.has(w.source_video_id)) continue;
+    seen.add(w.source_video_id);
+    videos.push({ video_id: w.source_video_id, title: w.source_video_title || w.source_video_id });
+  }
+  return videos;
 }
 
 // ==============================================================================
@@ -632,6 +646,7 @@ export function ConverseV2Page(
           targets: t.used_target_words,
         })),
       );
+      setMixedThumbs(sampleRandom(sourceVideosFromDueWords(result.due_words || []), 3));
     } catch {
       setChatError('Could not resume that conversation. Please try again.');
     } finally {
@@ -670,6 +685,7 @@ export function ConverseV2Page(
             targets: t.used_target_words,
           })),
         );
+        setMixedThumbs(sampleRandom(sourceVideosFromDueWords(result.due_words || []), 3));
       })
       .catch(() => {
         if (!alive) return;
@@ -1121,7 +1137,16 @@ export function ConverseV2Page(
                 onDismiss={() => setSuggestVisibleId(null)}
               />
 
-              {typing ? (
+              {transcriptOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setTranscriptOpen(false)}
+                  className="mx-auto flex items-center gap-2 rounded-xl border border-subtle px-4 py-2.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:border-medium hover:text-primary"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                  Close transcript
+                </button>
+              ) : typing ? (
                 <Composer
                   value={composerText}
                   onChange={setComposerText}
