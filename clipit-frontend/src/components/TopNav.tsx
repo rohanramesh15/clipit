@@ -18,6 +18,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Avatar } from './Avatar';
 import { useHideOnScroll } from '../hooks/useHideOnScroll';
 import clipitLogo from '../assets/clipitlogo.png';
+import { Button } from './ui/button';
 
 type Page =
   | 'video' | 'practice' | 'flashcards' | 'analytics'
@@ -95,10 +96,11 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
       className="sticky top-0 z-50 bg-app"
     >
       <div className="mx-auto flex h-[72px] max-w-page items-center gap-6 px-5 sm:px-8">
-        <button
+        <Button
           type="button"
           onClick={() => onNavigate('practice')}
-          className="brand-logo flex shrink-0 items-center"
+          variant="ghost"
+          className="brand-logo h-auto shrink-0 px-0 hover:bg-transparent"
         >
           <img src={clipitLogo} alt="" className="-mt-1 h-12 w-12 shrink-0 object-contain" />
           <span
@@ -108,7 +110,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
             <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
           </span>
           <span className="sr-only">Go to practice home</span>
-        </button>
+        </Button>
 
         <nav aria-label="Main" className="hidden flex-1 md:block">
           <ul className="flex items-center gap-1">
@@ -116,24 +118,21 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
               const isActive = tab.id === activePage;
               return (
                 <li key={tab.id}>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => onNavigate(tab.id)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-body-sm font-medium transition-colors duration-150 ease-swift ${
-                      isActive ? 'selected-surface text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                    variant="ghost"
+                    size="sm"
+                    className={`relative ${
+                      isActive
+                        ? 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent'
+                        : 'hover:bg-transparent hover:text-secondary'
                     }`}
                   >
-                    {isActive && (
-                      <motion.span
-                        layoutId="nav-pill"
-                        className="absolute inset-0 rounded-lg selected-surface"
-                        transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-                      />
-                    )}
-                    <tab.Icon className="relative h-4 w-4" aria-hidden="true" />
-                    <span className="relative whitespace-nowrap">{tab.label}</span>
-                  </button>
+                    <tab.Icon className="h-4 w-4" aria-hidden="true" />
+                    <span className="whitespace-nowrap">{tab.label}</span>
+                  </Button>
                 </li>
               );
             })}
@@ -142,7 +141,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
 
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           <div className="relative hidden sm:block" ref={langPickerRef}>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setIsLangPickerOpen((open) => !open);
@@ -150,7 +149,9 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
               }}
               aria-expanded={isLangPickerOpen}
               aria-controls="language-picker"
-              className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+              variant="secondary"
+              size="sm"
+              className="gap-2 hover:bg-surface"
             >
               <span aria-hidden="true">{currentLang.flag}</span>
               {currentLang.name}
@@ -159,7 +160,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                 aria-hidden="true"
               />
               <span className="sr-only">Change the language you’re learning</span>
-            </button>
+            </Button>
 
             <AnimatePresence>
               {isLangPickerOpen && (
@@ -176,21 +177,23 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     const isSelected = option.code === language;
                     return (
                       <li key={option.code}>
-                        <button
+                        <Button
                           type="button"
                           onClick={() => {
                             setLanguage(option.code);
                             setIsLangPickerOpen(false);
                           }}
                           aria-pressed={isSelected}
-                          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body-sm transition-colors duration-150 ease-swift ${
-                            isSelected ? 'selected-surface font-medium text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                          variant="ghost"
+                          size="sm"
+                          className={`w-full justify-start gap-3 ${
+                            isSelected ? 'bg-accent-soft font-medium text-accent hover:bg-accent-soft hover:text-accent' : ''
                           }`}
                         >
                           <span aria-hidden="true">{option.flag}</span>
                           <span className="flex-1 text-left">{option.name}</span>
                           {isSelected && <Check className="h-4 w-4" aria-hidden="true" />}
-                        </button>
+                        </Button>
                       </li>
                     );
                   })}
@@ -200,7 +203,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
           </div>
 
           <div className="relative" ref={accountRef}>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setIsAccountOpen((open) => !open);
@@ -208,7 +211,8 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
               }}
               aria-expanded={isAccountOpen}
               aria-controls="account-menu"
-              className="flex items-center gap-2 rounded-full p-1 pr-2 transition-colors duration-150 ease-swift hover:bg-surface-hover"
+              variant="ghost"
+              className="h-10 gap-2 rounded-full p-1 pr-2"
             >
               <Avatar user={user} size={32} />
               <ChevronDown
@@ -216,7 +220,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                 aria-hidden="true"
               />
               <span className="sr-only">Account menu</span>
-            </button>
+            </Button>
 
             <AnimatePresence>
               {isAccountOpen && (
@@ -236,17 +240,18 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                   </div>
 
                   <div className="pt-2">
-                    <button
+                    <Button
                       type="button"
                       onClick={() => {
                         setIsAccountOpen(false);
                         onNavigate('settings');
                       }}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                      variant="ghost"
+                      className="w-full justify-start"
                     >
                       <SettingsIcon className="h-4 w-4 text-muted" aria-hidden="true" />
                       Settings
-                    </button>
+                    </Button>
 
                     <a
                       href={EXTENSION_URL}
@@ -269,33 +274,36 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                       <MessageSquare className="h-4 w-4 text-muted" aria-hidden="true" />
                       Feedback
                     </a>
-                    <button
+                    <Button
                       type="button"
                       onClick={() => {
                         setIsAccountOpen(false);
                         logout();
                       }}
-                      className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium text-primary transition-colors duration-150 ease-swift hover:bg-error/10 hover:text-error"
+                      variant="ghost"
+                      className="group w-full justify-start hover:bg-error/10 hover:text-error"
                     >
                       <LogOut className="h-4 w-4 text-muted transition-colors duration-150 ease-swift group-hover:text-error" aria-hidden="true" />
                       Log out
-                    </button>
+                    </Button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          <button
+          <Button
             type="button"
             onClick={() => setIsMobileOpen((open) => !open)}
             aria-expanded={isMobileOpen}
             aria-controls="mobile-main-navigation"
             aria-label="Toggle navigation"
-            className="rounded-lg p-2 text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary md:hidden"
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
           >
             {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -315,20 +323,24 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                 const isActive = tab.id === activePage;
                 return (
                   <li key={tab.id}>
-                    <button
+                    <Button
                       type="button"
                       onClick={() => {
                         onNavigate(tab.id);
                         setIsMobileOpen(false);
                       }}
                       aria-current={isActive ? 'page' : undefined}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-body font-medium transition-colors duration-150 ease-swift ${
-                        isActive ? 'selected-surface text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                      variant="ghost"
+                      size="lg"
+                      className={`w-full justify-start ${
+                        isActive
+                          ? 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent'
+                          : 'hover:bg-transparent hover:text-secondary'
                       }`}
                     >
                       <tab.Icon className="h-5 w-5" aria-hidden="true" />
                       {tab.label}
-                    </button>
+                    </Button>
                   </li>
                 );
               })}
