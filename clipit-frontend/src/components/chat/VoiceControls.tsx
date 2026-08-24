@@ -9,6 +9,8 @@ interface VoiceControlsProps {
   /** The tutor is actively speaking or listening right now (drives the level bars). */
   capturing: boolean;
   connecting: boolean;
+  /** The session isn't ready to start a call yet (still loading). */
+  disabled?: boolean;
   status: string;
   onStart: () => void;
   onStop: () => void;
@@ -21,6 +23,7 @@ export function VoiceControls({
   live,
   capturing,
   connecting,
+  disabled,
   status,
   onStart,
   onStop,
@@ -54,7 +57,7 @@ export function VoiceControls({
           <button
             type="button"
             onClick={live ? onStop : onStart}
-            disabled={connecting}
+            disabled={connecting || (disabled && !live)}
             aria-pressed={live}
             aria-label={live ? 'Stop the mic' : 'Start speaking'}
             className={`relative grid size-14 place-items-center rounded-full text-on-accent transition-colors duration-150 ease-swift disabled:opacity-70 ${

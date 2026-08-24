@@ -1127,6 +1127,7 @@ export function ConverseV2Page(
                   onChange={setComposerText}
                   onSend={(text) => sendTextTurn(text)}
                   thinking={sending}
+                  disabled={!sessionId}
                   placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
                   onClose={() => setTyping(false)}
                 />
@@ -1135,7 +1136,8 @@ export function ConverseV2Page(
                   live={voiceStatus !== 'off'}
                   capturing={voiceStatus === 'listening'}
                   connecting={voiceStatus === 'connecting'}
-                  status={status}
+                  disabled={!sessionId}
+                  status={!sessionId ? 'Starting your session…' : status}
                   onStart={startVoice}
                   onStop={stopVoice}
                   onType={() => { if (voiceStatus !== 'off') stopVoice(); setTyping(true); }}
@@ -1143,7 +1145,11 @@ export function ConverseV2Page(
               )}
 
               {(voiceError || chatError) && (
-                <p className="text-center text-meta text-accent" role="status" aria-live="polite">
+                <p
+                  className="rounded-xl bg-accent-soft px-3 py-2 text-center text-body-sm font-medium text-accent"
+                  role="status"
+                  aria-live="polite"
+                >
                   {voiceError || chatError}
                 </p>
               )}

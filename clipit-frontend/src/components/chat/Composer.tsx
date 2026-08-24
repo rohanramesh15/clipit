@@ -9,6 +9,8 @@ interface ComposerProps {
   onChange: (value: string) => void;
   onSend: (value: string) => void;
   thinking: boolean;
+  /** The session isn't ready to accept a message yet (still loading). */
+  disabled?: boolean;
   placeholder: string;
   /** Return to the voice controls. */
   onClose: () => void;
@@ -16,7 +18,7 @@ interface ComposerProps {
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
-export function Composer({ value, onChange, onSend, thinking, placeholder, onClose }: ComposerProps) {
+export function Composer({ value, onChange, onSend, thinking, disabled, placeholder, onClose }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export function Composer({ value, onChange, onSend, thinking, placeholder, onClo
   }, []);
 
   function submit() {
-    if (!value.trim() || thinking) return;
+    if (!value.trim() || thinking || disabled) return;
     onSend(value);
     onChange('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -64,7 +66,8 @@ export function Composer({ value, onChange, onSend, thinking, placeholder, onClo
           }
         }}
         placeholder={placeholder}
-        className="w-full resize-none bg-transparent px-4 pb-1 pt-3 text-body text-primary placeholder:text-muted focus:outline-none"
+        disabled={disabled}
+        className="w-full resize-none bg-transparent px-4 pb-1 pt-3 text-body text-primary placeholder:text-muted outline-none disabled:opacity-60"
       />
 
       <div className="flex items-center justify-between gap-3 px-2 pb-1 pt-1">
@@ -84,7 +87,7 @@ export function Composer({ value, onChange, onSend, thinking, placeholder, onClo
           <Tooltip label="Send">
             <button
               type="submit"
-              disabled={!value.trim() || thinking}
+              disabled={!value.trim() || thinking || disabled}
               aria-label="Send message"
               className="grid size-10 place-items-center rounded-xl bg-accent text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover disabled:bg-surface-hover disabled:text-muted"
             >
