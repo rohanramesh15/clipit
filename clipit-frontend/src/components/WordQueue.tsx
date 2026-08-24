@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Button } from './ui/button';
+import { SingleSelectFilter } from './filters/filter-controls';
 
 export type WordStatus = 'due' | 'learning' | 'new';
 
@@ -75,29 +77,17 @@ export function WordQueue({
         </div>
 
         {!isEmpty && (
-          <div role="group" aria-label="Filter words" className="flex flex-wrap items-center gap-2">
-            {FILTERS.map((option) => {
-              const count = option.id === 'all' ? words.length : words.filter((word) => word.status === option.id).length;
-              const isActive = option.id === filter;
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => selectFilter(option.id)}
-                  className={`rounded-lg px-3.5 py-1.5 text-body-sm font-medium transition-colors duration-150 ease-swift ${
-                    isActive
-                      ? 'selected-surface text-accent'
-                      : 'border border-medium text-secondary hover:bg-surface-hover hover:text-primary'
-                  }`}
-                >
-                  {option.label}
-                  <span className={isActive ? 'ml-1.5 opacity-80' : 'ml-1.5 text-muted'}>{count}</span>
-                </button>
-              );
-            })}
-          </div>
+          <SingleSelectFilter
+            label="Filter words"
+            options={FILTERS.map((option) => ({
+              value: option.id,
+              label: option.label,
+              count: option.id === 'all' ? words.length : words.filter((word) => word.status === option.id).length,
+            }))}
+            value={filter}
+            onValueChange={selectFilter}
+            className="max-w-full overflow-x-auto"
+          />
         )}
       </div>
 
@@ -112,14 +102,16 @@ export function WordQueue({
                 Keep watching with the extension active, then check again.
               </p>
               {onRefresh && (
-                <button
+                <Button
                   type="button"
                   onClick={onRefresh}
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-semibold text-accent transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-4 text-accent"
                 >
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
                   Check again
-                </button>
+                </Button>
               )}
             </>
           ) : (
@@ -173,27 +165,31 @@ export function WordQueue({
           </ul>
           {visible.length > WORDS_PER_PAGE && (
             <nav aria-label="Word list pagination" className="mt-4 flex items-center justify-center gap-3">
-            <button
+            <Button
               type="button"
+              aria-label="Go back one page"
               onClick={() => setPage(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              Previous
-            </button>
+            </Button>
             <p className="text-body-sm text-muted">
               Page {currentPage + 1} of {totalPages}
             </p>
-            <button
+            <Button
               type="button"
+              aria-label="Go forward one page"
               onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
               disabled={currentPage === totalPages - 1}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
             >
-              Next
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
+            </Button>
             </nav>
           )}
         </>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, Trash2, Play } from 'lucide-react';
+import { Button } from './ui/button';
 
 export type Platform = 'youtube' | 'netflix';
 
@@ -101,15 +102,17 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">Open on {PLATFORM_LABEL[video.platform]}</span>
             </a>
-            <button
+            <Button
               type="button"
               onClick={() => onRemove(video)}
               title="Remove from history"
-              className="rounded-lg p-2 text-secondary transition-colors duration-150 ease-swift hover:bg-blush hover:text-accent"
+              variant="ghost"
+              size="icon"
+              aria-label={`Remove ${video.title} from history`}
+              className="h-8 w-8 hover:bg-accent-soft hover:text-accent"
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Remove {video.title} from history</span>
-            </button>
+            </Button>
       </div>
     </article>
   );

@@ -11,6 +11,7 @@ import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { type BackendVideo, historyQueryOptions, queryKeys } from '../lib/queries';
+import { Button } from '../components/ui/button';
 
 const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
 
@@ -134,13 +135,12 @@ export function VideoPage() {
             <p className="font-semibold text-primary">Backend not reachable</p>
             <p className="mt-1 text-body-sm text-secondary">Make sure the ClipIt server is running and accessible.</p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => void history.refetch()}
-            className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
           >
             Try again
-          </button>
+          </Button>
         </div>
       )}
 

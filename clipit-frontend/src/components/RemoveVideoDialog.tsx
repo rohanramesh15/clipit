@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { TrackedVideo } from './VideoHistoryItem';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import { Button } from './ui/button';
 
 interface RemoveVideoDialogProps {
   video: TrackedVideo;
@@ -40,15 +41,17 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
         transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
         className="relative w-full max-w-md rounded-2xl border border-subtle bg-app p-6 shadow-lg"
       >
-        <button
+        <Button
           type="button"
           onClick={onCancel}
           disabled={isRemoving}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
+          variant="ghost"
+          size="icon"
+          aria-label="Close"
+          className="absolute right-4 top-4 h-8 w-8 text-muted"
         >
           <X className="h-4 w-4" aria-hidden="true" />
-          <span className="sr-only">Close</span>
-        </button>
+        </Button>
 
         <h2 id="delete-video-title" className="pr-10 font-heading text-card-title font-medium text-primary">
           Delete video and flashcards?
@@ -59,22 +62,24 @@ export function RemoveVideoDialog({ video, isRemoving = false, onCancel, onRemov
         </p>
 
         <div className="mt-6 space-y-2">
-          <button
+          <Button
             type="button"
             onClick={onCancel}
             disabled={isRemoving}
-            className="w-full rounded-xl px-4 py-2.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
+            variant="ghost"
+            className="w-full"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onRemove}
             disabled={isRemoving}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
+            variant="destructive"
+            className="w-full"
           >
             {isRemoving ? 'Deleting…' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </motion.div>
     </div>

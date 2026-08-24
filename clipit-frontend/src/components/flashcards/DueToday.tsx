@@ -2,6 +2,7 @@ import React from 'react';
 import { PlayIcon } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { Skeleton } from '../Skeleton';
+import { Button } from '../ui/button';
 
 interface DueTodayProps {
   videos: TrackedVideo[];
@@ -93,13 +94,13 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
           )}
         </ul>
 
-        <button
+        <Button
           onClick={onStartAll}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          className="shrink-0"
         >
           <PlayIcon className="h-4 w-4" aria-hidden="true" />
           Start review
-        </button>
+        </Button>
       </div>
     </section>
   );

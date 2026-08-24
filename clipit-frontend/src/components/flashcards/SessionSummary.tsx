@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, Trophy } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface SessionStats {
   reviewed: number;
@@ -55,18 +56,17 @@ export function SessionSummary({
         <div className="mt-2 flex flex-col items-center gap-3">
           <p className="text-body-sm text-secondary">Want to keep going?</p>
           <div className="flex gap-3">
-            <button
+            <Button
               onClick={onBackToDecks}
-              className="rounded-xl border border-subtle bg-app px-5 py-2.5 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+              variant="secondary"
             >
               I'm done for today
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={onKeepReviewing}
-              className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
             >
               Keep reviewing
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -83,12 +83,13 @@ export function SessionSummary({
         <p className="text-body-sm text-secondary">
           No cards are due for review right now. Come back later!
         </p>
-        <button
+        <Button
           onClick={onBackToDecks}
-          className="mt-4 rounded-xl bg-accent px-6 py-3 text-body font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          size="lg"
+          className="mt-4"
         >
           Back to decks
-        </button>
+        </Button>
       </div>
     );
   }
@@ -112,18 +113,19 @@ export function SessionSummary({
       </div>
 
       <div className="mt-12 flex flex-col gap-3 sm:flex-row">
-        <button
+        <Button
           onClick={onReviewAgain}
-          className="rounded-xl bg-accent px-6 py-3 text-body font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+          size="lg"
         >
           Review all cards again
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={onBackToDecks}
-          className="rounded-xl border border-subtle bg-app px-6 py-3 text-body font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+          variant="secondary"
+          size="lg"
         >
           Back to decks
-        </button>
+        </Button>
       </div>
     </div>
   );

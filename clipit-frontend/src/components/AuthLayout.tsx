@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import clipitLogo from '../assets/clipitlogo.png';
 import { NavigationIconButton } from './NavigationIconButton';
+import { Button } from './ui/button';
 
 function Logo() {
   return (
@@ -68,13 +69,15 @@ export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, 
             {switchPrompt && (
               <p className="mt-5 text-center text-body-sm text-secondary">
                 {switchPrompt.text}{' '}
-                <button
+                <Button
                   type="button"
                   onClick={switchPrompt.onClick}
-                  className="whitespace-nowrap font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-0 text-accent hover:bg-transparent"
                 >
                   {switchPrompt.linkLabel}
-                </button>
+                </Button>
               </p>
             )}
           </div>

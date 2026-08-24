@@ -7,6 +7,7 @@ import { AuthField } from '../components/auth/AuthField';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
 import { PasswordToggle } from '../components/auth/PasswordToggle';
 import { FormError } from '../components/auth/FormError';
+import { Button } from '../components/ui/button';
 
 interface SignupPageProps {
   onNavigate: (view: 'landing' | 'login' | 'onboarding') => void;
@@ -73,14 +74,15 @@ export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
         <div className="space-y-3">
           <GoogleSignInButton onError={() => setError('Google sign-up was cancelled')} text="signup" />
           {error && <FormError message={error} />}
-          <button
+          <Button
             type="button"
             onClick={() => setStep('email')}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-medium bg-app py-2.5 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            variant="secondary"
+            className="w-full"
           >
             <Mail className="h-4 w-4" aria-hidden="true" />
             Sign up with email
-          </button>
+          </Button>
         </div>
       </AuthLayout>
     );

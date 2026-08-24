@@ -26,6 +26,7 @@ import { RatingBar } from '../components/flashcards/RatingBar';
 import { SessionSummary } from '../components/flashcards/SessionSummary';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import { Button } from '../components/ui/button';
 
 const flashcardsPageTips: HelpTip[] = [
   {
@@ -978,11 +979,11 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         <p className="text-secondary text-sm text-center max-w-sm">
           Make sure the ClipIt server is running and accessible.
         </p>
-        <button
+        <Button
           onClick={() => window.location.reload()}
-          className="mt-2 px-5 py-2.5 rounded-xl bg-accent text-on-accent text-sm font-semibold hover:bg-accent-hover transition-colors">
+          className="mt-2">
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -1043,17 +1044,18 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
         </p>
         <div className="flex gap-3 mt-2">
           {videos.length > 1 && selectedVideoId !== 'all' && (
-            <button
+            <Button
               onClick={() => loadAllVideos(videos)}
-              className="px-5 py-2.5 rounded-xl bg-accent text-on-accent text-sm font-semibold hover:bg-accent-hover transition-colors">
+            >
               Try all videos
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={handleBackToDecks}
-            className="px-5 py-2.5 rounded-xl bg-surface-hover text-primary text-sm font-semibold hover:bg-blush transition-colors">
+            variant="secondary"
+          >
             Back to Decks
-          </button>
+          </Button>
         </div>
       </div>
     );

@@ -18,6 +18,7 @@ import {
   Puzzle
 } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
+import { Button } from '../components/ui/button';
 
 // YouTube Loop Player Component
 function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; startTime: number; endTime: number }) {
@@ -708,41 +709,41 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
         {/* Navigation buttons */}
         <div className="flex items-center justify-between px-6 pb-8">
-          <button
+          <Button
             onClick={goBack}
-            className="flex items-center gap-2 text-secondary hover:text-primary transition-colors font-medium"
+            variant="ghost"
+            className="font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
-          </button>
+          </Button>
           {'isExtensionStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isExtensionStep ? (
-            <button
+            <Button
               onClick={handleExtensionStepAdvance}
-              className="text-secondary hover:text-primary transition-colors font-medium"
+              variant="ghost"
+              className="font-medium"
             >
               Skip for now
-            </button>
+            </Button>
           ) : 'isFinalStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isFinalStep ? (
-            <button
+            <Button
               onClick={onComplete}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all bg-accent text-app hover:bg-accent-hover"
+              size="lg"
+              className="font-bold"
             >
               Begin learning
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleNextStep}
               disabled={!quizAnswers[quizStep]}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
-                quizAnswers[quizStep]
-                  ? 'bg-accent text-app hover:bg-accent-hover'
-                  : 'bg-white/10 text-muted cursor-not-allowed'
-              }`}
+              size="lg"
+              className="font-bold"
             >
               {quizStep === quizQuestions.length - 1 ? "Finish" : "Next"}
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -904,27 +905,28 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
       {/* Bottom nav */}
       <div className="h-20 border-t border-white/5 flex items-center justify-between px-6 md:px-10">
-          <button
+          <Button
             type="button"
             onClick={goBack}
             disabled={current === 0}
-            className={`flex items-center gap-2 text-sm font-medium transition-colors ${current === 0 ? 'invisible' : 'text-secondary hover:text-primary'}`}>
+            variant="ghost"
+            className={`text-sm font-medium ${current === 0 ? 'invisible' : ''}`}>
 
           <ArrowLeft className="w-4 h-4" />
           Back
-        </button>
+        </Button>
 
         <span className="text-sm text-muted">
           {current + 1} of {slides.length}
         </span>
 
-        <button
+        <Button
           onClick={goNext}
-          className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-app font-bold px-6 py-2.5 rounded-xl transition-all shadow-md shadow-accent/20 text-sm">
+          className="text-sm font-bold">
 
           {isLast ? "Let's Go" : 'Next'}
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>);
 

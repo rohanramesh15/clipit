@@ -1,5 +1,6 @@
 import React from 'react';
 import { LoadingAnimation } from '../LoadingAnimation';
+import { Button } from '../ui/button';
 
 interface PrimaryButtonProps {
   children: React.ReactNode;
@@ -10,13 +11,13 @@ interface PrimaryButtonProps {
 
 export function PrimaryButton({ children, type = 'submit', isLoading = false, onClick }: PrimaryButtonProps) {
   return (
-    <button
+    <Button
       type={type}
       onClick={onClick}
       disabled={isLoading}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-body-sm font-bold text-[var(--on-accent)] transition-colors duration-150 ease-swift hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-70"
+      className="flex h-11 w-full font-bold"
     >
       {isLoading ? <LoadingAnimation className="h-4 w-4" /> : children}
-    </button>
+    </Button>
   );
 }

@@ -12,6 +12,7 @@ import { NavigationIconButton } from '../components/NavigationIconButton';
 import { queryClient } from '../lib/queryClient';
 import { type CachedMadlibDeck, historyQueryOptions, queryKeys, videoVocabularyQueryOptions } from '../lib/queries';
 import { mapWithConcurrency } from '../lib/network';
+import { Button } from '../components/ui/button';
 
 type Page = 'video' | 'practice' | 'flashcards' | 'analytics' | 'vocabulary' | 'converse-v2' | 'madlibs' | 'settings';
 interface MadlibsPageProps { onNavigate: (page: Page) => void; }
@@ -346,22 +347,22 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-5">
-              <button
+              <Button
                 type="button"
                 onClick={() => resumeDeck(resumable)}
-                className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
               >
                 <Play className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true" />
                 Resume
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => restartResumable(resumable)}
-                className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-secondary transition-colors duration-150 ease-swift hover:text-primary"
+                variant="ghost"
+                size="sm"
               >
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
                 Restart
-              </button>
+              </Button>
             </div>
           </section>
         )}
@@ -465,27 +466,29 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                           {ready ? `${count} ready` : 'No words yet'}
                         </p>
                       )}
-                      <button
+                      <Button
                         type="button"
                         onClick={() => ready && void startDeck(video)}
                         disabled={!ready}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-surface-hover px-3.5 py-2 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift enabled:hover:bg-blush disabled:opacity-40"
+                        variant="secondary"
+                        className="shrink-0 bg-surface-hover enabled:hover:bg-accent-soft"
                       >
                         Practice
                         <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
+                      </Button>
                     </motion.li>
                   );
                 })}
               </ul>
               {visible < sorted.length && (
-                <button
+                <Button
                   type="button"
                   onClick={() => setVisible((count) => count + PAGE_SIZE)}
-                  className="mt-6 w-full rounded-xl py-2.5 text-body-sm font-semibold text-muted transition-colors duration-150 ease-swift hover:text-primary"
+                  variant="ghost"
+                  className="mt-6 w-full"
                 >
                   Show {Math.min(PAGE_SIZE, sorted.length - visible)} more of {sorted.length}
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -519,13 +522,13 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <p className="max-w-sm text-body-sm text-secondary">
             This video doesn&apos;t have enough example sentences to build Mad Libs. Try another video.
           </p>
-          <button
+          <Button
             type="button"
             onClick={() => setPhase('deck')}
-            className="mt-1 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent hover:bg-accent-hover"
+            className="mt-1"
           >
             Pick another video
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -567,20 +570,21 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
             </div>
 
             <div className="mt-12 flex flex-col gap-3 sm:flex-row">
-              <button
+              <Button
                 type="button"
                 onClick={() => void replay()}
-                className="rounded-xl bg-accent px-6 py-3 text-body font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+                size="lg"
               >
                 Play again
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setPhase('deck')}
-                className="rounded-xl border border-subtle bg-app px-6 py-3 text-body font-semibold text-primary transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                variant="secondary"
+                size="lg"
               >
                 Pick another video
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -679,10 +683,10 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                     Hint — the word means <strong className="text-primary">&quot;{item.gloss}&quot;</strong>
                   </p>
                 ) : item.gloss ? (
-                  <button type="button" onClick={() => setShowHint(true)} className="inline-flex items-center gap-1.5 text-body-sm font-medium text-secondary hover:text-primary">
+                  <Button type="button" onClick={() => setShowHint(true)} variant="ghost" size="sm" className="gap-1.5 px-0">
                     <Lightbulb className="h-4 w-4" />
                     Show hint
-                  </button>
+                  </Button>
                 ) : null
               )}
               {revealed && item.translation && (
@@ -730,9 +734,9 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                 <span className={`text-body-sm font-semibold ${selected === item.answer ? 'text-sage-ink' : 'text-accent'}`}>
                   {selected === item.answer ? 'Correct!' : `Answer: ${item.answer}`}
                 </span>
-                <button type="button" onClick={next} className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent hover:bg-accent-hover">
-                {isStreamingCards || index + 1 < items.length ? 'Next' : 'Finish'}
-                </button>
+                <Button type="button" onClick={next}>
+                  {isStreamingCards || index + 1 < items.length ? 'Next' : 'Finish'}
+                </Button>
               </motion.div>
             )}
           </AnimatePresence>

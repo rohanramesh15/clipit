@@ -7,6 +7,7 @@ import { PracticeModes } from '../components/landing/PracticeModes';
 import { Languages } from '../components/landing/Languages';
 import { ClosingCTA } from '../components/landing/ClosingCTA';
 import { useHideOnScroll } from '../hooks/useHideOnScroll';
+import { Button } from '../components/ui/button';
 
 interface LandingPageProps {
   onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
@@ -43,18 +44,19 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </a>
 
           <div className="flex items-center gap-4 sm:gap-6">
-            <button
+            <Button
               onClick={() => onNavigate('login')}
-              className="hidden whitespace-nowrap text-body font-medium text-secondary transition-colors duration-150 ease-swift hover:text-primary sm:block"
+              variant="ghost"
+              className="hidden px-0 text-body font-medium sm:inline-flex"
             >
               Sign in
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => onNavigate('signup')}
-              className="whitespace-nowrap rounded-xl bg-accent px-5 py-2.5 text-body font-medium text-[#fff] transition-colors duration-150 ease-swift hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="text-body font-medium"
             >
               Sign up
-            </button>
+            </Button>
           </div>
         </div>
       </motion.header>
@@ -76,12 +78,14 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           <Logo size="text-3xl" img="w-10 h-10" stroke="1.5px" />
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
             <nav aria-label="Footer">
-              <button
+              <Button
                 onClick={() => onNavigate('privacy')}
-                className="text-body-sm text-cream/70 transition-colors duration-150 ease-swift hover:text-cream"
+                variant="ghost"
+                size="sm"
+                className="px-0 text-cream/70 hover:bg-transparent hover:text-cream"
               >
                 Privacy
-              </button>
+              </Button>
             </nav>
             <p className="text-body-sm text-cream/60">© 2026 ClipIt Inc.</p>
           </div>

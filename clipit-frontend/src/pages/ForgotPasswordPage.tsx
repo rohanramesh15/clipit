@@ -5,6 +5,7 @@ import { AuthField } from '../components/auth/AuthField';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
 import { FormError } from '../components/auth/FormError';
 import { supabase } from '../lib/supabaseClient';
+import { Button } from '../components/ui/button';
 
 interface ForgotPasswordPageProps {
   onNavigate: (view: 'landing' | 'login') => void;
@@ -49,13 +50,15 @@ export function ForgotPasswordPage({ onNavigate, onBack }: ForgotPasswordPagePro
           <p className="mt-3 text-body-sm text-secondary">
             Check your spam folder if it hasn't arrived in a few minutes.
           </p>
-          <button
+          <Button
             type="button"
             onClick={() => setSent(false)}
-            className="mt-4 text-body-sm font-semibold text-accent-hover underline-offset-4 transition-colors duration-150 ease-swift hover:text-accent hover:underline"
+            variant="ghost"
+            size="sm"
+            className="mt-4 px-0 text-accent"
           >
             Use a different email
-          </button>
+          </Button>
         </div>
       </AuthLayout>
     );

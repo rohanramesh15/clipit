@@ -7,6 +7,7 @@ import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { reviewsQueryOptions, watchTimeQueryOptions } from '../lib/queries';
+import { Button } from '../components/ui/button';
 
 function AnalyticsLoadingState() {
   return (
@@ -27,14 +28,13 @@ function AnalyticsErrorState({ onRetry }: { onRetry: () => void }) {
           <h1 className="font-heading text-card-title text-primary">Your progress took too long to load</h1>
           <p className="mt-2 text-body-sm text-secondary">Please try again. Your review history is still saved.</p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
         >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
           Try again
-        </button>
+        </Button>
       </div>
     </div>
   );

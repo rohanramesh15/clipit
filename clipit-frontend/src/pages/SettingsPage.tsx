@@ -12,6 +12,8 @@ import { NavigationIconButton } from '../components/NavigationIconButton';
 import { fetchTtsVoices, fetchVoiceSample, type TtsVoice } from '../services/chat';
 import { queryClient } from '../lib/queryClient';
 import { queryKeys, vocabularySettingsQueryOptions } from '../lib/queries';
+import { Button } from '../components/ui/button';
+import { SingleSelectFilter } from '../components/filters/filter-controls';
 
 const DAILY_GOAL_OPTIONS = [
   { minutes: 5, label: '5 min', cards: 10 },
@@ -181,40 +183,32 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
             <div className="mt-2 w-full">
               <SettingRow label="Daily goal" description={`How much time would you like to learn each day? This sets a daily target of about ${cardTarget} cards.`}>
-                <div role="group" aria-label="Daily goal" className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-surface p-1">
-                  {DAILY_GOAL_OPTIONS.map((option) => {
-                    const isActive = option.minutes === goalMinutes;
-                    return (
-                      <button
-                        key={option.minutes}
-                        type="button"
-                        onClick={() => {
-                          setGoalMinutes(option.minutes);
-                          localStorage.setItem('daily_goal', String(option.minutes));
-                          markSaved();
-                        }}
-                        aria-pressed={isActive}
-                        className={`rounded-md px-3.5 py-1.5 text-body-sm font-semibold transition-colors duration-150 ease-swift ${
-                          isActive ? 'selected-surface text-accent' : 'text-secondary hover:text-primary'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <SingleSelectFilter
+                  label="Daily goal"
+                  options={DAILY_GOAL_OPTIONS.map((option) => ({ value: String(option.minutes), label: option.label }))}
+                  value={String(goalMinutes)}
+                  onValueChange={(nextGoal) => {
+                    const minutes = Number(nextGoal);
+                    setGoalMinutes(minutes);
+                    localStorage.setItem('daily_goal', String(minutes));
+                    markSaved();
+                  }}
+                  className="max-w-full overflow-x-auto"
+                />
               </SettingRow>
 
               <SettingRow label="New cards per day" description="How many unseen words enter your reviews each day. Set to 0 to only review what you already have." htmlFor="new-cards">
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => saveNewCards(newCards - 5)}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                    variant="secondary"
+                    size="icon"
+                    aria-label="Five fewer new cards"
+                    className="h-9 w-9"
                   >
                     <Minus className="h-4 w-4" aria-hidden="true" />
-                    <span className="sr-only">Five fewer new cards</span>
-                  </button>
+                  </Button>
                   <input
                     id="new-cards"
                     type="number"
@@ -223,14 +217,16 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                     onChange={(event) => saveNewCards(parseInt(event.target.value, 10) || 0)}
                     className="w-20 rounded-lg border border-subtle bg-app px-3 py-2 text-center text-body font-semibold tabular-nums text-primary transition-colors duration-150 ease-swift focus:border-accent focus:outline-none"
                   />
-                  <button
+                  <Button
                     type="button"
                     onClick={() => saveNewCards(newCards + 5)}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                    variant="secondary"
+                    size="icon"
+                    aria-label="Five more new cards"
+                    className="h-9 w-9"
                   >
                     <Plus className="h-4 w-4" aria-hidden="true" />
-                    <span className="sr-only">Five more new cards</span>
-                  </button>
+                  </Button>
                   <span className="text-body-sm text-muted">cards</span>
                 </div>
               </SettingRow>
@@ -258,24 +254,24 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
             <div className="mt-2 w-full">
               <SettingRow label="Log out" description="Sign out of ClipIt on this device.">
-                <button
+                <Button
                   type="button"
                   onClick={logout}
-                  className="flex items-center gap-2 rounded-lg border border-subtle px-3.5 py-2 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                  variant="secondary"
                 >
                   <LogOut className="h-4 w-4" aria-hidden="true" />
                   Log out
-                </button>
+                </Button>
               </SettingRow>
 
               <SettingRow label="Delete account" description="Permanently erase your account, decks, and review history. This can't be undone.">
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsConfirmingDelete(true)}
-                  className="rounded-lg border border-error/30 px-3.5 py-2 text-body-sm font-semibold text-error transition-colors duration-150 ease-swift hover:bg-error/10"
+                  variant="destructive"
                 >
                   Delete account
-                </button>
+                </Button>
               </SettingRow>
             </div>
           </section>

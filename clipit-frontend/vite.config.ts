@@ -17,4 +17,12 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'unsafe-none',
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        app: fileURLToPath(new URL('./index.html', import.meta.url)),
+        'design-system': fileURLToPath(new URL('./design-system.html', import.meta.url)),
+      },
+    },
+  },
 })

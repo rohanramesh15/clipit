@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import landingPage from '../../assets/landing_page.png';
 import { motionEase, motionTiming } from '../../lib/motion';
+import { Button } from '../ui/button';
 
 const heroSequence = {
   hidden: {},
@@ -39,14 +40,15 @@ export function Hero({ onGetStarted }: HeroProps) {
           </motion.p>
 
           <motion.div variants={heroItem} className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
-            <button
+            <Button
               type="button"
               onClick={onGetStarted}
-              className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-accent px-7 py-4 text-lead font-medium text-[#fff] transition-colors duration-150 ease-swift hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              size="lg"
+              className="h-auto px-7 py-4 text-lead font-medium"
             >
               Start learning free
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
-            </button>
+            </Button>
             <p className="text-body text-muted">Free extension · no card needed</p>
           </motion.div>
         </div>

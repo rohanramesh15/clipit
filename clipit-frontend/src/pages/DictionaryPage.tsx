@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { HelpOverlay, HelpTip } from '../components/HelpOverlay';
 import { API_BASE_URL } from '../config';
 import { Skeleton } from '../components/Skeleton';
+import { Button } from '../components/ui/button';
+import { SingleSelectFilter } from '../components/filters/filter-controls';
 
 const dictionaryPageTips: HelpTip[] = [
   {
@@ -77,7 +79,7 @@ export function DictionaryPage() {
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [posFilter, setPosFilter] = useState<string | null>(null);
+  const [posFilter, setPosFilter] = useState<'all' | DictionaryEntry['pos']>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
@@ -115,7 +117,7 @@ export function DictionaryPage() {
   // Filter entries by search term and part of speech
   const filteredEntries = entries.filter((entry) => {
     // Filter by part of speech
-    if (posFilter && entry.pos !== posFilter) return false;
+    if (posFilter !== 'all' && entry.pos !== posFilter) return false;
 
     // Filter by search term
     if (!searchTerm) return true;
@@ -194,20 +196,15 @@ export function DictionaryPage() {
           {language === 'ko' && (
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
               <Filter className="w-5 h-5 text-secondary shrink-0" />
-              {['noun', 'verb', 'adjective', 'adverb'].map((pos) => (
-                <button
-                  key={pos}
-                  onClick={() => setPosFilter(posFilter === pos ? null : pos)}
-                  className={`
-                    px-3 py-1.5 rounded-lg text-sm font-medium border transition-all shrink-0
-                    ${posFilter === pos
-                      ? 'bg-accent text-app border-accent'
-                      : 'bg-surface border-white/10 text-secondary hover:border-white/30'}
-                  `}
-                >
-                  {POS_LABELS[pos]}
-                </button>
-              ))}
+              <SingleSelectFilter
+                label="Filter dictionary by part of speech"
+                options={[
+                  { value: 'all' as const, label: 'All' },
+                  ...(['noun', 'verb', 'adjective', 'adverb'] as const).map((pos) => ({ value: pos, label: POS_LABELS[pos] })),
+                ]}
+                value={posFilter}
+                onValueChange={setPosFilter}
+              />
             </div>
           )}
         </div>
@@ -225,12 +222,16 @@ export function DictionaryPage() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-4">
-                <button
+                <Button
+                  type="button"
                   onClick={() => playAudio(entry.word, language)}
-                  className="mt-1 w-8 h-8 rounded-full bg-white/5 hover:bg-accent hover:text-app flex items-center justify-center transition-colors text-secondary"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Play pronunciation for ${entry.word}`}
+                  className="mt-1 h-8 w-8 rounded-full"
                 >
                   <Volume2 className="w-4 h-4" />
-                </button>
+                </Button>
 
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -275,24 +276,30 @@ export function DictionaryPage() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-8 pb-8">
-          <button
+          <Button
+            type="button"
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="p-2 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            variant="secondary"
+            size="icon"
+            aria-label="Go back one page"
           >
             <ChevronLeft className="w-5 h-5" />
-          </button>
+          </Button>
 
           <div className="flex items-center gap-1">
             {/* First page */}
             {currentPage > 3 && (
               <>
-                <button
+                <Button
+                  type="button"
                   onClick={() => setCurrentPage(1)}
-                  className="w-10 h-10 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary transition-all"
+                  variant="secondary"
+                  size="icon"
+                  aria-label="Go to page 1"
                 >
                   1
-                </button>
+                </Button>
                 {currentPage > 4 && (
                   <span className="px-2 text-muted">...</span>
                 )}
@@ -307,17 +314,16 @@ export function DictionaryPage() {
                 return Math.abs(page - currentPage) <= 2;
               })
               .map(page => (
-                <button
+                <Button
                   key={page}
+                  type="button"
                   onClick={() => setCurrentPage(page)}
-                  className={`w-10 h-10 rounded-lg border transition-all ${
-                    currentPage === page
-                      ? 'bg-accent text-app border-accent font-semibold'
-                      : 'bg-surface border-white/10 text-secondary hover:bg-surface-hover hover:text-primary'
-                  }`}
+                  variant={currentPage === page ? 'primary' : 'secondary'}
+                  size="icon"
+                  aria-label={`Go to page ${page}`}
                 >
                   {page}
-                </button>
+                </Button>
               ))}
 
             {/* Last page */}
@@ -326,23 +332,29 @@ export function DictionaryPage() {
                 {currentPage < totalPages - 3 && (
                   <span className="px-2 text-muted">...</span>
                 )}
-                <button
+                <Button
+                  type="button"
                   onClick={() => setCurrentPage(totalPages)}
-                  className="w-10 h-10 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary transition-all"
+                  variant="secondary"
+                  size="icon"
+                  aria-label={`Go to page ${totalPages}`}
                 >
                   {totalPages}
-                </button>
+                </Button>
               </>
             )}
           </div>
 
-          <button
+          <Button
+            type="button"
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="p-2 rounded-lg bg-surface border border-white/10 text-secondary hover:bg-surface-hover hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            variant="secondary"
+            size="icon"
+            aria-label="Go forward one page"
           >
             <ChevronRight className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
       )}
     </div>

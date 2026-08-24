@@ -4,6 +4,7 @@ import { Check, ChevronDown, ExternalLink, Film, PlayIcon, SearchIcon, Trash2, X
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { Button } from '../ui/button';
 
 interface DeckBrowserProps {
   videos: TrackedVideo[];
@@ -218,21 +219,25 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 >
                   {count === undefined ? 'Counting…' : due > 0 ? `${due} due` : 'Caught up'}
                 </p>
-                <button
+                <Button
                   onClick={() => onStudyVideo(video.video_id)}
                   disabled={due === 0}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-surface-hover px-3.5 py-2 text-body-sm font-semibold text-primary transition-colors duration-150 ease-swift enabled:hover:bg-blush disabled:opacity-40"
+                  variant="secondary"
+                  className="shrink-0 bg-surface-hover enabled:hover:bg-accent-soft"
                 >
                   <PlayIcon className="h-3.5 w-3.5" aria-hidden="true" />
                   Review
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => setShowDeleteVideoConfirm(video)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete ${video.title}`}
+                  className="h-11 w-11 shrink-0 hover:bg-error/10 hover:text-error"
                   title="Delete video"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -240,12 +245,13 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
       )}
 
       {visible < results.length && (
-        <button
+        <Button
           onClick={() => setVisible((count) => count + PAGE_SIZE)}
-          className="mt-6 w-full rounded-xl py-2.5 text-body-sm font-semibold text-muted transition-colors duration-150 ease-swift hover:text-primary"
+          variant="ghost"
+          className="mt-6 w-full"
         >
           Show {Math.min(PAGE_SIZE, results.length - visible)} more of {results.length}
-        </button>
+        </Button>
       )}
 
       {/* Delete Video Confirmation Modal */}
@@ -273,15 +279,17 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
               className="relative w-full max-w-md rounded-2xl border border-subtle bg-app p-6 shadow-lg"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowDeleteVideoConfirm(null)}
                 disabled={isDeletingVideo}
-                className="absolute right-4 top-4 rounded-lg p-1.5 text-muted transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
+                variant="ghost"
+                size="icon"
+                aria-label="Close"
+                className="absolute right-4 top-4 h-8 w-8 text-muted"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">Close</span>
-              </button>
+              </Button>
 
               <h3 id="delete-video-title" className="pr-10 font-heading text-card-title font-medium text-primary">
                 Delete video and flashcards?
@@ -291,19 +299,21 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 your watch history along with all flashcards made from its words.
               </p>
               <div className="mt-6 space-y-2">
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowDeleteVideoConfirm(null)}
                   disabled={isDeletingVideo}
-                  className="w-full rounded-xl px-4 py-2.5 text-body-sm font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
+                  variant="ghost"
+                  className="w-full"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={handleConfirmDeleteVideo}
                   disabled={isDeletingVideo}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-error px-4 py-2.5 text-body-sm font-semibold text-white transition-colors duration-150 ease-swift hover:bg-[#dc2626] disabled:opacity-70"
+                  variant="destructive"
+                  className="w-full"
                 >
                   {isDeletingVideo ? (
                     <>
@@ -312,7 +322,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   ) : (
                     'Delete'
                   )}
-                </button>
+                </Button>
               </div>
             </motion.div>
           </motion.div>

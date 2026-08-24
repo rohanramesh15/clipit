@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from './ui/button';
 
 type Direction = 'back' | 'forward';
 
@@ -22,14 +23,16 @@ interface NavigationIconButtonProps extends NavigationIconProps {
 
 export function NavigationIconButton({ direction, label, onClick, disabled, className = '' }: NavigationIconButtonProps) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className={`inline-flex items-center rounded-xl p-2 text-secondary transition-all duration-150 ease-swift hover:-translate-x-0.5 hover:text-primary disabled:opacity-40 ${className}`}
+      variant="ghost"
+      size="icon"
+      className={`text-secondary ${className}`}
     >
       <NavigationIcon direction={direction} />
-    </button>
+    </Button>
   );
 }
