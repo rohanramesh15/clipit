@@ -172,7 +172,7 @@ export function WordQueue({
               disabled={currentPage === 0}
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 hover:bg-transparent hover:text-secondary"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -186,7 +186,7 @@ export function WordQueue({
               disabled={currentPage === totalPages - 1}
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 hover:bg-transparent hover:text-secondary"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>

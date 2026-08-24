@@ -100,11 +100,11 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
           type="button"
           onClick={() => onNavigate('practice')}
           variant="ghost"
-          className="brand-logo h-auto shrink-0 px-0 hover:bg-transparent"
+          className="brand-logo h-auto shrink-0 gap-0 px-0 hover:bg-transparent"
         >
           <img src={clipitLogo} alt="" className="-mt-1 h-12 w-12 shrink-0 object-contain" />
           <span
-            className="text-4xl leading-none tracking-tight"
+            className="-ml-2 text-4xl leading-none tracking-tight"
             style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: '2px #9E3B3B', paintOrder: 'stroke fill' }}
           >
             <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
