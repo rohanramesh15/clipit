@@ -138,7 +138,7 @@ export const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenu
     } else if (event.key === 'Tab') {
       setOpen(false);
     }
-  }} className={cn('absolute top-full z-50 mt-2 min-w-48 origin-top-right rounded-xl border border-subtle bg-app p-2 shadow-pop', align === 'start' ? 'left-0' : 'right-0', className)}>{children}</div>;
+  }} className={cn('absolute top-full z-50 mt-2 min-w-48 origin-top-right space-y-1 rounded-xl border border-subtle bg-app p-2.5 shadow-pop', align === 'start' ? 'left-0' : 'right-0', className)}>{children}</div>;
 });
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 
@@ -163,7 +163,7 @@ export const DropdownMenuItem = React.forwardRef<HTMLElement, DropdownMenuItemPr
       setOpen(false);
       triggerRef.current?.focus();
     },
-    className: cn('w-full justify-start gap-3', className),
+    className: cn('flex h-10 w-full items-center justify-start gap-3 rounded-lg px-3.5 text-body-sm font-semibold text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app', className),
   };
   if (asChild) return <Slot {...itemProps}>{children}</Slot>;
   return <Button variant="ghost" size="sm" {...itemProps}>{children}</Button>;

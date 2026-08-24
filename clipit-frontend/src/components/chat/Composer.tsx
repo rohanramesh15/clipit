@@ -48,7 +48,7 @@ export function Composer({ value, onChange, onSend, thinking, disabled, placehol
         event.preventDefault();
         submit();
       }}
-      className="rounded-2xl border border-subtle bg-surface p-2 focus-within:border-medium"
+      className="rounded-2xl border border-subtle bg-surface p-2 transition-colors duration-150 ease-swift focus-within:bg-surface-hover"
     >
       <label htmlFor="composer" className="sr-only">
         Write your reply
@@ -67,7 +67,7 @@ export function Composer({ value, onChange, onSend, thinking, disabled, placehol
         }}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full resize-none bg-transparent px-4 pb-1 pt-3 text-body text-primary placeholder:text-muted outline-none disabled:opacity-60"
+        className="w-full resize-none bg-transparent px-4 pb-1 pt-3 text-body text-primary placeholder:text-muted outline-none focus-visible:outline-none disabled:opacity-60"
       />
 
       <div className="flex items-center justify-between gap-3 px-2 pb-1 pt-1">
