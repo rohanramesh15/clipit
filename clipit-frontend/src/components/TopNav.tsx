@@ -107,7 +107,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                     }`}
                   >
                     <tab.Icon className="h-4 w-4" aria-hidden="true" />
-                    <span className="whitespace-nowrap">{tab.label}</span>
+                    <span className="whitespace-nowrap text-body-sm">{tab.label}</span>
                   </Button>
                 </li>
               );
@@ -118,7 +118,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           <DropdownMenu open={isLangPickerOpen} onOpenChange={(open) => { setIsLangPickerOpen(open); if (open) setIsAccountOpen(false); }} className="hidden sm:block">
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm" className="gap-2 hover:bg-surface">
+              <Button variant="secondary" size="sm" className="h-auto gap-2 rounded-xl border-accent bg-app px-5 py-2.5 text-body-sm font-semibold text-primary hover:bg-app hover:text-primary">
                 <span aria-hidden="true">{currentLang.flag}</span>
                 {currentLang.name}
                 <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isLangPickerOpen ? 'rotate-180' : ''}`} aria-hidden="true" />

@@ -370,7 +370,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                 </label>
                 <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm">
+                    <Button variant="secondary" size="sm" className="h-auto rounded-xl border-accent bg-app px-5 py-2.5 text-body-sm font-semibold text-primary hover:bg-surface-hover">
                       {currentSort.label}
                       <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                       <span className="sr-only">Sort videos</span>
