@@ -92,7 +92,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 setVisible(PAGE_SIZE);
               }}
               placeholder="Search a video"
-              className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
+              className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
             />
           </label>
           <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">

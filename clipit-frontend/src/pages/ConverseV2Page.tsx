@@ -952,7 +952,7 @@ export function ConverseV2Page(
                         setVisibleDecks(DECK_PAGE_SIZE);
                       }}
                       placeholder="Search a video"
-                      className="w-full rounded-xl border border-subtle bg-surface py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
+                      className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
                     />
                   </label>
                   <DropdownMenu open={isDeckSortOpen} onOpenChange={setIsDeckSortOpen} className="shrink-0">
@@ -1016,8 +1016,7 @@ export function ConverseV2Page(
                             type="button"
                             onClick={() => startFromVideo(video)}
                             variant="secondary"
-                            size="sm"
-                            className="shrink-0"
+                            className="shrink-0 bg-surface-hover enabled:hover:bg-accent-soft"
                           >
                             <Play className="h-3.5 w-3.5" aria-hidden="true" />
                             Start chat
