@@ -716,7 +716,7 @@ export function ConverseV2Page(
     const sequence = Date.now();
     setRephraseTransition({ sequence, previousText, nextText: null, turnId: null });
     try {
-      const r = await regenerateTurn(sessionId, language, token);
+      const r = await regenerateTurn(sessionId, language, token, aiVoiceId);
       const id = targetId;
       setMessages((prev) => prev.map((mm) => (mm.id === id ? {
         ...mm, text: r.reply, translation: r.reply_translation, correction: r.correction,
@@ -733,7 +733,7 @@ export function ConverseV2Page(
     } finally {
       setRegenLoading(false);
     }
-  }, [sessionId, language, regenLoading, messages, token, stopListening, rephraseTransition]);
+  }, [sessionId, language, regenLoading, messages, token, stopListening, rephraseTransition, aiVoiceId]);
 
   // Suggest reply — fetch things the learner could say next.
   const handleSuggestReply = useCallback(async () => {

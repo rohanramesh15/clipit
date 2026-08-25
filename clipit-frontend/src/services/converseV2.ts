@@ -277,8 +277,8 @@ export async function sendTurnStream(
   return result;
 }
 
-export const regenerateTurn = (sessionId: number, language: string = 'ko', token?: string | null) =>
-  postJson<TurnResult>(`/session/${sessionId}/regenerate`, { language }, token);
+export const regenerateTurn = (sessionId: number, language: string = 'ko', token?: string | null, voice?: string) =>
+  postJson<TurnResult>(`/session/${sessionId}/regenerate`, { language, voice }, token);
 
 export const suggestReplies = (sessionId: number, language: string = 'ko', token?: string | null) =>
   postJson<{ suggested_replies: SuggestedReply[] }>(`/session/${sessionId}/suggest`, { language }, token);
