@@ -5,7 +5,7 @@ import {
   Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
-  getProfile, createSession, sendTurn, romanize, translate, getTurnAudioUrl,
+  getProfile, createSession, sendTurn, romanize, getTurnAudioUrl,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
@@ -181,10 +181,6 @@ export function ConverseV2Page(
   const [msgRoman, setMsgRoman] = useState<Record<string, string>>({}); // id -> romanized text
   const romanReqRef = useRef<Set<string>>(new Set());
 
-  // per-user-message English translation (so learners can confirm what they said)
-  const [userTranslations, setUserTranslations] = useState<Record<string, string>>({});
-  const userTransReqRef = useRef<Set<string>>(new Set());
-
   // When the learner speaks/types ENGLISH, the coach drawer shows the corrected
   // target-language message + explanation + advanced grammar feedback.
   interface Coaching {
@@ -334,19 +330,6 @@ export function ConverseV2Page(
         .catch(() => setMsgRoman((prev) => ({ ...prev, [m.id]: '' })));
     }
   }, [messages, language, msgRoman]);
-
-  // ── English translation of each user message ──────────────────────────────
-  useEffect(() => {
-    for (const m of messages) {
-      if (m.role !== 'user') continue;
-      const text = m.text.trim();
-      if (!text || userTransReqRef.current.has(m.id) || userTranslations[m.id] !== undefined) continue;
-      userTransReqRef.current.add(m.id);
-      translate(text, language)
-        .then((t) => setUserTranslations((prev) => ({ ...prev, [m.id]: t })))
-        .catch(() => setUserTranslations((prev) => ({ ...prev, [m.id]: '' })));
-    }
-  }, [messages, language, userTranslations]);
 
   // Detect English learner turns → coach how to say them in the target language.
   useEffect(() => {
@@ -1148,7 +1131,6 @@ export function ConverseV2Page(
                     onListen={speak}
                     onStopListen={stopSpeaking}
                     romanized={msgRoman}
-                    userTranslations={userTranslations}
                     revealedCorrections={revealedCorrections}
                     onRevealCorrection={(id) => setRevealedCorrections((prev) => new Set(prev).add(id))}
                     correctionVerdicts={correctionVerdicts}
@@ -1179,7 +1161,6 @@ export function ConverseV2Page(
                   onStopListen={stopSpeaking}
                   regenerating={regenLoading}
                   romanized={tutorTurn ? msgRoman[tutorTurn.id] : undefined}
-                  userTranslation={lastUserTurn ? userTranslations[lastUserTurn.id] : undefined}
                 />
               </motion.div>
             )}
