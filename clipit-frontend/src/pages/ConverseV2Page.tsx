@@ -852,7 +852,12 @@ export function ConverseV2Page(
 
   if (phase === 'deck') {
     return (
-      <div className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
+      <motion.div
+        className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+      >
         {header(() => onNavigate?.('practice'), 'Back')}
 
         {chatError && <div className="mt-6 text-body-sm font-medium text-accent">{chatError}</div>}
@@ -1080,7 +1085,7 @@ export function ConverseV2Page(
             </section>
           </>
         )}
-      </div>
+      </motion.div>
     );
   }
 
