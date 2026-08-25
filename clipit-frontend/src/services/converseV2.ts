@@ -53,6 +53,7 @@ export interface TurnResult {
   turn_id: number;
   reply: string;
   reply_translation: string;
+  romanized: string;
   detected_language: 'es' | 'en' | 'mixed';
   correction: Correction | null;
   used_target_words: string[];
@@ -188,6 +189,7 @@ export interface ResumeTurn {
   role: 'user' | 'assistant';
   text: string;
   reply_translation: string | null;
+  romanized: string | null;
   correction: Correction | null;
   used_target_words: string[];
   suggested_replies: SuggestedReply[];

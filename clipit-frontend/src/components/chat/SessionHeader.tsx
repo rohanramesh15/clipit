@@ -116,7 +116,9 @@ export function SessionHeader({
           )}
 
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-heading text-body font-semibold text-primary">{title}</h1>
+            <h1 className="truncate font-heading text-body font-semibold text-primary">
+              {transcriptOpen ? 'Transcript' : title}
+            </h1>
             <p className="truncate text-meta text-muted">{subtitle}</p>
           </div>
         </div>

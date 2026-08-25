@@ -9,7 +9,7 @@ import {
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
-  type RecentSession, type MixedSourceVideo,
+  type RecentSession, type MixedSourceVideo, type ResumeTurn,
 } from '../services/converseV2';
 import {
   fetchVideoCards,
@@ -414,9 +414,8 @@ export function ConverseV2Page(
         ...mm, text: r.reply, translation: r.reply_translation, correction: r.correction,
         turnId: r.turn_id, suggestedReplies: r.suggested_replies, targets: r.used_target_words || [],
       } : mm)));
-      // clear the cache so the new text re-romanizes
-      setMsgRoman((p) => { const n = { ...p }; delete n[id]; return n; });
-      romanReqRef.current.delete(id);
+      setMsgRoman((p) => ({ ...p, [id]: r.romanized || '' }));
+      romanReqRef.current.add(id);
     } catch {
       setChatError('Could not regenerate. Try again.');
     } finally {
@@ -568,6 +567,21 @@ export function ConverseV2Page(
     setConversationSessionInUrl(sessionId);
   }, [resetSessionUI]);
 
+  // Resumed turns already carry the romanized text computed when they were
+  // first generated — seed it in so the button doesn't re-fetch and pop in.
+  // Turns from before this field existed have romanized === null; those fall
+  // through to the normal per-message effect below.
+  const seedRomanization = useCallback((turns: ResumeTurn[]) => {
+    const seeded: Record<string, string> = {};
+    for (const t of turns) {
+      if (t.role !== 'assistant' || t.romanized == null) continue;
+      const id = `t-${t.turn_id}`;
+      seeded[id] = t.romanized;
+      romanReqRef.current.add(id);
+    }
+    if (Object.keys(seeded).length) setMsgRoman((prev) => ({ ...prev, ...seeded }));
+  }, []);
+
   const startOpeningStream = useCallback((nextSessionId: number) => {
     const streamId = `a-opening-${nextSessionId}`;
     let started = false;
@@ -710,6 +724,7 @@ export function ConverseV2Page(
           targets: t.used_target_words,
         })),
       );
+      seedRomanization(result.turns);
       setMixedThumbs(sampleRandom(sourceVideosFromDueWords(result.due_words || []), 3));
     } catch {
       setChatError('Could not resume that conversation. Please try again.');
@@ -749,6 +764,7 @@ export function ConverseV2Page(
             targets: t.used_target_words,
           })),
         );
+        seedRomanization(result.turns);
         setMixedThumbs(sampleRandom(sourceVideosFromDueWords(result.due_words || []), 3));
       })
       .catch(() => {
@@ -808,8 +824,9 @@ export function ConverseV2Page(
           return prev.map((m) => (m.id === streamId ? { ...m, text: m.text + piece } : m));
         });
       });
+      const finalId = `a-${result.turn_id}`;
       setMessages((prev) => prev.map((m) => (m.id === streamId ? {
-        id: `a-${result.turn_id}`,
+        id: finalId,
         role: 'assistant',
         text: result.reply,
         translation: result.reply_translation,
@@ -818,6 +835,8 @@ export function ConverseV2Page(
         suggestedReplies: result.suggested_replies,
         targets: result.used_target_words || [],
       } : m)));
+      setMsgRoman((prev) => ({ ...prev, [finalId]: result.romanized || '' }));
+      romanReqRef.current.add(finalId);
       setStatus('Tap a word for its meaning · pick a suggested reply below');
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== streamId));
