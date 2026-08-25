@@ -78,7 +78,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
           variant="ghost"
           className="brand-logo h-auto shrink-0 gap-0 px-0 hover:bg-transparent"
         >
-          <img src={clipitLogo} alt="" className="-mt-1 h-13 w-13 shrink-0 object-contain" />
+          <img src={clipitLogo} alt="" className="-mt-1 h-14 w-14 shrink-0 object-contain" />
           <span
             className="-ml-1 text-[2.75rem] leading-none tracking-tight"
             style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: '2px #9E3B3B', paintOrder: 'stroke fill' }}
