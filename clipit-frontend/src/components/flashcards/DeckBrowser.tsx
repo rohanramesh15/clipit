@@ -74,7 +74,7 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
   return (
     <section aria-labelledby="library-heading">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
-        <h2 id="library-heading" className="font-heading text-card-title text-primary">
+        <h2 id="library-heading" className="font-heading text-card-title font-medium text-primary">
           Your videos
         </h2>
 
