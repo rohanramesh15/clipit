@@ -29,7 +29,7 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 
 /** Encouragement scales with how far through the words you are. */
 function encouragement(used: number, total: number): string {
-  if (used === 0) return 'Work one of these into your next answer — it\'ll come up naturally.';
+  if (used === 0) return 'Try using one of these words naturally in your next reply. It’s a simple way to practice it in context.';
   if (used === total) return 'Every word from the video, spoken. That is the whole set.';
   if (used === total - 1) return 'One left. You are almost through the set.';
   return `${used} down. Your accent on these is getting steadier.`;

@@ -137,10 +137,7 @@ export function WordQueue({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.23, 1, 0.32, 1] }}
             >
-              <button
-                type="button"
-                className="group flex w-full items-center gap-5 px-6 py-4 text-left transition-colors duration-150 ease-swift hover:bg-surface-hover"
-              >
+              <div className="flex w-full items-center gap-5 px-6 py-4">
                 <span className="w-6 shrink-0 text-right text-meta tabular-nums text-muted">
                   {currentPage * WORDS_PER_PAGE + index + 1}
                 </span>
@@ -155,17 +152,12 @@ export function WordQueue({
 
                 <span className="hidden min-w-0 max-w-[14rem] truncate text-body-sm text-muted lg:block">{word.video}</span>
 
-                <span className="ml-auto flex shrink-0 items-center gap-3">
+                <span className="ml-auto shrink-0">
                   <span className={`rounded-md px-2.5 py-1 text-meta font-semibold ${STATUS_STYLES[word.status]}`}>
                     {STATUS_LABELS[word.status]}
                   </span>
-                  <ChevronRight
-                    className="h-5 w-5 shrink-0 text-muted transition-transform duration-150 ease-swift group-hover:translate-x-1"
-                    strokeWidth={1.75}
-                    aria-hidden="true"
-                  />
                 </span>
-              </button>
+              </div>
             </motion.li>
           ))}
           </ul>

@@ -326,7 +326,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
         {resumable && (
           <section className="mt-8" aria-labelledby="continue-practicing-heading">
-            <h2 id="continue-practicing-heading" className="font-heading text-lead font-medium tracking-[-0.01em] text-secondary">Continue practicing</h2>
+            <h2 id="continue-practicing-heading" className="font-sans text-body-sm font-bold uppercase tracking-[0.12em] text-secondary">Continue practicing</h2>
             <div className="mt-2 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap">
               <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
               <div className="min-w-0 flex-1">

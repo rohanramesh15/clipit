@@ -1326,7 +1326,7 @@ export function ConverseV2Page(
             <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
                 <div>
-                <h2 className="font-heading text-lead font-medium tracking-[-0.01em] text-secondary">Continue practicing</h2>
+                <h2 className="font-sans text-body-sm font-bold uppercase tracking-[0.12em] text-secondary">Continue practicing</h2>
                 <section aria-labelledby="resume-title" className="mt-2 flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') ? (
@@ -1389,7 +1389,7 @@ export function ConverseV2Page(
               )}
 
               <div className={recentSession ? '' : 'sm:col-span-2'}>
-              <h2 className="font-heading text-lead font-medium tracking-[-0.01em] text-secondary">Random video conversation</h2>
+              <h2 className="font-sans text-body-sm font-bold uppercase tracking-[0.12em] text-secondary">Random video conversation</h2>
               <section aria-labelledby="mixed-title" className="mt-2 flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 lg:flex-nowrap">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   {mixedPreviewVideos.length > 0 && (
