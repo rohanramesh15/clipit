@@ -164,7 +164,6 @@ export function ConverseV2Page(
   // no MP-style xl-and-up sidebar variant), so auto-opening it would cover the
   // conversation immediately on a narrower screen.
   const [coachOpen, setCoachOpen] = useState(false);
-  const [openTargetWord, setOpenTargetWord] = useState<string | null>(null);
   // Call view (voice-first) is the default; Transcript is opt-in history.
   const [transcriptOpen, setTranscriptOpen] = useState(false);
 
@@ -206,7 +205,6 @@ export function ConverseV2Page(
   // showing and scrolled to it.
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
   const handleJumpToMessage = useCallback((messageId: string) => {
-    setCoachOpen(false);
     setTranscriptOpen(true);
     setHighlightMessageId(messageId);
   }, []);
@@ -877,7 +875,6 @@ export function ConverseV2Page(
     setMixedThumbs([]);
     setTargetWords([]);
     setUsedLemmas(new Set());
-    setOpenTargetWord(null);
     setSavedWords([]);
     setCoachings([]); coachReqRef.current = new Set();
     setMsgRoman({}); romanReqRef.current = new Set();
@@ -1688,8 +1685,6 @@ export function ConverseV2Page(
             <CoachDrawer
               targets={targetWords}
               usedLemmas={usedLemmas}
-              openWord={openTargetWord}
-              onToggleWord={(lemma) => setOpenTargetWord((cur) => (cur === lemma ? null : lemma))}
               messages={messages}
               coachings={coachings}
               advancedOpenId={advancedOpenId}

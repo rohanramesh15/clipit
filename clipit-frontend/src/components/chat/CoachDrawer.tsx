@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRightIcon, CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
+import { ArrowUpRightIcon, ShuffleIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import type { ChatMessage, TargetWord } from '../../types/chat';
 
@@ -17,8 +17,6 @@ interface Coaching {
 interface CoachDrawerProps {
   targets: TargetWord[];
   usedLemmas: Set<string>;
-  openWord: string | null;
-  onToggleWord: (lemma: string) => void;
   messages: ChatMessage[];
   coachings: Coaching[];
   advancedOpenId: string | null;
@@ -40,8 +38,6 @@ function encouragement(used: number, total: number): string {
 export function CoachDrawer({
   targets,
   usedLemmas,
-  openWord,
-  onToggleWord,
   messages,
   coachings,
   advancedOpenId,
@@ -50,7 +46,9 @@ export function CoachDrawer({
   onClose,
 }: CoachDrawerProps) {
   const used = usedLemmas.size;
-  const next = targets.find((target) => !usedLemmas.has(target.lemma));
+  const [spotlightOffset, setSpotlightOffset] = useState(0);
+  const remaining = targets.filter((target) => !usedLemmas.has(target.lemma));
+  const spotlight = remaining.length > 0 ? remaining[spotlightOffset % remaining.length] : null;
 
   const corrections = messages
     .map((m, i) => ({ m, said: i > 0 ? messages[i - 1].text : '' }))
@@ -86,65 +84,48 @@ export function CoachDrawer({
               {encouragement(used, targets.length)}
             </p>
 
-            {next && (
-              <div className="mt-4 rounded-2xl bg-accent-soft px-5 py-4">
-                <p className="text-meta text-accent">Try this one next</p>
-                <p className="mt-1.5 font-heading text-card-title text-primary">{next.lemma}</p>
-                <p className="text-body-sm text-secondary">{next.gloss}</p>
-                {next.clipLine && (
-                  <p className="mt-2 border-l-2 border-accent-ring pl-3 text-body-sm text-secondary">
-                    "{next.clipLine}"
-                  </p>
-                )}
-              </div>
-            )}
-
-            <ul className="mt-4">
-              {targets.map((target) => {
-                const isDone = usedLemmas.has(target.lemma);
-                const isNext = target.lemma === next?.lemma;
-                const open = openWord === target.lemma;
-                if (isNext) return null;
-
-                return (
-                  <li key={target.lemma}>
-                    <button
-                      type="button"
-                      onClick={() => onToggleWord(target.lemma)}
-                      aria-expanded={open}
-                      className="flex w-full items-baseline gap-2 rounded-lg py-2 text-left transition-colors duration-150 ease-swift hover:bg-surface-hover"
-                    >
-                      <span className={`text-body ${isDone ? 'text-muted' : 'font-medium text-primary'}`}>
-                        {target.lemma}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-meta text-muted">{target.gloss}</span>
-                      {isDone && <CheckIcon className="size-4 shrink-0 self-center text-accent" aria-label="Said" />}
-                    </button>
-
-                    <AnimatePresence initial={false}>
-                      {open && target.clipLine && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2, ease: EASE }}
-                          className="overflow-hidden"
+            <AnimatePresence mode="wait" initial={false}>
+              {spotlight && (
+                <motion.div
+                  key={spotlight.lemma}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.16, ease: EASE }}
+                  className="mt-4 rounded-2xl bg-accent-soft px-5 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-meta text-accent">Try this one next</p>
+                      <p className="mt-1.5 font-heading text-card-title text-primary">{spotlight.lemma}</p>
+                      <p className="text-body-sm text-secondary">{spotlight.gloss}</p>
+                    </div>
+                    {remaining.length > 1 && (
+                      <Tooltip label="Try a different word" placement="bottom">
+                        <button
+                          type="button"
+                          onClick={() => setSpotlightOffset((value) => value + 1)}
+                          aria-label="Spotlight a different word"
+                          className="shrink-0 rounded-lg p-1.5 text-accent transition-colors duration-150 ease-swift hover:bg-app/50"
                         >
-                          <p className="ml-0 border-l-2 border-subtle py-1 pl-3 text-meta text-secondary">
-                            "{target.clipLine}"
-                          </p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </li>
-                );
-              })}
-            </ul>
+                          <ShuffleIcon className="size-4" aria-hidden="true" />
+                        </button>
+                      </Tooltip>
+                    )}
+                  </div>
+                  {spotlight.clipLine && (
+                    <p className="mt-2 border-l-2 border-accent-ring pl-3 text-body-sm text-secondary">
+                      "{spotlight.clipLine}"
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
 
         <section className="mt-7">
-          <h3 className="text-body-sm font-semibold text-primary">Fixes</h3>
+          <h3 className="font-heading text-body font-semibold text-primary">Fixes</h3>
           {corrections.length === 0 ? (
             <p className="mt-1.5 text-body-sm text-muted">Nothing yet.</p>
           ) : (
@@ -174,7 +155,7 @@ export function CoachDrawer({
 
         {coachings.length > 0 && (
           <section className="mt-7">
-            <h3 className="text-body-sm font-semibold text-primary">Said in English</h3>
+            <h3 className="font-heading text-body font-semibold text-primary">Said in English</h3>
             <ul className="mt-2.5 space-y-3">
               {[...coachings].reverse().map((coaching, index) => {
                 const isLatest = index === 0;
@@ -195,7 +176,10 @@ export function CoachDrawer({
                           aria-hidden="true"
                         />
                       </span>
-                      <span className={`block text-lead font-medium text-primary ${isLatest ? 'mt-1' : ''}`}>
+                      <span className={`block text-meta text-muted line-through ${isLatest ? 'mt-1' : ''}`}>
+                        {coaching.english}
+                      </span>
+                      <span className="mt-0.5 block text-lead font-medium text-primary">
                         {coaching.loading ? '…' : (coaching.corrected || '—')}
                       </span>
                     </button>
