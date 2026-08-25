@@ -125,11 +125,18 @@ export interface OpeningResult {
   reply_translation: string;
 }
 
+export interface StreamSpeech {
+  text: string;
+  /** Base64-encoded WAV audio generated in the selected AI voice. */
+  audio: string;
+}
+
 export async function streamOpening(
   sessionId: number,
   language: string,
   token: string | null | undefined,
   onChunk: (piece: string) => void,
+  onSpeech: (speech: StreamSpeech) => void = () => {},
 ): Promise<OpeningResult> {
   const res = await fetch(`${BASE}/session/${sessionId}/opening/stream`, {
     method: 'POST',
@@ -153,6 +160,7 @@ export async function streamOpening(
       if (!line.startsWith('data:')) continue;
       const event = JSON.parse(line.slice(5).trim());
       if (event.type === 'chunk') onChunk(event.text as string);
+      else if (event.type === 'speech') onSpeech({ text: event.text as string, audio: event.audio as string });
       else if (event.type === 'error') throw new Error(event.message || 'Opening stream failed');
       else if (event.type === 'done') {
         const { type: _type, ...opening } = event;
@@ -220,6 +228,7 @@ export async function sendTurnStream(
   language: string,
   token: string | null | undefined,
   onChunk: (piece: string) => void,
+  onSpeech: (speech: StreamSpeech) => void = () => {},
 ): Promise<TurnResult> {
   const res = await fetch(`${BASE}/session/${sessionId}/turn/stream`, {
     method: 'POST',
@@ -250,6 +259,8 @@ export async function sendTurnStream(
       const event = JSON.parse(jsonStr);
       if (event.type === 'chunk') {
         onChunk(event.text as string);
+      } else if (event.type === 'speech') {
+        onSpeech({ text: event.text as string, audio: event.audio as string });
       } else if (event.type === 'error') {
         throw new Error(event.message || 'Stream failed');
       } else if (event.type === 'done') {

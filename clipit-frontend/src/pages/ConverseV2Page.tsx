@@ -220,6 +220,13 @@ export function ConverseV2Page(
     timer: number | null;
     onDrained: (() => void) | null;
   }>({ id: null, buffer: '', timer: null, onDrained: null });
+  const syncedSpeechRef = useRef<{
+    id: string | null;
+    queue: { text: string; audio: string }[];
+    audio: HTMLAudioElement | null;
+    frame: number | null;
+    onDrained: (() => void) | null;
+  }>({ id: null, queue: [], audio: null, frame: null, onDrained: null });
 
   const cancelStreamReveal = useCallback(() => {
     const stream = streamRevealRef.current;
@@ -280,7 +287,92 @@ export function ConverseV2Page(
     stream.onDrained = resolve;
   }), []);
 
-  useEffect(() => cancelStreamReveal, [cancelStreamReveal]);
+  const cancelSyncedSpeech = useCallback(() => {
+    const speech = syncedSpeechRef.current;
+    if (speech.frame !== null) window.cancelAnimationFrame(speech.frame);
+    speech.frame = null;
+    speech.audio?.pause();
+    speech.audio = null;
+    speech.queue = [];
+    speech.id = null;
+    speech.onDrained?.();
+    speech.onDrained = null;
+  }, []);
+
+  const queueSyncedSpeech = useCallback((messageId: string, text: string, audioData: string) => {
+    if (!text || !audioData) return;
+    const speech = syncedSpeechRef.current;
+    if (speech.id !== messageId) {
+      cancelSyncedSpeech();
+      speech.id = messageId;
+    }
+    speech.queue.push({ text, audio: audioData });
+    if (speech.audio) return;
+
+    const playNext = () => {
+      const current = syncedSpeechRef.current;
+      if (current.id !== messageId) return;
+      const segment = current.queue.shift();
+      if (!segment) {
+        current.onDrained?.();
+        current.onDrained = null;
+        return;
+      }
+
+      const words = segment.text.match(/\S+\s*/gu) ?? [segment.text];
+      let shown = 0;
+      let finished = false;
+      const appendWords = (count: number) => {
+        if (count <= shown) return;
+        const visible = words.slice(shown, count).join('');
+        shown = count;
+        setMessages((previous) => {
+          const exists = previous.some((message) => message.id === messageId);
+          return exists
+            ? previous.map((message) => (message.id === messageId ? { ...message, text: message.text + visible } : message))
+            : [...previous, { id: messageId, role: 'assistant', text: visible }];
+        });
+      };
+      const audio = new Audio(`data:audio/wav;base64,${segment.audio}`);
+      current.audio = audio;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        appendWords(words.length);
+        if (current.frame !== null) window.cancelAnimationFrame(current.frame);
+        current.frame = null;
+        if (current.audio === audio) current.audio = null;
+        playNext();
+      };
+      const syncWords = () => {
+        if (current.id !== messageId || current.audio !== audio) return;
+        const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+        const progress = duration ? Math.min(audio.currentTime / duration, 1) : 0;
+        appendWords(Math.max(1, Math.floor(progress * words.length)));
+        if (!audio.ended) current.frame = window.requestAnimationFrame(syncWords);
+      };
+
+      audio.addEventListener('ended', finish, { once: true });
+      audio.addEventListener('error', finish, { once: true });
+      audio.play().then(syncWords).catch(finish);
+    };
+
+    playNext();
+  }, [cancelSyncedSpeech]);
+
+  const waitForSyncedSpeech = useCallback((messageId: string) => new Promise<void>((resolve) => {
+    const speech = syncedSpeechRef.current;
+    if (speech.id !== messageId || (!speech.audio && speech.queue.length === 0)) {
+      resolve();
+      return;
+    }
+    speech.onDrained = resolve;
+  }), []);
+
+  useEffect(() => () => {
+    cancelStreamReveal();
+    cancelSyncedSpeech();
+  }, [cancelStreamReveal, cancelSyncedSpeech]);
 
   // ── load profile (display only) + tracked videos for the deck ───────────────
   useEffect(() => {
@@ -656,11 +748,17 @@ export function ConverseV2Page(
 
   const startOpeningStream = useCallback((nextSessionId: number) => {
     const streamId = `a-opening-${nextSessionId}`;
+    let receivedSpeech = false;
     void streamOpening(nextSessionId, language, token, (piece) => {
       if (activeSessionRef.current !== nextSessionId) return;
       queueStreamText(streamId, piece);
+    }, (speech) => {
+      if (activeSessionRef.current !== nextSessionId) return;
+      receivedSpeech = true;
+      queueSyncedSpeech(streamId, speech.text, speech.audio);
     }).then(async (opening) => {
       await waitForStreamReveal(streamId);
+      await waitForSyncedSpeech(streamId);
       if (activeSessionRef.current !== nextSessionId) return;
       setMessages((prev) => prev.map((message) => (
         message.id === streamId
@@ -673,16 +771,17 @@ export function ConverseV2Page(
             }
           : message
       )));
-      speak(opening.reply, opening.turn_id);
+      if (!receivedSpeech) speak(opening.reply, opening.turn_id);
     }).catch(async () => {
       await waitForStreamReveal(streamId);
+      await waitForSyncedSpeech(streamId);
       if (activeSessionRef.current === nextSessionId) {
         setChatError('Could not start the conversation. Try again.');
       }
     }).finally(() => {
       if (activeSessionRef.current === nextSessionId) setOpeningPending(false);
     });
-  }, [language, token, queueStreamText, waitForStreamReveal, speak]);
+  }, [language, token, queueStreamText, waitForStreamReveal, queueSyncedSpeech, waitForSyncedSpeech, speak]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
@@ -849,6 +948,7 @@ export function ConverseV2Page(
   const leaveChat = useCallback(() => {
     activeSessionRef.current = null;
     cancelStreamReveal();
+    cancelSyncedSpeech();
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
@@ -866,7 +966,7 @@ export function ConverseV2Page(
     setSuggestVisibleId(null);
     setPhase('deck');
     setConversationSessionInUrl(null);
-  }, [cancelStreamReveal]);
+  }, [cancelStreamReveal, cancelSyncedSpeech]);
 
   // ── chat actions ────────────────────────────────────────────────────────────
   const sendTextTurn = useCallback(async (override?: string) => {
@@ -880,6 +980,7 @@ export function ConverseV2Page(
     setStatus('Tutor is writing…');
     const streamId = `a-streaming-${Date.now()}`;
     let streamStarted = false;
+    let receivedSpeech = false;
     try {
       const result = await sendTurnStream(sessionId, text, language, token, (piece) => {
         if (!streamStarted) {
@@ -887,8 +988,13 @@ export function ConverseV2Page(
           setStreaming(true);
         }
         queueStreamText(streamId, piece);
+      }, (speech) => {
+        receivedSpeech = true;
+        setStreaming(true);
+        queueSyncedSpeech(streamId, speech.text, speech.audio);
       });
       await waitForStreamReveal(streamId);
+      await waitForSyncedSpeech(streamId);
       const finalId = `a-${result.turn_id}`;
       setMessages((prev) => prev.map((m) => (m.id === streamId ? {
         id: finalId,
@@ -903,9 +1009,10 @@ export function ConverseV2Page(
       setMsgRoman((prev) => ({ ...prev, [finalId]: result.romanized || '' }));
       romanReqRef.current.add(finalId);
       setStatus('Tap a word for its meaning · pick a suggested reply below');
-      speak(result.reply, result.turn_id);
+      if (!receivedSpeech) speak(result.reply, result.turn_id);
     } catch {
       await waitForStreamReveal(streamId);
+      await waitForSyncedSpeech(streamId);
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== streamId));
       setComposerText(text);
       setChatError('Message failed to send. Try again.');
@@ -913,7 +1020,7 @@ export function ConverseV2Page(
       setSending(false);
       setStreaming(false);
     }
-  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal, speak]);
+  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal, queueSyncedSpeech, waitForSyncedSpeech, speak]);
 
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
