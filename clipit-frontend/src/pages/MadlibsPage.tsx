@@ -667,7 +667,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
               const chosen = option === selected;
               const state = revealed
                 ? answer
-                  ? 'bg-sage-ink text-white'
+                  ? 'bg-sage-ink text-on-accent'
                   : chosen
                     ? 'bg-accent text-on-accent'
                     : 'bg-surface text-muted opacity-60'
