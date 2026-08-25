@@ -1272,7 +1272,7 @@ export function ConverseV2Page(
           <PracticeEmptyState mode="AI chat" />
         ) : (
           <>
-            <h2 className="mt-8 font-heading text-card-title text-primary">Start chatting</h2>
+            <h2 className="mt-8 font-heading text-card-title font-medium text-primary">Start chatting</h2>
             <section className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
                 <section aria-labelledby="resume-title" className="flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
@@ -1385,7 +1385,7 @@ export function ConverseV2Page(
 
             <section aria-labelledby="sources-title" className="mt-14">
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
-                <h2 id="sources-title" className="font-heading text-card-title text-primary">Your videos</h2>
+                <h2 id="sources-title" className="font-heading text-card-title font-medium text-primary">Your videos</h2>
                 <div className="flex flex-1 items-center justify-end gap-3">
                   <label className="relative w-full max-w-xs">
                     <span className="sr-only">Search videos</span>
