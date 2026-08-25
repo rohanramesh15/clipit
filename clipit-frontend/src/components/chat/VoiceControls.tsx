@@ -1,4 +1,4 @@
-import { KeyboardIcon, MessageSquareTextIcon, MicIcon, MoreVerticalIcon, Volume2Icon } from 'lucide-react';
+import { KeyboardIcon, MicIcon, MoreVerticalIcon, Volume2Icon } from 'lucide-react';
 import { SpeechInput } from '../ai-elements/speech-input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
@@ -13,7 +13,6 @@ interface VoiceControlsProps {
   onStart: () => void;
   onStop: () => void;
   onType: () => void;
-  onTranscript: () => void;
   onChangeVoice: () => void;
 }
 
@@ -26,21 +25,11 @@ export function VoiceControls({
   onStart,
   onStop,
   onType,
-  onTranscript,
   onChangeVoice,
 }: VoiceControlsProps) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center justify-center gap-6">
-        <button
-          type="button"
-          onClick={onType}
-          aria-label="Type instead"
-          className="grid size-9 place-items-center rounded-xl border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-        >
-          <KeyboardIcon className="size-4" aria-hidden="true" />
-        </button>
-
         <SpeechInput
           isListening={live}
           onListeningChange={(listening) => {
@@ -63,14 +52,10 @@ export function VoiceControls({
               <MoreVerticalIcon className="size-4" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top">
+          <DropdownMenuContent align="start" side="top">
             <DropdownMenuItem onSelect={onType}>
               <KeyboardIcon className="size-4" aria-hidden="true" />
               Switch to text chat
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onTranscript}>
-              <MessageSquareTextIcon className="size-4" aria-hidden="true" />
-              View transcript
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onChangeVoice}>
               <Volume2Icon className="size-4" aria-hidden="true" />
