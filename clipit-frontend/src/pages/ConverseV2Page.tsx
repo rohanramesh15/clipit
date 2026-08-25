@@ -1110,7 +1110,7 @@ export function ConverseV2Page(
   // history and a Coach drawer for target words / corrections / saved words.
   // ============================================================================
   return (
-    <div className="-mt-2 flex h-[calc(100vh-2rem)] w-full flex-col bg-app md:h-[calc(100vh-4rem)]">
+    <div className="flex h-screen w-full flex-col bg-app">
       <SessionHeader
         title={deck?.title || 'Voice Chat'}
         subtitle={profile ? `${langName} · ${profile.level}` : langName}
@@ -1138,30 +1138,6 @@ export function ConverseV2Page(
                 className="min-h-0 flex-1 overflow-y-auto"
               >
                 <div className="mx-auto w-full max-w-reading px-4 py-8 sm:px-6">
-                  <div className="mb-6 flex items-center justify-between gap-4">
-                    <h2 className="font-heading text-body font-semibold text-primary">Transcript</h2>
-                    {targetWords.length > 0 && (
-                      <div className="flex shrink-0 items-center gap-3">
-                        <div
-                          className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-hover"
-                          role="progressbar"
-                          aria-valuenow={usedCount}
-                          aria-valuemin={0}
-                          aria-valuemax={targetWords.length}
-                          aria-label="Words used this session"
-                        >
-                          <motion.div
-                            className="h-full rounded-full bg-accent"
-                            animate={{ width: `${targetWords.length ? (usedCount / targetWords.length) * 100 : 0}%` }}
-                            transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
-                          />
-                        </div>
-                        <p className="text-meta text-secondary">
-                          <span className="font-semibold text-primary">{usedCount}</span>/{targetWords.length} words
-                        </p>
-                      </div>
-                    )}
-                  </div>
                   <MessageList
                     messages={messages}
                     language={language}
@@ -1212,12 +1188,14 @@ export function ConverseV2Page(
 
           <div className="shrink-0 bg-app">
             <div className="mx-auto w-full max-w-reading space-y-3 px-4 pb-8 pt-2 sm:px-6">
-              <SuggestionPanel
-                suggestions={activeSuggestions}
-                onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
-                onEdit={(reply) => { setComposerText(reply.es); setSuggestVisibleId(null); setTyping(true); }}
-                onDismiss={() => setSuggestVisibleId(null)}
-              />
+              {!transcriptOpen && (
+                <SuggestionPanel
+                  suggestions={activeSuggestions}
+                  onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
+                  onEdit={(reply) => { setComposerText(reply.es); setSuggestVisibleId(null); setTyping(true); }}
+                  onDismiss={() => setSuggestVisibleId(null)}
+                />
+              )}
 
               {transcriptOpen ? (
                 <button
@@ -1250,7 +1228,7 @@ export function ConverseV2Page(
                 />
               )}
 
-              {(voiceError || chatError) && (
+              {!transcriptOpen && (voiceError || chatError) && (
                 <p
                   className="rounded-xl bg-accent-soft px-3 py-2 text-center text-body-sm font-medium text-accent"
                   role="status"

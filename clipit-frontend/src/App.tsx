@@ -356,7 +356,11 @@ function AppInner() {
           </a>
           {!chatImmersive && <TopNav activePage={activePage} onNavigate={navigateToPage} />}
 
-          <main id="main-content" tabIndex={-1} className="p-4 md:p-8 overflow-x-clip focus:outline-none">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={`overflow-x-clip focus:outline-none ${chatImmersive ? '' : 'p-4 md:p-8'}`}
+          >
             <AnimatePresence initial={false} mode="popLayout">
               <motion.div
                 key={activePage}
