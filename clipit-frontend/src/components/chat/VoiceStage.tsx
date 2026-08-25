@@ -59,6 +59,7 @@ export function VoiceStage({
       <Persona state={personaState} className="size-20 sm:size-24" />
 
       {/* What the tutor just said — the one thing that matters right now. */}
+      <div className="group">
       <div className="mt-5 max-w-2xl">
         <p className="text-card-title font-medium text-primary">
           {tutorTurn ? (
@@ -102,7 +103,7 @@ export function VoiceStage({
       </div>
 
       {tutorTurn && (
-        <div className="mt-1.5 flex items-center gap-1">
+        <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity duration-200 ease-swift focus-within:opacity-100 group-hover:opacity-100">
           {romanized && (
             <ActionButton
               label={showRomanized ? 'Hide' : 'Romanize'}
@@ -137,6 +138,7 @@ export function VoiceStage({
           </ActionButton>
         </div>
       )}
+      </div>
 
       {/* Your own last turn, kept quiet so recognition can be checked. */}
       <div className="mt-8 min-h-[3.5rem] max-w-2xl">
