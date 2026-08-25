@@ -47,6 +47,10 @@ type DeckSort = 'due' | 'recent';
 
 const DECK_PAGE_SIZE = 5;
 const SESSION_QUERY_PARAM = 'session';
+// SSE chunks arrive as fast as the model/provider can send them. Reveal each
+// response a character at a time so it feels like a natural reply without
+// delaying the request, persistence, or the next server-side operation.
+const STREAM_REVEAL_DELAY_MS = 24;
 const deckSorts: { value: DeckSort; label: string }[] = [
   { value: 'due', label: 'Most due' },
   { value: 'recent', label: 'Recently watched' },
@@ -210,6 +214,73 @@ export function ConverseV2Page(
   // that resolves after the user has already left (or started a different
   // session) can tell it's stale and skip applying itself.
   const activeSessionRef = useRef<number | null>(null);
+  const streamRevealRef = useRef<{
+    id: string | null;
+    buffer: string;
+    timer: number | null;
+    onDrained: (() => void) | null;
+  }>({ id: null, buffer: '', timer: null, onDrained: null });
+
+  const cancelStreamReveal = useCallback(() => {
+    const stream = streamRevealRef.current;
+    if (stream.timer !== null) window.clearTimeout(stream.timer);
+    stream.timer = null;
+    stream.buffer = '';
+    stream.id = null;
+    stream.onDrained?.();
+    stream.onDrained = null;
+  }, []);
+
+  const queueStreamText = useCallback((messageId: string, text: string) => {
+    if (!text) return;
+    const stream = streamRevealRef.current;
+    if (stream.id !== messageId) {
+      cancelStreamReveal();
+      stream.id = messageId;
+    }
+    stream.buffer += text;
+    if (stream.timer !== null) return;
+
+    const revealNext = () => {
+      const current = streamRevealRef.current;
+      if (current.id !== messageId) return;
+      const characters = Array.from(current.buffer);
+      const next = characters.shift();
+      current.buffer = characters.join('');
+      if (next) {
+        setMessages((previous) => {
+          const exists = previous.some((message) => message.id === messageId);
+          return exists
+            ? previous.map((message) => (message.id === messageId ? { ...message, text: message.text + next } : message))
+            : [...previous, { id: messageId, role: 'assistant', text: next }];
+        });
+      }
+      // Keep the timer alive for one beat after the final character. That
+      // makes later network chunks respect the same rhythm instead of each
+      // appearing instantly when chunks arrive one at a time.
+      current.timer = window.setTimeout(() => {
+        current.timer = null;
+        if (current.buffer) revealNext();
+        else {
+          current.onDrained?.();
+          current.onDrained = null;
+        }
+      }, STREAM_REVEAL_DELAY_MS);
+    };
+
+    revealNext();
+  }, [cancelStreamReveal]);
+
+  const waitForStreamReveal = useCallback((messageId: string) => new Promise<void>((resolve) => {
+    const stream = streamRevealRef.current;
+    if (stream.id !== messageId || (stream.timer === null && !stream.buffer)) {
+      resolve();
+      return;
+    }
+    stream.onDrained = resolve;
+  }), []);
+
+  useEffect(() => cancelStreamReveal, [cancelStreamReveal]);
 
   // ── load profile (display only) + tracked videos for the deck ───────────────
   useEffect(() => {
@@ -584,19 +655,11 @@ export function ConverseV2Page(
 
   const startOpeningStream = useCallback((nextSessionId: number) => {
     const streamId = `a-opening-${nextSessionId}`;
-    let started = false;
     void streamOpening(nextSessionId, language, token, (piece) => {
       if (activeSessionRef.current !== nextSessionId) return;
-      setMessages((prev) => {
-        if (!started) {
-          started = true;
-          return [...prev, { id: streamId, role: 'assistant', text: piece }];
-        }
-        return prev.map((message) => (
-          message.id === streamId ? { ...message, text: message.text + piece } : message
-        ));
-      });
-    }).then((opening) => {
+      queueStreamText(streamId, piece);
+    }).then(async (opening) => {
+      await waitForStreamReveal(streamId);
       if (activeSessionRef.current !== nextSessionId) return;
       setMessages((prev) => prev.map((message) => (
         message.id === streamId
@@ -609,14 +672,15 @@ export function ConverseV2Page(
             }
           : message
       )));
-    }).catch(() => {
+    }).catch(async () => {
+      await waitForStreamReveal(streamId);
       if (activeSessionRef.current === nextSessionId) {
         setChatError('Could not start the conversation. Try again.');
       }
     }).finally(() => {
       if (activeSessionRef.current === nextSessionId) setOpeningPending(false);
     });
-  }, [language, token]);
+  }, [language, token, queueStreamText, waitForStreamReveal]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
@@ -782,6 +846,7 @@ export function ConverseV2Page(
 
   const leaveChat = useCallback(() => {
     activeSessionRef.current = null;
+    cancelStreamReveal();
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
@@ -799,7 +864,7 @@ export function ConverseV2Page(
     setSuggestVisibleId(null);
     setPhase('deck');
     setConversationSessionInUrl(null);
-  }, []);
+  }, [cancelStreamReveal]);
 
   // ── chat actions ────────────────────────────────────────────────────────────
   const sendTextTurn = useCallback(async (override?: string) => {
@@ -815,15 +880,13 @@ export function ConverseV2Page(
     let streamStarted = false;
     try {
       const result = await sendTurnStream(sessionId, text, language, token, (piece) => {
-        setMessages((prev) => {
-          if (!streamStarted) {
-            streamStarted = true;
-            setStreaming(true);
-            return [...prev, { id: streamId, role: 'assistant', text: piece }];
-          }
-          return prev.map((m) => (m.id === streamId ? { ...m, text: m.text + piece } : m));
-        });
+        if (!streamStarted) {
+          streamStarted = true;
+          setStreaming(true);
+        }
+        queueStreamText(streamId, piece);
       });
+      await waitForStreamReveal(streamId);
       const finalId = `a-${result.turn_id}`;
       setMessages((prev) => prev.map((m) => (m.id === streamId ? {
         id: finalId,
@@ -839,6 +902,7 @@ export function ConverseV2Page(
       romanReqRef.current.add(finalId);
       setStatus('Tap a word for its meaning · pick a suggested reply below');
     } catch {
+      await waitForStreamReveal(streamId);
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== streamId));
       setComposerText(text);
       setChatError('Message failed to send. Try again.');
@@ -846,7 +910,7 @@ export function ConverseV2Page(
       setSending(false);
       setStreaming(false);
     }
-  }, [composerText, sending, openingPending, sessionId, language, token]);
+  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal]);
 
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
