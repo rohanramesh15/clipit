@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check, X,
-  Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
+  Film, Shuffle, Play, ChevronDown, ExternalLink,
   MessageSquareText,
 } from 'lucide-react';
 import {
@@ -22,6 +22,7 @@ import { getDeletedCards, relativeDay } from '../utils/flashcardStorage';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
+import { ExpandableSearch } from '../components/ExpandableSearch';
 import { Skeleton } from '../components/Skeleton';
 import { LoadingAnimation } from '../components/LoadingAnimation';
 import { NavigationIconButton } from '../components/NavigationIconButton';
@@ -143,6 +144,8 @@ export function ConverseV2Page(
   const [resuming, setResuming] = useState(false);
   const [deckQuery, setDeckQuery] = useState('');
   const [mixedSources, setMixedSources] = useState<MixedSourceVideo[]>([]);
+  const [mixedWordCount, setMixedWordCount] = useState(0);
+  const [mixedWordPreview, setMixedWordPreview] = useState<string[]>([]);
   const [deckSort, setDeckSort] = useState<DeckSort>('due');
   const [isDeckSortOpen, setIsDeckSortOpen] = useState(false);
   const [visibleDecks, setVisibleDecks] = useState(DECK_PAGE_SIZE);
@@ -508,12 +511,24 @@ export function ConverseV2Page(
   useEffect(() => {
     if (phase !== 'deck' || !token) {
       setMixedSources([]);
+      setMixedWordCount(0);
+      setMixedWordPreview([]);
       return;
     }
     let alive = true;
     getMixedSources(language, token)
-      .then((result) => { if (alive) setMixedSources(result.videos); })
-      .catch(() => { if (alive) setMixedSources([]); });
+      .then((result) => {
+        if (!alive) return;
+        setMixedSources(result.videos);
+        setMixedWordCount(result.word_count);
+        setMixedWordPreview(result.words ?? []);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setMixedSources([]);
+        setMixedWordCount(0);
+        setMixedWordPreview([]);
+      });
     return () => { alive = false; };
   }, [language, phase, token]);
 
@@ -1328,7 +1343,7 @@ export function ConverseV2Page(
             <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
                 <div>
-                <h2 className="font-sans text-body font-semibold text-secondary">Continue practicing</h2>
+                <h2 className="font-sans text-body font-semibold uppercase tracking-[0.08em] text-secondary">Continue practicing</h2>
                 <section aria-labelledby="resume-title" className="mt-2 flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     {recentSession.seed_video_id && !recentSession.seed_video_id.startsWith('netflix_') ? (
@@ -1391,7 +1406,7 @@ export function ConverseV2Page(
               )}
 
               <div className={recentSession ? '' : 'sm:col-span-2'}>
-              <h2 className="font-sans text-body font-semibold text-secondary">Chat words from random videos</h2>
+              <h2 className="font-sans text-body font-semibold uppercase tracking-[0.08em] text-secondary">Chat words from random videos</h2>
               <section aria-labelledby="mixed-title" className="mt-2 flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl bg-surface px-7 py-5 lg:flex-nowrap">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   {mixedPreviewVideos.length > 0 && (
@@ -1424,6 +1439,14 @@ export function ConverseV2Page(
                     <h2 id="mixed-title" className="truncate font-heading text-body font-semibold text-primary">
                       Start chatting from mixed videos
                     </h2>
+                    <p className="mt-0.5 text-body-sm text-secondary">
+                      {mixedAllSources.length} {mixedAllSources.length === 1 ? 'video' : 'videos'} · {mixedWordCount} {mixedWordCount === 1 ? 'word' : 'words'} to practise
+                    </p>
+                    {mixedWordPreview.length > 0 && (
+                      <p className="mt-0.5 truncate text-meta text-muted" title={mixedWordPreview.join(' · ')}>
+                        Testing: {mixedWordPreview.slice(0, 3).join(' · ')}{mixedWordPreview.length > 3 ? ` +${mixedWordPreview.length - 3}` : ''}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button
@@ -1443,20 +1466,12 @@ export function ConverseV2Page(
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
                 <h2 id="sources-title" className="font-heading text-card-title font-medium text-primary">Your videos</h2>
                 <div className="flex flex-1 items-center justify-end gap-3">
-                  <label className="relative w-full max-w-xs">
-                    <span className="sr-only">Search videos</span>
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-                    <input
-                      type="search"
-                      value={deckQuery}
-                      onChange={(e) => {
-                        setDeckQuery(e.target.value);
-                        setVisibleDecks(DECK_PAGE_SIZE);
-                      }}
-                      placeholder="Search a video"
-                      className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
-                    />
-                  </label>
+                  <ExpandableSearch
+                    value={deckQuery}
+                    onChange={(value) => { setDeckQuery(value); setVisibleDecks(DECK_PAGE_SIZE); }}
+                    label="Search videos"
+                    placeholder="Search a video"
+                  />
                   <DropdownMenu open={isDeckSortOpen} onOpenChange={setIsDeckSortOpen} className="shrink-0">
                     <DropdownMenuTrigger asChild>
                       <Button variant="secondary" size="sm" className="h-10 rounded-xl bg-app px-4 text-body-sm font-semibold text-primary hover:bg-surface-hover">

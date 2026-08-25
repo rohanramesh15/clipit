@@ -61,7 +61,7 @@ export function CoachDrawer({
       exit={{ x: 24, opacity: 0 }}
       transition={{ duration: 0.24, ease: EASE }}
       aria-label="Session coach"
-      className="fixed bottom-4 right-0 top-16 z-40 flex w-[340px] max-w-[calc(100vw-1.5rem)] flex-col border-l border-subtle bg-app shadow-pop"
+      className="fixed bottom-4 right-0 top-16 z-40 flex w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-x-hidden bg-app"
     >
       <div className="flex h-16 shrink-0 items-center justify-between px-6">
         <h2 className="font-heading text-body font-semibold text-primary">Coach</h2>
@@ -77,7 +77,7 @@ export function CoachDrawer({
         </Tooltip>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-8">
+      <div className="flex-1 overflow-x-hidden overflow-y-auto px-6 pb-8">
         {targets.length > 0 && (
           <>
             <p className="text-body text-secondary" aria-live="polite">
@@ -182,12 +182,12 @@ export function CoachDrawer({
 
                     <p className="mt-3 text-meta font-medium uppercase tracking-wide text-accent">Say it like this</p>
                     <p className="mt-0.5 text-lead font-medium text-primary">
-                      {coaching.loading ? '…' : (coaching.corrected || '—')}
+                      {coaching.loading ? 'Preparing a natural phrasing…' : (coaching.corrected || 'We couldn’t prepare a phrasing yet. Try sending it again.')}
                     </p>
 
                     {!coaching.loading && coaching.explanation && (
                       <div className="mt-3 rounded-2xl bg-accent-hover p-4">
-                        <p className="text-meta font-semibold uppercase tracking-wide text-on-accent/85">Why</p>
+                        <p className="text-meta font-semibold uppercase tracking-wide text-on-accent">Why</p>
                         <p className="mt-2 text-body-sm leading-relaxed text-on-accent">{coaching.explanation}</p>
                         {coaching.advancedDetail && (
                           <button

@@ -189,7 +189,7 @@ export const getRecentSession = (token: string) =>
   getJson<{ session: RecentSession | null }>('/sessions/recent', token);
 
 export const getMixedSources = (language: string, token: string) =>
-  getJson<{ word_count: number; max_words: number; videos: MixedSourceVideo[] }>(
+  getJson<{ word_count: number; max_words: number; words?: string[]; videos: MixedSourceVideo[] }>(
     `/mixed-sources?language=${encodeURIComponent(language)}`,
     token,
   );

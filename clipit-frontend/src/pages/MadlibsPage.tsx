@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Play, RotateCcw, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Film, Lightbulb, PenLine, Play, RotateCcw, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { buildMadlibItem, buildMadlibItems, streamVideoCards, type FlashCard, type MadlibItem, type TrackedVideo } from '../services/madlibs';
 import { relativeDay } from '../utils/flashcardStorage';
 import { saveMadlibProgress, clearMadlibProgress, getMostRecentMadlibProgress, type MadlibProgress } from '../utils/madlibsStorage';
 import { PracticeEmptyState } from '../components/PracticeEmptyState';
+import { ExpandableSearch } from '../components/ExpandableSearch';
 import { Skeleton } from '../components/Skeleton';
 import { NavigationIconButton } from '../components/NavigationIconButton';
 import { queryClient } from '../lib/queryClient';
@@ -326,7 +327,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
         {resumable && (
           <section className="mt-8" aria-labelledby="continue-practicing-heading">
-            <h2 id="continue-practicing-heading" className="font-sans text-body font-semibold text-secondary">Continue practicing</h2>
+            <h2 id="continue-practicing-heading" className="font-sans text-body font-semibold uppercase tracking-[0.08em] text-secondary">Continue practicing</h2>
             <div className="mt-2 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap">
               <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
               <div className="min-w-0 flex-1">
@@ -366,16 +367,12 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
 
             {videos !== null && videos.length > 0 && (
               <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
-                <label className="relative w-full max-w-xs">
-                  <span className="sr-only">Search videos</span>
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-                  <input
-                    value={query}
-                    onChange={(e) => { setQuery(e.target.value); setVisible(PAGE_SIZE); }}
-                    placeholder="Search a video"
-                    className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
-                  />
-                </label>
+                <ExpandableSearch
+                  value={query}
+                  onChange={(value) => { setQuery(value); setVisible(PAGE_SIZE); }}
+                  label="Search videos"
+                  placeholder="Search a video"
+                />
                 <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">
                   <DropdownMenuTrigger asChild>
                     <Button variant="secondary" size="sm" className="h-10 rounded-xl bg-app px-4 text-body-sm font-semibold text-primary hover:bg-surface-hover">

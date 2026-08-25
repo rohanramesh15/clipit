@@ -13,7 +13,7 @@ function KoreanFlag() {
   );
 
   return (
-    <svg viewBox="0 0 60 40" className="h-full w-full opacity-85 [filter:saturate(.85)]" role="img" aria-label="Flag of South Korea">
+    <svg viewBox="0 0 60 40" className="h-full w-full rounded-2xl opacity-85 [filter:saturate(.85)]" role="img" aria-label="Flag of South Korea">
       <rect width="60" height="40" fill="#ffffff" />
       <circle cx="30" cy="20" r="10" fill="#CD2E3A" />
       <path d="M20 20 A5 5 0 0 0 30 20 A5 5 0 0 1 40 20 A10 10 0 0 1 20 20 Z" fill="#0047A0" />
@@ -27,7 +27,7 @@ function KoreanFlag() {
 
 function UkrainianFlag() {
   return (
-    <svg viewBox="0 0 60 40" className="h-full w-full opacity-85 [filter:saturate(.85)]" role="img" aria-label="Flag of Ukraine">
+    <svg viewBox="0 0 60 40" className="h-full w-full rounded-2xl opacity-85 [filter:saturate(.85)]" role="img" aria-label="Flag of Ukraine">
       <rect width="60" height="20" fill="#0057B7" />
       <rect y="20" width="60" height="20" fill="#FFD700" />
     </svg>
@@ -71,7 +71,7 @@ export function Languages() {
                 className="relative"
               >
                 <span className="relative z-10 flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface">
-                  <span className="block h-3/5 w-3/5 overflow-hidden rounded-lg border border-subtle shadow-[0_3px_8px_-7px_rgba(56,35,35,0.18)]">
+                  <span className="block h-3/5 w-3/5 overflow-hidden rounded-2xl border border-subtle shadow-[0_3px_8px_-7px_rgba(56,35,35,0.18)]">
                     <Flag />
                   </span>
                 </span>
