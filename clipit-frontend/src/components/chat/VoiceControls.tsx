@@ -1,5 +1,6 @@
-import { KeyboardIcon, MicIcon } from 'lucide-react';
+import { KeyboardIcon, MessageSquareTextIcon, MicIcon, MoreVerticalIcon } from 'lucide-react';
 import { SpeechInput } from '../ai-elements/speech-input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface VoiceControlsProps {
   /** The mic is open and streaming. */
@@ -11,6 +12,7 @@ interface VoiceControlsProps {
   onStart: () => void;
   onStop: () => void;
   onType: () => void;
+  onTranscript: () => void;
 }
 
 export function VoiceControls({
@@ -21,6 +23,7 @@ export function VoiceControls({
   onStart,
   onStop,
   onType,
+  onTranscript,
 }: VoiceControlsProps) {
   return (
     <div className="flex flex-col items-center gap-2">
@@ -46,8 +49,27 @@ export function VoiceControls({
           idleIcon={<MicIcon className="size-6" strokeWidth={2.25} aria-hidden="true" />}
         />
 
-        {/* Keeps the mic optically centred against the Type button. */}
-        <span className="size-9 shrink-0" aria-hidden="true" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More voice options"
+              className="grid size-9 place-items-center rounded-xl border border-subtle text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+            >
+              <MoreVerticalIcon className="size-4" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onType}>
+              <KeyboardIcon className="size-4" aria-hidden="true" />
+              Type a message
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onTranscript}>
+              <MessageSquareTextIcon className="size-4" aria-hidden="true" />
+              View transcript
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <span className="sr-only" role="status" aria-live="polite">{status}</span>

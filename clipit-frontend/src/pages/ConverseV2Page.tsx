@@ -1339,6 +1339,7 @@ export function ConverseV2Page(
                   onStart={startVoice}
                   onStop={stopVoice}
                   onType={() => { if (voiceStatus !== 'off') stopVoice(); setTyping(true); }}
+                  onTranscript={() => { if (voiceStatus !== 'off') stopVoice(); setTranscriptOpen(true); }}
                 />
               )}
 
