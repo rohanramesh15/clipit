@@ -4,8 +4,8 @@ import { buildWsUrl } from '../lib/voiceSession';
 
 const BASE = `${API_BASE_URL}/converse2`;
 
-export const voiceWsUrl = (sessionId: number, language: string = 'es') =>
-  buildWsUrl('/converse2/voice/ws', { session_id: sessionId, language });
+export const voiceWsUrl = (sessionId: number, language: string = 'es', voice?: string) =>
+  buildWsUrl('/converse2/voice/ws', { session_id: sessionId, language, ...(voice ? { voice } : {}) });
 
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 // Known reasons; a custom "Something else" reason is also allowed as free text.
@@ -91,8 +91,9 @@ async function getJson<T>(path: string, token?: string | null): Promise<T> {
 
 /** Re-synthesized audio for a persisted assistant turn, in the same voice
  * used for the live conversation — lets "Listen" match what was actually said. */
-export async function getTurnAudioUrl(token: string | null, turnId: number): Promise<string> {
-  const res = await fetch(`${BASE}/turn/${turnId}/audio`, {
+export async function getTurnAudioUrl(token: string | null, turnId: number, voice?: string): Promise<string> {
+  const qs = voice ? `?voice=${encodeURIComponent(voice)}` : '';
+  const res = await fetch(`${BASE}/turn/${turnId}/audio${qs}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!res.ok) throw new Error(`turn audio failed: ${res.status}`);
@@ -137,11 +138,12 @@ export async function streamOpening(
   token: string | null | undefined,
   onChunk: (piece: string) => void,
   onSpeech: (speech: StreamSpeech) => void = () => {},
+  voice?: string,
 ): Promise<OpeningResult> {
   const res = await fetch(`${BASE}/session/${sessionId}/opening/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ language }),
+    body: JSON.stringify({ language, voice }),
   });
   if (!res.ok || !res.body) throw new Error(`opening stream failed: ${res.status}`);
 
@@ -229,6 +231,7 @@ export async function sendTurnStream(
   token: string | null | undefined,
   onChunk: (piece: string) => void,
   onSpeech: (speech: StreamSpeech) => void = () => {},
+  voice?: string,
 ): Promise<TurnResult> {
   const res = await fetch(`${BASE}/session/${sessionId}/turn/stream`, {
     method: 'POST',
@@ -236,7 +239,7 @@ export async function sendTurnStream(
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ text, language }),
+    body: JSON.stringify({ text, language, voice }),
   });
   if (!res.ok || !res.body) throw new Error(`turn stream failed: ${res.status}`);
 

@@ -11,9 +11,13 @@ import { Button } from '../components/ui/button';
 
 function AnalyticsLoadingState() {
   return (
-    <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
-      <Skeleton className="h-8 w-32 rounded-lg" />
-      <Skeleton className="mt-8 h-[25rem] w-full rounded-3xl" />
+    <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8">
+      <header className="max-w-2xl pb-8">
+        <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
+      </header>
+      <div role="status" aria-live="polite" aria-label="Loading your progress" aria-hidden="true">
+        <Skeleton className="h-[25rem] w-full rounded-3xl" />
+      </div>
     </div>
   );
 }

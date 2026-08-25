@@ -6,7 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { PracticeModes } from '../components/PracticeModes';
 import { WordQueue } from '../components/WordQueue';
 import { StreakSummary } from '../components/StreakSummary';
-import { PracticePageSkeleton } from '../components/PracticePageSkeleton';
+import { Skeleton } from '../components/Skeleton';
 import { homeQueueQueryOptions, RequestError, reviewsQueryOptions } from '../lib/queries';
 
 type Page =
@@ -76,14 +76,6 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
     [reviews.data?.reviews],
   );
 
-  if (wordLoadState === 'loading') {
-    return (
-      <div role="status" aria-live="polite" aria-label="Loading your practice queue">
-        <PracticePageSkeleton />
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8">
       <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 pb-10">
@@ -97,6 +89,22 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
           <StreakSummary dueCount={dueCount} streakDays={streak} />
         )}
       </div>
+
+      {/* Static — no query dependency, so it never waits on the word queue. */}
+      <PracticeModes onOpenMode={onNavigate} />
+
+      {wordLoadState === 'loading' && (
+        <section className="mt-16" role="status" aria-live="polite" aria-label="Loading your practice queue" aria-hidden="true">
+          <div className="flex items-end justify-between">
+            <div>
+              <Skeleton className="h-7 w-64 rounded-md" />
+              <Skeleton className="mt-1 h-5 w-36 rounded-md" />
+            </div>
+            <Skeleton className="hidden h-8 w-64 rounded-lg sm:block" />
+          </div>
+          <Skeleton className="mt-6 h-[18.5rem] w-full rounded-2xl" />
+        </section>
+      )}
 
       {wordLoadState === 'error' && (
         <div className="mt-10 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-12 text-center">
@@ -125,15 +133,12 @@ export function PracticePage({ onNavigate }: PracticePageProps) {
       )}
 
       {wordLoadState === 'loaded' && words && (
-        <>
-          <PracticeModes onOpenMode={onNavigate} />
-          <WordQueue
-            words={words}
-            languageName={languageName}
-            sourceVideoCount={queue.sourceVideoCount}
-            onRefresh={() => void wordQueue.refetch()}
-          />
-        </>
+        <WordQueue
+          words={words}
+          languageName={languageName}
+          sourceVideoCount={queue.sourceVideoCount}
+          onRefresh={() => void wordQueue.refetch()}
+        />
       )}
     </div>
   );

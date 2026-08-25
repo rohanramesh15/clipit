@@ -1,4 +1,4 @@
-import { KeyboardIcon, MessageSquareTextIcon, MicIcon, MoreVerticalIcon } from 'lucide-react';
+import { KeyboardIcon, MessageSquareTextIcon, MicIcon, MoreVerticalIcon, Volume2Icon } from 'lucide-react';
 import { SpeechInput } from '../ai-elements/speech-input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
@@ -14,6 +14,7 @@ interface VoiceControlsProps {
   onStop: () => void;
   onType: () => void;
   onTranscript: () => void;
+  onChangeVoice: () => void;
 }
 
 export function VoiceControls({
@@ -26,6 +27,7 @@ export function VoiceControls({
   onStop,
   onType,
   onTranscript,
+  onChangeVoice,
 }: VoiceControlsProps) {
   return (
     <div className="flex flex-col items-center gap-2">
@@ -64,11 +66,15 @@ export function VoiceControls({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={onType}>
               <KeyboardIcon className="size-4" aria-hidden="true" />
-              Type a message
+              Switch to text chat
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onTranscript}>
               <MessageSquareTextIcon className="size-4" aria-hidden="true" />
               View transcript
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onChangeVoice}>
+              <Volume2Icon className="size-4" aria-hidden="true" />
+              Change AI voice
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

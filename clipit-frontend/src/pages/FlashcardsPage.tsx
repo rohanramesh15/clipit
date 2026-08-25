@@ -961,9 +961,15 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       );
     }
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app" role="status" aria-live="polite" aria-label="Loading your flashcards">
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="mt-8 h-72 rounded-2xl" />
+      <div className="min-h-[calc(100vh-4rem)] max-w-page mx-auto px-4 sm:px-8 pt-8 bg-app">
+        <div className="-ml-2 flex items-center gap-2">
+          <NavigationIconButton direction="back" label="Back" onClick={() => onNavigate?.('practice')} />
+          <h1 className="font-heading text-section font-medium text-primary">Flash cards</h1>
+        </div>
+        <div role="status" aria-live="polite" aria-label="Loading your flashcards" aria-hidden="true">
+          <Skeleton className="mt-8 h-24 rounded-2xl" />
+          <Skeleton className="mt-8 h-72 rounded-2xl" />
+        </div>
       </div>
     );
   }

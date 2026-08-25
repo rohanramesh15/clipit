@@ -37,6 +37,8 @@ import { Composer } from '../components/chat/Composer';
 import { MessageList } from '../components/chat/MessageList';
 import { SuggestionPanel } from '../components/chat/SuggestionPanel';
 import { CoachDrawer } from '../components/chat/CoachDrawer';
+import { VoiceSettingDialog } from '../components/chat/VoiceSettingDialog';
+import { fetchTtsVoices, fetchVoiceSample, type TtsVoice } from '../services/chat';
 import { Button } from '../components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 
@@ -207,6 +209,35 @@ export function ConverseV2Page(
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
   const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  // AI voice picker — same localStorage key Settings uses, so a choice made
+  // in either place applies everywhere. Voices are fetched lazily, only once
+  // the picker is actually opened.
+  const [aiVoiceId, setAiVoiceId] = useState(() => localStorage.getItem('tts_voice') || 'Kore');
+  const [voiceSettingOpen, setVoiceSettingOpen] = useState(false);
+  const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
+  const voiceSampleUrls = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    const cache = voiceSampleUrls.current;
+    return () => cache.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
+  useEffect(() => {
+    if (!voiceSettingOpen || !token || ttsVoices.length > 0) return;
+    fetchTtsVoices(token).then(setTtsVoices).catch(() => {});
+  }, [voiceSettingOpen, token, ttsVoices.length]);
+  const getVoiceSampleUrl = useCallback(async (id: string) => {
+    const cacheKey = `${id}:${language}`;
+    const cached = voiceSampleUrls.current.get(cacheKey);
+    if (cached) return cached;
+    const blob = await fetchVoiceSample(token!, id, language);
+    const url = URL.createObjectURL(blob);
+    voiceSampleUrls.current.set(cacheKey, url);
+    return url;
+  }, [token, language]);
+  const handleVoiceChange = useCallback((id: string) => {
+    setAiVoiceId(id);
+    localStorage.setItem('tts_voice', id);
+  }, []);
   const speakingRef = useRef(false);
   const voiceRef = useRef<VoiceSession | null>(null);
   const vUserId = useRef<string | null>(null);
@@ -620,7 +651,7 @@ export function ConverseV2Page(
 
     if (turnId == null) { speakWithBrowserVoice(); return; }
 
-    getTurnAudioUrl(token, turnId)
+    getTurnAudioUrl(token, turnId, aiVoiceId)
       .then((url) => {
         const audio = new Audio(url);
         activeAudioRef.current = audio;
@@ -632,7 +663,7 @@ export function ConverseV2Page(
           .catch(() => { clearIfCurrent(); URL.revokeObjectURL(url); speakWithBrowserVoice(); });
       })
       .catch(speakWithBrowserVoice);
-  }, [language, token, stopSpeaking]);
+  }, [language, token, stopSpeaking, aiVoiceId]);
 
   const listenToMessage = useCallback((text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => {
     speak(
@@ -761,12 +792,12 @@ export function ConverseV2Page(
     vs.on(handleVoiceEvent);
     voiceRef.current = vs;
     try {
-      await vs.start(voiceWsUrl(sessionId, language));
+      await vs.start(voiceWsUrl(sessionId, language, aiVoiceId));
     } catch (e: any) {
       setVoiceError(e?.message || 'Could not start voice');
       setVoiceStatus('off');
     }
-  }, [sessionId, voiceStatus, handleVoiceEvent, language]);
+  }, [sessionId, voiceStatus, handleVoiceEvent, language, aiVoiceId]);
 
   const stopVoice = useCallback(() => {
     voiceRef.current?.stop();
@@ -863,7 +894,7 @@ export function ConverseV2Page(
       segments.push(speech.audio);
       streamedAudioRef.current.set(streamId, segments);
       queueSyncedSpeech(streamId, speech.text, speech.audio);
-    }).then(async (opening) => {
+    }, aiVoiceId).then(async (opening) => {
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
       if (activeSessionRef.current !== nextSessionId) return;
@@ -894,7 +925,7 @@ export function ConverseV2Page(
     }).finally(() => {
       if (activeSessionRef.current === nextSessionId) setOpeningPending(false);
     });
-  }, [language, token, queueStreamText, waitForStreamReveal, queueSyncedSpeech, waitForSyncedSpeech, speak]);
+  }, [language, token, queueStreamText, waitForStreamReveal, queueSyncedSpeech, waitForSyncedSpeech, speak, aiVoiceId]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
@@ -1111,7 +1142,7 @@ export function ConverseV2Page(
         segments.push(speech.audio);
         streamedAudioRef.current.set(streamId, segments);
         queueSyncedSpeech(streamId, speech.text, speech.audio);
-      });
+      }, aiVoiceId);
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
       const finalId = `a-${result.turn_id}`;
@@ -1145,7 +1176,7 @@ export function ConverseV2Page(
       setSending(false);
       setStreaming(false);
     }
-  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal, queueSyncedSpeech, waitForSyncedSpeech, speak]);
+  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal, queueSyncedSpeech, waitForSyncedSpeech, speak, aiVoiceId]);
 
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
@@ -1241,7 +1272,8 @@ export function ConverseV2Page(
           <PracticeEmptyState mode="AI chat" />
         ) : (
           <>
-            <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
+            <h2 className="mt-8 font-heading text-card-title text-primary">Start chatting</h2>
+            <section className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
                 <section aria-labelledby="resume-title" className="flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -1577,6 +1609,7 @@ export function ConverseV2Page(
                   onStop={stopVoice}
                   onType={() => { if (voiceStatus !== 'off') stopVoice(); setTyping(true); }}
                   onTranscript={() => { if (voiceStatus !== 'off') stopVoice(); setTranscriptOpen(true); }}
+                  onChangeVoice={() => setVoiceSettingOpen(true)}
                 />
               )}
 
@@ -1606,6 +1639,18 @@ export function ConverseV2Page(
               advancedOpen={advancedOpen}
               onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
               onClose={() => setCoachOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {voiceSettingOpen && (
+            <VoiceSettingDialog
+              voices={ttsVoices}
+              selectedId={aiVoiceId}
+              onSelect={handleVoiceChange}
+              getSampleUrl={getVoiceSampleUrl}
+              onClose={() => setVoiceSettingOpen(false)}
             />
           )}
         </AnimatePresence>
