@@ -1578,7 +1578,6 @@ export function ConverseV2Page(
                   isLoading={suggestLoading && suggestVisibleId !== null}
                   error={suggestError}
                   onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
-                  onEdit={(reply) => { setComposerText(reply.es); setSuggestVisibleId(null); setTyping(true); }}
                   onDismiss={() => setSuggestVisibleId(null)}
                   onRetry={handleSuggestReply}
                 />
