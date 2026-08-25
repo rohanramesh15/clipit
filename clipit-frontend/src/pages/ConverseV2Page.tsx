@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   getProfile, createSession, streamOpening, sendTurnStream, romanize, getTurnAudioUrl,
-  correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
+  correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestRepliesStream,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
   type RecentSession, type MixedSourceVideo, type ResumeTurn,
@@ -677,13 +677,27 @@ export function ConverseV2Page(
   // Suggest reply — fetch things the learner could say next.
   const handleSuggestReply = useCallback(async () => {
     if (sessionId == null || suggestLoading) return;
+    let latestAssistantId: string | null = null;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') {
+        latestAssistantId = messages[i].id;
+        break;
+      }
+    }
+    if (latestAssistantId == null) return;
     setSuggestLoading(true);
+    setSuggestVisibleId(latestAssistantId);
+    setMessages((previous) => previous.map((message) => (
+      message.id === latestAssistantId ? { ...message, suggestedReplies: [] } : message
+    )));
     try {
-      const r = await suggestReplies(sessionId, language, token);
-      let li: string | null = null;
-      for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === 'assistant') { li = messages[i].id; break; } }
-      setMessages((prev) => prev.map((mm) => (mm.id === li ? { ...mm, suggestedReplies: r.suggested_replies } : mm)));
-      setSuggestVisibleId(li);
+      await suggestRepliesStream(sessionId, language, token, (suggestion) => {
+        setMessages((previous) => previous.map((message) => (
+          message.id === latestAssistantId
+            ? { ...message, suggestedReplies: [...(message.suggestedReplies ?? []), suggestion] }
+            : message
+        )));
+      });
     } catch { /* ignore */ } finally {
       setSuggestLoading(false);
     }
@@ -1525,6 +1539,7 @@ export function ConverseV2Page(
               {!transcriptOpen && (
                 <SuggestionPanel
                   suggestions={activeSuggestions}
+                  isLoading={suggestLoading && suggestVisibleId !== null}
                   onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
                   onEdit={(reply) => { setComposerText(reply.es); setSuggestVisibleId(null); setTyping(true); }}
                   onDismiss={() => setSuggestVisibleId(null)}

@@ -280,6 +280,52 @@ export const regenerateTurn = (sessionId: number, language: string = 'ko', token
 export const suggestReplies = (sessionId: number, language: string = 'ko', token?: string | null) =>
   postJson<{ suggested_replies: SuggestedReply[] }>(`/session/${sessionId}/suggest`, { language }, token);
 
+/** Stream suggested replies as complete rows so the UI can reveal each option
+ * when its target-language phrase and English support are ready. */
+export async function suggestRepliesStream(
+  sessionId: number,
+  language: string,
+  token: string | null | undefined,
+  onSuggestion: (suggestion: SuggestedReply) => void,
+): Promise<SuggestedReply[]> {
+  const res = await fetch(`${BASE}/session/${sessionId}/suggest/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ language }),
+  });
+  if (!res.ok || !res.body) throw new Error(`suggest stream failed: ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const received: SuggestedReply[] = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+    for (const raw of events) {
+      const line = raw.trim();
+      if (!line.startsWith('data:')) continue;
+      const event = JSON.parse(line.slice(5).trim());
+      if (event.type === 'suggestion' && event.suggestion?.es) {
+        const suggestion = event.suggestion as SuggestedReply;
+        received.push(suggestion);
+        onSuggestion(suggestion);
+      } else if (event.type === 'error') {
+        throw new Error(event.message || 'Suggestion stream failed');
+      }
+    }
+  }
+
+  return received;
+}
+
 export interface CoachResult {
   corrected: string;
   explanation: string;
