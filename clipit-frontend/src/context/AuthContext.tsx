@@ -58,15 +58,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<AuthErrorCode | null>(null);
   const isRestoringCache = useIsRestoring();
   // Set once, synchronously, from the URL that a Google OAuth redirect lands
-  // on — read by the very next applySession call and then discarded, so a
-  // later token refresh or page reload never re-applies stale intent.
-  const authIntentRef = useRef<'signin' | 'signup' | null>(null);
+  // on. Supabase fires onAuthStateChange's INITIAL_SESSION event *and*
+  // resolves getSession() on mount, and on a slow (cold-starting) backend
+  // the first of those to reach the server can fully resolve — including a
+  // "finally" cleanup — before the second one even calls applySession, so
+  // clearing this after n calls, or after a fixed number of reads, can't be
+  // made race-free. authUserId starts unbound (null) and locks to whichever
+  // session first claims it, so every duplicate call for that *same* login
+  // keeps getting the same verdict no matter how far apart they land; a
+  // timeout (not a call count) discards it, generous enough to outlast any
+  // realistic duplicate/retry but short enough to never reach an hourly
+  // token refresh, which must not be intent-checked.
+  const authIntentRef = useRef<{ intent: 'signin' | 'signup'; authUserId: string | null } | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const intent = params.get('auth_intent');
     if (intent === 'signin' || intent === 'signup') {
-      authIntentRef.current = intent;
+      authIntentRef.current = { intent, authUserId: null };
       params.delete('auth_intent');
       const search = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (search ? `?${search}` : '') + window.location.hash);
@@ -119,12 +128,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activateLocalLearningData(authUserId);
       setToken(accessToken);
       setAuthError(null);
-      // Supabase fires onAuthStateChange's INITIAL_SESSION event *and*
-      // resolves getSession() on mount, so applySession runs twice back to
-      // back for the same login. Read the ref without clearing it yet, so
-      // both invocations see the same intent instead of the second one
-      // losing the race and silently skipping enforcement.
-      const intent = authIntentRef.current;
+      // Bind the pending intent to whichever session claims it first, so
+      // every duplicate applySession call for that exact login — however
+      // many, however far apart — replays the same verdict. A call for any
+      // other session (a distinct, later sign-in in the same tab) leaves
+      // intent null instead of reusing someone else's.
+      const pending = authIntentRef.current;
+      let intent: 'signin' | 'signup' | null = null;
+      if (pending && (pending.authUserId === null || pending.authUserId === authUserId)) {
+        intent = pending.intent;
+        if (pending.authUserId === null) {
+          pending.authUserId = authUserId;
+          window.setTimeout(() => {
+            if (authIntentRef.current === pending) authIntentRef.current = null;
+          }, 30_000);
+        }
+      }
       // A fresh Google redirect with an intent to verify can still get
       // rejected below, so don't optimistically drop the loading state and
       // flash the authenticated shell for a result that's about to get torn
@@ -148,11 +167,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (err instanceof AuthIntentError) setAuthError(err.code);
         }
       } finally {
-        // Both duplicate calls have read the ref by now (the network round
-        // trip above vastly outlasts the gap between the two triggers), so
-        // it's safe to discard — a later, genuinely distinct auth event
-        // (e.g. a token refresh) must not replay this same intent.
-        authIntentRef.current = null;
         if (intent && active) setIsLoading(false);
       }
     };
