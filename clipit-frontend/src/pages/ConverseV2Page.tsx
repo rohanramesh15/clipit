@@ -1277,7 +1277,7 @@ export function ConverseV2Page(
           <PracticeEmptyState mode="AI chat" />
         ) : (
           <>
-            <h2 className="mt-8 font-heading text-card-title font-medium text-primary">Start chatting</h2>
+            <h2 className="mt-8 font-sans text-card-title font-medium text-primary">Continue practicing</h2>
             <section className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Conversation actions">
               {recentSession && (
                 <section aria-labelledby="resume-title" className="flex min-h-24 items-center justify-between gap-x-6 rounded-2xl bg-sage-soft px-7 py-5">
@@ -1370,9 +1370,7 @@ export function ConverseV2Page(
                   )}
                   <div className="min-w-0">
                     <h2 id="mixed-title" className="truncate font-heading text-lead text-primary">
-                      {mixedSources.length > 0
-                        ? `Words from ${mixedSources.length} ${mixedSources.length === 1 ? 'video' : 'videos'}`
-                        : 'Words from your tracked videos'}
+                      Start chatting from mixed videos
                     </h2>
                   </div>
                 </div>
