@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check, X,
   Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
+  MessageSquareText,
 } from 'lucide-react';
 import {
   getProfile, createSession, streamOpening, sendTurnStream, romanize, getTurnAudioUrl,
@@ -1561,6 +1562,15 @@ export function ConverseV2Page(
         onToggleTranscript={() => setTranscriptOpen((v) => !v)}
         onLeave={leaveChat}
       />
+
+      {messages.length > 0 && (
+        <div className="flex shrink-0 justify-center border-b border-subtle bg-app py-2">
+          <span className="flex items-center gap-1.5 text-meta font-medium text-muted">
+            <MessageSquareText className="size-3.5" aria-hidden="true" />
+            {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+          </span>
+        </div>
+      )}
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <main className="flex min-w-0 flex-1 flex-col">
