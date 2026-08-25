@@ -1222,7 +1222,6 @@ export function ConverseV2Page(
         <AnimatePresence>
           {coachOpen && (
             <CoachDrawer
-              deck={deck}
               targets={targetWords}
               usedLemmas={usedLemmas}
               openWord={openTargetWord}

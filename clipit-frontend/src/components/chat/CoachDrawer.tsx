@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckIcon, Film, SparklesIcon, XIcon } from 'lucide-react';
+import { CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import type { ChatMessage, SavedWord, TargetWord } from '../../types/chat';
 
@@ -14,7 +14,6 @@ interface Coaching {
 }
 
 interface CoachDrawerProps {
-  deck: { id: string; title: string } | null;
   targets: TargetWord[];
   usedLemmas: Set<string>;
   openWord: string | null;
@@ -38,7 +37,6 @@ function encouragement(used: number, total: number): string {
 }
 
 export function CoachDrawer({
-  deck,
   targets,
   usedLemmas,
   openWord,
@@ -52,7 +50,6 @@ export function CoachDrawer({
 }: CoachDrawerProps) {
   const used = usedLemmas.size;
   const next = targets.find((target) => !usedLemmas.has(target.lemma));
-  const isNetflix = deck?.id.startsWith('netflix_');
 
   const corrections = messages
     .map((m, i) => ({ m, said: i > 0 ? messages[i - 1].text : '' }))
@@ -84,28 +81,7 @@ export function CoachDrawer({
       <div className="flex-1 overflow-y-auto px-6 pb-8">
         {targets.length > 0 && (
           <>
-            {deck && (
-              <div className="flex items-center gap-3">
-                <span className="flex h-11 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-hover">
-                  {isNetflix ? (
-                    <Film className="w-4 h-4 text-accent" />
-                  ) : (
-                    <img
-                      src={`https://img.youtube.com/vi/${deck.id}/mqdefault.jpg`}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  )}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-body-sm font-medium text-primary">{deck.title}</p>
-                  <p className="truncate text-meta text-muted">{isNetflix ? 'Netflix' : 'YouTube'}</p>
-                </div>
-              </div>
-            )}
-
-            <p className="mt-4 text-body text-secondary" aria-live="polite">
+            <p className="text-body text-secondary" aria-live="polite">
               {encouragement(used, targets.length)}
             </p>
 
