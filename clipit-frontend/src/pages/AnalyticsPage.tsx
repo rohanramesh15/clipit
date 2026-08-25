@@ -159,7 +159,7 @@ export function AnalyticsPage() {
             <ul className="mt-4 grid max-w-sm grid-cols-7 gap-1.5" aria-label="Last seven days of practice">
               {lastWeek.map((day, index) => (
                 <li key={day.date} className="flex flex-col items-center gap-1.5">
-                  <span className={`h-4 w-full rounded-md ${day.reviews > 0 ? 'bg-accent' : 'bg-surface-hover'}`} />
+                  <span className={`h-4 w-full rounded-md ${day.reviews > 0 ? 'bg-accent' : 'border border-subtle bg-app'}`} />
                   <span className="text-meta text-muted">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
                 </li>
               ))}

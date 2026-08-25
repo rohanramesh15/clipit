@@ -976,7 +976,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
                 wordCounts={wordCounts}
                 dueCounts={dueCounts}
                 onStudyVideo={loadFlashcards}
-                onDeleteVideo={handleDeleteVideoFlashcards}
               />
             </div>
           </>

@@ -15,7 +15,7 @@ function formatDayLabel(iso: string): string {
 }
 
 function intensityClass(reviews: number, max: number): string {
-  if (reviews === 0) return 'border border-subtle bg-app';
+  if (reviews === 0) return 'bg-blush';
   const ratio = reviews / Math.max(max, 1);
   if (ratio > 0.75) return 'bg-accent';
   if (ratio > 0.5) return 'bg-accent/75';
@@ -112,7 +112,7 @@ export function ActivityHeatmap({ days, year, embedded = false }: ActivityHeatma
                     onBlur={() => setHovered(null)}
                     onClick={() => setHovered(cell)}
                     aria-label={`${formatDayLabel(cell.date)} · ${cell.reviews === 0 ? 'No reviews' : `${cell.reviews} reviews`}`}
-                    className={`h-[11px] w-full rounded-sm p-0 ${intensityClass(cell.reviews, max)} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary`}
+                    className={`h-[11px] w-full rounded-sm border-0 p-0 ${intensityClass(cell.reviews, max)} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary`}
                   />
                 ) : (
                   <span key={`${weekIndex}-${dayIndex}`} className="h-[11px] w-full" />
@@ -127,7 +127,7 @@ export function ActivityHeatmap({ days, year, embedded = false }: ActivityHeatma
         <span className="text-body-sm font-medium text-secondary">{year}</span>
         <div className="flex items-center gap-2 text-meta text-muted">
           <span>Fewer</span>
-          {['border border-subtle bg-app', 'bg-accent/30', 'bg-accent/50', 'bg-accent/75', 'bg-accent'].map((tone) => (
+          {['bg-blush', 'bg-accent/30', 'bg-accent/50', 'bg-accent/75', 'bg-accent'].map((tone) => (
             <span key={tone} className={`h-[11px] w-[11px] rounded-sm ${tone}`} aria-hidden="true" />
           ))}
           <span>More</span>

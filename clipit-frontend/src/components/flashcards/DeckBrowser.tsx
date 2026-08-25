@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ExternalLink, Film, PlayIcon, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, Film, PlayIcon } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
-import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { ExpandableSearch } from '../ExpandableSearch';
@@ -13,7 +11,6 @@ interface DeckBrowserProps {
   wordCounts: Record<string, number>;
   dueCounts: Record<string, number>;
   onStudyVideo: (videoId: string) => void;
-  onDeleteVideo: (video: TrackedVideo) => Promise<void>;
 }
 
 type SortKey = 'due' | 'recent';
@@ -36,16 +33,11 @@ function videoUrlFor(video: TrackedVideo): string {
   return `https://www.youtube.com/watch?v=${video.video_id}`;
 }
 
-export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDeleteVideo }: DeckBrowserProps) {
+export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo }: DeckBrowserProps) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('due');
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [visible, setVisible] = useState(PAGE_SIZE);
-  const [showDeleteVideoConfirm, setShowDeleteVideoConfirm] = useState<TrackedVideo | null>(null);
-  const [isDeletingVideo, setIsDeletingVideo] = useState(false);
-  const deleteDialogRef = useDialogFocus(Boolean(showDeleteVideoConfirm), () => {
-    if (!isDeletingVideo) setShowDeleteVideoConfirm(null);
-  });
 
   const currentSort = sorts.find((option) => option.value === sort) ?? sorts[0];
 
@@ -60,17 +52,6 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
   }, [videos, query, sort, dueCounts]);
 
   const shown = results.slice(0, visible);
-
-  async function handleConfirmDeleteVideo() {
-    if (!showDeleteVideoConfirm) return;
-    setIsDeletingVideo(true);
-    try {
-      await onDeleteVideo(showDeleteVideoConfirm);
-    } finally {
-      setIsDeletingVideo(false);
-      setShowDeleteVideoConfirm(null);
-    }
-  }
 
   return (
     <section aria-labelledby="library-heading">
@@ -167,16 +148,6 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                   <PlayIcon className="h-3.5 w-3.5" aria-hidden="true" />
                   Review
                 </Button>
-                <Button
-                  onClick={() => setShowDeleteVideoConfirm(video)}
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Delete ${video.title}`}
-                  className="h-11 w-11 shrink-0 hover:bg-error/10 hover:text-error"
-                  title="Delete video"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                </Button>
               </li>
             );
           })}
@@ -192,81 +163,6 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
           Show {Math.min(PAGE_SIZE, results.length - visible)} more of {results.length}
         </Button>
       )}
-
-      {/* Delete Video Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteVideoConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-5"
-            onClick={() => !isDeletingVideo && setShowDeleteVideoConfirm(null)}
-          >
-            <motion.div
-              ref={deleteDialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="delete-video-title"
-              aria-describedby="delete-video-description"
-              tabIndex={-1}
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-              className="relative w-full max-w-md rounded-2xl border border-subtle bg-app p-6 shadow-lg"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Button
-                type="button"
-                onClick={() => setShowDeleteVideoConfirm(null)}
-                disabled={isDeletingVideo}
-                variant="ghost"
-                size="icon"
-                aria-label="Close"
-                className="absolute right-4 top-4 h-8 w-8 text-muted"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-
-              <h3 id="delete-video-title" className="pr-10 font-heading text-card-title font-medium text-primary">
-                Delete video and flashcards?
-              </h3>
-              <p id="delete-video-description" className="mt-2 text-body text-secondary">
-                <span className="font-semibold text-primary">{showDeleteVideoConfirm.title}</span> will be removed from
-                your watch history along with all flashcards made from its words.
-              </p>
-              <div className="mt-6 space-y-2">
-                <Button
-                  type="button"
-                  onClick={() => setShowDeleteVideoConfirm(null)}
-                  disabled={isDeletingVideo}
-                  variant="ghost"
-                  className="w-full"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleConfirmDeleteVideo}
-                  disabled={isDeletingVideo}
-                  variant="destructive"
-                  className="w-full"
-                >
-                  {isDeletingVideo ? (
-                    <>
-                      Deleting…
-                    </>
-                  ) : (
-                    'Delete'
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 }

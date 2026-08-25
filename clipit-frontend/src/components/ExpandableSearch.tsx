@@ -56,7 +56,7 @@ export function ExpandableSearch({
               onChange={(event) => onChange(event.target.value)}
               onFocus={() => setExpanded(true)}
               placeholder={placeholder}
-              className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 outline-none"
+              className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 outline-none focus-visible:!outline-none"
             />
           </label>
         ) : (
