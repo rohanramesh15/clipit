@@ -42,9 +42,8 @@ interface VoiceStageProps {
 }
 
 const EASE = [0.23, 1, 0.32, 1] as const;
-const FALLBACK_TOKEN_CADENCE_MS = 220;
 // The erase of the old sentence is a quick visual "clear", independent of
-// the reveal cadence below (which stays synced to the replacement audio).
+// the replacement text and audio requests below.
 const REMOVAL_MS_PER_WEIGHT = 30;
 
 function tokensForTiming(text: string): string[] {
@@ -111,7 +110,6 @@ export function VoiceStage({
     let cancelled = false;
     let audio: HTMLAudioElement | null = null;
     let audioUrl: string | null = null;
-    let frame: number | null = null;
     const oldTokens = tokensForTiming(rephrase.previousText);
 
     const waitForNextText = async (): Promise<{ nextText: string; turnId: number }> => {
@@ -139,13 +137,20 @@ export function VoiceStage({
         }
       })();
 
-      const [, { nextText, turnId }] = await Promise.all([erase, waitForNextText()]);
-      if (cancelled) return;
-      setVisibleText('');
+      // Start the TTS request the instant the model has supplied its text.
+      // It then overlaps the rest of the erase animation rather than running
+      // only after the stage has gone blank.
+      const replacement = waitForNextText();
+      const replacementAudio = replacement
+        .then(({ turnId }) => getRephraseAudioUrl(turnId))
+        .catch(() => null);
 
-      const nextTokens = tokensForTiming(nextText);
-      const nextWeights = nextTokens.map(tokenWeight);
-      const totalNextWeight = nextWeights.reduce((total, weight) => total + weight, 0) || 1;
+      const [, { nextText }] = await Promise.all([erase, replacement]);
+      if (cancelled) return;
+      // Text should never wait behind audio synthesis or metadata loading.
+      // The replacement appears as soon as it is generated; its spoken clip
+      // begins as soon as it is ready.
+      setVisibleText(nextText);
 
       const finish = () => {
         if (cancelled) return;
@@ -153,62 +158,29 @@ export function VoiceStage({
         onRephraseEnd();
       };
 
-      const revealWithoutAudio = async (millisecondsPerWeight: number) => {
-        for (let index = 0; index < nextTokens.length; index += 1) {
-          await wait(Math.max(80, tokenWeight(nextTokens[index]) * millisecondsPerWeight));
-          if (cancelled) return;
-          setVisibleText(nextTokens.slice(0, index + 1).join(''));
-        }
-        finish();
-      };
-
       try {
-        audioUrl = await getRephraseAudioUrl(turnId);
+        audioUrl = await replacementAudio;
         if (cancelled) return;
+        if (!audioUrl) {
+          finish();
+          return;
+        }
         audio = new Audio(audioUrl);
         audio.preload = 'auto';
-        await new Promise<void>((resolve, reject) => {
-          audio?.addEventListener('loadedmetadata', () => resolve(), { once: true });
-          audio?.addEventListener('error', () => reject(new Error('Could not load rephrase audio')), { once: true });
-          audio?.load();
-        });
       } catch {
-        audio?.pause();
-        audio = null;
+        finish();
+        return;
       }
       if (cancelled) return;
 
-      const millisecondsPerWeight = audio && Number.isFinite(audio.duration) && audio.duration > 0
-        ? (audio.duration * 1000) / totalNextWeight
-        : FALLBACK_TOKEN_CADENCE_MS;
-
-      if (!audio) {
-        await revealWithoutAudio(millisecondsPerWeight);
-        return;
-      }
-
-      const syncTokens = () => {
-        if (cancelled || !audio) return;
-        const spokenWeight = Math.min(audio.currentTime / audio.duration, 1) * totalNextWeight;
-        let visibleCount = 1;
-        let elapsedWeight = nextWeights[0] ?? 0;
-        while (visibleCount < nextTokens.length && elapsedWeight <= spokenWeight) {
-          elapsedWeight += nextWeights[visibleCount] ?? 0;
-          visibleCount += 1;
-        }
-        setVisibleText(nextTokens.slice(0, visibleCount).join(''));
-        if (!audio.ended) frame = window.requestAnimationFrame(syncTokens);
-      };
-
       audio.addEventListener('ended', finish, { once: true });
-      audio.addEventListener('error', () => { void revealWithoutAudio(millisecondsPerWeight); }, { once: true });
-      audio.play().then(syncTokens).catch(() => { void revealWithoutAudio(millisecondsPerWeight); });
+      audio.addEventListener('error', finish, { once: true });
+      audio.play().catch(finish);
     };
 
     void run();
     return () => {
       cancelled = true;
-      if (frame !== null) window.cancelAnimationFrame(frame);
       audio?.pause();
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
