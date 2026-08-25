@@ -9,6 +9,7 @@ interface VoiceControlsProps {
   /** The session isn't ready to start a call yet (still loading). */
   disabled?: boolean;
   status: string;
+  prompt?: string;
   onStart: () => void;
   onStop: () => void;
   onType: () => void;
@@ -20,6 +21,7 @@ export function VoiceControls({
   connecting,
   disabled,
   status,
+  prompt,
   onStart,
   onStop,
   onType,
@@ -72,6 +74,11 @@ export function VoiceControls({
         </DropdownMenu>
       </div>
 
+      {prompt && (
+        <p className="text-meta font-medium text-secondary" role="status" aria-live="polite">
+          {prompt}
+        </p>
+      )}
       <span className="sr-only" role="status" aria-live="polite">{status}</span>
     </div>
   );

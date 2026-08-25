@@ -12,13 +12,14 @@ interface ComposerProps {
   /** The session isn't ready to accept a message yet (still loading). */
   disabled?: boolean;
   placeholder: string;
+  prompt?: string;
   /** Return to the voice controls. */
   onClose: () => void;
 }
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
-export function Composer({ value, onChange, onSend, thinking, disabled, placeholder, onClose }: ComposerProps) {
+export function Composer({ value, onChange, onSend, thinking, disabled, placeholder, prompt, onClose }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -96,6 +97,12 @@ export function Composer({ value, onChange, onSend, thinking, disabled, placehol
           </Tooltip>
         </div>
       </div>
+
+      {prompt && (
+        <p className="px-3 pb-1 text-meta font-medium text-secondary" role="status" aria-live="polite">
+          {prompt}
+        </p>
+      )}
     </motion.form>
   );
 }

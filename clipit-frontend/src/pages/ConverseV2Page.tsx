@@ -174,6 +174,7 @@ export function ConverseV2Page(
   // "thinking" placeholder in MessageList give way to the real streaming
   // text instead of sitting alongside it for the whole reply.
   const [streaming, setStreaming] = useState(false);
+  const [tutorSpeaking, setTutorSpeaking] = useState(false);
   const [revealedCorrections, setRevealedCorrections] = useState<Set<string>>(new Set());
   const [correctionVerdicts, setCorrectionVerdicts] = useState<Record<string, 'fine' | 'wrong'>>({});
   const [status, setStatus] = useState('');
@@ -300,6 +301,7 @@ export function ConverseV2Page(
     speech.audio = null;
     speech.queue = [];
     speech.id = null;
+    setTutorSpeaking(false);
     speech.onDrained?.();
     speech.onDrained = null;
   }, []);
@@ -319,6 +321,7 @@ export function ConverseV2Page(
       if (current.id !== messageId) return;
       const segment = current.queue.shift();
       if (!segment) {
+        setTutorSpeaking(false);
         current.onDrained?.();
         current.onDrained = null;
         return;
@@ -376,7 +379,10 @@ export function ConverseV2Page(
 
       audio.addEventListener('ended', finish, { once: true });
       audio.addEventListener('error', finish, { once: true });
-      audio.play().then(syncWords).catch(finish);
+      audio.play().then(() => {
+        setTutorSpeaking(true);
+        syncWords();
+      }).catch(finish);
     };
 
     playNext();
@@ -628,6 +634,20 @@ export function ConverseV2Page(
       .catch(speakWithBrowserVoice);
   }, [language, token, stopSpeaking]);
 
+  const listenToMessage = useCallback((text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => {
+    speak(
+      text,
+      turnId,
+      () => { setTutorSpeaking(true); onStart(); },
+      () => { setTutorSpeaking(false); onEnd(); },
+    );
+  }, [speak]);
+
+  const stopListening = useCallback(() => {
+    stopSpeaking();
+    setTutorSpeaking(false);
+  }, [stopSpeaking]);
+
   // Another response — regenerate the latest AI reply.
   const handleAnotherResponse = useCallback(async () => {
     if (sessionId == null || regenLoading) return;
@@ -646,7 +666,7 @@ export function ConverseV2Page(
       } : mm)));
       setMsgRoman((p) => ({ ...p, [id]: r.romanized || '' }));
       romanReqRef.current.add(id);
-      speak(r.reply, r.turn_id);
+      speak(r.reply, r.turn_id, () => setTutorSpeaking(true), () => setTutorSpeaking(false));
     } catch {
       setChatError('Could not regenerate. Try again.');
     } finally {
@@ -753,6 +773,7 @@ export function ConverseV2Page(
   const resetSessionUI = useCallback(() => {
     streamedAudioRef.current.clear();
     turnAudioRef.current.clear();
+    setTutorSpeaking(false);
     setMixedThumbs([]);
     setTargetWords([]);
     setUsedLemmas(new Set());
@@ -846,7 +867,9 @@ export function ConverseV2Page(
             }
           : message
       )));
-      if (!receivedSpeech) speak(opening.reply, opening.turn_id);
+      if (!receivedSpeech) {
+        speak(opening.reply, opening.turn_id, () => setTutorSpeaking(true), () => setTutorSpeaking(false));
+      }
     }).catch(async () => {
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
@@ -1027,6 +1050,7 @@ export function ConverseV2Page(
     cancelSyncedSpeech();
     streamedAudioRef.current.clear();
     turnAudioRef.current.clear();
+    setTutorSpeaking(false);
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
@@ -1093,7 +1117,9 @@ export function ConverseV2Page(
       setMsgRoman((prev) => ({ ...prev, [finalId]: result.romanized || '' }));
       romanReqRef.current.add(finalId);
       setStatus('Tap a word for its meaning · pick a suggested reply below');
-      if (!receivedSpeech) speak(result.reply, result.turn_id);
+      if (!receivedSpeech) {
+        speak(result.reply, result.turn_id, () => setTutorSpeaking(true), () => setTutorSpeaking(false));
+      }
     } catch {
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
@@ -1119,6 +1145,9 @@ export function ConverseV2Page(
   // in-flight voice message's text, while it's still being appended to.
   const heard = voiceStatus === 'listening' ? (messages.find((m) => m.id === vUserId.current)?.text ?? '') : '';
   const tutorBusy = sending || openingPending;
+  const turnPrompt = tutorTurn && !tutorBusy && !tutorSpeaking && voiceStatus === 'off'
+    ? 'Your turn · tap to speak'
+    : undefined;
   const personaState: PersonaState = tutorBusy
     ? 'thinking'
     : voiceStatus === 'speaking' ? 'speaking'
@@ -1455,8 +1484,8 @@ export function ConverseV2Page(
                     thinking={tutorBusy && !streaming}
                     savedWords={savedWords}
                     onSaveWord={(w) => saveWord(w.lemma, w.gloss)}
-                    onListen={speak}
-                    onStopListen={stopSpeaking}
+                    onListen={listenToMessage}
+                    onStopListen={stopListening}
                     romanized={msgRoman}
                     revealedCorrections={revealedCorrections}
                     onRevealCorrection={(id) => setRevealedCorrections((prev) => new Set(prev).add(id))}
@@ -1484,8 +1513,8 @@ export function ConverseV2Page(
                   onSaveWord={(w) => saveWord(w.lemma, w.gloss)}
                   onRegenerate={handleAnotherResponse}
                   onSuggest={handleSuggestReply}
-                  onListen={speak}
-                  onStopListen={stopSpeaking}
+                  onListen={listenToMessage}
+                  onStopListen={stopListening}
                   regenerating={regenLoading}
                   romanized={tutorTurn ? msgRoman[tutorTurn.id] : undefined}
                 />
@@ -1521,6 +1550,7 @@ export function ConverseV2Page(
                   thinking={sending}
                   disabled={!sessionId || openingPending}
                   placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
+                  prompt={turnPrompt ? 'Your turn · type your reply' : undefined}
                   onClose={() => setTyping(false)}
                 />
               ) : (
@@ -1529,6 +1559,7 @@ export function ConverseV2Page(
                   connecting={voiceStatus === 'connecting'}
                   disabled={!sessionId}
                   status={!sessionId ? 'Starting your session…' : status}
+                  prompt={turnPrompt}
                   onStart={startVoice}
                   onStop={stopVoice}
                   onType={() => { if (voiceStatus !== 'off') stopVoice(); setTyping(true); }}
