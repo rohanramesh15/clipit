@@ -27,6 +27,63 @@ interface CoachDrawerProps {
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
+function formatInline(text: string): React.ReactNode[] {
+  return text
+    .split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+    .filter(Boolean)
+    .map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="font-semibold text-primary">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <span key={index} className="font-medium text-primary">{part.slice(1, -1)}</span>;
+      }
+      return part;
+    });
+}
+
+function AdvancedFeedbackDetail({ detail }: { detail: string }) {
+  const blocks: React.ReactNode[] = [];
+  let bullets: string[] = [];
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    blocks.push(
+      <ul key={`list-${blocks.length}`} className="mt-3 space-y-2 pl-1">
+        {bullets.map((bullet, index) => (
+          <li key={index} className="flex gap-2 text-body-sm leading-relaxed text-secondary">
+            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+            <span>{formatInline(bullet)}</span>
+          </li>
+        ))}
+      </ul>,
+    );
+    bullets = [];
+  };
+
+  detail.replace(/\r/g, '').split('\n').forEach((line) => {
+    const trimmed = line.trim();
+    const bullet = trimmed.match(/^(?:[-*•]|\d+[.)])\s+(.+)$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+      return;
+    }
+
+    flushBullets();
+    if (!trimmed) return;
+
+    const heading = trimmed.match(/^#{1,3}\s+(.+)$/);
+    if (heading) {
+      blocks.push(<h5 key={`heading-${blocks.length}`} className="mt-3 font-heading text-body font-medium text-primary">{formatInline(heading[1])}</h5>);
+      return;
+    }
+    blocks.push(<p key={`paragraph-${blocks.length}`} className="mt-2 text-body-sm leading-relaxed text-secondary">{formatInline(trimmed)}</p>);
+  });
+  flushBullets();
+
+  return <div>{blocks}</div>;
+}
+
 /** Encouragement scales with how far through the words you are. */
 function encouragement(used: number, total: number): string {
   if (used === 0) return 'Try using one of these words naturally in your next reply. It’s a simple way to practice it in context.';
@@ -212,11 +269,15 @@ export function CoachDrawer({
                           transition={{ duration: 0.2, ease: EASE }}
                           className="overflow-hidden"
                         >
-                          <div className="mt-3 border-t border-subtle pt-3">
+                          <div className="mt-3 rounded-xl border border-subtle bg-app p-4">
+                            <div className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-accent">
+                              <SparklesIcon className="size-3.5" aria-hidden="true" />
+                              Grammar note
+                            </div>
                             {coaching.advancedTopic && (
-                              <h4 className="font-heading font-bold text-accent-hover">{coaching.advancedTopic}</h4>
+                              <h4 className="mt-2 font-heading text-card-title font-medium text-primary">{coaching.advancedTopic}</h4>
                             )}
-                            <p className="mt-2 text-body-sm leading-relaxed text-primary">{coaching.advancedDetail}</p>
+                            <AdvancedFeedbackDetail detail={coaching.advancedDetail} />
                           </div>
                         </motion.div>
                       )}
