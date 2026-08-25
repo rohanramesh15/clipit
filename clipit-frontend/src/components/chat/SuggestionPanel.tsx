@@ -63,17 +63,14 @@ export function SuggestionPanel({
             <div>
               <p className="text-body-sm text-muted">Choose one to keep the conversation going.</p>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {isLoading && <LoadingAnimation className="size-4 text-accent" label="Preparing suggestions" />}
-              <button
-                type="button"
-                onClick={onDismiss}
-                aria-label="Dismiss suggestions"
-                className="grid size-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-primary"
-              >
-                <XIcon className="size-4" aria-hidden="true" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Dismiss suggestions"
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-muted"
+            >
+              <XIcon className="size-4" aria-hidden="true" />
+            </button>
           </div>
 
           <ul className="divide-y divide-[color:var(--border-subtle)]">
