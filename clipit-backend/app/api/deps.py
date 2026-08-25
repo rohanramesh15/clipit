@@ -138,7 +138,21 @@ def get_current_user_from_token(token: str, db: Session) -> tuple[User, bool]:
                 if user is None:
                     raise
                 if user.supabase_user_id != supabase_user_id:
-                    user.supabase_user_id = supabase_user_id
+                    if user.supabase_user_id is not None:
+                        # The concurrent winner found an old account by email.
+                        # Preserve the same fresh-account rule as the normal
+                        # path instead of reattaching it to stale data.
+                        delete_local_user_data(db, user)
+                        db.flush()
+                        user = User(
+                            email=email,
+                            full_name=metadata.get("full_name") or metadata.get("name"),
+                            profile_picture=metadata.get("avatar_url") or metadata.get("picture"),
+                            supabase_user_id=supabase_user_id,
+                        )
+                        db.add(user)
+                    else:
+                        user.supabase_user_id = supabase_user_id
                     db.commit()
                     db.refresh(user)
     if not user.is_active:
