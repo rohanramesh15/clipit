@@ -156,37 +156,38 @@ export function CoachDrawer({
         {coachings.length > 0 && (
           <section className="mt-7">
             <h3 className="font-heading text-body font-semibold text-primary">Said in English</h3>
-            <ul className="mt-2.5 space-y-3">
+            <p className="mt-0.5 text-meta text-muted">Whenever you reply in English, here's how to say it instead.</p>
+            <ul className="mt-3 space-y-3">
               {[...coachings].reverse().map((coaching, index) => {
                 const isLatest = index === 0;
                 const isAdvancedOpen = advancedOpenId === coaching.id;
                 return (
-                  <li key={coaching.id}>
-                    <button
-                      type="button"
-                      onClick={() => onJumpToMessage(coaching.id)}
-                      className="group block w-full rounded-2xl bg-surface p-4 text-left transition-colors duration-150 ease-swift hover:bg-surface-hover"
-                    >
-                      <span className="flex items-center justify-between gap-2">
-                        {isLatest && (
-                          <span className="text-meta font-semibold uppercase tracking-wide text-accent">Just now</span>
-                        )}
-                        <ArrowUpRightIcon
-                          className="ml-auto size-3.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 ease-swift group-hover:opacity-100"
-                          aria-hidden="true"
-                        />
+                  <li key={coaching.id} className="rounded-2xl bg-surface p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-meta font-semibold uppercase tracking-wide ${isLatest ? 'text-accent' : 'text-muted'}`}>
+                        {isLatest ? 'Just now' : 'Earlier'}
                       </span>
-                      <span className={`block text-meta text-muted line-through ${isLatest ? 'mt-1' : ''}`}>
-                        {coaching.english}
-                      </span>
-                      <span className="mt-0.5 block text-lead font-medium text-primary">
-                        {coaching.loading ? '…' : (coaching.corrected || '—')}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => onJumpToMessage(coaching.id)}
+                        className="inline-flex items-center gap-1 rounded-md text-meta font-medium text-muted transition-colors duration-150 ease-swift hover:text-accent"
+                      >
+                        View in conversation
+                        <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    <p className="mt-3 text-meta font-medium uppercase tracking-wide text-muted">You said</p>
+                    <p className="mt-0.5 text-body-sm text-muted line-through">{coaching.english}</p>
+
+                    <p className="mt-3 text-meta font-medium uppercase tracking-wide text-accent">Say it like this</p>
+                    <p className="mt-0.5 text-lead font-medium text-primary">
+                      {coaching.loading ? '…' : (coaching.corrected || '—')}
+                    </p>
 
                     {!coaching.loading && coaching.explanation && (
-                      <div className="mt-2 rounded-2xl bg-accent-hover p-4">
-                        <p className="text-meta font-semibold uppercase tracking-wide text-on-accent/85">Explanation</p>
+                      <div className="mt-3 rounded-2xl bg-accent-hover p-4">
+                        <p className="text-meta font-semibold uppercase tracking-wide text-on-accent/85">Why</p>
                         <p className="mt-2 text-body-sm leading-relaxed text-on-accent">{coaching.explanation}</p>
                         {coaching.advancedDetail && (
                           <button
@@ -211,7 +212,7 @@ export function CoachDrawer({
                           transition={{ duration: 0.2, ease: EASE }}
                           className="overflow-hidden"
                         >
-                          <div className="mt-3 border-t border-subtle px-1 pt-3">
+                          <div className="mt-3 border-t border-subtle pt-3">
                             {coaching.advancedTopic && (
                               <h4 className="font-heading font-bold text-accent-hover">{coaching.advancedTopic}</h4>
                             )}
