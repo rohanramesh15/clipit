@@ -132,6 +132,7 @@ function AppInner() {
     // A manually-chosen view supersedes any message left over from an
     // earlier blocked Google sign-in/sign-up redirect.
     setAuthErrorMessage(null);
+    clearAuthError();
     setAppView(view);
     if (view === 'privacy') {
       window.history.pushState({}, '', '/privacy');
@@ -142,6 +143,7 @@ function AppInner() {
 
   const goBackFromAuth = () => {
     setAuthErrorMessage(null);
+    clearAuthError();
     const state = window.history.state as { clipitView?: AppView } | null;
     if (state?.clipitView && window.history.length > 1) {
       window.history.back();
@@ -230,19 +232,25 @@ function AppInner() {
         // Google OAuth always succeeds and silently provisions an account
         // regardless of which button was clicked, so a signin/signup
         // mismatch only surfaces here, after the backend rejects it and the
-        // session is torn back down.
+        // session is torn back down. Land back on Sign In either way — it's
+        // the right next step whether there's no account yet or one already
+        // exists. Deliberately doesn't clearAuthError() here: authError is a
+        // dependency of this same effect, so clearing it would immediately
+        // re-run this effect with authError now null and fall through to the
+        // plain "landing" branch below, undoing the redirect just set. It's
+        // cleared instead from the next real attempt (AuthContext) or a
+        // manual navigation (navigateToView/goBackFromAuth).
         setAuthErrorMessage(
           authError === 'no_account'
-            ? 'No account found for that email. Sign up to get started.'
+            ? "This account doesn't exist. Sign up to get started."
             : 'You already have an account with that email. Sign in instead.'
         );
-        setAppView(authError === 'no_account' ? 'signup' : 'login');
-        clearAuthError();
+        setAppView('login');
       } else {
         setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
       }
     }
-  }, [authError, clearAuthError, isLoading, isNewUser, token, user]);
+  }, [authError, isLoading, isNewUser, token, user]);
   // The app is light-only now — force the class/localStorage the same way
   // the landing page already does, so nothing can leave a stale 'dark' value
   // (e.g. from before this changed) lingering for the next visit.

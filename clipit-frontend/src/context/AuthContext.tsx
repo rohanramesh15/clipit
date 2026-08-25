@@ -118,13 +118,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // until this request resolves.
       activateLocalLearningData(authUserId);
       setToken(accessToken);
+      setAuthError(null);
       setIsLoading(false);
+      // Supabase fires onAuthStateChange's INITIAL_SESSION event *and*
+      // resolves getSession() on mount, so applySession runs twice back to
+      // back for the same login. Read the ref without clearing it yet, so
+      // both invocations see the same intent instead of the second one
+      // losing the race and silently skipping enforcement.
       const intent = authIntentRef.current;
-      authIntentRef.current = null;
       try {
         const me = await fetchMe(accessToken, authUserId, intent);
         if (active) {
-          setAuthError(null);
           setUser(me);
           if (me.is_new_user) setIsNewUser(true);
         }
@@ -138,8 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (err instanceof AuthIntentError) setAuthError(err.code);
         }
       } finally {
-        // isLoading only represents restoring the Supabase session. The
-        // profile bridge above intentionally continues in the background.
+        // Both duplicate calls have read the ref by now (the network round
+        // trip above vastly outlasts the gap between the two triggers), so
+        // it's safe to discard — a later, genuinely distinct auth event
+        // (e.g. a token refresh) must not replay this same intent.
+        authIntentRef.current = null;
       }
     };
 
