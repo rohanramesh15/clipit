@@ -5,18 +5,21 @@ import { useAuth } from '../context/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { AuthLayout } from '../components/AuthLayout';
 import { AuthField } from '../components/auth/AuthField';
-import { AuthDivider } from '../components/auth/AuthDivider';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
 import { PasswordToggle } from '../components/auth/PasswordToggle';
 import { FormError } from '../components/auth/FormError';
+import { Button } from '../components/ui/button';
 
 interface LoginPageProps {
   onNavigate: (view: 'landing' | 'signup' | 'app' | 'forgot-password') => void;
   onBack: () => void;
 }
 
+type Step = 'choose' | 'email';
+
 export function LoginPage({ onNavigate, onBack }: LoginPageProps) {
   const { login } = useAuth();
+  const [step, setStep] = useState<Step>('choose');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -39,16 +42,40 @@ export function LoginPage({ onNavigate, onBack }: LoginPageProps) {
     }
   };
 
+  if (step === 'choose') {
+    return (
+      <AuthLayout
+        key={step}
+        onBack={onBack}
+        title="Welcome back"
+        subtitle="Sign in to keep learning from what you watch."
+        switchPrompt={{ text: 'New to ClipIt?', linkLabel: 'Create an account', onClick: () => onNavigate('signup') }}
+      >
+        <div className="space-y-3">
+          <GoogleSignInButton onError={() => setError('Google sign-in was cancelled')} text="signin" />
+          {error && <FormError message={error} />}
+          <Button
+            type="button"
+            onClick={() => setStep('email')}
+            variant="secondary"
+            className="w-full"
+          >
+            <Mail className="h-4 w-4" aria-hidden="true" />
+            Sign in with email
+          </Button>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout
-      onBack={onBack}
-      title="Welcome back"
-      subtitle="Sign in to keep learning from what you watch."
+      key={step}
+      onBack={() => setStep('choose')}
+      title="Sign in with email"
+      subtitle="Welcome back."
       switchPrompt={{ text: 'New to ClipIt?', linkLabel: 'Create an account', onClick: () => onNavigate('signup') }}
     >
-      <GoogleSignInButton onError={() => setError('Google sign-in was cancelled')} text="signin" />
-      <AuthDivider label="or with email" />
-
       <form onSubmit={handleSubmit} className="space-y-3.5">
         {error && <FormError message={error} />}
 

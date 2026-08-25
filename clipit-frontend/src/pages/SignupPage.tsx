@@ -57,6 +57,7 @@ export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
   if (step === 'choose') {
     return (
       <AuthLayout
+        key={step}
         onBack={onBack}
         title="Sign up"
         subtitle="Turn what you watch into practice."
@@ -90,6 +91,7 @@ export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
 
   return (
     <AuthLayout
+      key={step}
       onBack={() => setStep('choose')}
       title="Sign up with email"
       subtitle="Just the basics."
