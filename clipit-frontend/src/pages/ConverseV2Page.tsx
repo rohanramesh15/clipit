@@ -5,7 +5,7 @@ import {
   Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
-  getProfile, createSession, sendTurn, romanize, getTurnAudioUrl,
+  getProfile, createSession, sendTurnStream, romanize, getTurnAudioUrl,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
@@ -166,6 +166,10 @@ export function ConverseV2Page(
   const [typing, setTyping] = useState(false);
   const [composerText, setComposerText] = useState('');
   const [sending, setSending] = useState(false);
+  // True once the streamed reply's first chunk has arrived — lets the
+  // "thinking" placeholder in MessageList give way to the real streaming
+  // text instead of sitting alongside it for the whole reply.
+  const [streaming, setStreaming] = useState(false);
   const [revealedCorrections, setRevealedCorrections] = useState<Set<string>>(new Set());
   const [correctionVerdicts, setCorrectionVerdicts] = useState<Record<string, 'fine' | 'wrong'>>({});
   const [status, setStatus] = useState('');
@@ -760,9 +764,20 @@ export function ConverseV2Page(
     setSuggestVisibleId(null);
     setSending(true);
     setStatus('Tutor is writing…');
+    const streamId = `a-streaming-${Date.now()}`;
+    let streamStarted = false;
     try {
-      const result = await sendTurn(sessionId, text, language, token);
-      setMessages((prev) => [...prev, {
+      const result = await sendTurnStream(sessionId, text, language, token, (piece) => {
+        setMessages((prev) => {
+          if (!streamStarted) {
+            streamStarted = true;
+            setStreaming(true);
+            return [...prev, { id: streamId, role: 'assistant', text: piece }];
+          }
+          return prev.map((m) => (m.id === streamId ? { ...m, text: m.text + piece } : m));
+        });
+      });
+      setMessages((prev) => prev.map((m) => (m.id === streamId ? {
         id: `a-${result.turn_id}`,
         role: 'assistant',
         text: result.reply,
@@ -771,14 +786,15 @@ export function ConverseV2Page(
         turnId: result.turn_id,
         suggestedReplies: result.suggested_replies,
         targets: result.used_target_words || [],
-      }]);
+      } : m)));
       setStatus('Tap a word for its meaning · pick a suggested reply below');
     } catch {
-      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== streamId));
       setComposerText(text);
       setChatError('Message failed to send. Try again.');
     } finally {
       setSending(false);
+      setStreaming(false);
     }
   }, [composerText, sending, sessionId, language, token]);
 
@@ -1127,7 +1143,7 @@ export function ConverseV2Page(
                     messages={messages}
                     language={language}
                     targetWords={targetWords}
-                    thinking={tutorBusy}
+                    thinking={tutorBusy && !streaming}
                     regenerating={regenLoading}
                     savedWords={savedWords}
                     onSaveWord={(w) => saveWord(w.lemma, w.gloss)}

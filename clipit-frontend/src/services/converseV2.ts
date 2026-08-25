@@ -162,6 +162,59 @@ export const resumeSession = (sessionId: number, token: string) =>
 export const sendTurn = (sessionId: number, text: string, language: string = 'es', token?: string | null) =>
   postJson<TurnResult>(`/session/${sessionId}/turn`, { text, language }, token);
 
+/** Same as sendTurn, but streams the reply as it's generated (SSE) instead
+ * of waiting for the full response. onChunk fires with each piece of text
+ * as it arrives; the returned promise resolves with the same shape as
+ * sendTurn once the stream completes. */
+export async function sendTurnStream(
+  sessionId: number,
+  text: string,
+  language: string,
+  token: string | null | undefined,
+  onChunk: (piece: string) => void,
+): Promise<TurnResult> {
+  const res = await fetch(`${BASE}/session/${sessionId}/turn/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ text, language }),
+  });
+  if (!res.ok || !res.body) throw new Error(`turn stream failed: ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: TurnResult | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+    for (const raw of events) {
+      const line = raw.trim();
+      if (!line.startsWith('data:')) continue;
+      const jsonStr = line.slice(5).trim();
+      if (!jsonStr) continue;
+      const event = JSON.parse(jsonStr);
+      if (event.type === 'chunk') {
+        onChunk(event.text as string);
+      } else if (event.type === 'error') {
+        throw new Error(event.message || 'Stream failed');
+      } else if (event.type === 'done') {
+        const { type: _type, ...rest } = event;
+        result = rest as TurnResult;
+      }
+    }
+  }
+
+  if (!result) throw new Error('Stream ended without a result');
+  return result;
+}
+
 export const regenerateTurn = (sessionId: number, language: string = 'ko', token?: string | null) =>
   postJson<TurnResult>(`/session/${sessionId}/regenerate`, { language }, token);
 
