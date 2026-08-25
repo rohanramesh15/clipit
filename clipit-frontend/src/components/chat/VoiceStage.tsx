@@ -127,35 +127,42 @@ export function VoiceStage({
 
     const run = async () => {
       setVisibleText(rephrase.previousText);
-      try {
-        audioUrl = await getRephraseAudioUrl(rephrase.turnId);
-        if (cancelled) return;
-        audio = new Audio(audioUrl);
-        audio.preload = 'auto';
-        await new Promise<void>((resolve, reject) => {
-          audio?.addEventListener('loadedmetadata', () => resolve(), { once: true });
-          audio?.addEventListener('error', () => reject(new Error('Could not load rephrase audio')), { once: true });
-          audio?.load();
-        });
-      } catch {
-        audio?.pause();
-        audio = null;
-      }
+
+      // Erase the old sentence and fetch/load the replacement audio at the
+      // same time — the erase used to wait on the audio round-trip before
+      // even starting, which is exactly the delay this removes.
+      const erase = (async () => {
+        for (let index = oldTokens.length - 1; index >= 0; index -= 1) {
+          await wait(Math.max(20, tokenWeight(oldTokens[index]) * REMOVAL_MS_PER_WEIGHT));
+          if (cancelled) return;
+          setVisibleText(oldTokens.slice(0, index).join(''));
+        }
+      })();
+
+      const loadAudio = (async () => {
+        try {
+          audioUrl = await getRephraseAudioUrl(rephrase.turnId);
+          if (cancelled) return;
+          audio = new Audio(audioUrl);
+          audio.preload = 'auto';
+          await new Promise<void>((resolve, reject) => {
+            audio?.addEventListener('loadedmetadata', () => resolve(), { once: true });
+            audio?.addEventListener('error', () => reject(new Error('Could not load rephrase audio')), { once: true });
+            audio?.load();
+          });
+        } catch {
+          audio?.pause();
+          audio = null;
+        }
+      })();
+
+      await Promise.all([erase, loadAudio]);
       if (cancelled) return;
+      setVisibleText('');
 
       const millisecondsPerWeight = audio && Number.isFinite(audio.duration) && audio.duration > 0
         ? (audio.duration * 1000) / totalNextWeight
         : FALLBACK_TOKEN_CADENCE_MS;
-
-      // Start at the last token so the sentence contracts naturally. This
-      // erase is deliberately quick and unrelated to the reveal cadence.
-      for (let index = oldTokens.length - 1; index >= 0; index -= 1) {
-        await wait(Math.max(20, tokenWeight(oldTokens[index]) * REMOVAL_MS_PER_WEIGHT));
-        if (cancelled) return;
-        setVisibleText(oldTokens.slice(0, index).join(''));
-      }
-      if (cancelled) return;
-      setVisibleText('');
 
       if (!audio) {
         await revealWithoutAudio(millisecondsPerWeight);
