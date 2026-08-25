@@ -64,7 +64,7 @@ export function WordProgressControl({ targets, usedLemmas }: WordProgressControl
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.16, ease: EASE }}
-            className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-subtle bg-app p-4 text-left shadow-pop"
+            className="absolute right-0 top-full z-30 mt-2 w-52 overflow-hidden rounded-2xl border border-subtle bg-app p-4 text-left shadow-pop"
           >
             <p className="text-body-sm font-semibold text-primary">Words to weave in</p>
             <p className="mt-0.5 text-meta text-muted">Use them in your own reply to complete the set.</p>
@@ -76,10 +76,10 @@ export function WordProgressControl({ targets, usedLemmas }: WordProgressControl
                     <span className={`grid size-4 shrink-0 place-items-center rounded-full ${used ? 'bg-accent text-white' : 'border border-medium'}`}>
                       {used && <CheckIcon className="size-3" aria-label="Used" />}
                     </span>
-                    <span className={`min-w-0 flex-1 text-body-sm ${used ? 'text-muted line-through' : 'font-medium text-primary'}`}>
+                    <span className={`min-w-0 flex-1 text-left text-body-sm ${used ? 'text-muted line-through' : 'font-medium text-primary'}`}>
                       {target.surface || target.lemma}
                     </span>
-                    {target.gloss && <span className="max-w-24 truncate text-meta text-muted">{target.gloss}</span>}
+                    {target.gloss && <span className="max-w-16 shrink-0 truncate text-right text-meta text-muted">{target.gloss}</span>}
                   </li>
                 );
               })}
