@@ -92,12 +92,12 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
                 setVisible(PAGE_SIZE);
               }}
               placeholder="Search a video"
-              className="w-full rounded-xl border border-subtle bg-app py-2.5 pl-9 pr-3 text-body-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
+              className="h-10 w-full rounded-xl border border-subtle bg-app pl-9 pr-3 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
             />
           </label>
           <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm" className="h-auto rounded-xl bg-app px-4 py-2 text-body-sm font-semibold text-primary hover:bg-surface-hover">
+              <Button variant="secondary" size="sm" className="h-10 rounded-xl bg-app px-4 text-body-sm font-semibold text-primary hover:bg-surface-hover">
                 {currentSort.label}
                 <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isSortOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                 <span className="sr-only">Sort videos</span>

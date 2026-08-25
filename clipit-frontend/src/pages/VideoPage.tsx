@@ -120,68 +120,78 @@ export function VideoPage() {
       </header>
 
       <section aria-label="Video history">
-      {loadState === 'loading' && (
-        <div className="mt-6" role="status" aria-live="polite" aria-label="Loading your watch history">
-          <Skeleton className="h-72 w-full rounded-2xl" />
-        </div>
-      )}
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.div
+          key={loadState === 'loaded' ? filter : loadState}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
+          {loadState === 'loading' && (
+            <div className="mt-6" role="status" aria-live="polite" aria-label="Loading your watch history">
+              <Skeleton className="h-72 w-full rounded-2xl" />
+            </div>
+          )}
 
-      {loadState === 'error' && (
-        <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-16 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
-            <AlertCircle className="h-6 w-6" />
-          </span>
-          <div>
-            <p className="font-semibold text-primary">Backend not reachable</p>
-            <p className="mt-1 text-body-sm text-secondary">Make sure the ClipIt server is running and accessible.</p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => void history.refetch()}
-          >
-            Try again
-          </Button>
-        </div>
-      )}
-
-      {loadState === 'loaded' && visible.length === 0 && (
-        <div className="mt-6">
-          <EmptyState
-            title={filter === 'all' ? 'No videos yet' : `No ${filter === 'youtube' ? 'YouTube' : 'Netflix'} videos yet`}
-            description={filter === 'all'
-              ? 'Get the extension, turn it on, then watch YouTube or Netflix to record videos here.'
-              : `Get the extension, turn it on, then watch ${filter === 'youtube' ? 'YouTube' : 'Netflix'} to record videos here.`}
-          >
-            <a
-              href={EXTENSION_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
-            >
-              Get the ClipIt extension
-            </a>
-          </EmptyState>
-        </div>
-      )}
-
-      {loadState === 'loaded' && visible.length > 0 && (
-        <ul>
-          <AnimatePresence initial={false}>
-            {visible.map((video, index) => (
-              <motion.li
-                key={video.id}
-                layout
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.24, delay: Math.min(0.04 * index, 0.24), ease: [0.23, 1, 0.32, 1] }}
+          {loadState === 'error' && (
+            <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-16 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-error/10 text-error" aria-hidden="true">
+                <AlertCircle className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="font-semibold text-primary">Backend not reachable</p>
+                <p className="mt-1 text-body-sm text-secondary">Make sure the ClipIt server is running and accessible.</p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => void history.refetch()}
               >
-                <VideoHistoryItem video={video} onRemove={setPendingRemoval} />
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
-      )}
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {loadState === 'loaded' && visible.length === 0 && (
+            <div className="mt-6">
+              <EmptyState
+                title={filter === 'all' ? 'No videos yet' : `No ${filter === 'youtube' ? 'YouTube' : 'Netflix'} videos yet`}
+                description={filter === 'all'
+                  ? 'Get the extension, turn it on, then watch YouTube or Netflix to record videos here.'
+                  : `Get the extension, turn it on, then watch ${filter === 'youtube' ? 'YouTube' : 'Netflix'} to record videos here.`}
+              >
+                <a
+                  href={EXTENSION_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
+                >
+                  Get the ClipIt extension
+                </a>
+              </EmptyState>
+            </div>
+          )}
+
+          {loadState === 'loaded' && visible.length > 0 && (
+            <ul>
+              <AnimatePresence initial={false}>
+                {visible.map((video, index) => (
+                  <motion.li
+                    key={video.id}
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.24, delay: Math.min(0.04 * index, 0.24), ease: [0.23, 1, 0.32, 1] }}
+                  >
+                    <VideoHistoryItem video={video} onRemove={setPendingRemoval} />
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </ul>
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       </section>
 

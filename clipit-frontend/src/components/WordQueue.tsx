@@ -34,7 +34,7 @@ const STATUS_STYLES: Record<WordStatus, string> = {
   new: 'border border-medium text-secondary',
 };
 
-const WORDS_PER_PAGE = 8;
+const WORDS_PER_PAGE = 7;
 
 interface WordQueueProps {
   words: QueuedWord[];
