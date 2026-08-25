@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlertCircle, Flame, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
 import { Skeleton } from '../components/Skeleton';
@@ -141,14 +141,20 @@ export function AnalyticsPage() {
       <section aria-label="Progress overview" className="overflow-hidden rounded-3xl border border-subtle bg-surface">
         <div className="grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,1.1fr)] lg:items-center lg:gap-8">
           <section aria-labelledby="streak-heading" className="min-w-0">
-            <p id="streak-heading" className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-[0.06em] text-accent">
-              <Flame className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-              Current streak
-            </p>
-            <p className="mt-1.5 font-heading text-section-lg leading-none text-primary">
-              {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
-            </p>
-            <p className="mt-1.5 text-body-sm text-secondary">Best run: {longestStreak} days</p>
+            <div className="flex items-start gap-10 sm:gap-14">
+              <div>
+                <p id="streak-heading" className="text-meta font-semibold text-accent">Streak</p>
+                <p className="mt-1.5 font-heading text-section-lg leading-none text-primary">
+                  {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-meta font-semibold text-accent">Best run</p>
+                <p className="mt-1.5 font-heading text-section-lg leading-none text-primary">
+                  {longestStreak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
+                </p>
+              </div>
+            </div>
 
             <ul className="mt-4 grid max-w-sm grid-cols-7 gap-1.5" aria-label="Last seven days of practice">
               {lastWeek.map((day, index) => (
