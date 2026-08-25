@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Pencil, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
+import { Clock, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import { FlashCard } from '../../types/flashcards';
 import { getWordFontSize } from '../../utils/flashcardStorage';
 import { ClipPlayer } from './ClipPlayer';
@@ -22,12 +22,6 @@ interface ReviewCardProps {
   onRevertToTTS: () => void;
   isReverting: boolean;
   onDeleteCard: () => void;
-  isEditingDefinition: boolean;
-  editedDefinition: string;
-  onStartEdit: () => void;
-  onChangeEditedDefinition: (value: string) => void;
-  onSaveDefinition: () => void;
-  onCancelEdit: () => void;
 }
 
 const faceClasses =
@@ -43,12 +37,6 @@ export function ReviewCard({
   onRevertToTTS,
   isReverting,
   onDeleteCard,
-  isEditingDefinition,
-  editedDefinition,
-  onStartEdit,
-  onChangeEditedDefinition,
-  onSaveDefinition,
-  onCancelEdit,
 }: ReviewCardProps) {
   const timeStr =
     card.timestamp != null
@@ -159,66 +147,24 @@ export function ReviewCard({
           aria-hidden={!isFlipped}
           onClick={isFlipped ? onFlip : undefined}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3">
+          <div className="flex shrink-0 items-center gap-1.5">
             <span className="truncate rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
               {card.target_word}
             </span>
-            <div className="flex shrink-0 items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
+            <div className="shrink-0" onClick={(event) => event.stopPropagation()}>
               <PronounceButton
                 text={card.target_word}
                 language={language}
                 label={`Hear ${card.target_word} pronounced`}
                 size="sm"
               />
-              {!isEditingDefinition && (
-                <Tooltip label="Edit" placement="bottom">
-                  <button
-                    type="button"
-                    onClick={onStartEdit}
-                    aria-label="Edit definition"
-                    className="grid size-9 place-items-center rounded-lg text-muted transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </Tooltip>
-              )}
             </div>
           </div>
 
           <div className="mt-4 flex min-h-0 flex-1 flex-col justify-center">
-            {isEditingDefinition ? (
-              <div className="w-full" onClick={(event) => event.stopPropagation()}>
-                <input
-                  type="text"
-                  value={editedDefinition}
-                  onChange={(event) => onChangeEditedDefinition(event.target.value)}
-                  className="w-full rounded-lg border border-medium bg-app px-4 py-3 text-center text-lead text-primary focus:outline-none focus:ring-2 focus:ring-accent/40"
-                  autoFocus
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') onSaveDefinition();
-                    if (event.key === 'Escape') onCancelEdit();
-                  }}
-                />
-                <div className="mt-3 flex justify-center gap-2">
-                  <button
-                    onClick={onCancelEdit}
-                    className="rounded-lg border border-subtle bg-app px-4 py-1.5 text-body-sm font-medium text-primary hover:bg-surface-hover"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={onSaveDefinition}
-                    className="rounded-lg bg-accent px-4 py-1.5 text-body-sm font-medium text-on-accent hover:bg-accent-hover"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="font-heading text-[1.75rem] leading-tight text-primary">
-                {card.english && card.english !== 'definition not available' ? card.english : '-'}
-              </p>
-            )}
+            <p className="font-heading text-[1.75rem] leading-tight text-primary">
+              {card.english && card.english !== 'definition not available' ? card.english : '-'}
+            </p>
             {card.dictionary_form && card.dictionary_form !== card.target_word && (
               <p className="mt-2 text-body-sm text-secondary">Dictionary form · {card.dictionary_form}</p>
             )}

@@ -90,8 +90,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [lastRatingInfo, setLastRatingInfo] = useState<{ word: string; nextDue: string } | null>(null);
   const [sessionStats, setSessionStats] = useState({ reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 });
-  const [isEditingDefinition, setIsEditingDefinition] = useState(false);
-  const [editedDefinition, setEditedDefinition] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const deleteCardDialogRef = useDialogFocus(showDeleteConfirm, () => setShowDeleteConfirm(false));
   const [isReverting, setIsReverting] = useState(false);
@@ -696,7 +694,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // Space/Enter to flip, Esc to leave, 1-4 to rate once revealed.
   useEffect(() => {
-    if (loadState !== 'loaded' || !currentCard || isEditingDefinition || showDeleteConfirm) return;
+    if (loadState !== 'loaded' || !currentCard || showDeleteConfirm) return;
     const keyToRating: Record<string, Rating> = {
       '1': Rating.Again,
       '2': Rating.Hard,
@@ -807,59 +805,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
       console.error('Failed to revert card to TTS:', error);
     } finally {
       setIsReverting(false);
-    }
-  }
-
-  // Start editing definition
-  function handleStartEditDefinition() {
-    if (!currentCard) return;
-    setEditedDefinition(currentCard.english || '');
-    setIsEditingDefinition(true);
-  }
-
-  // Save edited definition
-  async function handleSaveDefinition() {
-    if (!currentCard || !editedDefinition.trim()) {
-      setIsEditingDefinition(false);
-      return;
-    }
-
-    const word = currentCard.dictionary_form || currentCard.target_word;
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/flashcard-definition`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          word,
-          definition: editedDefinition.trim(),
-          language,
-        }),
-      });
-
-      if (res.ok) {
-        const updateCardDefinition = (card: FlashCard) => {
-          if ((card.dictionary_form || card.target_word) === word) {
-            return { ...card, english: editedDefinition.trim() };
-          }
-          return card;
-        };
-        setCards(prev => prev.map(updateCardDefinition));
-        setDueCards(prev => prev.map(updateCardDefinition));
-        if (currentCard.video_id) {
-          queryClient.setQueryData<FlashCard[]>(
-            queryKeys.flashcardDeck(user?.id ?? 0, language, currentCard.video_id),
-            (cached) => cached?.map(updateCardDefinition),
-          );
-        }
-      }
-    } catch (error) {
-      console.error('Failed to save definition:', error);
-    } finally {
-      setIsEditingDefinition(false);
     }
   }
 
@@ -1156,12 +1101,6 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             onRevertToTTS={handleRevertToTTS}
             isReverting={isReverting}
             onDeleteCard={handleDeleteCard}
-            isEditingDefinition={isEditingDefinition}
-            editedDefinition={editedDefinition}
-            onStartEdit={handleStartEditDefinition}
-            onChangeEditedDefinition={setEditedDefinition}
-            onSaveDefinition={handleSaveDefinition}
-            onCancelEdit={() => setIsEditingDefinition(false)}
           />
         </div>
       )}
