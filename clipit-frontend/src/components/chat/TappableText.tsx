@@ -6,6 +6,8 @@ import type { SavedWord } from '../../types/chat';
 
 interface TappableTextProps {
   text: string;
+  /** Text currently visible while a parent-controlled transition is running. */
+  displayText?: string;
   language: string;
   /** Fade words in as they arrive during a live streamed response. */
   animateWords?: boolean;
@@ -19,7 +21,7 @@ function stripPunct(word: string): string {
   return word.replace(/^[¿?¡!.,;:"'()«»…]+|[¿?¡!.,;:"'()«»…]+$/gu, '');
 }
 
-export function TappableText({ text, language, animateWords = false, targets = [], savedWords, onSaveWord }: TappableTextProps) {
+export function TappableText({ text, displayText, language, animateWords = false, targets = [], savedWords, onSaveWord }: TappableTextProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [glosses, setGlosses] = useState<Record<number, { text: string; loading: boolean }>>({});
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -41,7 +43,7 @@ export function TappableText({ text, language, animateWords = false, targets = [
     };
   }, [openIndex]);
 
-  const tokens = text.split(/(\s+)/);
+  const tokens = (displayText ?? text).split(/(\s+)/);
 
   function openWord(index: number, word: string) {
     setOpenIndex(index);

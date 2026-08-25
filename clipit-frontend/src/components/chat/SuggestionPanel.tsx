@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { XIcon } from 'lucide-react';
-import { Tooltip } from '../Tooltip';
-import { LoadingAnimation } from '../LoadingAnimation';
 import type { SuggestedReply } from '../../types/chat';
 
 interface SuggestionPanelProps {
   open: boolean;
   suggestions: SuggestedReply[];
   isLoading?: boolean;
+  /** Raw SSE text for the JSONL row still being generated. */
+  draft?: string;
   error?: string | null;
   onPick: (reply: SuggestedReply) => void;
   onDismiss: () => void;
@@ -17,15 +17,29 @@ interface SuggestionPanelProps {
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
+function currentDraftText(raw: string): string {
+  const lines = raw.replace(/```(?:json)?/gu, '').split('\n');
+  const currentLine = lines[lines.length - 1] ?? '';
+  const match = currentLine.match(/"es"\s*:\s*"((?:\\.|[^"\\])*)/u);
+  if (!match) return '';
+  try {
+    return JSON.parse(`"${match[1]}"`);
+  } catch {
+    return match[1].replace(/\\n/gu, ' ').replace(/\\"/gu, '"');
+  }
+}
+
 export function SuggestionPanel({
   open,
   suggestions,
   isLoading = false,
+  draft = '',
   error = null,
   onPick,
   onDismiss,
   onRetry,
 }: SuggestionPanelProps) {
+  const liveDraft = currentDraftText(draft);
   useEffect(() => {
     if (suggestions.length === 0) return;
 
@@ -74,42 +88,41 @@ export function SuggestionPanel({
           </div>
 
           <ul className="divide-y divide-[color:var(--border-subtle)]">
-            {Array.from({ length: isLoading ? 3 : suggestions.length }, (_, index) => {
-              const reply = suggestions[index];
+            {suggestions.map((reply, index) => {
               return (
                 <li key={index} className="group relative flex min-h-[4.5rem] items-stretch">
-                  {reply ? (
-                    <motion.button
-                      type="button"
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, ease: EASE }}
-                      onClick={() => onPick(reply)}
-                      className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left hover:bg-surface-hover"
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, ease: EASE }}
+                    onClick={() => onPick(reply)}
+                    className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left hover:bg-surface-hover"
+                  >
+                    <kbd
+                      aria-hidden="true"
+                      className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-accent-soft text-meta font-semibold text-accent"
                     >
-                      <kbd
-                        aria-hidden="true"
-                        className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-accent-soft text-meta font-semibold text-accent"
-                      >
-                        {index + 1}
-                      </kbd>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-body-sm font-semibold text-primary">{reply.es}</span>
-                        {reply.en && <span className="mt-0.5 block text-meta text-muted">{reply.en}</span>}
-                      </span>
-                    </motion.button>
-                  ) : (
-                    <div className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3" role="status" aria-label={`Preparing suggestion ${index + 1}`}>
-                      <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-accent-soft text-meta font-semibold text-accent">{index + 1}</span>
-                      <span className="flex min-w-0 flex-1 items-center gap-2 text-body-sm text-muted">
-                        <LoadingAnimation className="size-3.5 text-accent" />
-                        Finding a natural reply…
-                      </span>
-                    </div>
-                  )}
+                      {index + 1}
+                    </kbd>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-body-sm font-semibold text-primary">{reply.es}</span>
+                      {reply.en && <span className="mt-0.5 block text-meta text-muted">{reply.en}</span>}
+                    </span>
+                  </motion.button>
                 </li>
               );
             })}
+            {isLoading && (
+              <li className="flex min-h-[4.5rem] items-stretch">
+                <div className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3" role="status" aria-live="polite">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-accent-soft text-meta font-semibold text-accent">{suggestions.length + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body-sm font-semibold text-primary">{liveDraft || 'Writing a reply…'}</span>
+                  </span>
+                </div>
+              </li>
+            )}
           </ul>
 
           {!isLoading && suggestions.length === 0 && (

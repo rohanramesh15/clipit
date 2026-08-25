@@ -290,6 +290,7 @@ export async function suggestRepliesStream(
   language: string,
   token: string | null | undefined,
   onSuggestion: (suggestion: SuggestedReply) => void,
+  onDelta?: (text: string) => void,
 ): Promise<SuggestedReply[]> {
   const res = await fetch(`${BASE}/session/${sessionId}/suggest/stream`, {
     method: 'POST',
@@ -316,7 +317,9 @@ export async function suggestRepliesStream(
   };
 
   const handleEvent = (event: Record<string, unknown>) => {
-    if (event.type === 'suggestion' && event.suggestion && typeof event.suggestion === 'object') {
+    if (event.type === 'delta' && typeof event.text === 'string') {
+      onDelta?.(event.text);
+    } else if (event.type === 'suggestion' && event.suggestion && typeof event.suggestion === 'object') {
       receive(event.suggestion as SuggestedReply);
     } else if (event.type === 'done' && Array.isArray(event.suggested_replies)) {
       // The final payload makes choices resilient to proxies that coalesce

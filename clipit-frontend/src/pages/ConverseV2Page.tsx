@@ -203,9 +203,16 @@ export function ConverseV2Page(
   const coachReqRef = useRef<Set<string>>(new Set());
   // Another response / Suggest reply
   const [regenLoading, setRegenLoading] = useState(false);
+  const [rephraseTransition, setRephraseTransition] = useState<{
+    sequence: number;
+    previousText: string;
+    nextText: string;
+    turnId: number;
+  } | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestVisibleId, setSuggestVisibleId] = useState<string | null>(null); // show suggestions only after the user asks
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [suggestDraft, setSuggestDraft] = useState('');
 
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
@@ -680,14 +687,26 @@ export function ConverseV2Page(
     setTutorSpeaking(false);
   }, [stopSpeaking]);
 
+  const getRephraseAudioUrl = useCallback(
+    (turnId: number) => getTurnAudioUrl(token, turnId, aiVoiceId),
+    [token, aiVoiceId],
+  );
+
+  const completeRephrase = useCallback(() => {
+    setRephraseTransition(null);
+  }, []);
+
   // Another response — regenerate the latest AI reply.
   const handleAnotherResponse = useCallback(async () => {
-    if (sessionId == null || regenLoading) return;
+    if (sessionId == null || regenLoading || rephraseTransition) return;
     let targetId: string | null = null;
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant') { targetId = messages[i].id; break; }
     }
     if (!targetId) return;
+    const previousText = messages.find((message) => message.id === targetId)?.text;
+    if (!previousText) return;
+    stopListening();
     setRegenLoading(true);
     try {
       const r = await regenerateTurn(sessionId, language, token);
@@ -698,13 +717,18 @@ export function ConverseV2Page(
       } : mm)));
       setMsgRoman((p) => ({ ...p, [id]: r.romanized || '' }));
       romanReqRef.current.add(id);
-      speak(r.reply, r.turn_id, () => setTutorSpeaking(true), () => setTutorSpeaking(false));
+      setRephraseTransition({
+        sequence: Date.now(),
+        previousText,
+        nextText: r.reply,
+        turnId: r.turn_id,
+      });
     } catch {
       setChatError('Could not regenerate. Try again.');
     } finally {
       setRegenLoading(false);
     }
-  }, [sessionId, language, regenLoading, messages, token, speak]);
+  }, [sessionId, language, regenLoading, messages, token, stopListening, rephraseTransition]);
 
   // Suggest reply — fetch things the learner could say next.
   const handleSuggestReply = useCallback(async () => {
@@ -719,6 +743,7 @@ export function ConverseV2Page(
     if (latestAssistantId == null) return;
     setSuggestLoading(true);
     setSuggestError(null);
+    setSuggestDraft('');
     setSuggestVisibleId(latestAssistantId);
     setMessages((previous) => previous.map((message) => (
       message.id === latestAssistantId ? { ...message, suggestedReplies: [] } : message
@@ -730,7 +755,7 @@ export function ConverseV2Page(
             ? { ...message, suggestedReplies: [...(message.suggestedReplies ?? []), suggestion] }
             : message
         )));
-      });
+      }, (text) => setSuggestDraft((previous) => previous + text));
       if (replies.length === 0) setSuggestError('Could not prepare suggestions.');
     } catch {
       setSuggestError('Could not prepare suggestions.');
@@ -1562,7 +1587,10 @@ export function ConverseV2Page(
                   onSuggest={handleSuggestReply}
                   onListen={listenToMessage}
                   onStopListen={stopListening}
-                  regenerating={regenLoading}
+                  regenerating={regenLoading || rephraseTransition !== null}
+                  rephrase={rephraseTransition}
+                  getRephraseAudioUrl={getRephraseAudioUrl}
+                  onRephraseEnd={completeRephrase}
                   romanized={tutorTurn ? msgRoman[tutorTurn.id] : undefined}
                 />
               </motion.div>
@@ -1576,6 +1604,7 @@ export function ConverseV2Page(
                   open={suggestVisibleId !== null}
                   suggestions={activeSuggestions}
                   isLoading={suggestLoading && suggestVisibleId !== null}
+                  draft={suggestDraft}
                   error={suggestError}
                   onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
                   onDismiss={() => setSuggestVisibleId(null)}
