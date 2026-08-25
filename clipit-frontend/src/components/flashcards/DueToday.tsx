@@ -47,7 +47,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
 
   return (
     <section className="mt-8" aria-labelledby="continue-practicing-heading">
-      <h2 id="continue-practicing-heading" className="font-sans text-body-sm font-bold uppercase tracking-[0.12em] text-secondary">Continue practicing</h2>
+      <h2 id="continue-practicing-heading" className="font-sans text-body-sm font-bold tracking-[0.08em] text-secondary">Continue practicing</h2>
       <div
         className="mt-2 flex min-h-24 flex-wrap items-center justify-between gap-x-10 gap-y-5 rounded-2xl bg-sand-soft px-7 py-5 lg:flex-nowrap"
         aria-labelledby="due-heading"

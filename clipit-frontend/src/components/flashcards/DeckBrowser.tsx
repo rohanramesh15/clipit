@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ExternalLink, Film, PlayIcon, SearchIcon, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, Film, PlayIcon, Trash2, X } from 'lucide-react';
 import { TrackedVideo } from '../../types/flashcards';
 import { relativeDay } from '../../utils/flashcardStorage';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ExpandableSearch } from '../ExpandableSearch';
 
 interface DeckBrowserProps {
   videos: TrackedVideo[];
@@ -79,22 +80,12 @@ export function DeckBrowser({ videos, wordCounts, dueCounts, onStudyVideo, onDel
         </h2>
 
         <div className="flex flex-1 items-center justify-end gap-3">
-          <label className="relative w-full max-w-xs">
-            <span className="sr-only">Search videos</span>
-            <SearchIcon
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-              aria-hidden="true"
-            />
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setVisible(PAGE_SIZE);
-              }}
-              placeholder="Search a video"
-              className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
-            />
-          </label>
+          <ExpandableSearch
+            value={query}
+            onChange={(value) => { setQuery(value); setVisible(PAGE_SIZE); }}
+            label="Search videos"
+            placeholder="Search a video"
+          />
           <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="sm" className="h-10 rounded-xl bg-app px-4 text-body-sm font-semibold text-primary hover:bg-surface-hover">
