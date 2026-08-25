@@ -44,6 +44,8 @@ export class VoiceSession {
   private listeners: Handler[] = [];
   private speaking = false;
   private speakerLevelTimer: number | null = null;
+  private lastMicFrameAt = 0;
+  private micWatchdog: number | null = null;
 
   on(h: Handler) {
     this.listeners.push(h);
@@ -54,6 +56,32 @@ export class VoiceSession {
 
   private emit(e: VoiceEvent) {
     for (const l of this.listeners) l(e);
+  }
+
+  private handleInputStateChange = () => {
+    if (this.inputCtx?.state === 'suspended') {
+      this.inputCtx.resume().catch(() => {});
+    }
+  };
+
+  private handleVisibilityChange = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (this.inputCtx?.state === 'suspended') this.inputCtx.resume().catch(() => {});
+    if (this.outputCtx?.state === 'suspended') this.outputCtx.resume().catch(() => {});
+  };
+
+  /** Catches suspensions that don't fire 'statechange' (seen on iOS Safari)
+   *  by noticing the worklet has gone quiet — it posts a frame every ~100ms
+   *  whenever the context is actually running, silence included. */
+  private checkMicHealth() {
+    if (!this.inputCtx) return;
+    if (this.inputCtx.state === 'suspended') {
+      this.inputCtx.resume().catch(() => {});
+      return;
+    }
+    if (Date.now() - this.lastMicFrameAt > 3000) {
+      this.inputCtx.resume().catch(() => {});
+    }
   }
 
   async start(url: string) {
@@ -78,6 +106,20 @@ export class VoiceSession {
     if (this.inputCtx.state === 'suspended') await this.inputCtx.resume();
     if (this.outputCtx.state === 'suspended') await this.outputCtx.resume();
 
+    // The mic's AudioContext can be suspended again mid-call — e.g. iOS
+    // Safari suspends all AudioContexts on screen-lock/backgrounding and
+    // doesn't auto-resume them. Since the input graph has no destination
+    // connection (see below), the browser is especially likely to treat it
+    // as eligible for power-saving suspension. When that happens the
+    // worklet silently stops firing: no error, no closed event, just no
+    // more mic frames — while the UI keeps showing "listening" because
+    // that status comes from server turn-taking messages, not local
+    // capture health. Watch for it and resume proactively.
+    this.inputCtx.addEventListener('statechange', this.handleInputStateChange);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    this.lastMicFrameAt = Date.now();
+    this.micWatchdog = window.setInterval(() => this.checkMicHealth(), 2000);
+
     // ── WebSocket ────────────────────────────────────────────────────────────
     this.ws = new WebSocket(url);
     this.ws.binaryType = 'arraybuffer';
@@ -86,6 +128,7 @@ export class VoiceSession {
       // Mic frames start flowing only after the socket is open.
       this.worklet!.port.onmessage = (ev) => {
         const { pcm, rms } = ev.data as { pcm: ArrayBuffer; rms: number };
+        this.lastMicFrameAt = Date.now();
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.ws.send(pcm);
         }
@@ -121,6 +164,14 @@ export class VoiceSession {
   }
 
   private cleanup() {
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    if (this.micWatchdog != null) {
+      clearInterval(this.micWatchdog);
+      this.micWatchdog = null;
+    }
+    if (this.inputCtx) {
+      this.inputCtx.removeEventListener('statechange', this.handleInputStateChange);
+    }
     if (this.worklet) {
       try { this.worklet.disconnect(); } catch {}
       this.worklet = null;
