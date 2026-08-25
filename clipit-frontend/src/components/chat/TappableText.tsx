@@ -56,6 +56,7 @@ export function TappableText({ text, displayText, language, animateWords = false
 
   return (
     <span ref={containerRef}>
+      <AnimatePresence initial={false}>
       {tokens.map((token, index) => {
         const word = stripPunct(token);
         if (!word) return <span key={index}>{token}</span>;
@@ -70,6 +71,7 @@ export function TappableText({ text, displayText, language, animateWords = false
             key={index}
             initial={animateWords ? { opacity: 0 } : false}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="relative inline-block"
           >
@@ -116,6 +118,7 @@ export function TappableText({ text, displayText, language, animateWords = false
           </motion.span>
         );
       })}
+      </AnimatePresence>
     </span>
   );
 }

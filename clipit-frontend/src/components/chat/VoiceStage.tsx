@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ALargeSmallIcon,
@@ -31,8 +31,10 @@ interface VoiceStageProps {
   rephrase?: {
     sequence: number;
     previousText: string;
-    nextText: string;
-    turnId: number;
+    // Null until the replacement text has come back from the server — the
+    // erase animation only needs previousText and starts immediately.
+    nextText: string | null;
+    turnId: number | null;
   } | null;
   getRephraseAudioUrl: (turnId: number) => Promise<string>;
   onRephraseEnd: () => void;
@@ -98,6 +100,11 @@ export function VoiceStage({
     if (!rephrase) setVisibleText(tutorTurn?.text ?? '');
   }, [rephrase, tutorTurn?.text]);
 
+  // Lets the running effect below see nextText/turnId as they arrive without
+  // restarting (it's keyed on rephrase.sequence, not the rephrase object).
+  const rephraseRef = useRef(rephrase);
+  rephraseRef.current = rephrase;
+
   useEffect(() => {
     if (!rephrase) return;
 
@@ -106,31 +113,24 @@ export function VoiceStage({
     let audioUrl: string | null = null;
     let frame: number | null = null;
     const oldTokens = tokensForTiming(rephrase.previousText);
-    const nextTokens = tokensForTiming(rephrase.nextText);
-    const nextWeights = nextTokens.map(tokenWeight);
-    const totalNextWeight = nextWeights.reduce((total, weight) => total + weight, 0) || 1;
 
-    const finish = () => {
-      if (cancelled) return;
-      setVisibleText(rephrase.nextText);
-      onRephraseEnd();
-    };
-
-    const revealWithoutAudio = async (millisecondsPerWeight: number) => {
-      for (let index = 0; index < nextTokens.length; index += 1) {
-        await wait(Math.max(80, tokenWeight(nextTokens[index]) * millisecondsPerWeight));
-        if (cancelled) return;
-        setVisibleText(nextTokens.slice(0, index + 1).join(''));
+    const waitForNextText = async (): Promise<{ nextText: string; turnId: number }> => {
+      while (!cancelled) {
+        const current = rephraseRef.current;
+        if (current?.sequence === rephrase.sequence && current.nextText != null && current.turnId != null) {
+          return { nextText: current.nextText, turnId: current.turnId };
+        }
+        await wait(40);
       }
-      finish();
+      return { nextText: rephrase.previousText, turnId: 0 };
     };
 
     const run = async () => {
       setVisibleText(rephrase.previousText);
 
-      // Erase the old sentence and fetch/load the replacement audio at the
-      // same time — the erase used to wait on the audio round-trip before
-      // even starting, which is exactly the delay this removes.
+      // Erase the old sentence while regenerateTurn is still in flight — the
+      // erase used to wait on that whole round-trip before even starting,
+      // which is exactly the delay this removes.
       const erase = (async () => {
         for (let index = oldTokens.length - 1; index >= 0; index -= 1) {
           await wait(Math.max(20, tokenWeight(oldTokens[index]) * REMOVAL_MS_PER_WEIGHT));
@@ -139,26 +139,44 @@ export function VoiceStage({
         }
       })();
 
-      const loadAudio = (async () => {
-        try {
-          audioUrl = await getRephraseAudioUrl(rephrase.turnId);
-          if (cancelled) return;
-          audio = new Audio(audioUrl);
-          audio.preload = 'auto';
-          await new Promise<void>((resolve, reject) => {
-            audio?.addEventListener('loadedmetadata', () => resolve(), { once: true });
-            audio?.addEventListener('error', () => reject(new Error('Could not load rephrase audio')), { once: true });
-            audio?.load();
-          });
-        } catch {
-          audio?.pause();
-          audio = null;
-        }
-      })();
-
-      await Promise.all([erase, loadAudio]);
+      const [, { nextText, turnId }] = await Promise.all([erase, waitForNextText()]);
       if (cancelled) return;
       setVisibleText('');
+
+      const nextTokens = tokensForTiming(nextText);
+      const nextWeights = nextTokens.map(tokenWeight);
+      const totalNextWeight = nextWeights.reduce((total, weight) => total + weight, 0) || 1;
+
+      const finish = () => {
+        if (cancelled) return;
+        setVisibleText(nextText);
+        onRephraseEnd();
+      };
+
+      const revealWithoutAudio = async (millisecondsPerWeight: number) => {
+        for (let index = 0; index < nextTokens.length; index += 1) {
+          await wait(Math.max(80, tokenWeight(nextTokens[index]) * millisecondsPerWeight));
+          if (cancelled) return;
+          setVisibleText(nextTokens.slice(0, index + 1).join(''));
+        }
+        finish();
+      };
+
+      try {
+        audioUrl = await getRephraseAudioUrl(turnId);
+        if (cancelled) return;
+        audio = new Audio(audioUrl);
+        audio.preload = 'auto';
+        await new Promise<void>((resolve, reject) => {
+          audio?.addEventListener('loadedmetadata', () => resolve(), { once: true });
+          audio?.addEventListener('error', () => reject(new Error('Could not load rephrase audio')), { once: true });
+          audio?.load();
+        });
+      } catch {
+        audio?.pause();
+        audio = null;
+      }
+      if (cancelled) return;
 
       const millisecondsPerWeight = audio && Number.isFinite(audio.duration) && audio.duration > 0
         ? (audio.duration * 1000) / totalNextWeight
@@ -194,7 +212,7 @@ export function VoiceStage({
       audio?.pause();
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
-  }, [getRephraseAudioUrl, onRephraseEnd, rephrase]);
+  }, [getRephraseAudioUrl, onRephraseEnd, rephrase?.sequence]);
 
   const toggleTranslation = () => {
     const next = !showTranslation;
@@ -220,7 +238,7 @@ export function VoiceStage({
               text={tutorTurn.text}
               displayText={visibleText}
               language={language}
-              animateWords={tutorTurn.turnId === undefined}
+              animateWords={tutorTurn.turnId === undefined || !!rephrase}
               targets={tutorTurn.targets}
               savedWords={savedWords}
               onSaveWord={onSaveWord}

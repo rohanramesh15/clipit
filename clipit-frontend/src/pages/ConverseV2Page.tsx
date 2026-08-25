@@ -206,8 +206,10 @@ export function ConverseV2Page(
   const [rephraseTransition, setRephraseTransition] = useState<{
     sequence: number;
     previousText: string;
-    nextText: string;
-    turnId: number;
+    // Null until regenerateTurn resolves — the erase can start on
+    // previousText alone, well before the replacement text exists.
+    nextText: string | null;
+    turnId: number | null;
   } | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestVisibleId, setSuggestVisibleId] = useState<string | null>(null); // show suggestions only after the user asks
@@ -708,6 +710,11 @@ export function ConverseV2Page(
     if (!previousText) return;
     stopListening();
     setRegenLoading(true);
+    // Set the transition immediately (erase only needs previousText) so the
+    // old sentence starts erasing right away instead of sitting frozen for
+    // the whole regenerateTurn round-trip.
+    const sequence = Date.now();
+    setRephraseTransition({ sequence, previousText, nextText: null, turnId: null });
     try {
       const r = await regenerateTurn(sessionId, language, token);
       const id = targetId;
@@ -717,14 +724,12 @@ export function ConverseV2Page(
       } : mm)));
       setMsgRoman((p) => ({ ...p, [id]: r.romanized || '' }));
       romanReqRef.current.add(id);
-      setRephraseTransition({
-        sequence: Date.now(),
-        previousText,
-        nextText: r.reply,
-        turnId: r.turn_id,
-      });
+      setRephraseTransition((prev) => (
+        prev && prev.sequence === sequence ? { ...prev, nextText: r.reply, turnId: r.turn_id } : prev
+      ));
     } catch {
       setChatError('Could not regenerate. Try again.');
+      setRephraseTransition((prev) => (prev && prev.sequence === sequence ? null : prev));
     } finally {
       setRegenLoading(false);
     }
