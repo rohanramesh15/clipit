@@ -41,6 +41,9 @@ interface VoiceStageProps {
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 const FALLBACK_TOKEN_CADENCE_MS = 220;
+// The erase of the old sentence is a quick visual "clear", independent of
+// the reveal cadence below (which stays synced to the replacement audio).
+const REMOVAL_MS_PER_WEIGHT = 30;
 
 function tokensForTiming(text: string): string[] {
   return text.match(/\S+\s*/gu) ?? (text ? [text] : []);
@@ -144,10 +147,10 @@ export function VoiceStage({
         ? (audio.duration * 1000) / totalNextWeight
         : FALLBACK_TOKEN_CADENCE_MS;
 
-      // Start at the last token so the sentence contracts naturally. The
-      // cadence is based on the replacement audio's measured duration.
+      // Start at the last token so the sentence contracts naturally. This
+      // erase is deliberately quick and unrelated to the reveal cadence.
       for (let index = oldTokens.length - 1; index >= 0; index -= 1) {
-        await wait(Math.max(80, tokenWeight(oldTokens[index]) * millisecondsPerWeight));
+        await wait(Math.max(20, tokenWeight(oldTokens[index]) * REMOVAL_MS_PER_WEIGHT));
         if (cancelled) return;
         setVisibleText(oldTokens.slice(0, index).join(''));
       }
