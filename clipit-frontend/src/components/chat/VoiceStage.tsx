@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ALargeSmallIcon,
@@ -13,6 +13,7 @@ import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
 import { Persona, type PersonaState } from '../ai-elements/persona';
 import { LoadingAnimation } from '../LoadingAnimation';
+import { translate as translateText } from '../../services/converseV2';
 
 interface VoiceStageProps {
   language: string;
@@ -49,7 +50,27 @@ export function VoiceStage({
   const [showTranslation, setShowTranslation] = useState(false);
   const [showRomanized, setShowRomanized] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [fetchedTranslation, setFetchedTranslation] = useState('');
+  const [translationLoading, setTranslationLoading] = useState(false);
   const romanizationPending = romanized === undefined;
+  const translation = tutorTurn?.translation || fetchedTranslation;
+
+  useEffect(() => {
+    setShowTranslation(false);
+    setFetchedTranslation('');
+    setTranslationLoading(false);
+  }, [tutorTurn?.id]);
+
+  const toggleTranslation = () => {
+    const next = !showTranslation;
+    setShowTranslation(next);
+    if (!next || translation || !tutorTurn || translationLoading) return;
+    setTranslationLoading(true);
+    translateText(tutorTurn.text, language)
+      .then(setFetchedTranslation)
+      .catch(() => setFetchedTranslation('Translation unavailable.'))
+      .finally(() => setTranslationLoading(false));
+  };
 
   return (
     <div className="flex flex-col items-center px-4 text-center">
@@ -100,7 +121,7 @@ export function VoiceStage({
         </AnimatePresence>
 
         <AnimatePresence initial={false}>
-          {showTranslation && tutorTurn?.translation && (
+          {showTranslation && tutorTurn && (
             <motion.p
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -108,7 +129,9 @@ export function VoiceStage({
               transition={{ duration: 0.2, ease: EASE }}
               className="overflow-hidden text-body text-muted"
             >
-              <span className="mt-2 block">{tutorTurn.translation}</span>
+              <span className="mt-2 block">
+                {translationLoading ? <LoadingAnimation className="mx-auto size-5" label="Translating" /> : translation || 'Translation unavailable.'}
+              </span>
             </motion.p>
           )}
         </AnimatePresence>
@@ -126,7 +149,7 @@ export function VoiceStage({
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}
             active={showTranslation}
-            onClick={() => setShowTranslation((v) => !v)}
+            onClick={toggleTranslation}
           >
             <LanguagesIcon className="size-4" aria-hidden="true" />
           </ActionButton>

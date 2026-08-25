@@ -6,6 +6,7 @@ import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
 import { Persona } from '../ai-elements/persona';
 import { LoadingAnimation } from '../LoadingAnimation';
+import { translate as translateText } from '../../services/converseV2';
 
 interface AssistantMessageProps {
   message: ChatMessage;
@@ -41,7 +42,21 @@ export function AssistantMessage({
   const [showTranslation, setShowTranslation] = useState(false);
   const [showRomanized, setShowRomanized] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [fetchedTranslation, setFetchedTranslation] = useState('');
+  const [translationLoading, setTranslationLoading] = useState(false);
   const romanizationPending = romanized === undefined;
+  const translation = message.translation || fetchedTranslation;
+
+  const toggleTranslation = () => {
+    const next = !showTranslation;
+    setShowTranslation(next);
+    if (!next || translation || translationLoading) return;
+    setTranslationLoading(true);
+    translateText(message.text, language)
+      .then(setFetchedTranslation)
+      .catch(() => setFetchedTranslation('Translation unavailable.'))
+      .finally(() => setTranslationLoading(false));
+  };
 
   return (
     <motion.article
@@ -95,7 +110,7 @@ export function AssistantMessage({
         </AnimatePresence>
 
         <AnimatePresence initial={false}>
-          {showTranslation && message.translation && (
+          {showTranslation && (
             <motion.p
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -103,7 +118,9 @@ export function AssistantMessage({
               transition={{ duration: 0.2, ease: EASE }}
               className="overflow-hidden text-body-sm text-muted"
             >
-              <span className="mt-2 block border-l-2 border-subtle pl-3">{message.translation}</span>
+              <span className="mt-2 block border-l-2 border-subtle pl-3">
+                {translationLoading ? <LoadingAnimation className="size-5" label="Translating" /> : translation || 'Translation unavailable.'}
+              </span>
             </motion.p>
           )}
         </AnimatePresence>
@@ -120,7 +137,7 @@ export function AssistantMessage({
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}
             active={showTranslation}
-            onClick={() => setShowTranslation((v) => !v)}
+            onClick={toggleTranslation}
           >
             <LanguagesIcon className="size-4" aria-hidden="true" />
           </ActionButton>
