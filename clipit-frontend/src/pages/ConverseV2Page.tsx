@@ -205,6 +205,7 @@ export function ConverseV2Page(
   const [regenLoading, setRegenLoading] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestVisibleId, setSuggestVisibleId] = useState<string | null>(null); // show suggestions only after the user asks
+  const [suggestError, setSuggestError] = useState<string | null>(null);
 
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
@@ -717,19 +718,23 @@ export function ConverseV2Page(
     }
     if (latestAssistantId == null) return;
     setSuggestLoading(true);
+    setSuggestError(null);
     setSuggestVisibleId(latestAssistantId);
     setMessages((previous) => previous.map((message) => (
       message.id === latestAssistantId ? { ...message, suggestedReplies: [] } : message
     )));
     try {
-      await suggestRepliesStream(sessionId, language, token, (suggestion) => {
+      const replies = await suggestRepliesStream(sessionId, language, token, (suggestion) => {
         setMessages((previous) => previous.map((message) => (
           message.id === latestAssistantId
             ? { ...message, suggestedReplies: [...(message.suggestedReplies ?? []), suggestion] }
             : message
         )));
       });
-    } catch { /* ignore */ } finally {
+      if (replies.length === 0) setSuggestError('Could not prepare suggestions.');
+    } catch {
+      setSuggestError('Could not prepare suggestions.');
+    } finally {
       setSuggestLoading(false);
     }
   }, [sessionId, language, suggestLoading, messages, token]);
@@ -1570,11 +1575,14 @@ export function ConverseV2Page(
             <div className="mx-auto w-full max-w-reading space-y-3 px-4 pb-8 pt-2 sm:px-6">
               {!transcriptOpen && (
                 <SuggestionPanel
+                  open={suggestVisibleId !== null}
                   suggestions={activeSuggestions}
                   isLoading={suggestLoading && suggestVisibleId !== null}
+                  error={suggestError}
                   onPick={(reply) => { setSuggestVisibleId(null); sendTextTurn(reply.es); }}
                   onEdit={(reply) => { setComposerText(reply.es); setSuggestVisibleId(null); setTyping(true); }}
                   onDismiss={() => setSuggestVisibleId(null)}
+                  onRetry={handleSuggestReply}
                 />
               )}
 

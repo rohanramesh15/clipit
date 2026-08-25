@@ -305,6 +305,29 @@ export async function suggestRepliesStream(
   const decoder = new TextDecoder();
   let buffer = '';
   const received: SuggestedReply[] = [];
+  const receivedKeys = new Set<string>();
+
+  const receive = (suggestion: SuggestedReply) => {
+    const key = `${suggestion.es}\u0000${suggestion.en ?? ''}`;
+    if (!suggestion.es || receivedKeys.has(key)) return;
+    receivedKeys.add(key);
+    received.push(suggestion);
+    onSuggestion(suggestion);
+  };
+
+  const handleEvent = (event: Record<string, unknown>) => {
+    if (event.type === 'suggestion' && event.suggestion && typeof event.suggestion === 'object') {
+      receive(event.suggestion as SuggestedReply);
+    } else if (event.type === 'done' && Array.isArray(event.suggested_replies)) {
+      // The final payload makes choices resilient to proxies that coalesce
+      // intermediate chunks before the browser receives them.
+      for (const value of event.suggested_replies) {
+        if (value && typeof value === 'object') receive(value as SuggestedReply);
+      }
+    } else if (event.type === 'error') {
+      throw new Error(String(event.message || 'Suggestion stream failed'));
+    }
+  };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -315,15 +338,13 @@ export async function suggestRepliesStream(
     for (const raw of events) {
       const line = raw.trim();
       if (!line.startsWith('data:')) continue;
-      const event = JSON.parse(line.slice(5).trim());
-      if (event.type === 'suggestion' && event.suggestion?.es) {
-        const suggestion = event.suggestion as SuggestedReply;
-        received.push(suggestion);
-        onSuggestion(suggestion);
-      } else if (event.type === 'error') {
-        throw new Error(event.message || 'Suggestion stream failed');
-      }
+      handleEvent(JSON.parse(line.slice(5).trim()) as Record<string, unknown>);
     }
+  }
+
+  const tail = buffer.trim();
+  if (tail.startsWith('data:')) {
+    handleEvent(JSON.parse(tail.slice(5).trim()) as Record<string, unknown>);
   }
 
   return received;
