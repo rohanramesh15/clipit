@@ -141,7 +141,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 <NavigationIconButton direction="back" label="Back to Practice" onClick={() => onNavigate('practice')} />
                 <h1 className="font-heading text-[2rem] font-medium leading-tight text-primary">Settings</h1>
               </div>
-              <p className="mt-1 text-body text-secondary">Changes save as you make them.</p>
             </div>
           </header>
 

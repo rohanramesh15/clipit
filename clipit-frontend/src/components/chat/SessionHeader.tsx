@@ -21,6 +21,7 @@ interface SessionHeaderProps {
   targets: TargetWord[];
   usedLemmas: Set<string>;
   coachOpen: boolean;
+  hasCoachFeedback: boolean;
   onToggleCoach: () => void;
   transcriptOpen: boolean;
   onToggleTranscript: () => void;
@@ -35,6 +36,7 @@ export function SessionHeader({
   targets,
   usedLemmas,
   coachOpen,
+  hasCoachFeedback,
   onToggleCoach,
   transcriptOpen,
   onToggleTranscript,
@@ -138,19 +140,22 @@ export function SessionHeader({
             </button>
           </Tooltip>
 
-          <Tooltip label="Coach" placement="bottom">
+          <Tooltip label={hasCoachFeedback && !coachOpen ? 'Coach has feedback' : 'Coach'} placement="bottom">
             <button
               type="button"
               onClick={onToggleCoach}
               aria-pressed={coachOpen}
-              aria-label="Coach"
+              aria-label={hasCoachFeedback && !coachOpen ? 'Coach has feedback' : 'Coach'}
               className={`inline-flex items-center rounded-xl p-2 transition-colors duration-150 ease-swift ${
                 coachOpen
                   ? 'bg-accent-soft text-accent'
-                  : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                  : hasCoachFeedback
+                    ? 'text-accent hover:bg-surface-hover hover:text-accent'
+                    : 'text-secondary hover:bg-surface-hover hover:text-primary'
               }`}
             >
-              <UsersIcon className="size-5" aria-hidden="true" />
+              <UsersIcon className={`size-5 ${hasCoachFeedback && !coachOpen ? 'animate-pulse motion-reduce:animate-none' : ''}`} aria-hidden="true" />
+              {hasCoachFeedback && !coachOpen && <span className="sr-only">New Coach feedback available</span>}
             </button>
           </Tooltip>
 

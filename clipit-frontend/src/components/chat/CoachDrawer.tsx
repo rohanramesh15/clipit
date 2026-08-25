@@ -61,7 +61,7 @@ export function CoachDrawer({
       exit={{ x: 24, opacity: 0 }}
       transition={{ duration: 0.24, ease: EASE }}
       aria-label="Session coach"
-      className="absolute inset-y-0 right-0 z-20 flex w-[340px] max-w-full flex-col border-l border-subtle bg-app shadow-pop xl:static xl:z-auto xl:shadow-none"
+      className="fixed bottom-4 right-0 top-16 z-40 flex w-[340px] max-w-[calc(100vw-1.5rem)] flex-col border-l border-subtle bg-app shadow-pop"
     >
       <div className="flex h-16 shrink-0 items-center justify-between px-6">
         <h2 className="font-heading text-body font-semibold text-primary">Coach</h2>

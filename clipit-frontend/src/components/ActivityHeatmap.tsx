@@ -71,7 +71,7 @@ export function ActivityHeatmap({ days, year, embedded = false }: ActivityHeatma
       className={embedded ? '' : 'rounded-2xl bg-surface p-6 sm:p-7'}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h2 id="activity-heading" className="font-heading text-card-title text-primary">
+        <h2 id="activity-heading" className="font-heading text-card-title font-medium text-primary">
           Activity log
         </h2>
         <p aria-live="polite" className="text-body-sm text-secondary">
