@@ -1156,9 +1156,11 @@ export function ConverseV2Page(
                       </ul>
                     ) : null}
                     <div className="min-w-0">
-                      <h2 id="resume-title" className="truncate font-heading text-lead text-primary">Continue your conversation</h2>
+                      <h2 id="resume-title" className="truncate font-heading text-lead text-primary">
+                        {recentSession.seed_label || 'Previous conversation'}
+                      </h2>
                       <p className="mt-0.5 truncate text-body-sm text-secondary">
-                        {recentSession.seed_label || 'Previous conversation'} · {recentSession.turn_count} {recentSession.turn_count === 1 ? 'message' : 'messages'}
+                        {recentSession.turn_count} {recentSession.turn_count === 1 ? 'message' : 'messages'}
                       </p>
                     </div>
                   </div>
@@ -1203,12 +1205,11 @@ export function ConverseV2Page(
                     </ul>
                   )}
                   <div className="min-w-0">
-                    <h2 id="mixed-title" className="truncate font-heading text-lead text-primary">Start a mixed chat</h2>
-                    <p className="truncate text-body-sm text-secondary">
+                    <h2 id="mixed-title" className="truncate font-heading text-lead text-primary">
                       {mixedSources.length > 0
                         ? `Words from ${mixedSources.length} ${mixedSources.length === 1 ? 'video' : 'videos'}`
                         : 'Words from your tracked videos'}
-                    </p>
+                    </h2>
                   </div>
                 </div>
                 <Button
@@ -1229,7 +1230,7 @@ export function ConverseV2Page(
                 <div className="flex flex-1 items-center justify-end gap-3">
                   <label className="relative w-full max-w-xs">
                     <span className="sr-only">Search videos</span>
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" aria-hidden="true" />
                     <input
                       type="search"
                       value={deckQuery}
@@ -1238,7 +1239,7 @@ export function ConverseV2Page(
                         setVisibleDecks(DECK_PAGE_SIZE);
                       }}
                       placeholder="Search a video"
-                      className="h-10 w-full rounded-xl border border-subtle bg-app pl-9 pr-3 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
+                      className="h-10 w-full rounded-xl border border-subtle bg-app pl-9 pr-3 text-body-sm text-primary placeholder:text-primary/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
                     />
                   </label>
                   <DropdownMenu open={isDeckSortOpen} onOpenChange={setIsDeckSortOpen} className="shrink-0">

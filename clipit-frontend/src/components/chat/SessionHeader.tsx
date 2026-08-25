@@ -115,7 +115,7 @@ export function SessionHeader({
           </span>
           )}
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 max-w-[9rem] sm:max-w-[12rem] md:max-w-[15rem]">
             <h1 className="truncate font-heading text-body font-semibold text-primary">
               {transcriptOpen ? 'Transcript' : title}
             </h1>

@@ -5,6 +5,7 @@ import { FlashCard } from '../../types/flashcards';
 import { getWordFontSize } from '../../utils/flashcardStorage';
 import { ClipPlayer } from './ClipPlayer';
 import { PronounceButton } from './PronounceButton';
+import { Tooltip } from '../Tooltip';
 
 interface CardStats {
   isNew: boolean;
@@ -30,7 +31,7 @@ interface ReviewCardProps {
 }
 
 const faceClasses =
-  'absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-subtle bg-surface p-4 shadow-sm sm:p-5 [backface-visibility:hidden]';
+  'absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm sm:p-6 [backface-visibility:hidden]';
 
 export function ReviewCard({
   card,
@@ -74,43 +75,45 @@ export function ReviewCard({
                 {stats.repetitions}x
               </span>
             ) : (
-              <span className="rounded-full bg-blush px-2.5 py-1 text-meta font-semibold text-accent">
+              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
                 New word
               </span>
             )}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {card.card_type === 'video' && (
+                <Tooltip label="Revert to TTS">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRevertToTTS();
+                    }}
+                    disabled={isReverting}
+                    aria-label="Revert to TTS-only flashcard"
+                    className="grid size-9 place-items-center rounded-lg text-muted transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary disabled:opacity-40"
+                  >
+                    <RotateCcw className={`h-4 w-4 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip label="Delete">
                 <button
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onRevertToTTS();
+                    onDeleteCard();
                   }}
-                  disabled={isReverting}
-                  aria-label="Revert to TTS-only flashcard"
-                  title="Revert to TTS-only"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-hover text-secondary hover:bg-blush hover:text-accent disabled:opacity-50"
+                  aria-label="Delete this flashcard"
+                  className="grid size-9 place-items-center rounded-lg text-muted transition-colors duration-150 ease-swift hover:bg-error/10 hover:text-error"
                 >
-                  <RotateCcw className={`h-3.5 w-3.5 ${isReverting ? 'animate-spin' : ''}`} aria-hidden="true" />
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onDeleteCard();
-                }}
-                aria-label="Delete this flashcard"
-                title="Delete this flashcard"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-hover text-secondary hover:bg-red-500/10 hover:text-red-600"
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-              {timeStr && <span className="ml-1 border-l border-subtle pl-2 text-meta tabular-nums text-muted">{timeStr}</span>}
+              </Tooltip>
+              {timeStr && <span className="ml-1 border-l border-subtle pl-2.5 text-meta tabular-nums text-muted">{timeStr}</span>}
             </div>
           </div>
 
-          <div className="mt-3 shrink-0" onClick={(event) => event.stopPropagation()}>
+          <div className="mt-4 shrink-0" onClick={(event) => event.stopPropagation()}>
             <ClipPlayer
               card={card}
               language={language}
@@ -119,13 +122,13 @@ export function ReviewCard({
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-2 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-2 py-3 text-center">
             <h2 className={`${getWordFontSize(card.target_word)} font-heading font-medium leading-tight text-primary`}>
               {card.target_word}
             </h2>
             {/* TTS-only cards already have a dedicated pronunciation control via ClipPlayer's placeholder above. */}
             {card.card_type === 'video' && (
-              <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+              <div onClick={(event) => event.stopPropagation()}>
                 <PronounceButton
                   text={card.target_word}
                   language={language}
@@ -141,7 +144,7 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="mx-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface-hover px-3 py-2 text-meta font-medium text-secondary hover:bg-blush hover:text-accent"
+            className="mx-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface-hover px-4 py-2.5 text-meta font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-accent-soft hover:text-accent"
             aria-label="Show the definition"
           >
             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -156,10 +159,10 @@ export function ReviewCard({
           onClick={isFlipped ? onFlip : undefined}
         >
           <div className="flex shrink-0 items-center justify-between gap-3">
-            <span className="truncate rounded-full bg-blush px-2.5 py-1 text-meta font-semibold text-accent">
+            <span className="truncate rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
               {card.target_word}
             </span>
-            <div className="flex shrink-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
+            <div className="flex shrink-0 items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
               <PronounceButton
                 text={card.target_word}
                 language={language}
@@ -167,18 +170,21 @@ export function ReviewCard({
                 size="sm"
               />
               {!isEditingDefinition && (
-                <button
-                  onClick={onStartEdit}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-hover text-primary transition-colors hover:bg-blush"
-                  title="Edit definition"
-                >
-                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
+                <Tooltip label="Edit">
+                  <button
+                    type="button"
+                    onClick={onStartEdit}
+                    aria-label="Edit definition"
+                    className="grid size-9 place-items-center rounded-lg text-muted transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col justify-center">
+          <div className="mt-4 flex min-h-0 flex-1 flex-col justify-center">
             {isEditingDefinition ? (
               <div className="w-full" onClick={(event) => event.stopPropagation()}>
                 <input
@@ -242,7 +248,7 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="mx-auto shrink-0 rounded-lg bg-surface-hover px-3 py-2 text-meta font-medium text-secondary hover:bg-blush hover:text-accent"
+            className="mx-auto shrink-0 rounded-lg bg-surface-hover px-4 py-2.5 text-meta font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-accent-soft hover:text-accent"
             aria-label="Show the prompt"
           >
             Show prompt

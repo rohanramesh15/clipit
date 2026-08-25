@@ -956,7 +956,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
     if (selectedVideoId) {
       return (
         <div className="min-h-screen flex flex-col items-center max-w-page mx-auto px-5 py-6 sm:px-8 bg-app" role="status" aria-live="polite" aria-label="Loading your flashcards">
-          <Skeleton className="h-[34rem] w-full max-w-[22rem] rounded-2xl" />
+          <Skeleton className="h-[25rem] w-full max-w-[23rem] rounded-2xl sm:h-[26rem]" />
         </div>
       );
     }
@@ -992,7 +992,12 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
   if (loadState === 'deck-select') {
     const hasNoVideos = videos.length === 0;
     return (
-      <div className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-app">
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="mx-auto min-h-screen max-w-page px-5 pb-20 pt-8 sm:px-8 bg-app"
+      >
         <div className="-ml-2 flex items-center gap-2">
           <NavigationIconButton direction="back" label="Back" onClick={() => onNavigate?.('practice')} />
 
@@ -1025,7 +1030,7 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
             </div>
           </>
         )}
-      </div>
+      </motion.div>
     );
   }
 

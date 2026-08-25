@@ -313,17 +313,22 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     const currentSort = SORTS.find((s) => s.value === sort) ?? SORTS[0];
 
     return (
-      <main className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8">
+      <motion.main
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="mx-auto min-h-screen max-w-page bg-app px-5 pb-20 pt-8 sm:px-8"
+      >
         <div className="-ml-2 flex items-center gap-2">
           {back('practice')}
           <h1 className="font-heading text-section font-medium text-primary">Mad libs</h1>
         </div>
 
         {resumable && (
-          <section className="mt-8 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap" aria-label="Resume Mad Libs practice">
+          <section className="mt-8 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap" aria-labelledby="resume-madlib-title">
             <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-body font-semibold text-dusk-deep">{resumable.title}</p>
+              <h2 id="resume-madlib-title" className="truncate font-heading text-body font-semibold text-dusk-deep">{resumable.title}</h2>
               <p className="mt-1 text-body-sm text-dusk-ink">{resumable.answers.length} of {resumable.items.length} blanks filled</p>
               <div className="mt-2 flex gap-1">
                 {resumable.items.map((resumeItem, i) => (
@@ -360,12 +365,12 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
               <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
                 <label className="relative w-full max-w-xs">
                   <span className="sr-only">Search videos</span>
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" aria-hidden="true" />
                   <input
                     value={query}
                     onChange={(e) => { setQuery(e.target.value); setVisible(PAGE_SIZE); }}
                     placeholder="Search a video"
-                    className="h-10 w-full rounded-xl border border-subtle bg-app pl-9 pr-3 text-body-sm text-primary placeholder:text-muted transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
+                    className="h-10 w-full rounded-xl border border-subtle bg-app pl-9 pr-3 text-body-sm text-primary placeholder:text-primary/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
                   />
                 </label>
                 <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">
@@ -451,7 +456,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
             </>
           )}
         </section>
-      </main>
+      </motion.main>
     );
   }
 
