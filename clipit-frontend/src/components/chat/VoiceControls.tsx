@@ -47,7 +47,7 @@ export function VoiceControls({
             disabled={connecting || (disabled && !live)}
             aria-label={live ? 'Stop the mic' : 'Start speaking'}
             className="size-14 p-0"
-            idleIcon={<MicVocalIcon className="size-5" aria-hidden="true" />}
+            idleIcon={<MicVocalIcon className="size-7" strokeWidth={2.5} aria-hidden="true" />}
           />
         </Tooltip>
 
