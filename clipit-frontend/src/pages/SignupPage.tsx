@@ -12,11 +12,12 @@ import { Button } from '../components/ui/button';
 interface SignupPageProps {
   onNavigate: (view: 'landing' | 'login' | 'onboarding') => void;
   onBack: () => void;
+  initialError?: string;
 }
 
 type Step = 'choose' | 'email';
 
-export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
+export function SignupPage({ onNavigate, onBack, initialError }: SignupPageProps) {
   const { register } = useAuth();
   const [step, setStep] = useState<Step>('choose');
   const [firstName, setFirstName] = useState('');
@@ -26,7 +27,7 @@ export function SignupPage({ onNavigate, onBack }: SignupPageProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError ?? '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

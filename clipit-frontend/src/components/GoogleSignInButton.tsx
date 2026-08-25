@@ -26,7 +26,7 @@ export function GoogleSignInButton({
     if (isLoading || redirecting) return;
     setRedirecting(true);
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(text === 'continue' ? undefined : text);
     } catch {
       setRedirecting(false);
       onError?.();

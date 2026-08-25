@@ -93,8 +93,12 @@ function AppLoadingState() {
 }
 
 function AppInner() {
-  const { user, token, isLoading, isNewUser } = useAuth();
+  const { user, token, isLoading, isNewUser, authError, clearAuthError } = useAuth();
   const { language } = useLanguage();
+  // Snapshotted from authError so the message survives past clearAuthError()
+  // (cleared the moment it's consumed, so a later blocked attempt doesn't
+  // silently reuse a stale one).
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
   // Lazy-initialize from the current URL so a page that was open before a
   // refresh renders straight away, with no flash of the landing/practice
   // default first. Whether this guess was actually valid (i.e. the user is
@@ -125,6 +129,9 @@ function AppInner() {
   // to the exact auth screen a learner came from (for example Sign up → Sign in
   // → Back returns to Sign up rather than the landing page).
   const navigateToView = (view: AppView) => {
+    // A manually-chosen view supersedes any message left over from an
+    // earlier blocked Google sign-in/sign-up redirect.
+    setAuthErrorMessage(null);
     setAppView(view);
     if (view === 'privacy') {
       window.history.pushState({}, '', '/privacy');
@@ -134,6 +141,7 @@ function AppInner() {
   };
 
   const goBackFromAuth = () => {
+    setAuthErrorMessage(null);
     const state = window.history.state as { clipitView?: AppView } | null;
     if (state?.clipitView && window.history.length > 1) {
       window.history.back();
@@ -218,9 +226,23 @@ function AppInner() {
       if (pageForPath(window.location.pathname)) {
         window.history.replaceState({}, '', '/');
       }
-      setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
+      if (authError) {
+        // Google OAuth always succeeds and silently provisions an account
+        // regardless of which button was clicked, so a signin/signup
+        // mismatch only surfaces here, after the backend rejects it and the
+        // session is torn back down.
+        setAuthErrorMessage(
+          authError === 'no_account'
+            ? 'No account found for that email. Sign up to get started.'
+            : 'You already have an account with that email. Sign in instead.'
+        );
+        setAppView(authError === 'no_account' ? 'signup' : 'login');
+        clearAuthError();
+      } else {
+        setAppView((v) => (v === 'reset-password' || v === 'forgot-password' || v === 'privacy' ? v : 'landing'));
+      }
     }
-  }, [isLoading, isNewUser, token, user]);
+  }, [authError, clearAuthError, isLoading, isNewUser, token, user]);
   // The app is light-only now — force the class/localStorage the same way
   // the landing page already does, so nothing can leave a stale 'dark' value
   // (e.g. from before this changed) lingering for the next visit.
@@ -345,10 +367,10 @@ function AppInner() {
     return <LandingPage onNavigate={navigateToView} />;
   }
   if (appView === 'login') {
-    return <LoginPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
+    return <LoginPage onBack={goBackFromAuth} onNavigate={navigateToView} initialError={authErrorMessage ?? undefined} />;
   }
   if (appView === 'signup') {
-    return <SignupPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
+    return <SignupPage onBack={goBackFromAuth} onNavigate={navigateToView} initialError={authErrorMessage ?? undefined} />;
   }
   if (appView === 'onboarding') {
     return <OnboardingPage onComplete={() => { navigateToPage('practice'); setAppView('app'); }} />;

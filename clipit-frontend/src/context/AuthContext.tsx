@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useIsRestoring } from '@tanstack/react-query';
 import { API_BASE_URL } from '../config';
 import { supabase } from '../lib/supabaseClient';
@@ -21,13 +21,27 @@ interface MeResponse extends AuthUser {
   is_new_user: boolean;
 }
 
+export type AuthErrorCode = 'no_account' | 'account_exists';
+
+// Thrown by fetchMe when the backend refused a Google sign-in/sign-up
+// because it doesn't match the intent the user actually clicked.
+class AuthIntentError extends Error {
+  code: AuthErrorCode;
+  constructor(code: AuthErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
   isNewUser: boolean;
+  authError: AuthErrorCode | null;
+  clearAuthError: () => void;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
-  loginWithGoogle: (credential?: string, mode?: 'signin' | 'signup') => Promise<{ isNewUser: boolean }>;
+  loginWithGoogle: (intent?: 'signin' | 'signup') => Promise<{ isNewUser: boolean }>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -41,21 +55,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sticky within a session: once any request reports this login just created
   // the account, stays true even if a racing duplicate fetch reports false.
   const [isNewUser, setIsNewUser] = useState(false);
+  const [authError, setAuthError] = useState<AuthErrorCode | null>(null);
   const isRestoringCache = useIsRestoring();
+  // Set once, synchronously, from the URL that a Google OAuth redirect lands
+  // on — read by the very next applySession call and then discarded, so a
+  // later token refresh or page reload never re-applies stale intent.
+  const authIntentRef = useRef<'signin' | 'signup' | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const intent = params.get('auth_intent');
+    if (intent === 'signin' || intent === 'signup') {
+      authIntentRef.current = intent;
+      params.delete('auth_intent');
+      const search = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (search ? `?${search}` : '') + window.location.hash);
+    }
+  }, []);
 
   const clearCachedData = useCallback(() => {
     queryClient.clear();
     void queryPersister.removeClient();
   }, []);
 
-  const fetchMe = useCallback(async (accessToken: string, authUserId: string): Promise<MeResponse> => {
+  const clearAuthError = useCallback(() => setAuthError(null), []);
+
+  const fetchMe = useCallback(async (accessToken: string, authUserId: string, intent: 'signin' | 'signup' | null): Promise<MeResponse> => {
     return queryClient.fetchQuery({
       queryKey: queryKeys.profile(authUserId),
       queryFn: async ({ signal }) => {
-        const res = await fetch(`${API_BASE}/auth/me`, {
+        const url = new URL(`${API_BASE}/auth/me`);
+        if (intent) url.searchParams.set('intent', intent);
+        const res = await fetch(url.toString(), {
           headers: { Authorization: `Bearer ${accessToken}` },
           signal,
         });
+        if (res.status === 404) throw new AuthIntentError('no_account');
+        if (res.status === 409) throw new AuthIntentError('account_exists');
         if (!res.ok) throw new Error('Token invalid');
         return res.json() as Promise<MeResponse>;
       },
@@ -83,19 +119,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activateLocalLearningData(authUserId);
       setToken(accessToken);
       setIsLoading(false);
+      const intent = authIntentRef.current;
+      authIntentRef.current = null;
       try {
-        const me = await fetchMe(accessToken, authUserId);
+        const me = await fetchMe(accessToken, authUserId, intent);
         if (active) {
+          setAuthError(null);
           setUser(me);
           if (me.is_new_user) setIsNewUser(true);
         }
-      } catch {
+      } catch (err) {
         if (active) {
           setUser(null);
           setToken(null);
           clearCachedData();
           clearLocalLearningData();
           await supabase.auth.signOut();
+          if (err instanceof AuthIntentError) setAuthError(err.code);
         }
       } finally {
         // isLoading only represents restoring the Supabase session. The
@@ -124,10 +164,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // onAuthStateChange performs the single, shared /auth/me bridge request.
   };
 
-  const loginWithGoogle = async (): Promise<{ isNewUser: boolean }> => {
+  const loginWithGoogle = async (intent?: 'signin' | 'signup'): Promise<{ isNewUser: boolean }> => {
+    // Google's redirect discards in-memory state, so the clicked intent has
+    // to travel as a URL param and get picked back up once the browser
+    // returns — see the auth_intent effect above.
+    const redirectTo = new URL(window.location.origin);
+    if (intent) redirectTo.searchParams.set('auth_intent', intent);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: redirectTo.toString() },
     });
     if (error) throw new Error(error.message);
     // The browser navigates to the provider. This return is only reached if
@@ -157,10 +202,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setIsNewUser(false);
+    setAuthError(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isNewUser, login, loginWithGoogle, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isNewUser, authError, clearAuthError, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
