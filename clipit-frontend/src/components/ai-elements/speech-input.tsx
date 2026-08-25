@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { MicIcon, SquareIcon } from "lucide-react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SpeechRecognition extends EventTarget {
@@ -64,6 +64,8 @@ type SpeechInputMode =
   | "controlled";
 
 export type SpeechInputProps = ComponentProps<typeof Button> & {
+  /** Optional idle icon for contexts with a more specific voice affordance. */
+  idleIcon?: ReactNode;
   /**
    * Use the component as the visual control for an external audio pipeline.
    * This prevents it from opening a second microphone stream.
@@ -102,6 +104,7 @@ const detectSpeechInputMode = (): SpeechInputMode => {
 export const SpeechInput = ({
   className,
   disabled: disabledProp,
+  idleIcon,
   isListening: controlledListening,
   onListeningChange,
   isProcessing: controlledProcessing,
@@ -371,7 +374,8 @@ export const SpeechInput = ({
       >
         {isProcessing && <Spinner />}
         {!isProcessing && isListening && <SquareIcon className="size-4" />}
-        {!(isProcessing || isListening) && <MicIcon className="size-4" />}
+        {!(isProcessing || isListening) &&
+          (idleIcon ?? <MicIcon className="size-4" />)}
       </Button>
       <span className="sr-only" role="status" aria-live="polite">{statusMessage}</span>
     </div>
