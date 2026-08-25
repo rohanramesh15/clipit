@@ -81,7 +81,7 @@ export function ReviewCard({
             )}
             <div className="flex items-center gap-1.5">
               {card.card_type === 'video' && (
-                <Tooltip label="Revert to TTS">
+                <Tooltip label="Revert to TTS" placement="bottom">
                   <button
                     type="button"
                     onClick={(event) => {
@@ -96,7 +96,7 @@ export function ReviewCard({
                   </button>
                 </Tooltip>
               )}
-              <Tooltip label="Delete">
+              <Tooltip label="Delete" placement="bottom">
                 <button
                   type="button"
                   onClick={(event) => {
@@ -122,7 +122,7 @@ export function ReviewCard({
             />
           </div>
 
-          <div className="mt-6 flex shrink-0 flex-col items-center gap-3 px-2 text-center">
+          <div className="mt-6 flex shrink-0 items-center justify-center gap-2 px-2 text-center">
             <h2 className={`${getWordFontSize(card.target_word)} font-heading font-medium leading-tight text-primary`}>
               {card.target_word}
             </h2>
@@ -133,6 +133,7 @@ export function ReviewCard({
                   text={card.target_word}
                   language={language}
                   label={`Hear ${card.target_word} pronounced`}
+                  variant="plain"
                 />
               </div>
             )}
@@ -144,7 +145,7 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="mx-auto mt-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface-hover px-4 py-2.5 text-meta font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-accent-soft hover:text-accent"
+            className="mx-auto mt-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-meta font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-accent-soft hover:text-accent"
             aria-label="Show the definition"
           >
             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -170,7 +171,7 @@ export function ReviewCard({
                 size="sm"
               />
               {!isEditingDefinition && (
-                <Tooltip label="Edit">
+                <Tooltip label="Edit" placement="bottom">
                   <button
                     type="button"
                     onClick={onStartEdit}
