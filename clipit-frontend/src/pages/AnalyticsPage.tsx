@@ -13,8 +13,7 @@ function AnalyticsLoadingState() {
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
       <Skeleton className="h-8 w-32 rounded-lg" />
-      <Skeleton className="mt-8 h-24 w-full rounded-2xl" />
-      <Skeleton className="mt-6 h-[16.5rem] w-full rounded-2xl" />
+      <Skeleton className="mt-8 h-[25rem] w-full rounded-3xl" />
     </div>
   );
 }
@@ -131,54 +130,56 @@ export function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pb-8">
-        <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
+      <header className="max-w-2xl pb-8">
+        <p className="text-meta font-semibold uppercase tracking-[0.12em] text-accent">Learning overview</p>
+        <h1 className="mt-2 font-heading text-section font-medium text-primary">Progress</h1>
+        <p className="mt-2 text-body text-secondary">A single view of the practice you&apos;re building over time.</p>
       </header>
 
-      <section aria-label="Progress summary" className="flex min-h-24 flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-subtle bg-surface px-7 py-3 lg:flex-nowrap">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-4 lg:flex-nowrap">
-          <div className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-inverse">
-            <span className="font-heading text-section-lg leading-none tabular-nums">{streak}</span>
-            <span className="font-heading text-lead">days</span>
-          </div>
-
-          <div className="shrink-0">
-            <p className="flex items-center gap-1.5 text-body font-semibold text-accent">
+      <section aria-label="Progress overview" className="overflow-hidden rounded-3xl border border-subtle bg-surface">
+        <div className="grid gap-8 px-6 py-7 sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1fr)_minmax(26rem,1.15fr)] lg:items-center lg:gap-12">
+          <section aria-labelledby="streak-heading" className="min-w-0">
+            <p id="streak-heading" className="flex items-center gap-1.5 text-body-sm font-semibold text-accent">
               <Flame className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
               Current streak
             </p>
-            <p className="mt-0.5 text-body text-secondary">Longest run so far: {longestStreak} days</p>
-          </div>
+            <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-2">
+              <p className="font-heading text-display-lg leading-none text-primary">
+                {streak}<span className="ml-2 text-section font-medium text-secondary">days</span>
+              </p>
+              <p className="pb-1 text-body-sm text-secondary">Best run: {longestStreak} days</p>
+            </div>
 
-          <ul className="flex shrink-0 items-end gap-2" aria-label="Last seven days of practice">
-            {lastWeek.map((day, index) => (
-              <li key={day.date} className="flex flex-col items-center gap-1.5">
-                <span className={`h-6 w-6 rounded-lg ${day.reviews > 0 ? 'bg-accent' : 'bg-app'}`} />
-                <span className="text-meta text-secondary">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
-              </li>
-            ))}
-          </ul>
+            <ul className="mt-6 grid max-w-sm grid-cols-7 gap-2" aria-label="Last seven days of practice">
+              {lastWeek.map((day, index) => (
+                <li key={day.date} className="flex flex-col items-center gap-2">
+                  <span className={`h-7 w-full rounded-lg ${day.reviews > 0 ? 'bg-accent' : 'bg-app'}`} />
+                  <span className="text-meta text-muted">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <dl className="grid grid-cols-1 divide-y divide-subtle border-y border-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:border-y-0 sm:border-l sm:divide-x">
+            <div className="px-0 py-4 sm:px-5 sm:py-1 first:sm:pl-5">
+              <dd className="font-heading text-section-lg leading-none tabular-nums text-primary">{wordsLearned.toLocaleString()}</dd>
+              <dt className="mt-2 text-body-sm text-secondary">Words learned</dt>
+            </div>
+            <div className="px-0 py-4 sm:px-5 sm:py-1">
+              <dd className="font-heading text-section-lg leading-none tabular-nums text-primary">{totalReviews.toLocaleString()}</dd>
+              <dt className="mt-2 text-body-sm text-secondary">Total reviews</dt>
+            </div>
+            <div className="px-0 py-4 sm:px-5 sm:py-1">
+              <dd className="font-heading text-section-lg leading-none tabular-nums text-primary">{hoursWatchedLabel}</dd>
+              <dt className="mt-2 text-body-sm text-secondary">Hours watched</dt>
+            </div>
+          </dl>
         </div>
 
-        <dl className="flex shrink-0 flex-wrap items-baseline gap-x-7 gap-y-3 text-inverse sm:flex-nowrap">
-          <div className="flex items-baseline gap-2 whitespace-nowrap">
-            <dd className="font-heading text-section tabular-nums">{wordsLearned.toLocaleString()}</dd>
-            <dt className="text-body text-secondary">Words learned</dt>
-          </div>
-          <div className="flex items-baseline gap-2 whitespace-nowrap">
-            <dd className="font-heading text-section tabular-nums">{totalReviews.toLocaleString()}</dd>
-            <dt className="text-body text-secondary">Total reviews</dt>
-          </div>
-          <div className="flex items-baseline gap-2 whitespace-nowrap">
-            <dd className="font-heading text-section tabular-nums">{hoursWatchedLabel}</dd>
-            <dt className="text-body text-secondary">Hours watched</dt>
-          </div>
-        </dl>
+        <div className="border-t border-subtle px-6 py-7 sm:px-8 sm:py-8">
+          <ActivityHeatmap days={days} year={year} embedded />
+        </div>
       </section>
-
-      <div className="mt-6">
-        <ActivityHeatmap days={days} year={year} />
-      </div>
     </div>
   );
 }

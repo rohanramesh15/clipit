@@ -26,9 +26,11 @@ function intensityClass(reviews: number, max: number): string {
 interface ActivityHeatmapProps {
   days: ActivityDay[];
   year: number;
+  /** Renders without its own card treatment inside a larger progress surface. */
+  embedded?: boolean;
 }
 
-export function ActivityHeatmap({ days, year }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ days, year, embedded = false }: ActivityHeatmapProps) {
   const [hovered, setHovered] = useState<ActivityDay | null>(null);
 
   const { weeks, max, total } = useMemo(() => {
@@ -64,7 +66,10 @@ export function ActivityHeatmap({ days, year }: ActivityHeatmapProps) {
   );
 
   return (
-    <section aria-labelledby="activity-heading" className="rounded-2xl bg-surface p-6 sm:p-7">
+    <section
+      aria-labelledby="activity-heading"
+      className={embedded ? '' : 'rounded-2xl bg-surface p-6 sm:p-7'}
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <h2 id="activity-heading" className="font-heading text-card-title text-primary">
           Activity log
