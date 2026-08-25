@@ -647,6 +647,9 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           if (!response.ok || !user) return;
           queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
           queryClient.removeQueries({ queryKey: queryKeys.reviews(user.id) });
+          queryClient.removeQueries({
+            queryKey: queryKeys.progressSummary(user.id, language, new Date().getFullYear()),
+          });
           // Keep the visible dashboard instant, but make its due counts fresh
           // the next time it is shown.
           queryClient.invalidateQueries({ queryKey: dashboardKey });

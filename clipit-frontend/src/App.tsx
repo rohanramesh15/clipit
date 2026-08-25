@@ -22,7 +22,7 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { queryClient } from './lib/queryClient';
-import { historyQueryOptions, homeQueueQueryOptions, queryKeys } from './lib/queries';
+import { historyQueryOptions, homeQueueQueryOptions, progressSummaryQueryOptions, queryKeys } from './lib/queries';
 type Page =
 'video' |
 'practice' |
@@ -269,6 +269,23 @@ function AppInner() {
     void queryClient.ensureQueryData(homeQueueQueryOptions(user.id, token, language));
   }, [language, token, user]);
 
+  // Warm the compact Progress summary only after the initial Home request has
+  // had a chance to settle. This keeps first paint focused while making a
+  // later Progress visit read from the persisted query cache immediately.
+  useEffect(() => {
+    if (!user || !token) return;
+    const year = new Date().getFullYear();
+    const prefetch = () => {
+      void queryClient.ensureQueryData(progressSummaryQueryOptions(user.id, token, language, year));
+    };
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(prefetch, { timeout: 3_000 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+    const timeoutId = window.setTimeout(prefetch, 2_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [language, token, user]);
+
   // The extension dispatches this event in open ClipIt tabs after its track
   // request succeeds. Fetch history right away so a newly watched video does
   // not wait for the normal polling interval or the persisted query cache.
@@ -286,6 +303,9 @@ function AppInner() {
         queryClient.invalidateQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
         queryClient.invalidateQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
         queryClient.invalidateQueries({ queryKey: queryKeys.watchTime(user.id, language) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.progressSummary(user.id, language, new Date().getFullYear()),
+        });
       }).catch(() => {});
     };
 

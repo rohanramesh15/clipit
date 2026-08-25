@@ -99,6 +99,9 @@ export function VideoPage() {
         );
         queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user?.id ?? 0, language) });
         queryClient.removeQueries({ queryKey: queryKeys.watchTime(user?.id ?? 0, language) });
+        queryClient.removeQueries({
+          queryKey: queryKeys.progressSummary(user?.id ?? 0, language, new Date().getFullYear()),
+        });
         queryClient.removeQueries({ queryKey: queryKeys.videoVocabulary(user?.id ?? 0, language, pendingRemoval.id) });
         queryClient.removeQueries({ queryKey: queryKeys.flashcardDeck(user?.id ?? 0, language, pendingRemoval.id) });
         queryClient.removeQueries({ queryKey: queryKeys.madlibDeck(user?.id ?? 0, language, pendingRemoval.id) });

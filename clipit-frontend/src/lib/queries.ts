@@ -59,6 +59,12 @@ interface WatchTimeResponse {
   total_hours: number;
 }
 
+export interface ProgressSummary {
+  total_reviews: number;
+  reviews_by_date: Record<string, number>;
+  total_hours: number;
+}
+
 interface FlashCard {
   target_word: string;
   dictionary_form: string;
@@ -107,6 +113,8 @@ export const queryKeys = {
   vocabularyLists: (userId: number) => ['vocabulary-lists', userId] as const,
   watchTime: (userId: number, language: string) => ['watch-time', userId, language] as const,
   reviews: (userId: number) => ['reviews', userId] as const,
+  progressSummary: (userId: number, language: string, year: number) =>
+    ['progress-summary', userId, language, year] as const,
 };
 
 export function historyQueryOptions(userId: number, token: string, language: string) {
@@ -179,6 +187,21 @@ export function reviewsQueryOptions(userId: number, token: string) {
     queryKey: queryKeys.reviews(userId),
     queryFn: ({ signal }: { signal: AbortSignal }) => readJson<ReviewResponse>(
       `${API_BASE_URL}/fsrs/reviews?limit=10000`,
+      token,
+      signal,
+    ),
+  };
+}
+
+export function progressSummaryQueryOptions(userId: number, token: string, language: string, year: number) {
+  return {
+    queryKey: queryKeys.progressSummary(userId, language, year),
+    retry: (failureCount: number, error: unknown) => {
+      if (error instanceof RequestError && error.status && error.status < 500) return false;
+      return failureCount < 1;
+    },
+    queryFn: ({ signal }: { signal: AbortSignal }) => readJson<ProgressSummary>(
+      `${API_BASE_URL}/fsrs/progress-summary?lang=${encodeURIComponent(language)}&year=${year}`,
       token,
       signal,
     ),

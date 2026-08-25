@@ -6,21 +6,8 @@ import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { reviewsQueryOptions, watchTimeQueryOptions } from '../lib/queries';
+import { progressSummaryQueryOptions } from '../lib/queries';
 import { Button } from '../components/ui/button';
-
-function AnalyticsLoadingState() {
-  return (
-    <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8">
-      <header className="max-w-2xl pb-8">
-        <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
-      </header>
-      <div role="status" aria-live="polite" aria-label="Loading your progress" aria-hidden="true">
-        <Skeleton className="h-[25rem] w-full rounded-3xl" />
-      </div>
-    </div>
-  );
-}
 
 function AnalyticsErrorState({ onRetry }: { onRetry: () => void }) {
   return (
@@ -65,32 +52,19 @@ function longestRun(reviewsByDate: Record<string, number>, year: number): number
 export function AnalyticsPage() {
   const { language } = useLanguage();
   const { token, user } = useAuth();
-  const watchTime = useQuery({
-    ...watchTimeQueryOptions(user?.id ?? 0, token ?? '', language),
-    enabled: Boolean(user && token),
-  });
-  const reviews = useQuery({
-    ...reviewsQueryOptions(user?.id ?? 0, token ?? ''),
+  const year = new Date().getFullYear();
+  const progress = useQuery({
+    ...progressSummaryQueryOptions(user?.id ?? 0, token ?? '', language, year),
     enabled: Boolean(user && token),
   });
   const wordsLearned = getAnalyticsSummary().wordsLearned;
-  const totalReviews = reviews.data?.total ?? 0;
-  const hoursWatched = watchTime.data?.total_hours ?? 0;
-  const reviewHistory = reviews.data?.reviews ?? [];
-  const isLoading = watchTime.isPending || reviews.isPending;
-  const hasLoadError = watchTime.isError || reviews.isError;
-
-  const year = new Date().getFullYear();
+  const totalReviews = progress.data?.total_reviews ?? 0;
+  const hoursWatched = progress.data?.total_hours ?? 0;
+  const reviewsByDate = progress.data?.reviews_by_date ?? {};
+  const isLoading = progress.isPending;
+  const hasLoadError = progress.isError;
 
   const { days, streak, longestStreak, lastWeek } = useMemo(() => {
-    const reviewsByDate: Record<string, number> = {};
-    reviewHistory.forEach((r) => {
-      if (r.reviewed_at) {
-        const date = r.reviewed_at.split('T')[0];
-        reviewsByDate[date] = (reviewsByDate[date] || 0) + 1;
-      }
-    });
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const startOfYear = new Date(year, 0, 1);
@@ -120,16 +94,12 @@ export function AnalyticsPage() {
       longestStreak: longestRun(reviewsByDate, year),
       lastWeek: yearDays.slice(-7),
     };
-  }, [reviewHistory, year]);
+  }, [reviewsByDate, year]);
 
   const hoursWatchedLabel = hoursWatched < 1 ? `${Math.round(hoursWatched * 60)}m` : `${hoursWatched}h`;
 
-  if (isLoading) {
-    return <AnalyticsLoadingState />;
-  }
-
-  if (hasLoadError) {
-    return <AnalyticsErrorState onRetry={() => { void watchTime.refetch(); void reviews.refetch(); }} />;
+  if (hasLoadError && !progress.data) {
+    return <AnalyticsErrorState onRetry={() => { void progress.refetch(); }} />;
   }
 
   return (
@@ -138,21 +108,29 @@ export function AnalyticsPage() {
         <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
       </header>
 
-      <section aria-label="Progress overview" className="overflow-hidden rounded-3xl border border-subtle bg-surface">
+      <section aria-label="Progress overview" aria-busy={isLoading} className="overflow-hidden rounded-3xl border border-subtle bg-surface">
         <div className="grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,1.1fr)] lg:items-center lg:gap-8">
           <section aria-labelledby="streak-heading" className="min-w-0">
             <div className="flex items-start gap-10 sm:gap-14">
               <div>
                 <p id="streak-heading" className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Streak</p>
-                <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
-                  {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
-                </p>
+                {isLoading ? (
+                  <Skeleton className="mt-2 h-10 w-24 rounded-lg" />
+                ) : (
+                  <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
+                    {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Best run</p>
-                <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
-                  {longestStreak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
-                </p>
+                {isLoading ? (
+                  <Skeleton className="mt-2 h-10 w-24 rounded-lg" />
+                ) : (
+                  <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
+                    {longestStreak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -168,22 +146,26 @@ export function AnalyticsPage() {
 
           <dl className="grid grid-cols-1 divide-y divide-subtle border-y border-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:border-y-0 sm:border-l sm:divide-x">
             <div className="py-2.5 sm:px-4 sm:py-0 first:sm:pl-4">
-              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{wordsLearned.toLocaleString()}</dd>
+              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{isLoading ? <Skeleton className="h-6 w-12 rounded-md" /> : wordsLearned.toLocaleString()}</dd>
               <dt className="mt-1.5 text-body-sm text-secondary">Words learned</dt>
             </div>
             <div className="py-2.5 sm:px-4 sm:py-0">
-              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{totalReviews.toLocaleString()}</dd>
+              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{isLoading ? <Skeleton className="h-6 w-12 rounded-md" /> : totalReviews.toLocaleString()}</dd>
               <dt className="mt-1.5 text-body-sm text-secondary">Total reviews</dt>
             </div>
             <div className="py-2.5 sm:px-4 sm:py-0">
-              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{hoursWatchedLabel}</dd>
+              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{isLoading ? <Skeleton className="h-6 w-12 rounded-md" /> : hoursWatchedLabel}</dd>
               <dt className="mt-1.5 text-body-sm text-secondary">Hours watched</dt>
             </div>
           </dl>
         </div>
 
         <div className="border-t border-subtle px-6 py-7 sm:px-8 sm:py-8">
-          <ActivityHeatmap days={days} year={year} embedded />
+          {isLoading ? (
+            <Skeleton className="h-48 w-full rounded-2xl" />
+          ) : (
+            <ActivityHeatmap days={days} year={year} embedded />
+          )}
         </div>
       </section>
     </div>
