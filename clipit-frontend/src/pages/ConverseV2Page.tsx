@@ -5,7 +5,7 @@ import {
   Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
-  getProfile, createSession, sendTurnStream, romanize, getTurnAudioUrl,
+  getProfile, createSession, streamOpening, sendTurnStream, romanize, getTurnAudioUrl,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
@@ -551,17 +551,58 @@ export function ConverseV2Page(
     setPhase('chat');
   }, [resetSessionUI]);
 
-  const enterSession = useCallback((sessionId: number, finalWords: TargetWord[], initialMessages: ChatMessage[]) => {
+  const enterSession = useCallback((
+    sessionId: number,
+    finalWords: TargetWord[],
+    initialMessages: ChatMessage[],
+    isOpening = false,
+  ) => {
     activeSessionRef.current = sessionId;
     resetSessionUI();
     setTargetWords(finalWords);
     setSessionId(sessionId);
     setStatus('Tap the mic and speak, or type');
     setMessages(initialMessages);
-    setOpeningPending(false);
+    setOpeningPending(isOpening);
     setPhase('chat');
     setConversationSessionInUrl(sessionId);
   }, [resetSessionUI]);
+
+  const startOpeningStream = useCallback((nextSessionId: number) => {
+    const streamId = `a-opening-${nextSessionId}`;
+    let started = false;
+    void streamOpening(nextSessionId, language, token, (piece) => {
+      if (activeSessionRef.current !== nextSessionId) return;
+      setMessages((prev) => {
+        if (!started) {
+          started = true;
+          return [...prev, { id: streamId, role: 'assistant', text: piece }];
+        }
+        return prev.map((message) => (
+          message.id === streamId ? { ...message, text: message.text + piece } : message
+        ));
+      });
+    }).then((opening) => {
+      if (activeSessionRef.current !== nextSessionId) return;
+      setMessages((prev) => prev.map((message) => (
+        message.id === streamId
+          ? {
+              id: `a-${opening.turn_id}`,
+              role: 'assistant',
+              text: opening.reply,
+              translation: opening.reply_translation,
+              turnId: opening.turn_id,
+            }
+          : message
+      )));
+    }).catch(() => {
+      if (activeSessionRef.current === nextSessionId) {
+        setChatError('Could not start the conversation. Try again.');
+      }
+    }).finally(() => {
+      if (activeSessionRef.current === nextSessionId) setOpeningPending(false);
+    });
+  }, [language, token]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
@@ -579,13 +620,8 @@ export function ConverseV2Page(
         language,
       }, token);
 
-      enterSession(result.session_id, [], [{
-        id: `a-${result.opening.turn_id}`,
-        role: 'assistant',
-        text: result.opening.reply,
-        translation: result.opening.reply_translation,
-        turnId: result.opening.turn_id,
-      }]);
+      enterSession(result.session_id, [], [], true);
+      startOpeningStream(result.session_id);
 
       // Target words load in the background and fill in once ready — the
       // conversation is already usable before this resolves. If the user has
@@ -618,7 +654,7 @@ export function ConverseV2Page(
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language, token, enterChatShell, enterSession]);
+  }, [language, token, enterChatShell, enterSession, startOpeningStream]);
 
   // "Mixed session" — the backend's own due_words seed type, which picks
   // words across every tracked video from its own review-due tracking
@@ -634,13 +670,8 @@ export function ConverseV2Page(
         gloss: d.gloss,
         surface: d.lemma,
       }));
-      enterSession(result.session_id, finalWords, [{
-        id: `a-${result.opening.turn_id}`,
-        role: 'assistant',
-        text: result.opening.reply,
-        translation: result.opening.reply_translation,
-        turnId: result.opening.turn_id,
-      }]);
+      enterSession(result.session_id, finalWords, [], true);
+      startOpeningStream(result.session_id);
       // enterSession resets per-session UI state (including this), so set it
       // after — a random sample of what this session actually draws from.
       setMixedThumbs(sampleRandom(result.source_videos || [], 3));
@@ -648,7 +679,7 @@ export function ConverseV2Page(
       setChatError('Could not start the conversation. Please try again.');
       setPhase('deck');
     }
-  }, [language, token, enterChatShell, enterSession]);
+  }, [language, token, enterChatShell, enterSession, startOpeningStream]);
 
   // "Resume" — rehydrate a real prior session (turn history included) from
   // the backend's own storage. Only works for sessions created after
@@ -757,7 +788,7 @@ export function ConverseV2Page(
   // ── chat actions ────────────────────────────────────────────────────────────
   const sendTextTurn = useCallback(async (override?: string) => {
     const text = (override ?? composerText).trim();
-    if (!text || sending || sessionId == null) return;
+    if (!text || sending || openingPending || sessionId == null) return;
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     setComposerText('');
@@ -796,7 +827,7 @@ export function ConverseV2Page(
       setSending(false);
       setStreaming(false);
     }
-  }, [composerText, sending, sessionId, language, token]);
+  }, [composerText, sending, openingPending, sessionId, language, token]);
 
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
@@ -1143,11 +1174,8 @@ export function ConverseV2Page(
                     language={language}
                     targetWords={targetWords}
                     thinking={tutorBusy && !streaming}
-                    regenerating={regenLoading}
                     savedWords={savedWords}
                     onSaveWord={(w) => saveWord(w.lemma, w.gloss)}
-                    onRegenerate={handleAnotherResponse}
-                    onSuggest={handleSuggestReply}
                     onListen={speak}
                     onStopListen={stopSpeaking}
                     romanized={msgRoman}
@@ -1212,7 +1240,7 @@ export function ConverseV2Page(
                   onChange={setComposerText}
                   onSend={(text) => sendTextTurn(text)}
                   thinking={sending}
-                  disabled={!sessionId}
+                  disabled={!sessionId || openingPending}
                   placeholder={openingPending ? 'Tutor is writing…' : `Type in ${langName}…`}
                   onClose={() => setTyping(false)}
                 />

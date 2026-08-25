@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ALargeSmallIcon, LanguagesIcon, Loader2Icon, MessageSquarePlusIcon, RotateCcwIcon, Volume2Icon, XIcon } from 'lucide-react';
+import { ALargeSmallIcon, LanguagesIcon, Loader2Icon, Volume2Icon, XIcon } from 'lucide-react';
 import type { ChatMessage, SavedWord } from '../../types/chat';
 import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
@@ -10,12 +10,8 @@ interface AssistantMessageProps {
   message: ChatMessage;
   language: string;
   animateIn: boolean;
-  isLast: boolean;
-  regenerating: boolean;
   savedWords: SavedWord[];
   onSaveWord: (word: SavedWord) => void;
-  onRegenerate: () => void;
-  onSuggest: () => void;
   onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
   onStopListen: () => void;
   romanized?: string;
@@ -31,12 +27,8 @@ export function AssistantMessage({
   message,
   language,
   animateIn,
-  isLast,
-  regenerating,
   savedWords,
   onSaveWord,
-  onRegenerate,
-  onSuggest,
   onListen,
   onStopListen,
   romanized,
@@ -138,21 +130,6 @@ export function AssistantMessage({
             )}
           </ActionButton>
 
-          {isLast && (
-            <>
-              <span className="mx-1 h-4 w-px bg-[color:var(--border-subtle)]" aria-hidden="true" />
-              <ActionButton label="Rephrase" onClick={onRegenerate} disabled={regenerating}>
-                {regenerating ? (
-                  <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <RotateCcwIcon className="size-4" aria-hidden="true" />
-                )}
-              </ActionButton>
-              <ActionButton label="Suggest" onClick={onSuggest}>
-                <MessageSquarePlusIcon className="size-4" aria-hidden="true" />
-              </ActionButton>
-            </>
-          )}
         </div>
 
         {message.correction && (

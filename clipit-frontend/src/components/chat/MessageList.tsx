@@ -11,11 +11,8 @@ interface MessageListProps {
   language: string;
   targetWords: TargetWord[];
   thinking: boolean;
-  regenerating: boolean;
   savedWords: SavedWord[];
   onSaveWord: (word: SavedWord) => void;
-  onRegenerate: () => void;
-  onSuggest: () => void;
   onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
   onStopListen: () => void;
   romanized: Record<string, string>;
@@ -30,11 +27,8 @@ export function MessageList({
   language,
   targetWords,
   thinking,
-  regenerating,
   savedWords,
   onSaveWord,
-  onRegenerate,
-  onSuggest,
   onListen,
   onStopListen,
   romanized,
@@ -44,7 +38,6 @@ export function MessageList({
   onCorrectionFeedback,
 }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
-  const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant')?.id;
   /* Turns already on screen at mount are history — they arrive, they don't perform. */
   const historyIds = useRef(new Set(messages.map((m) => m.id)));
 
@@ -61,12 +54,8 @@ export function MessageList({
             message={message}
             language={language}
             animateIn={!historyIds.current.has(message.id)}
-            isLast={message.id === lastAssistantId}
-            regenerating={regenerating}
             savedWords={savedWords}
             onSaveWord={onSaveWord}
-            onRegenerate={onRegenerate}
-            onSuggest={onSuggest}
             onListen={onListen}
             onStopListen={onStopListen}
             romanized={romanized[message.id]}

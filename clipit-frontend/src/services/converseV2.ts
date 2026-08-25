@@ -64,7 +64,7 @@ export interface CreateSessionResult {
   level: Level;
   due_words: DueWord[];
   source_videos: MixedSourceVideo[];
-  opening: { turn_id: number; reply: string; reply_translation: string };
+  opening?: { turn_id: number; reply: string; reply_translation: string };
 }
 
 async function postJson<T>(path: string, body?: unknown, token?: string | null): Promise<T> {
@@ -113,9 +113,55 @@ export const createSession = (
     seed_label?: string;
     language?: string;
     seed_words?: { lemma: string; gloss: string }[];
+    stream_opening?: boolean;
   },
   token?: string | null,
-) => postJson<CreateSessionResult>('/session', req, token);
+) => postJson<CreateSessionResult>('/session', { ...req, stream_opening: true }, token);
+
+export interface OpeningResult {
+  turn_id: number;
+  reply: string;
+  reply_translation: string;
+}
+
+export async function streamOpening(
+  sessionId: number,
+  language: string,
+  token: string | null | undefined,
+  onChunk: (piece: string) => void,
+): Promise<OpeningResult> {
+  const res = await fetch(`${BASE}/session/${sessionId}/opening/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ language }),
+  });
+  if (!res.ok || !res.body) throw new Error(`opening stream failed: ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: OpeningResult | null = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+    for (const raw of events) {
+      const line = raw.trim();
+      if (!line.startsWith('data:')) continue;
+      const event = JSON.parse(line.slice(5).trim());
+      if (event.type === 'chunk') onChunk(event.text as string);
+      else if (event.type === 'error') throw new Error(event.message || 'Opening stream failed');
+      else if (event.type === 'done') {
+        const { type: _type, ...opening } = event;
+        result = opening as OpeningResult;
+      }
+    }
+  }
+  if (!result) throw new Error('Opening stream ended without a result');
+  return result;
+}
 
 export interface RecentSession {
   session_id: number;
