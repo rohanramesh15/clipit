@@ -227,6 +227,11 @@ export function ConverseV2Page(
     frame: number | null;
     onDrained: (() => void) | null;
   }>({ id: null, queue: [], audio: null, frame: null, onDrained: null });
+  // Keep the sentence clips that were already delivered through SSE. Replaying
+  // them avoids another Gemini synthesis request when the learner presses Listen.
+  const streamedAudioRef = useRef<Map<string, string[]>>(new Map());
+  const turnAudioRef = useRef<Map<number, string[]>>(new Map());
+  const audioPlaybackIdRef = useRef(0);
 
   const cancelStreamReveal = useCallback(() => {
     const stream = streamRevealRef.current;
@@ -320,6 +325,16 @@ export function ConverseV2Page(
       }
 
       const words = segment.text.match(/\S+\s*/gu) ?? [segment.text];
+      // Gemini TTS does not provide word-level timestamps. Estimate each word's
+      // spoken share of the clip by its character count, reserving extra time
+      // for punctuation so the next word appears when it is likely spoken.
+      const wordWeights = words.map((word) => {
+        const spokenCharacters = Array.from(word.trim()).filter((character) => !/\s/u.test(character)).length || 1;
+        const softPauses = (word.match(/[,;:，、]/gu) ?? []).length * 1.5;
+        const fullPauses = (word.match(/[.!?…。！？]/gu) ?? []).length * 4;
+        return spokenCharacters + softPauses + fullPauses;
+      });
+      const totalWeight = wordWeights.reduce((total, weight) => total + weight, 0);
       let shown = 0;
       let finished = false;
       const appendWords = (count: number) => {
@@ -348,7 +363,14 @@ export function ConverseV2Page(
         if (current.id !== messageId || current.audio !== audio) return;
         const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
         const progress = duration ? Math.min(audio.currentTime / duration, 1) : 0;
-        appendWords(Math.max(1, Math.floor(progress * words.length)));
+        const spokenWeight = progress * totalWeight;
+        let visibleCount = 1;
+        let elapsedWeight = wordWeights[0] ?? 0;
+        while (visibleCount < words.length && elapsedWeight <= spokenWeight) {
+          elapsedWeight += wordWeights[visibleCount] ?? 0;
+          visibleCount += 1;
+        }
+        appendWords(visibleCount);
         if (!audio.ended) current.frame = window.requestAnimationFrame(syncWords);
       };
 
@@ -524,6 +546,7 @@ export function ConverseV2Page(
   // Stop whatever is currently being read aloud — either the backend voice
   // clip or Web Speech — so the "Listen" button can double as a stop control.
   const stopSpeaking = useCallback(() => {
+    audioPlaybackIdRef.current += 1;
     window.speechSynthesis.cancel();
     if (activeAudioRef.current) {
       activeAudioRef.current.pause();
@@ -546,6 +569,49 @@ export function ConverseV2Page(
       }
     };
 
+    const streamedAudio = turnId == null ? undefined : turnAudioRef.current.get(turnId);
+    if (streamedAudio?.length) {
+      const playbackId = audioPlaybackIdRef.current + 1;
+      audioPlaybackIdRef.current = playbackId;
+      let index = 0;
+      let started = false;
+      const playNext = () => {
+        if (audioPlaybackIdRef.current !== playbackId) return;
+        const audioData = streamedAudio[index];
+        index += 1;
+        if (!audioData) {
+          onEnd?.();
+          return;
+        }
+        const audio = new Audio(`data:audio/wav;base64,${audioData}`);
+        activeAudioRef.current = audio;
+        const clearIfCurrent = () => {
+          if (activeAudioRef.current === audio) activeAudioRef.current = null;
+        };
+        audio.addEventListener('ended', () => {
+          clearIfCurrent();
+          playNext();
+        }, { once: true });
+        audio.addEventListener('error', () => {
+          clearIfCurrent();
+          if (audioPlaybackIdRef.current === playbackId) speakWithBrowserVoice();
+        }, { once: true });
+        audio.play()
+          .then(() => {
+            if (!started) {
+              started = true;
+              onStart?.();
+            }
+          })
+          .catch(() => {
+            clearIfCurrent();
+            if (audioPlaybackIdRef.current === playbackId) speakWithBrowserVoice();
+          });
+      };
+      playNext();
+      return;
+    }
+
     if (turnId == null) { speakWithBrowserVoice(); return; }
 
     getTurnAudioUrl(token, turnId)
@@ -555,8 +621,9 @@ export function ConverseV2Page(
         const clearIfCurrent = () => { if (activeAudioRef.current === audio) activeAudioRef.current = null; };
         audio.addEventListener('ended', () => { clearIfCurrent(); onEnd?.(); URL.revokeObjectURL(url); });
         audio.addEventListener('error', () => { clearIfCurrent(); URL.revokeObjectURL(url); speakWithBrowserVoice(); });
-        onStart?.();
-        audio.play().catch(() => { clearIfCurrent(); URL.revokeObjectURL(url); speakWithBrowserVoice(); });
+        audio.play()
+          .then(onStart)
+          .catch(() => { clearIfCurrent(); URL.revokeObjectURL(url); speakWithBrowserVoice(); });
       })
       .catch(speakWithBrowserVoice);
   }, [language, token, stopSpeaking]);
@@ -684,6 +751,8 @@ export function ConverseV2Page(
   // UI state and lands on the chat phase. Used by both a single-video start
   // and the mixed (due-words) start.
   const resetSessionUI = useCallback(() => {
+    streamedAudioRef.current.clear();
+    turnAudioRef.current.clear();
     setMixedThumbs([]);
     setTargetWords([]);
     setUsedLemmas(new Set());
@@ -755,11 +824,17 @@ export function ConverseV2Page(
     }, (speech) => {
       if (activeSessionRef.current !== nextSessionId) return;
       receivedSpeech = true;
+      const segments = streamedAudioRef.current.get(streamId) ?? [];
+      segments.push(speech.audio);
+      streamedAudioRef.current.set(streamId, segments);
       queueSyncedSpeech(streamId, speech.text, speech.audio);
     }).then(async (opening) => {
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
       if (activeSessionRef.current !== nextSessionId) return;
+      const audioSegments = streamedAudioRef.current.get(streamId);
+      if (audioSegments?.length) turnAudioRef.current.set(opening.turn_id, audioSegments);
+      streamedAudioRef.current.delete(streamId);
       setMessages((prev) => prev.map((message) => (
         message.id === streamId
           ? {
@@ -775,6 +850,7 @@ export function ConverseV2Page(
     }).catch(async () => {
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
+      streamedAudioRef.current.delete(streamId);
       if (activeSessionRef.current === nextSessionId) {
         setChatError('Could not start the conversation. Try again.');
       }
@@ -949,6 +1025,8 @@ export function ConverseV2Page(
     activeSessionRef.current = null;
     cancelStreamReveal();
     cancelSyncedSpeech();
+    streamedAudioRef.current.clear();
+    turnAudioRef.current.clear();
     voiceRef.current?.stop();
     voiceRef.current = null;
     vUserId.current = null;
@@ -991,11 +1069,17 @@ export function ConverseV2Page(
       }, (speech) => {
         receivedSpeech = true;
         setStreaming(true);
+        const segments = streamedAudioRef.current.get(streamId) ?? [];
+        segments.push(speech.audio);
+        streamedAudioRef.current.set(streamId, segments);
         queueSyncedSpeech(streamId, speech.text, speech.audio);
       });
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
       const finalId = `a-${result.turn_id}`;
+      const audioSegments = streamedAudioRef.current.get(streamId);
+      if (audioSegments?.length) turnAudioRef.current.set(result.turn_id, audioSegments);
+      streamedAudioRef.current.delete(streamId);
       setMessages((prev) => prev.map((m) => (m.id === streamId ? {
         id: finalId,
         role: 'assistant',
@@ -1013,6 +1097,7 @@ export function ConverseV2Page(
     } catch {
       await waitForStreamReveal(streamId);
       await waitForSyncedSpeech(streamId);
+      streamedAudioRef.current.delete(streamId);
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== streamId));
       setComposerText(text);
       setChatError('Message failed to send. Try again.');
