@@ -132,7 +132,6 @@ export function AnalyticsPage() {
     <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
       <header className="max-w-2xl pb-8">
         <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
-        <p className="mt-2 text-body text-secondary">A single view of the practice you&apos;re building over time.</p>
       </header>
 
       <section aria-label="Progress overview" className="overflow-hidden rounded-3xl border border-subtle bg-surface">
@@ -142,17 +141,15 @@ export function AnalyticsPage() {
               <Flame className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
               Current streak
             </p>
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <p className="font-heading text-section-lg leading-none text-primary">
-                {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
-              </p>
-              <p className="text-body-sm text-secondary">Best run: {longestStreak} days</p>
-            </div>
+            <p className="mt-1.5 font-heading text-section-lg leading-none text-primary">
+              {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
+            </p>
+            <p className="mt-1.5 text-body-sm text-secondary">Best run: {longestStreak} days</p>
 
-            <ul className="mt-3 grid max-w-sm grid-cols-7 gap-1.5" aria-label="Last seven days of practice">
+            <ul className="mt-4 grid max-w-sm grid-cols-7 gap-1.5" aria-label="Last seven days of practice">
               {lastWeek.map((day, index) => (
-                <li key={day.date} className="flex flex-col items-center gap-1">
-                  <span className={`h-4 w-full rounded-md ${day.reviews > 0 ? 'bg-accent' : 'bg-app'}`} />
+                <li key={day.date} className="flex flex-col items-center gap-1.5">
+                  <span className={`h-4 w-full rounded-md ${day.reviews > 0 ? 'bg-accent' : 'bg-surface-hover'}`} />
                   <span className="text-meta text-muted">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
                 </li>
               ))}
@@ -161,16 +158,16 @@ export function AnalyticsPage() {
 
           <dl className="grid grid-cols-1 divide-y divide-subtle border-y border-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:border-y-0 sm:border-l sm:divide-x">
             <div className="py-2.5 sm:px-4 sm:py-0 first:sm:pl-4">
-              <dd className="font-heading text-lead leading-none tabular-nums text-primary">{wordsLearned.toLocaleString()}</dd>
-              <dt className="mt-1 text-meta text-secondary">Words learned</dt>
+              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{wordsLearned.toLocaleString()}</dd>
+              <dt className="mt-1.5 text-body-sm text-secondary">Words learned</dt>
             </div>
             <div className="py-2.5 sm:px-4 sm:py-0">
-              <dd className="font-heading text-lead leading-none tabular-nums text-primary">{totalReviews.toLocaleString()}</dd>
-              <dt className="mt-1 text-meta text-secondary">Total reviews</dt>
+              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{totalReviews.toLocaleString()}</dd>
+              <dt className="mt-1.5 text-body-sm text-secondary">Total reviews</dt>
             </div>
             <div className="py-2.5 sm:px-4 sm:py-0">
-              <dd className="font-heading text-lead leading-none tabular-nums text-primary">{hoursWatchedLabel}</dd>
-              <dt className="mt-1 text-meta text-secondary">Hours watched</dt>
+              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{hoursWatchedLabel}</dd>
+              <dt className="mt-1.5 text-body-sm text-secondary">Hours watched</dt>
             </div>
           </dl>
         </div>
