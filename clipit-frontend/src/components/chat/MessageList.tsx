@@ -18,6 +18,7 @@ interface MessageListProps {
   onSuggest: () => void;
   onListen: (text: string, onStart: () => void, onEnd: () => void) => void;
   romanized: Record<string, string>;
+  userTranslations: Record<string, string>;
   revealedCorrections: Set<string>;
   onRevealCorrection: (id: string) => void;
   correctionVerdicts: Record<string, 'fine' | 'wrong'>;
@@ -37,6 +38,7 @@ export function MessageList({
   onSuggest,
   onListen,
   romanized,
+  userTranslations,
   revealedCorrections,
   onRevealCorrection,
   correctionVerdicts,
@@ -80,6 +82,7 @@ export function MessageList({
             message={message}
             animateIn={!historyIds.current.has(message.id)}
             usedTargets={lemmasUsedIn(message.text, targetWords)}
+            translation={userTranslations[message.id]}
           />
         ),
       )}

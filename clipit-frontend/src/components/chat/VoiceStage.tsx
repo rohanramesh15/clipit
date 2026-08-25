@@ -26,6 +26,7 @@ interface VoiceStageProps {
   onListen: (text: string, onStart: () => void, onEnd: () => void) => void;
   regenerating: boolean;
   romanized?: string;
+  userTranslation?: string;
 }
 
 const EASE = [0.23, 1, 0.32, 1] as const;
@@ -44,6 +45,7 @@ export function VoiceStage({
   onListen,
   regenerating,
   romanized,
+  userTranslation,
 }: VoiceStageProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showCorrection, setShowCorrection] = useState(false);
@@ -134,6 +136,7 @@ export function VoiceStage({
               transition={{ duration: 0.18, ease: EASE }}
             >
               <p className="text-lead text-secondary">“{lastUserTurn.text}”</p>
+              {userTranslation ? <p className="mt-1 text-body text-muted">{userTranslation}</p> : null}
 
               {correction && (
                 <div className="mt-1.5 flex items-center justify-center gap-4 text-meta">
