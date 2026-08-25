@@ -5,7 +5,6 @@ import {
   LanguagesIcon,
   MessageSquarePlusIcon,
   RotateCcwIcon,
-  Loader2Icon,
   Volume2Icon,
   XIcon,
 } from 'lucide-react';
@@ -13,6 +12,7 @@ import type { ChatMessage, SavedWord } from '../../types/chat';
 import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
 import { Persona, type PersonaState } from '../ai-elements/persona';
+import { LoadingAnimation } from '../LoadingAnimation';
 
 interface VoiceStageProps {
   language: string;
@@ -53,7 +53,6 @@ export function VoiceStage({
   const [showCorrection, setShowCorrection] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const romanizationPending = romanized === undefined;
-  const romanizationReady = Boolean(romanized);
   // The turn right after the learner's is the one carrying feedback on it.
   const correction = tutorTurn?.correction;
 
@@ -78,16 +77,30 @@ export function VoiceStage({
         </p>
 
         <AnimatePresence initial={false}>
-          {showRomanized && romanized && (
-            <motion.p
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2, ease: EASE }}
-              className="overflow-hidden text-lead leading-relaxed text-muted"
-            >
-              <span className="mt-1 block">{romanized}</span>
-            </motion.p>
+          {showRomanized && (
+            romanizationPending ? (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: EASE }}
+                className="mx-auto mt-1 flex h-7 items-center justify-center overflow-hidden"
+                role="status"
+                aria-label="Preparing romanization"
+              >
+                <LoadingAnimation className="size-5" />
+              </motion.div>
+            ) : romanized ? (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: EASE }}
+                className="overflow-hidden text-lead leading-relaxed text-muted"
+              >
+                <span className="mt-1 block">{romanized}</span>
+              </motion.p>
+            ) : null
           )}
         </AnimatePresence>
 
@@ -109,16 +122,11 @@ export function VoiceStage({
       {tutorTurn && (
         <div className="mt-1.5 flex items-center justify-center gap-1 opacity-0 transition-opacity duration-200 ease-swift focus-within:opacity-100 group-hover:opacity-100">
           <ActionButton
-            label={romanizationPending ? 'Preparing Romanization' : showRomanized ? 'Hide' : 'Romanize'}
+            label={showRomanized ? 'Hide Romanization' : 'Romanize'}
             active={showRomanized}
-            disabled={!romanizationReady}
             onClick={() => setShowRomanized((v) => !v)}
           >
-            {romanizationPending ? (
-              <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <ALargeSmallIcon className="size-4" aria-hidden="true" />
-            )}
+            <ALargeSmallIcon className="size-4" aria-hidden="true" />
           </ActionButton>
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}
