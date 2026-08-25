@@ -40,7 +40,7 @@ export function ExpandableSearch({
     <div ref={rootRef} className="flex min-w-10 flex-1 justify-end">
       <motion.div
         className="max-w-full overflow-hidden"
-        animate={{ width: isOpen ? 448 : 40 }}
+        animate={{ width: isOpen ? 384 : 40 }}
         transition={{ type: 'spring', stiffness: 420, damping: 24, mass: 0.7 }}
       >
         {isOpen ? (
@@ -56,7 +56,7 @@ export function ExpandableSearch({
               onChange={(event) => onChange(event.target.value)}
               onFocus={() => setExpanded(true)}
               placeholder={placeholder}
-              className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
+              className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 outline-none"
             />
           </label>
         ) : (
@@ -65,7 +65,7 @@ export function ExpandableSearch({
             aria-label={label}
             aria-expanded={false}
             onClick={() => setExpanded(true)}
-            className="grid h-10 w-10 place-items-center rounded-xl text-muted hover:bg-surface-hover hover:text-secondary"
+            className="grid h-10 w-10 place-items-center rounded-xl border border-subtle bg-app text-muted"
           >
             <SearchIcon className="h-5 w-5" aria-hidden="true" />
           </button>
