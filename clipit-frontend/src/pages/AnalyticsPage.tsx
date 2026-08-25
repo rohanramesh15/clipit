@@ -144,13 +144,13 @@ export function AnalyticsPage() {
             <div className="flex items-start gap-10 sm:gap-14">
               <div>
                 <p id="streak-heading" className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Streak</p>
-                <p className="mt-1.5 font-heading text-section-lg leading-none text-primary">
+                <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
                   {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
                 </p>
               </div>
               <div>
                 <p className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Best run</p>
-                <p className="mt-1.5 font-heading text-section-lg leading-none text-primary">
+                <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
                   {longestStreak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
                 </p>
               </div>
