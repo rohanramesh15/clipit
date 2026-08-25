@@ -161,7 +161,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
         <div className="min-w-0 lg:pt-2">
           <section aria-labelledby="learning-heading" className="w-full">
-            <h2 id="learning-heading" className="font-heading text-card-title text-primary">
+            <h2 id="learning-heading" className="font-heading text-card-title font-medium text-primary">
               Learning
             </h2>
 
@@ -219,7 +219,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
           {ttsVoices.length > 0 && (
             <section aria-labelledby="ai-voice-heading" className="mt-10 w-full">
-              <h2 id="ai-voice-heading" className="font-heading text-card-title text-primary">
+              <h2 id="ai-voice-heading" className="font-heading text-card-title font-medium text-primary">
                 AI Voice
               </h2>
 
@@ -232,7 +232,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
           )}
 
           <section aria-labelledby="account-heading" className="mt-10 w-full">
-            <h2 id="account-heading" className="font-heading text-card-title text-primary">
+            <h2 id="account-heading" className="font-heading text-card-title font-medium text-primary">
               Account
             </h2>
 
