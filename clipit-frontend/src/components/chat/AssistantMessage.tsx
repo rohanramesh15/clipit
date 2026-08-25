@@ -59,6 +59,7 @@ export function AssistantMessage({
           <TappableText
             text={message.text}
             language={language}
+            animateWords={message.turnId === undefined}
             targets={message.targets}
             savedWords={savedWords}
             onSaveWord={onSaveWord}

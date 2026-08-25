@@ -69,6 +69,7 @@ export function VoiceStage({
             <TappableText
               text={tutorTurn.text}
               language={language}
+              animateWords={tutorTurn.turnId === undefined}
               targets={tutorTurn.targets}
               savedWords={savedWords}
               onSaveWord={onSaveWord}

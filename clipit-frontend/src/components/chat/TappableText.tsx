@@ -7,6 +7,8 @@ import type { SavedWord } from '../../types/chat';
 interface TappableTextProps {
   text: string;
   language: string;
+  /** Fade words in as they arrive during a live streamed response. */
+  animateWords?: boolean;
   /** Target-word lemmas for this session — matched words render bold/accent. */
   targets?: string[];
   savedWords: SavedWord[];
@@ -17,7 +19,7 @@ function stripPunct(word: string): string {
   return word.replace(/^[¿?¡!.,;:"'()«»…]+|[¿?¡!.,;:"'()«»…]+$/gu, '');
 }
 
-export function TappableText({ text, language, targets = [], savedWords, onSaveWord }: TappableTextProps) {
+export function TappableText({ text, language, animateWords = false, targets = [], savedWords, onSaveWord }: TappableTextProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [glosses, setGlosses] = useState<Record<number, { text: string; loading: boolean }>>({});
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -62,7 +64,13 @@ export function TappableText({ text, language, targets = [], savedWords, onSaveW
         const gloss = glosses[index];
 
         return (
-          <span key={index} className="relative inline-block">
+          <motion.span
+            key={index}
+            initial={animateWords ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="relative inline-block"
+          >
             <button
               type="button"
               aria-expanded={isOpen}
@@ -103,7 +111,7 @@ export function TappableText({ text, language, targets = [], savedWords, onSaveW
                 </motion.span>
               )}
             </AnimatePresence>
-          </span>
+          </motion.span>
         );
       })}
     </span>

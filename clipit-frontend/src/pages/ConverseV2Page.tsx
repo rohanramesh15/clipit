@@ -50,7 +50,7 @@ const SESSION_QUERY_PARAM = 'session';
 // SSE chunks arrive as fast as the model/provider can send them. Reveal each
 // response a character at a time so it feels like a natural reply without
 // delaying the request, persistence, or the next server-side operation.
-const STREAM_REVEAL_DELAY_MS = 24;
+const STREAM_REVEAL_DELAY_MS = 36;
 const deckSorts: { value: DeckSort; label: string }[] = [
   { value: 'due', label: 'Most due' },
   { value: 'recent', label: 'Recently watched' },
@@ -487,12 +487,13 @@ export function ConverseV2Page(
       } : mm)));
       setMsgRoman((p) => ({ ...p, [id]: r.romanized || '' }));
       romanReqRef.current.add(id);
+      speak(r.reply, r.turn_id);
     } catch {
       setChatError('Could not regenerate. Try again.');
     } finally {
       setRegenLoading(false);
     }
-  }, [sessionId, language, regenLoading, messages, token]);
+  }, [sessionId, language, regenLoading, messages, token, speak]);
 
   // Suggest reply — fetch things the learner could say next.
   const handleSuggestReply = useCallback(async () => {
@@ -672,6 +673,7 @@ export function ConverseV2Page(
             }
           : message
       )));
+      speak(opening.reply, opening.turn_id);
     }).catch(async () => {
       await waitForStreamReveal(streamId);
       if (activeSessionRef.current === nextSessionId) {
@@ -680,7 +682,7 @@ export function ConverseV2Page(
     }).finally(() => {
       if (activeSessionRef.current === nextSessionId) setOpeningPending(false);
     });
-  }, [language, token, queueStreamText, waitForStreamReveal]);
+  }, [language, token, queueStreamText, waitForStreamReveal, speak]);
 
   const startFromVideo = useCallback(async (video: TrackedVideo) => {
     setDeck({ id: video.video_id, title: video.title });
@@ -901,6 +903,7 @@ export function ConverseV2Page(
       setMsgRoman((prev) => ({ ...prev, [finalId]: result.romanized || '' }));
       romanReqRef.current.add(finalId);
       setStatus('Tap a word for its meaning · pick a suggested reply below');
+      speak(result.reply, result.turn_id);
     } catch {
       await waitForStreamReveal(streamId);
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== streamId));
@@ -910,7 +913,7 @@ export function ConverseV2Page(
       setSending(false);
       setStreaming(false);
     }
-  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal]);
+  }, [composerText, sending, openingPending, sessionId, language, token, queueStreamText, waitForStreamReveal, speak]);
 
   const handleCorrectionFb = useCallback(async (messageId: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => {
     if (turnId == null || correctionVerdicts[messageId]) return;
