@@ -8,6 +8,8 @@ import {
   Film,
 } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
+import { WordProgressControl } from './WordProgressRail';
+import type { TargetWord } from '../../types/chat';
 
 interface SessionHeaderProps {
   title: string;
@@ -16,6 +18,8 @@ interface SessionHeaderProps {
   /** Mixed-practice sessions draw from several videos — a random sample of
    * those shown stacked instead of the single thumbnail above. */
   stackedVideos?: { video_id: string; title: string }[];
+  targets: TargetWord[];
+  usedLemmas: Set<string>;
   coachOpen: boolean;
   onToggleCoach: () => void;
   transcriptOpen: boolean;
@@ -28,6 +32,8 @@ export function SessionHeader({
   subtitle,
   thumbnailVideoId,
   stackedVideos = [],
+  targets,
+  usedLemmas,
   coachOpen,
   onToggleCoach,
   transcriptOpen,
@@ -112,6 +118,7 @@ export function SessionHeader({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          <WordProgressControl targets={targets} usedLemmas={usedLemmas} />
           <Tooltip label={transcriptOpen ? 'Back to call' : 'Transcript'} placement="bottom">
             <button
               type="button"

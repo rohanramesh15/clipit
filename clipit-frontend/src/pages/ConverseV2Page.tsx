@@ -30,7 +30,6 @@ import { mapWithConcurrency } from '../lib/network';
 import { lemmasUsedIn } from '../lib/targetWords';
 import type { ChatMessage, SavedWord, TargetWord } from '../types/chat';
 import { SessionHeader } from '../components/chat/SessionHeader';
-import { WordProgressRail } from '../components/chat/WordProgressRail';
 import { VoiceStage } from '../components/chat/VoiceStage';
 import { VoiceControls } from '../components/chat/VoiceControls';
 import type { PersonaState } from '../components/ai-elements/persona';
@@ -1533,6 +1532,8 @@ export function ConverseV2Page(
         subtitle={profile ? `${langName} · ${profile.level}` : langName}
         thumbnailVideoId={deck?.id ?? null}
         stackedVideos={mixedThumbs}
+        targets={targetWords}
+        usedLemmas={usedLemmas}
         coachOpen={coachOpen}
         onToggleCoach={() => setCoachOpen((v) => !v)}
         transcriptOpen={transcriptOpen}
@@ -1541,7 +1542,6 @@ export function ConverseV2Page(
       />
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        <WordProgressRail targets={targetWords} usedLemmas={usedLemmas} />
         <main className="flex min-w-0 flex-1 flex-col">
           <AnimatePresence mode="wait" initial={false}>
             {transcriptOpen ? (
