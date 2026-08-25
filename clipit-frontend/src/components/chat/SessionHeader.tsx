@@ -118,7 +118,6 @@ export function SessionHeader({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <WordProgressControl targets={targets} usedLemmas={usedLemmas} />
           <Tooltip label={transcriptOpen ? 'Back to call' : 'Transcript'} placement="bottom">
             <button
               type="button"
@@ -154,6 +153,8 @@ export function SessionHeader({
               <UsersIcon className="size-5" aria-hidden="true" />
             </button>
           </Tooltip>
+
+          <WordProgressControl targets={targets} usedLemmas={usedLemmas} />
 
           <Tooltip label="End session" placement="bottom">
             <button
