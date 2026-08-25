@@ -39,7 +39,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         className="fixed inset-x-0 top-0 z-50 bg-app"
       >
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
-          <a href="#top" className="brand-logo flex items-center" aria-label="ClipIt home">
+          <div className="brand-logo flex items-center" aria-label="ClipIt">
             <img src={clipitLogo} alt="" className="-mt-2 h-12 w-12 shrink-0 object-contain" />
             <span
               className="-ml-1 text-4xl font-semibold leading-none tracking-tight"
@@ -47,7 +47,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             >
               <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
             </span>
-          </a>
+          </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <Button
