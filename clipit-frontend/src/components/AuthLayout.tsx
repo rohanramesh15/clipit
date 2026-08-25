@@ -61,7 +61,7 @@ export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, 
           </div>
 
           <div className="mt-5 rounded-2xl border border-subtle bg-surface p-6 sm:p-7">
-            <h1 className="font-heading text-section text-primary">{title}</h1>
+            <h1 className="font-heading text-section font-medium text-primary">{title}</h1>
             <p className="mt-1 text-body-sm text-secondary">{subtitle}</p>
 
             <div className="mt-6">{children}</div>

@@ -29,7 +29,7 @@ export function VoiceControls({
 }: VoiceControlsProps) {
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative flex w-full items-center justify-center">
+      <div className="flex w-full items-center justify-center gap-2">
         <SpeechInput
           isListening={live}
           onListeningChange={(listening) => {
@@ -42,12 +42,12 @@ export function VoiceControls({
           idleIcon={<MicIcon className="size-6" strokeWidth={2.25} aria-hidden="true" />}
         />
 
-        <DropdownMenu className="absolute right-0">
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               aria-label="More voice options"
-              className="grid size-9 place-items-center rounded-xl text-secondary transition-colors duration-150 ease-swift hover:bg-surface-hover hover:text-primary"
+              className="grid size-9 place-items-center rounded-xl text-secondary transition-colors duration-150 ease-swift hover:text-primary"
             >
               <MoreVerticalIcon className="size-4" aria-hidden="true" />
             </button>
