@@ -69,7 +69,7 @@ export function PracticeModes({ onOpenMode }: PracticeModesProps) {
             className={`group flex h-full flex-col rounded-2xl px-7 py-8 text-left transition-shadow duration-150 ease-swift hover:shadow-[0_8px_24px_rgba(76,35,35,0.08)] ${mode.surface}`}
           >
             <div className="flex items-center gap-3">
-              <h3 className={`font-heading text-card-title ${mode.heading}`}>{mode.label}</h3>
+              <h3 className={`font-heading text-card-title font-medium ${mode.heading}`}>{mode.label}</h3>
               <span className={`ml-auto inline-flex shrink-0 items-center rounded-xl p-2 transition-transform duration-150 ease-swift group-hover:translate-x-1 ${mode.heading}`} aria-hidden="true">
                 <NavigationIcon direction="forward" />
               </span>
