@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
+import { ArrowUpRightIcon, CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import type { ChatMessage, TargetWord } from '../../types/chat';
 
 interface Coaching {
+  id: string;
   english: string;
   corrected: string;
   explanation: string;
@@ -19,9 +20,10 @@ interface CoachDrawerProps {
   openWord: string | null;
   onToggleWord: (lemma: string) => void;
   messages: ChatMessage[];
-  latestCoaching: Coaching | null;
-  advancedOpen: boolean;
-  onToggleAdvanced: () => void;
+  coachings: Coaching[];
+  advancedOpenId: string | null;
+  onToggleAdvanced: (id: string) => void;
+  onJumpToMessage: (id: string) => void;
   onClose: () => void;
 }
 
@@ -41,9 +43,10 @@ export function CoachDrawer({
   openWord,
   onToggleWord,
   messages,
-  latestCoaching,
-  advancedOpen,
+  coachings,
+  advancedOpenId,
   onToggleAdvanced,
+  onJumpToMessage,
   onClose,
 }: CoachDrawerProps) {
   const used = usedLemmas.size;
@@ -145,49 +148,98 @@ export function CoachDrawer({
           {corrections.length === 0 ? (
             <p className="mt-1.5 text-body-sm text-muted">Nothing yet.</p>
           ) : (
-            <ul className="mt-2.5 space-y-2.5">
+            <ul className="mt-2.5 space-y-2">
               {corrections.map(({ m, said }) => (
-                <li key={m.id} className="border-l-2 border-subtle pl-3">
-                  <p className="text-meta text-muted line-through">{said}</p>
-                  <p className="mt-0.5 text-body-sm font-medium text-primary">{m.correction!.correct}</p>
-                  <p className="mt-0.5 text-meta text-secondary">{m.correction!.why_en}</p>
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => onJumpToMessage(m.id)}
+                    className="group flex w-full items-start gap-2 rounded-xl border-l-2 border-subtle py-1.5 pl-3 pr-2 text-left transition-colors duration-150 ease-swift hover:border-accent hover:bg-surface-hover"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-meta text-muted line-through">{said}</span>
+                      <span className="mt-0.5 block text-body-sm font-medium text-primary">{m.correction!.correct}</span>
+                      <span className="mt-0.5 block text-meta text-secondary">{m.correction!.why_en}</span>
+                    </span>
+                    <ArrowUpRightIcon
+                      className="mt-0.5 size-3.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 ease-swift group-hover:opacity-100"
+                      aria-hidden="true"
+                    />
+                  </button>
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        {latestCoaching && (
+        {coachings.length > 0 && (
           <section className="mt-7">
             <h3 className="text-body-sm font-semibold text-primary">Said in English</h3>
-            <p className="mt-2 text-lead font-medium text-primary">
-              {latestCoaching.loading ? '…' : (latestCoaching.corrected || '—')}
-            </p>
+            <ul className="mt-2.5 space-y-3">
+              {[...coachings].reverse().map((coaching, index) => {
+                const isLatest = index === 0;
+                const isAdvancedOpen = advancedOpenId === coaching.id;
+                return (
+                  <li key={coaching.id}>
+                    <button
+                      type="button"
+                      onClick={() => onJumpToMessage(coaching.id)}
+                      className="group block w-full rounded-2xl bg-surface p-4 text-left transition-colors duration-150 ease-swift hover:bg-surface-hover"
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        {isLatest && (
+                          <span className="text-meta font-semibold uppercase tracking-wide text-accent">Just now</span>
+                        )}
+                        <ArrowUpRightIcon
+                          className="ml-auto size-3.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 ease-swift group-hover:opacity-100"
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <span className={`block text-lead font-medium text-primary ${isLatest ? 'mt-1' : ''}`}>
+                        {coaching.loading ? '…' : (coaching.corrected || '—')}
+                      </span>
+                    </button>
 
-            {!latestCoaching.loading && latestCoaching.explanation && (
-              <div className="mt-3 rounded-2xl bg-accent-hover p-4">
-                <p className="text-meta font-semibold uppercase tracking-wide text-on-accent/85">Explanation</p>
-                <p className="mt-2 text-body-sm leading-relaxed text-on-accent">{latestCoaching.explanation}</p>
-                {latestCoaching.advancedDetail && (
-                  <button
-                    type="button"
-                    onClick={onToggleAdvanced}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-app px-3 py-1.5 text-body-sm font-semibold text-accent-hover"
-                  >
-                    <SparklesIcon className="w-4 h-4" aria-hidden="true" /> Advanced feedback
-                  </button>
-                )}
-              </div>
-            )}
+                    {!coaching.loading && coaching.explanation && (
+                      <div className="mt-2 rounded-2xl bg-accent-hover p-4">
+                        <p className="text-meta font-semibold uppercase tracking-wide text-on-accent/85">Explanation</p>
+                        <p className="mt-2 text-body-sm leading-relaxed text-on-accent">{coaching.explanation}</p>
+                        {coaching.advancedDetail && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleAdvanced(coaching.id)}
+                            aria-expanded={isAdvancedOpen}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-app px-3 py-1.5 text-body-sm font-semibold text-accent-hover"
+                          >
+                            <SparklesIcon className="w-4 h-4" aria-hidden="true" />
+                            {isAdvancedOpen ? 'Hide advanced feedback' : 'Advanced feedback'}
+                          </button>
+                        )}
+                      </div>
+                    )}
 
-            {advancedOpen && latestCoaching.advancedDetail && (
-              <div className="mt-4 border-t border-subtle pt-4">
-                {latestCoaching.advancedTopic && (
-                  <h4 className="font-heading font-bold text-accent-hover">{latestCoaching.advancedTopic}</h4>
-                )}
-                <p className="mt-2 text-body-sm leading-relaxed text-primary">{latestCoaching.advancedDetail}</p>
-              </div>
-            )}
+                    <AnimatePresence initial={false}>
+                      {isAdvancedOpen && coaching.advancedDetail && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: EASE }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-3 border-t border-subtle px-1 pt-3">
+                            {coaching.advancedTopic && (
+                              <h4 className="font-heading font-bold text-accent-hover">{coaching.advancedTopic}</h4>
+                            )}
+                            <p className="mt-2 text-body-sm leading-relaxed text-primary">{coaching.advancedDetail}</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
         )}
       </div>

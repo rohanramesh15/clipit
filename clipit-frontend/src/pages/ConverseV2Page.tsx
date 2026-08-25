@@ -199,8 +199,28 @@ export function ConverseV2Page(
     advancedTopic: string; advancedDetail: string; loading: boolean;
   }
   const [coachings, setCoachings] = useState<Coaching[]>([]);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpenId, setAdvancedOpenId] = useState<string | null>(null);
   const coachReqRef = useRef<Set<string>>(new Set());
+  // Jump-to-message from a Coach drawer entry (a Fix or a "said in English"
+  // moment) — briefly highlights the target message once the transcript is
+  // showing and scrolled to it.
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
+  const handleJumpToMessage = useCallback((messageId: string) => {
+    setCoachOpen(false);
+    setTranscriptOpen(true);
+    setHighlightMessageId(messageId);
+  }, []);
+  useEffect(() => {
+    if (!highlightMessageId || !transcriptOpen) return;
+    const id = highlightMessageId;
+    const timeout = window.setTimeout(() => {
+      document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+    const clear = window.setTimeout(() => {
+      setHighlightMessageId((current) => (current === id ? null : current));
+    }, 2000);
+    return () => { window.clearTimeout(timeout); window.clearTimeout(clear); };
+  }, [highlightMessageId, transcriptOpen]);
   // Another response / Suggest reply
   const [regenLoading, setRegenLoading] = useState(false);
   const [rephraseTransition, setRephraseTransition] = useState<{
@@ -577,7 +597,7 @@ export function ConverseV2Page(
       if (!isLikelyEnglish(text, language)) continue;
       coachReqRef.current.add(m.id);
       setCoachings((prev) => [...prev, { id: m.id, english: text, corrected: '', explanation: '', advancedTopic: '', advancedDetail: '', loading: true }]);
-      setAdvancedOpen(false);
+      setAdvancedOpenId(null);
       coachEnglish(sessionId, text, language, token)
         .then((r) => setCoachings((prev) => prev.map((c) => (c.id === m.id ? { ...c, corrected: r.corrected, explanation: r.explanation, advancedTopic: r.advanced_topic, advancedDetail: r.advanced_detail, loading: false } : c))))
         .catch(() => setCoachings((prev) => prev.map((c) => (c.id === m.id ? { ...c, loading: false } : c))));
@@ -1237,7 +1257,6 @@ export function ConverseV2Page(
     [messages, suggestVisibleId],
   );
 
-  const latestCoaching = coachings.length ? coachings[coachings.length - 1] : null;
   const currentDeckSort = deckSorts.find((option) => option.value === deckSort) ?? deckSorts[0];
   const matchingDecks = useMemo(() => {
     const needle = deckQuery.trim().toLowerCase();
@@ -1568,6 +1587,7 @@ export function ConverseV2Page(
                     onRevealCorrection={(id) => setRevealedCorrections((prev) => new Set(prev).add(id))}
                     correctionVerdicts={correctionVerdicts}
                     onCorrectionFeedback={handleCorrectionFb}
+                    highlightId={highlightMessageId}
                   />
                 </div>
               </motion.div>
@@ -1671,9 +1691,10 @@ export function ConverseV2Page(
               openWord={openTargetWord}
               onToggleWord={(lemma) => setOpenTargetWord((cur) => (cur === lemma ? null : lemma))}
               messages={messages}
-              latestCoaching={latestCoaching}
-              advancedOpen={advancedOpen}
-              onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
+              coachings={coachings}
+              advancedOpenId={advancedOpenId}
+              onToggleAdvanced={(id) => setAdvancedOpenId((cur) => (cur === id ? null : id))}
+              onJumpToMessage={handleJumpToMessage}
               onClose={() => setCoachOpen(false)}
             />
           )}

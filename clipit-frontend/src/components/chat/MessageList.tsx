@@ -20,6 +20,8 @@ interface MessageListProps {
   onRevealCorrection: (id: string) => void;
   correctionVerdicts: Record<string, 'fine' | 'wrong'>;
   onCorrectionFeedback: (id: string, turnId: number | undefined, verdict: 'fine' | 'wrong') => void;
+  /** Briefly ringed and scrolled to — set when the learner jumps here from a Coach drawer entry. */
+  highlightId?: string | null;
 }
 
 export function MessageList({
@@ -36,6 +38,7 @@ export function MessageList({
   onRevealCorrection,
   correctionVerdicts,
   onCorrectionFeedback,
+  highlightId,
 }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
   /* Turns already on screen at mount are history — they arrive, they don't perform. */
@@ -47,32 +50,38 @@ export function MessageList({
 
   return (
     <div className="flex flex-col gap-7">
-      {messages.map((message) =>
-        message.role === 'assistant' ? (
-          <AssistantMessage
-            key={message.id}
-            message={message}
-            language={language}
-            animateIn={!historyIds.current.has(message.id)}
-            savedWords={savedWords}
-            onSaveWord={onSaveWord}
-            onListen={onListen}
-            onStopListen={onStopListen}
-            romanized={romanized[message.id]}
-            revealed={revealedCorrections.has(message.id)}
-            onRevealCorrection={() => onRevealCorrection(message.id)}
-            verdict={correctionVerdicts[message.id]}
-            onCorrectionFeedback={(verdict) => onCorrectionFeedback(message.id, message.turnId, verdict)}
-          />
-        ) : (
-          <UserMessage
-            key={message.id}
-            message={message}
-            animateIn={!historyIds.current.has(message.id)}
-            usedTargets={lemmasUsedIn(message.text, targetWords)}
-          />
-        ),
-      )}
+      {messages.map((message) => (
+        <div
+          key={message.id}
+          id={`msg-${message.id}`}
+          className={`rounded-2xl transition-shadow duration-300 ease-swift ${
+            highlightId === message.id ? 'ring-2 ring-accent-ring ring-offset-2 ring-offset-app' : ''
+          }`}
+        >
+          {message.role === 'assistant' ? (
+            <AssistantMessage
+              message={message}
+              language={language}
+              animateIn={!historyIds.current.has(message.id)}
+              savedWords={savedWords}
+              onSaveWord={onSaveWord}
+              onListen={onListen}
+              onStopListen={onStopListen}
+              romanized={romanized[message.id]}
+              revealed={revealedCorrections.has(message.id)}
+              onRevealCorrection={() => onRevealCorrection(message.id)}
+              verdict={correctionVerdicts[message.id]}
+              onCorrectionFeedback={(verdict) => onCorrectionFeedback(message.id, message.turnId, verdict)}
+            />
+          ) : (
+            <UserMessage
+              message={message}
+              animateIn={!historyIds.current.has(message.id)}
+              usedTargets={lemmasUsedIn(message.text, targetWords)}
+            />
+          )}
+        </div>
+      ))}
 
       {thinking && (
         <div className="flex items-center gap-4" role="status" aria-live="polite">
