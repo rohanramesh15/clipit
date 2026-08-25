@@ -1,14 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type { ChatMessage, SavedWord, TargetWord } from '../../types/chat';
 import { lemmasUsedIn } from '../../lib/targetWords';
 import { AssistantMessage } from './AssistantMessage';
 import { UserMessage } from './UserMessage';
+import { Persona } from '../ai-elements/persona';
 
 interface MessageListProps {
   messages: ChatMessage[];
   language: string;
-  tutorInitial: string;
   targetWords: TargetWord[];
   thinking: boolean;
   regenerating: boolean;
@@ -28,7 +28,6 @@ interface MessageListProps {
 export function MessageList({
   messages,
   language,
-  tutorInitial,
   targetWords,
   thinking,
   regenerating,
@@ -61,7 +60,6 @@ export function MessageList({
             key={message.id}
             message={message}
             language={language}
-            tutorInitial={tutorInitial}
             animateIn={!historyIds.current.has(message.id)}
             isLast={message.id === lastAssistantId}
             regenerating={regenerating}
@@ -89,11 +87,8 @@ export function MessageList({
 
       {thinking && (
         <div className="flex items-center gap-4" role="status" aria-live="polite">
-          <div
-            aria-hidden="true"
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-body-sm font-semibold text-accent"
-          >
-            {tutorInitial}
+          <div aria-hidden="true" className="shrink-0">
+            <Persona state="thinking" className="size-9" />
           </div>
           <span className="flex items-center gap-1.5">
             {[0, 1, 2].map((dot) => (

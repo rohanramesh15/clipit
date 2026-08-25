@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LanguagesIcon, Loader2Icon, MessageSquarePlusIcon, RotateCcwIcon, Volume2Icon } from 'lucide-react';
+import { CaseSensitiveIcon, LanguagesIcon, Loader2Icon, MessageSquarePlusIcon, RotateCcwIcon, Volume2Icon, XIcon } from 'lucide-react';
 import type { ChatMessage, SavedWord } from '../../types/chat';
 import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
+import { Persona } from '../ai-elements/persona';
 
 interface AssistantMessageProps {
   message: ChatMessage;
   language: string;
-  tutorInitial: string;
   animateIn: boolean;
   isLast: boolean;
   regenerating: boolean;
@@ -17,6 +17,7 @@ interface AssistantMessageProps {
   onRegenerate: () => void;
   onSuggest: () => void;
   onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
+  onStopListen: () => void;
   romanized?: string;
   revealed: boolean;
   onRevealCorrection: () => void;
@@ -29,7 +30,6 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 export function AssistantMessage({
   message,
   language,
-  tutorInitial,
   animateIn,
   isLast,
   regenerating,
@@ -38,6 +38,7 @@ export function AssistantMessage({
   onRegenerate,
   onSuggest,
   onListen,
+  onStopListen,
   romanized,
   revealed,
   onRevealCorrection,
@@ -45,6 +46,7 @@ export function AssistantMessage({
   onCorrectionFeedback,
 }: AssistantMessageProps) {
   const [showTranslation, setShowTranslation] = useState(false);
+  const [showRomanized, setShowRomanized] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
   return (
@@ -54,11 +56,8 @@ export function AssistantMessage({
       transition={{ duration: 0.24, ease: EASE }}
       className="group flex gap-4"
     >
-      <div
-        aria-hidden="true"
-        className="mt-1 grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-body-sm font-semibold text-accent"
-      >
-        {tutorInitial}
+      <div aria-hidden="true" className="mt-1 shrink-0">
+        <Persona state={speaking ? 'speaking' : 'idle'} className="size-9" />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -72,7 +71,19 @@ export function AssistantMessage({
           />
         </p>
 
-        {romanized ? <p className="mt-1 text-lead leading-relaxed text-muted">{romanized}</p> : null}
+        <AnimatePresence initial={false}>
+          {showRomanized && romanized && (
+            <motion.p
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: EASE }}
+              className="overflow-hidden text-lead leading-relaxed text-muted"
+            >
+              <span className="mt-1 block">{romanized}</span>
+            </motion.p>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence initial={false}>
           {showTranslation && message.translation && (

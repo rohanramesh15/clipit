@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check, X,
@@ -32,7 +32,7 @@ import type { ChatMessage, SavedWord, TargetWord } from '../types/chat';
 import { SessionHeader } from '../components/chat/SessionHeader';
 import { VoiceStage } from '../components/chat/VoiceStage';
 import { VoiceControls } from '../components/chat/VoiceControls';
-import type { OrbState } from '../components/chat/VoiceOrb';
+import type { PersonaState } from '../components/ai-elements/persona';
 import { Composer } from '../components/chat/Composer';
 import { MessageList } from '../components/chat/MessageList';
 import { SuggestionPanel } from '../components/chat/SuggestionPanel';
@@ -797,12 +797,11 @@ export function ConverseV2Page(
   // in-flight voice message's text, while it's still being appended to.
   const heard = voiceStatus === 'listening' ? (messages.find((m) => m.id === vUserId.current)?.text ?? '') : '';
   const tutorBusy = sending || openingPending;
-  const orbState: OrbState = tutorBusy
+  const personaState: PersonaState = tutorBusy
     ? 'thinking'
     : voiceStatus === 'speaking' ? 'speaking'
     : voiceStatus === 'listening' || voiceStatus === 'connecting' ? 'listening'
     : 'idle';
-  const tutorInitial = langName.charAt(0).toUpperCase();
   const activeSuggestions = useMemo(
     () => messages.find((m) => m.id === suggestVisibleId)?.suggestedReplies ?? [],
     [messages, suggestVisibleId],
@@ -1125,7 +1124,6 @@ export function ConverseV2Page(
                   <MessageList
                     messages={messages}
                     language={language}
-                    tutorInitial={tutorInitial}
                     targetWords={targetWords}
                     thinking={tutorBusy}
                     regenerating={regenLoading}
@@ -1154,10 +1152,9 @@ export function ConverseV2Page(
               >
                 <VoiceStage
                   language={language}
-                  tutorInitial={tutorInitial}
                   tutorTurn={tutorTurn}
                   lastUserTurn={lastUserTurn}
-                  orbState={orbState}
+                  personaState={personaState}
                   heard={heard}
                   savedWords={savedWords}
                   onSaveWord={(w) => saveWord(w.lemma, w.gloss)}
@@ -1203,7 +1200,6 @@ export function ConverseV2Page(
               ) : (
                 <VoiceControls
                   live={voiceStatus !== 'off'}
-                  capturing={voiceStatus === 'listening'}
                   connecting={voiceStatus === 'connecting'}
                   disabled={!sessionId}
                   status={!sessionId ? 'Starting your session…' : status}

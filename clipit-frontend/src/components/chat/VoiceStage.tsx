@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LanguagesIcon,
@@ -9,14 +9,13 @@ import {
 import type { ChatMessage, SavedWord } from '../../types/chat';
 import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
-import { VoiceOrb, type OrbState } from './VoiceOrb';
+import { Persona, type PersonaState } from '../ai-elements/persona';
 
 interface VoiceStageProps {
   language: string;
-  tutorInitial: string;
   tutorTurn?: ChatMessage;
   lastUserTurn?: ChatMessage;
-  orbState: OrbState;
+  personaState: PersonaState;
   /** In-progress transcript of what's currently being heard from the mic. */
   heard: string;
   savedWords: SavedWord[];
@@ -33,10 +32,9 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 
 export function VoiceStage({
   language,
-  tutorInitial,
   tutorTurn,
   lastUserTurn,
-  orbState,
+  personaState,
   heard,
   savedWords,
   onSaveWord,
@@ -55,7 +53,7 @@ export function VoiceStage({
 
   return (
     <div className="flex flex-col items-center px-4 text-center">
-      <VoiceOrb state={orbState} initial={tutorInitial} />
+      <Persona state={personaState} className="size-28 sm:size-32" />
 
       {/* What the tutor just said — the one thing that matters right now. */}
       <div className="mt-5 max-w-2xl">

@@ -57,9 +57,21 @@ declare global {
   }
 }
 
-type SpeechInputMode = "speech-recognition" | "media-recorder" | "none";
+type SpeechInputMode =
+  | "speech-recognition"
+  | "media-recorder"
+  | "none"
+  | "controlled";
 
 export type SpeechInputProps = ComponentProps<typeof Button> & {
+  /**
+   * Use the component as the visual control for an external audio pipeline.
+   * This prevents it from opening a second microphone stream.
+   */
+  isListening?: boolean;
+  onListeningChange?: (isListening: boolean) => void;
+  /** Displays the processing treatment while an external pipeline connects. */
+  isProcessing?: boolean;
   onTranscriptionChange?: (text: string) => void;
   /**
    * Callback for when audio is recorded using MediaRecorder fallback.
@@ -89,15 +101,23 @@ const detectSpeechInputMode = (): SpeechInputMode => {
 
 export const SpeechInput = ({
   className,
+  disabled: disabledProp,
+  isListening: controlledListening,
+  onListeningChange,
+  isProcessing: controlledProcessing,
   onTranscriptionChange,
   onAudioRecorded,
   lang = "en-US",
   "aria-label": ariaLabel,
+  onClick,
   ...props
 }: SpeechInputProps) => {
-  const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [mode] = useState<SpeechInputMode>(detectSpeechInputMode);
+  const isControlled = onListeningChange !== undefined;
+  const [internalListening, setInternalListening] = useState(false);
+  const [internalProcessing, setInternalProcessing] = useState(false);
+  const [mode] = useState<SpeechInputMode>(() =>
+    isControlled ? "controlled" : detectSpeechInputMode()
+  );
   const [isRecognitionReady, setIsRecognitionReady] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -108,6 +128,23 @@ export const SpeechInput = ({
   >(onTranscriptionChange);
   const onAudioRecordedRef =
     useRef<SpeechInputProps["onAudioRecorded"]>(onAudioRecorded);
+  const isListening = isControlled
+    ? Boolean(controlledListening)
+    : internalListening;
+  const isProcessing = isControlled
+    ? Boolean(controlledProcessing)
+    : internalProcessing;
+
+  const setListening = useCallback(
+    (listening: boolean) => {
+      if (isControlled) {
+        onListeningChange?.(listening);
+      } else {
+        setInternalListening(listening);
+      }
+    },
+    [isControlled, onListeningChange]
+  );
 
   // Keep refs in sync
   onTranscriptionChangeRef.current = onTranscriptionChange;
@@ -115,7 +152,7 @@ export const SpeechInput = ({
 
   // Initialize Speech Recognition when mode is speech-recognition
   useEffect(() => {
-    if (mode !== "speech-recognition") {
+    if (isControlled || mode !== "speech-recognition") {
       return;
     }
 
@@ -128,11 +165,11 @@ export const SpeechInput = ({
     speechRecognition.lang = lang;
 
     const handleStart = () => {
-      setIsListening(true);
+      setListening(true);
     };
 
     const handleEnd = () => {
-      setIsListening(false);
+      setListening(false);
     };
 
     const handleResult = (event: Event) => {
@@ -156,7 +193,7 @@ export const SpeechInput = ({
     };
 
     const handleError = () => {
-      setIsListening(false);
+      setListening(false);
     };
 
     speechRecognition.addEventListener("start", handleStart);
@@ -176,7 +213,7 @@ export const SpeechInput = ({
       recognitionRef.current = null;
       setIsRecognitionReady(false);
     };
-  }, [mode, lang]);
+  }, [isControlled, lang, mode, setListening]);
 
   // Cleanup MediaRecorder and stream on unmount
   useEffect(
@@ -222,7 +259,7 @@ export const SpeechInput = ({
         });
 
         if (audioBlob.size > 0 && onAudioRecordedRef.current) {
-          setIsProcessing(true);
+          setInternalProcessing(true);
           try {
             const transcript = await onAudioRecordedRef.current(audioBlob);
             if (transcript) {
@@ -231,13 +268,13 @@ export const SpeechInput = ({
           } catch {
             // Error handling delegated to the onAudioRecorded caller
           } finally {
-            setIsProcessing(false);
+            setInternalProcessing(false);
           }
         }
       };
 
       const handleError = () => {
-        setIsListening(false);
+        setListening(false);
         for (const track of stream.getTracks()) {
           track.stop();
         }
@@ -250,22 +287,24 @@ export const SpeechInput = ({
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
-      setIsListening(true);
+      setListening(true);
     } catch {
-      setIsListening(false);
+      setListening(false);
     }
-  }, []);
+  }, [setListening]);
 
   // Stop MediaRecorder recording
   const stopMediaRecorder = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
-    setIsListening(false);
-  }, []);
+    setListening(false);
+  }, [setListening]);
 
   const toggleListening = useCallback(() => {
-    if (mode === "speech-recognition" && recognitionRef.current) {
+    if (isControlled) {
+      setListening(!isListening);
+    } else if (mode === "speech-recognition" && recognitionRef.current) {
       if (isListening) {
         recognitionRef.current.stop();
       } else {
@@ -278,13 +317,15 @@ export const SpeechInput = ({
         startMediaRecorder();
       }
     }
-  }, [mode, isListening, startMediaRecorder, stopMediaRecorder]);
+  }, [isControlled, isListening, mode, setListening, startMediaRecorder, stopMediaRecorder]);
 
   // Determine if button should be disabled
   const isDisabled =
-    mode === "none" ||
-    (mode === "speech-recognition" && !isRecognitionReady) ||
-    (mode === "media-recorder" && !onAudioRecorded) ||
+    disabledProp ||
+    (!isControlled &&
+      (mode === "none" ||
+        (mode === "speech-recognition" && !isRecognitionReady) ||
+        (mode === "media-recorder" && !onAudioRecorded))) ||
     isProcessing;
 
   const statusMessage = isProcessing
@@ -319,7 +360,12 @@ export const SpeechInput = ({
           className
         )}
         disabled={isDisabled}
-        onClick={toggleListening}
+        onClick={(event) => {
+          onClick?.(event);
+          if (!event.defaultPrevented) {
+            toggleListening();
+          }
+        }}
         aria-label={isListening ? "Stop listening" : ariaLabel || "Start voice input"}
         aria-pressed={isListening}
       >
