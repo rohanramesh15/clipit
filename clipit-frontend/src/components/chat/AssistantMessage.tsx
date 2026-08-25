@@ -48,6 +48,8 @@ export function AssistantMessage({
   const [showTranslation, setShowTranslation] = useState(false);
   const [showRomanized, setShowRomanized] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const romanizationPending = romanized === undefined;
+  const romanizationReady = Boolean(romanized);
 
   return (
     <motion.article
@@ -100,15 +102,18 @@ export function AssistantMessage({
         </AnimatePresence>
 
         <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity duration-200 ease-swift focus-within:opacity-100 group-hover:opacity-100">
-          {romanized && (
-            <ActionButton
-              label={showRomanized ? 'Hide' : 'Romanize'}
-              active={showRomanized}
-              onClick={() => setShowRomanized((v) => !v)}
-            >
+          <ActionButton
+            label={romanizationPending ? 'Preparing Romanization' : showRomanized ? 'Hide' : 'Romanize'}
+            active={showRomanized}
+            disabled={!romanizationReady}
+            onClick={() => setShowRomanized((v) => !v)}
+          >
+            {romanizationPending ? (
+              <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
               <ALargeSmallIcon className="size-4" aria-hidden="true" />
-            </ActionButton>
-          )}
+            )}
+          </ActionButton>
 
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}

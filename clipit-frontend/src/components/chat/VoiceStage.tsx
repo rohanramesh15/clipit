@@ -5,6 +5,7 @@ import {
   LanguagesIcon,
   MessageSquarePlusIcon,
   RotateCcwIcon,
+  Loader2Icon,
   Volume2Icon,
   XIcon,
 } from 'lucide-react';
@@ -51,6 +52,8 @@ export function VoiceStage({
   const [showRomanized, setShowRomanized] = useState(false);
   const [showCorrection, setShowCorrection] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const romanizationPending = romanized === undefined;
+  const romanizationReady = Boolean(romanized);
   // The turn right after the learner's is the one carrying feedback on it.
   const correction = tutorTurn?.correction;
 
@@ -104,15 +107,18 @@ export function VoiceStage({
 
       {tutorTurn && (
         <div className="mt-1.5 flex items-center justify-center gap-1 opacity-0 transition-opacity duration-200 ease-swift focus-within:opacity-100 group-hover:opacity-100">
-          {romanized && (
-            <ActionButton
-              label={showRomanized ? 'Hide' : 'Romanize'}
-              active={showRomanized}
-              onClick={() => setShowRomanized((v) => !v)}
-            >
+          <ActionButton
+            label={romanizationPending ? 'Preparing Romanization' : showRomanized ? 'Hide' : 'Romanize'}
+            active={showRomanized}
+            disabled={!romanizationReady}
+            onClick={() => setShowRomanized((v) => !v)}
+          >
+            {romanizationPending ? (
+              <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
               <ALargeSmallIcon className="size-4" aria-hidden="true" />
-            </ActionButton>
-          )}
+            )}
+          </ActionButton>
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}
             active={showTranslation}
