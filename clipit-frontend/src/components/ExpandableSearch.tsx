@@ -40,7 +40,7 @@ export function ExpandableSearch({
     <div ref={rootRef} className="flex min-w-10 flex-1 justify-end">
       <motion.div
         className="max-w-full overflow-hidden"
-        animate={{ width: isOpen ? 384 : 40 }}
+        animate={{ width: isOpen ? 336 : 40 }}
         transition={{ type: 'spring', stiffness: 420, damping: 24, mass: 0.7 }}
       >
         {isOpen ? (

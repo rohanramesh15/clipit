@@ -145,7 +145,6 @@ export function ConverseV2Page(
   const [deckQuery, setDeckQuery] = useState('');
   const [mixedSources, setMixedSources] = useState<MixedSourceVideo[]>([]);
   const [mixedWordCount, setMixedWordCount] = useState(0);
-  const [mixedWordPreview, setMixedWordPreview] = useState<string[]>([]);
   const [deckSort, setDeckSort] = useState<DeckSort>('due');
   const [isDeckSortOpen, setIsDeckSortOpen] = useState(false);
   const [visibleDecks, setVisibleDecks] = useState(DECK_PAGE_SIZE);
@@ -512,7 +511,6 @@ export function ConverseV2Page(
     if (phase !== 'deck' || !token) {
       setMixedSources([]);
       setMixedWordCount(0);
-      setMixedWordPreview([]);
       return;
     }
     let alive = true;
@@ -521,13 +519,11 @@ export function ConverseV2Page(
         if (!alive) return;
         setMixedSources(result.videos);
         setMixedWordCount(result.word_count);
-        setMixedWordPreview(result.words ?? []);
       })
       .catch(() => {
         if (!alive) return;
         setMixedSources([]);
         setMixedWordCount(0);
-        setMixedWordPreview([]);
       });
     return () => { alive = false; };
   }, [language, phase, token]);
@@ -1440,13 +1436,8 @@ export function ConverseV2Page(
                       Start chatting from mixed videos
                     </h2>
                     <p className="mt-0.5 text-body-sm text-secondary">
-                      {mixedAllSources.length} {mixedAllSources.length === 1 ? 'video' : 'videos'} · {mixedWordCount} {mixedWordCount === 1 ? 'word' : 'words'} to practise
+                      {mixedAllSources.length} {mixedAllSources.length === 1 ? 'video' : 'videos'} · {mixedWordCount} {mixedWordCount === 1 ? 'word' : 'words'}
                     </p>
-                    {mixedWordPreview.length > 0 && (
-                      <p className="mt-0.5 truncate text-meta text-muted" title={mixedWordPreview.join(' · ')}>
-                        Testing: {mixedWordPreview.slice(0, 3).join(' · ')}{mixedWordPreview.length > 3 ? ` +${mixedWordPreview.length - 3}` : ''}
-                      </p>
-                    )}
                   </div>
                 </div>
                 <Button
