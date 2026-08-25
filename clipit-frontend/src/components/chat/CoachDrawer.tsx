@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
-import type { ChatMessage, SavedWord, TargetWord } from '../../types/chat';
+import type { ChatMessage, TargetWord } from '../../types/chat';
 
 interface Coaching {
   english: string;
@@ -19,7 +19,6 @@ interface CoachDrawerProps {
   openWord: string | null;
   onToggleWord: (lemma: string) => void;
   messages: ChatMessage[];
-  savedWords: SavedWord[];
   latestCoaching: Coaching | null;
   advancedOpen: boolean;
   onToggleAdvanced: () => void;
@@ -42,7 +41,6 @@ export function CoachDrawer({
   openWord,
   onToggleWord,
   messages,
-  savedWords,
   latestCoaching,
   advancedOpen,
   onToggleAdvanced,
@@ -153,22 +151,6 @@ export function CoachDrawer({
                   <p className="text-meta text-muted line-through">{said}</p>
                   <p className="mt-0.5 text-body-sm font-medium text-primary">{m.correction!.correct}</p>
                   <p className="mt-0.5 text-meta text-secondary">{m.correction!.why_en}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="mt-7">
-          <h3 className="text-body-sm font-semibold text-primary">Saved words</h3>
-          {savedWords.length === 0 ? (
-            <p className="mt-1.5 text-body-sm text-muted">Tap a word to save it.</p>
-          ) : (
-            <ul className="mt-2.5 flex flex-wrap gap-2">
-              {savedWords.map((word) => (
-                <li key={word.lemma} className="rounded-md border border-subtle px-2.5 py-1.5 text-meta">
-                  <span className="font-medium text-primary">{word.lemma}</span>
-                  <span className="text-muted"> · {word.gloss}</span>
                 </li>
               ))}
             </ul>

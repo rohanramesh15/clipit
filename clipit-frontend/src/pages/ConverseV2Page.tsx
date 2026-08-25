@@ -1671,7 +1671,6 @@ export function ConverseV2Page(
               openWord={openTargetWord}
               onToggleWord={(lemma) => setOpenTargetWord((cur) => (cur === lemma ? null : lemma))}
               messages={messages}
-              savedWords={savedWords}
               latestCoaching={latestCoaching}
               advancedOpen={advancedOpen}
               onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
