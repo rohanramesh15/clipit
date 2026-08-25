@@ -52,17 +52,24 @@ export function SessionHeader({
 
   return (
     <header className="shrink-0 border-b border-subtle bg-app">
-      <div className="mx-auto flex h-16 w-full max-w-page items-center gap-4 px-5 sm:px-8">
-        <button
-          type="button"
-          onClick={onLeave}
-          aria-label="Leave practice"
-          className="inline-flex shrink-0 items-center rounded-xl p-2 text-secondary transition-all duration-150 ease-swift hover:-translate-x-0.5 hover:text-primary"
-        >
-          <ChevronLeftIcon className="size-5" aria-hidden="true" />
-        </button>
+      <div
+        className={`mx-auto h-16 w-full max-w-page items-center gap-4 px-5 sm:px-8 ${
+          targets.length > 0
+            ? 'flex md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
+            : 'flex'
+        }`}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          <button
+            type="button"
+            onClick={onLeave}
+            aria-label="Leave practice"
+            className="inline-flex shrink-0 items-center rounded-xl p-2 text-secondary transition-all duration-150 ease-swift hover:-translate-x-0.5 hover:text-primary"
+          >
+            <ChevronLeftIcon className="size-5" aria-hidden="true" />
+          </button>
 
-        {stackedVideos.length > 0 ? (
+          {stackedVideos.length > 0 ? (
           <ul
             className="hidden shrink-0 items-center -space-x-3 sm:flex"
             aria-label={`Words drawn from ${stackedVideos.map((v) => v.title).join(', ')}`}
@@ -92,7 +99,7 @@ export function SessionHeader({
               );
             })}
           </ul>
-        ) : (
+          ) : (
           <span className="hidden h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-hover sm:flex">
             {isNetflix ? (
               <Film className="w-4 h-4 text-accent" />
@@ -106,15 +113,16 @@ export function SessionHeader({
               />
             ) : null}
           </span>
-        )}
+          )}
 
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-heading text-body font-semibold text-primary">{title}</h1>
-          <p className="truncate text-meta text-muted">{subtitle}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-heading text-body font-semibold text-primary">{title}</h1>
+            <p className="truncate text-meta text-muted">{subtitle}</p>
+          </div>
         </div>
 
         {targets.length > 0 && (
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 md:col-start-2 md:flex">
             <div
               className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-hover"
               role="progressbar"
@@ -135,7 +143,7 @@ export function SessionHeader({
           </div>
         )}
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 md:col-start-3 md:justify-self-end">
           <Tooltip label={transcriptOpen ? 'Back to call' : 'Transcript'} placement="bottom">
             <button
               type="button"
