@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   ChevronLeftIcon,
   UsersIcon,
@@ -9,7 +8,6 @@ import {
   Film,
 } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
-import type { TargetWord } from '../../types/chat';
 
 interface SessionHeaderProps {
   title: string;
@@ -18,8 +16,6 @@ interface SessionHeaderProps {
   /** Mixed-practice sessions draw from several videos — a random sample of
    * those shown stacked instead of the single thumbnail above. */
   stackedVideos?: { video_id: string; title: string }[];
-  targets: TargetWord[];
-  usedCount: number;
   coachOpen: boolean;
   onToggleCoach: () => void;
   transcriptOpen: boolean;
@@ -32,8 +28,6 @@ export function SessionHeader({
   subtitle,
   thumbnailVideoId,
   stackedVideos = [],
-  targets,
-  usedCount,
   coachOpen,
   onToggleCoach,
   transcriptOpen,
@@ -52,13 +46,7 @@ export function SessionHeader({
 
   return (
     <header className="shrink-0 border-b border-subtle bg-app">
-      <div
-        className={`mx-auto h-16 w-full max-w-page items-center gap-4 px-5 sm:px-8 ${
-          targets.length > 0
-            ? 'flex md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
-            : 'flex'
-        }`}
-      >
+      <div className="mx-auto flex h-16 w-full max-w-page items-center gap-4 px-5 sm:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <button
             type="button"
@@ -123,29 +111,7 @@ export function SessionHeader({
           </div>
         </div>
 
-        {targets.length > 0 && (
-          <div className="hidden items-center gap-3 md:col-start-2 md:flex">
-            <div
-              className="h-1.5 w-28 translate-y-px overflow-hidden rounded-full bg-surface-hover"
-              role="progressbar"
-              aria-valuenow={usedCount}
-              aria-valuemin={0}
-              aria-valuemax={targets.length}
-              aria-label="Words used this session"
-            >
-              <motion.div
-                className="h-full rounded-full bg-accent"
-                animate={{ width: `${targets.length ? (usedCount / targets.length) * 100 : 0}%` }}
-                transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
-              />
-            </div>
-            <p className="text-meta text-secondary">
-              <span className="font-semibold text-primary">{usedCount}</span>/{targets.length} words
-            </p>
-          </div>
-        )}
-
-        <div className="flex shrink-0 items-center gap-1 md:col-start-3 md:justify-self-end">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <Tooltip label={transcriptOpen ? 'Back to call' : 'Transcript'} placement="bottom">
             <button
               type="button"
