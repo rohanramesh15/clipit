@@ -57,7 +57,7 @@ export function Languages() {
             return (
               <li key={language.id} className="relative">
                 <span className="relative z-10 flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface">
-                  <span className="block h-3/5 w-3/5 overflow-hidden rounded-lg shadow-[0_8px_18px_-10px_rgba(56,35,35,0.35)]">
+                  <span className="block h-3/5 w-3/5 overflow-hidden rounded-lg shadow-[0_5px_12px_-9px_rgba(56,35,35,0.26)]">
                     <Flag />
                   </span>
                 </span>
