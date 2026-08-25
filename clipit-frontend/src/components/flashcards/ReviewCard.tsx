@@ -145,7 +145,7 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="mx-auto mt-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-meta font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-accent-soft hover:text-accent"
+            className="mx-auto mt-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-meta font-medium text-secondary"
             aria-label="Show the definition"
           >
             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -249,9 +249,10 @@ export function ReviewCard({
               event.stopPropagation();
               onFlip();
             }}
-            className="mx-auto shrink-0 rounded-lg bg-surface-hover px-4 py-2.5 text-meta font-medium text-secondary transition-colors duration-150 ease-swift hover:bg-accent-soft hover:text-accent"
+            className="mx-auto flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-meta font-medium text-secondary"
             aria-label="Show the prompt"
           >
+            <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
             Show prompt
           </button>
         </div>
