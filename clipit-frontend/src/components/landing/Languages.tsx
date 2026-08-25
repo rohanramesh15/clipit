@@ -1,5 +1,7 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { availableLanguages, type Language } from '../../data/landing';
+import { motionTiming } from '../../lib/motion';
 
 function KoreanFlag() {
   const trigram = (x: number, y: number, rotate: number) => (
@@ -46,15 +48,28 @@ export function Languages() {
             Two languages available
           </h2>
           <p className="mt-3 text-lead text-secondary">
-            Clip Korean or Ukrainian subtitles — each keeps its own deck.
+            Clip Korean or Ukrainian subtitles, each with its own deck.
           </p>
         </div>
 
-        <ul className="mt-12 grid gap-8 md:gap-10 md:grid-cols-2">
+        <motion.ul
+          className="mt-12 grid gap-8 md:gap-10 md:grid-cols-2"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.3 }}
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+        >
           {availableLanguages.map((language) => {
             const Flag = flags[language.id];
             return (
-              <li key={language.id} className="relative">
+              <motion.li
+                key={language.id}
+                variants={{
+                  hidden: { opacity: 0, y: 16 },
+                  visible: { opacity: 1, y: 0, transition: motionTiming.base },
+                }}
+                className="relative"
+              >
                 <span className="relative z-10 flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface">
                   <span className="block h-3/5 w-3/5 overflow-hidden rounded-lg border border-subtle shadow-[0_3px_8px_-7px_rgba(56,35,35,0.18)]">
                     <Flag />
@@ -63,10 +78,10 @@ export function Languages() {
                 <p className="relative z-0 -mt-4 rounded-b-2xl bg-app px-6 pb-4 pt-8 text-center font-heading text-card-title font-medium leading-tight text-primary sm:px-7 sm:pb-5 sm:pt-9">
                   {language.english}
                 </p>
-              </li>
+              </motion.li>
             );
           })}
-        </ul>
+        </motion.ul>
       </div>
     </section>
   );
