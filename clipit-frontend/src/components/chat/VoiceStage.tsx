@@ -17,7 +17,6 @@ import { LoadingAnimation } from '../LoadingAnimation';
 interface VoiceStageProps {
   language: string;
   tutorTurn?: ChatMessage;
-  lastUserTurn?: ChatMessage;
   personaState: PersonaState;
   /** In-progress transcript of what's currently being heard from the mic. */
   heard: string;
@@ -36,7 +35,6 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 export function VoiceStage({
   language,
   tutorTurn,
-  lastUserTurn,
   personaState,
   heard,
   savedWords,
@@ -50,11 +48,8 @@ export function VoiceStage({
 }: VoiceStageProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showRomanized, setShowRomanized] = useState(false);
-  const [showCorrection, setShowCorrection] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const romanizationPending = romanized === undefined;
-  // The turn right after the learner's is the one carrying feedback on it.
-  const correction = tutorTurn?.correction;
 
   return (
     <div className="flex flex-col items-center px-4 text-center">
@@ -155,7 +150,9 @@ export function VoiceStage({
       )}
       </div>
 
-      {/* Your own last turn, kept quiet so recognition can be checked. */}
+      {/* Keep only the live recognition text in this focused voice view. Past
+          learner turns remain in the transcript, rather than competing with
+          the tutor's next response. */}
       <div className="mt-8 min-h-[3.5rem] max-w-2xl">
         <AnimatePresence mode="wait" initial={false}>
           {heard ? (
@@ -169,46 +166,6 @@ export function VoiceStage({
             >
               {heard}
             </motion.p>
-          ) : lastUserTurn ? (
-            <motion.div
-              key={lastUserTurn.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18, ease: EASE }}
-            >
-              <p className="text-lead text-secondary">{lastUserTurn.text}</p>
-
-              {correction && (
-                <div className="mt-1.5 flex items-center justify-center gap-4 text-meta">
-                  <button
-                    type="button"
-                    onClick={() => setShowCorrection((v) => !v)}
-                    aria-expanded={showCorrection}
-                    className="text-muted underline decoration-1 underline-offset-4 hover:text-primary"
-                  >
-                    {showCorrection ? 'Hide' : 'Better way to say'}
-                  </button>
-                </div>
-              )}
-
-              <AnimatePresence initial={false}>
-                {showCorrection && correction && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.22, ease: EASE }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-2 rounded-2xl bg-surface p-4 text-left">
-                      <p className="text-body font-medium text-primary">{correction.correct}</p>
-                      <p className="mt-1.5 text-body-sm text-secondary">{correction.why_en}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
           ) : null}
         </AnimatePresence>
       </div>

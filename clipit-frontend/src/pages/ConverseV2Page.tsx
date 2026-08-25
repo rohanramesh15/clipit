@@ -1140,7 +1140,6 @@ export function ConverseV2Page(
   }, [correctionVerdicts]);
 
   const tutorTurn = useMemo(() => [...messages].reverse().find((m) => m.role === 'assistant'), [messages]);
-  const lastUserTurn = useMemo(() => [...messages].reverse().find((m) => m.role === 'user'), [messages]);
   // Live in-progress transcript of what the mic is currently hearing — the
   // in-flight voice message's text, while it's still being appended to.
   const heard = voiceStatus === 'listening' ? (messages.find((m) => m.id === vUserId.current)?.text ?? '') : '';
@@ -1506,7 +1505,6 @@ export function ConverseV2Page(
                 <VoiceStage
                   language={language}
                   tutorTurn={tutorTurn}
-                  lastUserTurn={lastUserTurn}
                   personaState={personaState}
                   heard={heard}
                   savedWords={savedWords}
