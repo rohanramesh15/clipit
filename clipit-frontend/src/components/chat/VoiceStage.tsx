@@ -106,7 +106,7 @@ export function VoiceStage({
               >
                 <LoadingAnimation className="size-5" />
               </motion.div>
-            ) : romanized ? (
+            ) : (
               <motion.p
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -114,9 +114,9 @@ export function VoiceStage({
                 transition={{ duration: 0.2, ease: EASE }}
                 className="overflow-hidden text-lead leading-relaxed text-muted"
               >
-                <span className="mt-1 block">{romanized}</span>
+                <span className="mt-1 block">{romanized || 'Romanization unavailable.'}</span>
               </motion.p>
-            ) : null
+            )
           )}
         </AnimatePresence>
 
