@@ -143,7 +143,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               </div>
               <p className="mt-1 text-body text-secondary">Changes save as you make them.</p>
             </div>
-            <div aria-live="polite" className="h-7">
+            <div aria-live="polite" className="fixed right-5 top-5 z-50 sm:right-8 sm:top-6">
               <AnimatePresence>
                 {savedAt !== null && (
                   <motion.span
@@ -151,7 +151,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                    className="flex items-center gap-1.5 rounded-lg bg-blush px-3 py-1.5 text-body-sm font-medium text-accent"
+                    className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-body-sm font-medium text-success"
                   >
                     <Check className="h-4 w-4" aria-hidden="true" />
                     Saved

@@ -25,6 +25,7 @@ interface VoiceStageProps {
   onSuggest: () => void;
   onListen: (text: string, onStart: () => void, onEnd: () => void) => void;
   regenerating: boolean;
+  romanized?: string;
 }
 
 const EASE = [0.23, 1, 0.32, 1] as const;
@@ -42,6 +43,7 @@ export function VoiceStage({
   onSuggest,
   onListen,
   regenerating,
+  romanized,
 }: VoiceStageProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showCorrection, setShowCorrection] = useState(false);
@@ -66,6 +68,8 @@ export function VoiceStage({
             />
           ) : null}
         </p>
+
+        {romanized ? <p className="mt-1 text-lead leading-relaxed text-muted">{romanized}</p> : null}
 
         <AnimatePresence initial={false}>
           {showTranslation && tutorTurn?.translation && (

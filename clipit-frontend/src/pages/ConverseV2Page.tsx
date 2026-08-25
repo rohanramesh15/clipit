@@ -1104,7 +1104,7 @@ export function ConverseV2Page(
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto py-6"
+                className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto pb-16 pt-2"
               >
                 <VoiceStage
                   language={language}
@@ -1119,6 +1119,7 @@ export function ConverseV2Page(
                   onSuggest={handleSuggestReply}
                   onListen={speak}
                   regenerating={regenLoading}
+                  romanized={tutorTurn ? msgRoman[tutorTurn.id] : undefined}
                 />
               </motion.div>
             )}
