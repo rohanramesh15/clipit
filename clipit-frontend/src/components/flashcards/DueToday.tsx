@@ -34,10 +34,10 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
         className="flex min-h-24 flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl bg-sand-soft px-7 py-5 lg:flex-nowrap"
         aria-labelledby="due-heading"
       >
-        <h2 id="due-heading" className="font-heading text-lead text-sand-deep">
+        <h2 id="due-heading" className="font-heading text-lead text-primary">
           Nothing due today
         </h2>
-        <p className="text-body-sm text-sand-ink">Your next words come back soon.</p>
+        <p className="text-body-sm text-secondary">Your next words come back soon.</p>
       </section>
     );
   }
@@ -51,14 +51,14 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
       aria-labelledby="due-heading"
     >
       <div className="flex min-w-0 flex-1 items-center gap-4">
-        <h2 id="due-heading" className="font-heading text-section leading-none text-sand-deep">
+        <h2 id="due-heading" className="font-heading text-section leading-none text-primary">
           {totalDue}
         </h2>
         <div className="min-w-0">
-          <p className="text-body font-semibold text-sand-deep">
+          <p className="text-body font-semibold text-primary">
             {totalDue === 1 ? 'word' : 'words'} due today
           </p>
-          <p className="text-body-sm text-sand-ink">
+          <p className="text-body-sm text-secondary">
             across {withDue.length} {withDue.length === 1 ? 'video' : 'videos'}, mixed in scheduled order
           </p>
         </div>

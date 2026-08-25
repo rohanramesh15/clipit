@@ -1138,7 +1138,30 @@ export function ConverseV2Page(
                 className="min-h-0 flex-1 overflow-y-auto"
               >
                 <div className="mx-auto w-full max-w-reading px-4 py-8 sm:px-6">
-                  <h2 className="mb-6 font-heading text-body font-semibold text-primary">Transcript</h2>
+                  <div className="mb-6 flex items-center justify-between gap-4">
+                    <h2 className="font-heading text-body font-semibold text-primary">Transcript</h2>
+                    {targetWords.length > 0 && (
+                      <div className="flex shrink-0 items-center gap-3">
+                        <div
+                          className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-hover"
+                          role="progressbar"
+                          aria-valuenow={usedCount}
+                          aria-valuemin={0}
+                          aria-valuemax={targetWords.length}
+                          aria-label="Words used this session"
+                        >
+                          <motion.div
+                            className="h-full rounded-full bg-accent"
+                            animate={{ width: `${targetWords.length ? (usedCount / targetWords.length) * 100 : 0}%` }}
+                            transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                          />
+                        </div>
+                        <p className="text-meta text-secondary">
+                          <span className="font-semibold text-primary">{usedCount}</span>/{targetWords.length} words
+                        </p>
+                      </div>
+                    )}
+                  </div>
                   <MessageList
                     messages={messages}
                     language={language}

@@ -103,7 +103,7 @@ export function VoiceStage({
       </div>
 
       {tutorTurn && (
-        <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity duration-200 ease-swift focus-within:opacity-100 group-hover:opacity-100">
+        <div className="mt-1.5 flex items-center justify-center gap-1 opacity-0 transition-opacity duration-200 ease-swift focus-within:opacity-100 group-hover:opacity-100">
           {romanized && (
             <ActionButton
               label={showRomanized ? 'Hide' : 'Romanize'}
