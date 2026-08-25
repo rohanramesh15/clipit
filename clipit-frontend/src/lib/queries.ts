@@ -95,7 +95,7 @@ export const queryKeys = {
   history: (userId: number, language: string) => ['history', userId, language] as const,
   // Versioned when Home's selection changes so a stale persisted caption
   // inventory is never presented as the learner's practice queue.
-  homeQueue: (userId: number, language: string) => ['home-queue-v10', userId, language] as const,
+  homeQueue: (userId: number, language: string) => ['home-queue-v11', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
