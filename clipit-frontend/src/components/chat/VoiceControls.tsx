@@ -63,7 +63,7 @@ export function VoiceControls({
               <MoreVerticalIcon className="size-4" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" side="top">
             <DropdownMenuItem onSelect={onType}>
               <KeyboardIcon className="size-4" aria-hidden="true" />
               Switch to text chat

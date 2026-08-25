@@ -109,9 +109,13 @@ DropdownMenuTrigger.displayName = 'DropdownMenuTrigger';
 
 export interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
   align?: 'start' | 'end';
+  /** Which side of the trigger the menu opens toward. Use 'top' when the
+   * trigger sits near the bottom of the viewport (e.g. a bottom toolbar) so
+   * the menu doesn't open off-screen. */
+  side?: 'top' | 'bottom';
 }
 
-export const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContentProps>(({ align = 'end', children, className, onKeyDown, ...props }, forwardedRef) => {
+export const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContentProps>(({ align = 'end', side = 'bottom', children, className, onKeyDown, ...props }, forwardedRef) => {
   const { contentId, contentRef, focusItem, open, setOpen, triggerRef } = useDropdownMenu();
   const setRefs = (node: HTMLDivElement | null) => {
     contentRef.current = node;
@@ -138,7 +142,12 @@ export const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenu
     } else if (event.key === 'Tab') {
       setOpen(false);
     }
-  }} className={cn('absolute top-full z-50 mt-2 min-w-48 origin-top-right space-y-1 rounded-xl border border-subtle bg-app p-2.5 shadow-pop', align === 'start' ? 'left-0' : 'right-0', className)}>{children}</div>;
+  }} className={cn(
+    'absolute z-50 min-w-48 space-y-1 rounded-xl border border-subtle bg-app p-2.5 shadow-pop',
+    side === 'top' ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right',
+    align === 'start' ? 'left-0' : 'right-0',
+    className,
+  )}>{children}</div>;
 });
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 
