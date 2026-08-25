@@ -58,7 +58,7 @@ export function VoiceStage({
 
   return (
     <div className="flex flex-col items-center px-4 text-center">
-      <Persona state={personaState} className="size-28 sm:size-32" />
+      <Persona state={personaState} className="size-20 sm:size-24" />
 
       {/* What the tutor just said — the one thing that matters right now. */}
       <div className="mt-5 max-w-2xl">
