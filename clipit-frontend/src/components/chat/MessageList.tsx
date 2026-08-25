@@ -17,6 +17,7 @@ interface MessageListProps {
   onRegenerate: () => void;
   onSuggest: () => void;
   onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
+  onStopListen: () => void;
   romanized: Record<string, string>;
   userTranslations: Record<string, string>;
   revealedCorrections: Set<string>;
@@ -36,6 +37,7 @@ export function MessageList({
   onRegenerate,
   onSuggest,
   onListen,
+  onStopListen,
   romanized,
   userTranslations,
   revealedCorrections,
@@ -68,6 +70,7 @@ export function MessageList({
             onRegenerate={onRegenerate}
             onSuggest={onSuggest}
             onListen={onListen}
+            onStopListen={onStopListen}
             romanized={romanized[message.id]}
             revealed={revealedCorrections.has(message.id)}
             onRevealCorrection={() => onRevealCorrection(message.id)}

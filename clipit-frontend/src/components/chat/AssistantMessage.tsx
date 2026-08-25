@@ -104,6 +104,16 @@ export function AssistantMessage({
             isLast ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover:opacity-100'
           }`}
         >
+          {romanized && (
+            <ActionButton
+              label={showRomanized ? 'Hide' : 'Romanize'}
+              active={showRomanized}
+              onClick={() => setShowRomanized((v) => !v)}
+            >
+              <CaseSensitiveIcon className="size-4" aria-hidden="true" />
+            </ActionButton>
+          )}
+
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}
             active={showTranslation}
@@ -113,21 +123,15 @@ export function AssistantMessage({
           </ActionButton>
 
           <ActionButton
-            label="Listen"
+            label={speaking ? 'Stop' : 'Listen'}
             active={speaking}
-            onClick={() => onListen(message.text, message.turnId, () => setSpeaking(true), () => setSpeaking(false))}
+            onClick={() => {
+              if (speaking) { onStopListen(); setSpeaking(false); }
+              else onListen(message.text, message.turnId, () => setSpeaking(true), () => setSpeaking(false));
+            }}
           >
             {speaking ? (
-              <span className="flex items-end gap-[2px]" aria-hidden="true">
-                {[0, 1, 2].map((bar) => (
-                  <motion.span
-                    key={bar}
-                    className="w-[2px] rounded-full bg-accent"
-                    animate={{ height: [4, 12, 6, 10, 4] }}
-                    transition={{ duration: 0.9, repeat: Infinity, ease: 'linear', delay: bar * 0.12 }}
-                  />
-                ))}
-              </span>
+              <XIcon className="size-4" aria-hidden="true" />
             ) : (
               <Volume2Icon className="size-4" aria-hidden="true" />
             )}

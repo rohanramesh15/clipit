@@ -234,13 +234,13 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
           </section>
 
           {ttsVoices.length > 0 && (
-            <section aria-labelledby="practice-heading" className="mt-10 w-full">
-              <h2 id="practice-heading" className="font-heading text-card-title text-primary">
-                Practice
+            <section aria-labelledby="ai-voice-heading" className="mt-10 w-full">
+              <h2 id="ai-voice-heading" className="font-heading text-card-title text-primary">
+                AI Voice
               </h2>
 
               <div className="mt-2 w-full">
-                <SettingRow label="AI voice" description="Tap a voice to hear a short sample. Your selected voice becomes your default voice." layout="stacked">
+                <SettingRow description="Tap a voice to hear a short sample. Your selected voice becomes your default voice." layout="stacked">
                   <VoiceSelector voices={ttsVoices} selectedId={voiceId} onSelect={handleVoiceChange} getSampleUrl={getVoiceSampleUrl} />
                 </SettingRow>
               </div>

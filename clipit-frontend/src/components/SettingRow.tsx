@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface SettingRowProps {
-  label: string;
+  label?: string;
   description?: string;
   htmlFor?: string;
   /**
@@ -19,10 +19,14 @@ export function SettingRow({ label, description, htmlFor, layout = 'inline', chi
 
   const heading = (
     <div className="max-w-md">
-      <Label htmlFor={htmlFor} className="block text-body font-semibold text-primary">
-        {label}
-      </Label>
-      {description && <p className="mt-1 text-body-sm text-secondary">{description}</p>}
+      {label && (
+        <Label htmlFor={htmlFor} className="block text-body font-semibold text-primary">
+          {label}
+        </Label>
+      )}
+      {description && (
+        <p className={`text-body-sm text-secondary ${label ? 'mt-1' : ''}`}>{description}</p>
+      )}
     </div>
   );
 

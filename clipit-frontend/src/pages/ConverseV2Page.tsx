@@ -369,8 +369,20 @@ export function ConverseV2Page(
   // it in the same Gemini voice used for the live conversation so "Listen"
   // matches what was actually said, instead of a mismatched browser voice.
   // Falls back to Web Speech when there's no turnId yet or the fetch fails.
-  const speak = useCallback((text: string, turnId?: number, onStart?: () => void, onEnd?: () => void) => {
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Stop whatever is currently being read aloud — either the backend voice
+  // clip or Web Speech — so the "Listen" button can double as a stop control.
+  const stopSpeaking = useCallback(() => {
     window.speechSynthesis.cancel();
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current = null;
+    }
+  }, []);
+
+  const speak = useCallback((text: string, turnId?: number, onStart?: () => void, onEnd?: () => void) => {
+    stopSpeaking();
     const speakWithBrowserVoice = () => {
       try {
         const u = new SpeechSynthesisUtterance(text);
@@ -389,13 +401,15 @@ export function ConverseV2Page(
     getTurnAudioUrl(token, turnId)
       .then((url) => {
         const audio = new Audio(url);
-        audio.addEventListener('ended', () => { onEnd?.(); URL.revokeObjectURL(url); });
-        audio.addEventListener('error', () => { URL.revokeObjectURL(url); speakWithBrowserVoice(); });
+        activeAudioRef.current = audio;
+        const clearIfCurrent = () => { if (activeAudioRef.current === audio) activeAudioRef.current = null; };
+        audio.addEventListener('ended', () => { clearIfCurrent(); onEnd?.(); URL.revokeObjectURL(url); });
+        audio.addEventListener('error', () => { clearIfCurrent(); URL.revokeObjectURL(url); speakWithBrowserVoice(); });
         onStart?.();
-        audio.play().catch(() => { URL.revokeObjectURL(url); speakWithBrowserVoice(); });
+        audio.play().catch(() => { clearIfCurrent(); URL.revokeObjectURL(url); speakWithBrowserVoice(); });
       })
       .catch(speakWithBrowserVoice);
-  }, [language, token]);
+  }, [language, token, stopSpeaking]);
 
   // Another response — regenerate the latest AI reply.
   const handleAnotherResponse = useCallback(async () => {
@@ -1132,6 +1146,7 @@ export function ConverseV2Page(
                     onRegenerate={handleAnotherResponse}
                     onSuggest={handleSuggestReply}
                     onListen={speak}
+                    onStopListen={stopSpeaking}
                     romanized={msgRoman}
                     userTranslations={userTranslations}
                     revealedCorrections={revealedCorrections}
@@ -1161,6 +1176,7 @@ export function ConverseV2Page(
                   onRegenerate={handleAnotherResponse}
                   onSuggest={handleSuggestReply}
                   onListen={speak}
+                  onStopListen={stopSpeaking}
                   regenerating={regenLoading}
                   romanized={tutorTurn ? msgRoman[tutorTurn.id] : undefined}
                   userTranslation={lastUserTurn ? userTranslations[lastUserTurn.id] : undefined}

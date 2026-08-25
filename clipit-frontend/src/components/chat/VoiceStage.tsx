@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  CaseSensitiveIcon,
   LanguagesIcon,
   MessageSquarePlusIcon,
   RotateCcwIcon,
   Volume2Icon,
+  XIcon,
 } from 'lucide-react';
 import type { ChatMessage, SavedWord } from '../../types/chat';
 import { ActionButton } from './MessageActions';
@@ -23,6 +25,7 @@ interface VoiceStageProps {
   onRegenerate: () => void;
   onSuggest: () => void;
   onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
+  onStopListen: () => void;
   regenerating: boolean;
   romanized?: string;
   userTranslation?: string;
@@ -41,11 +44,13 @@ export function VoiceStage({
   onRegenerate,
   onSuggest,
   onListen,
+  onStopListen,
   regenerating,
   romanized,
   userTranslation,
 }: VoiceStageProps) {
   const [showTranslation, setShowTranslation] = useState(false);
+  const [showRomanized, setShowRomanized] = useState(false);
   const [showCorrection, setShowCorrection] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   // The turn right after the learner's is the one carrying feedback on it.
@@ -69,7 +74,19 @@ export function VoiceStage({
           ) : null}
         </p>
 
-        {romanized ? <p className="mt-1 text-lead leading-relaxed text-muted">{romanized}</p> : null}
+        <AnimatePresence initial={false}>
+          {showRomanized && romanized && (
+            <motion.p
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: EASE }}
+              className="overflow-hidden text-lead leading-relaxed text-muted"
+            >
+              <span className="mt-1 block">{romanized}</span>
+            </motion.p>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence initial={false}>
           {showTranslation && tutorTurn?.translation && (
@@ -88,6 +105,15 @@ export function VoiceStage({
 
       {tutorTurn && (
         <div className="mt-1.5 flex items-center gap-1">
+          {romanized && (
+            <ActionButton
+              label={showRomanized ? 'Hide' : 'Romanize'}
+              active={showRomanized}
+              onClick={() => setShowRomanized((v) => !v)}
+            >
+              <CaseSensitiveIcon className="size-4" aria-hidden="true" />
+            </ActionButton>
+          )}
           <ActionButton
             label={showTranslation ? 'Hide' : 'Translate'}
             active={showTranslation}
@@ -96,11 +122,14 @@ export function VoiceStage({
             <LanguagesIcon className="size-4" aria-hidden="true" />
           </ActionButton>
           <ActionButton
-            label="Listen"
+            label={speaking ? 'Stop' : 'Listen'}
             active={speaking}
-            onClick={() => onListen(tutorTurn.text, tutorTurn.turnId, () => setSpeaking(true), () => setSpeaking(false))}
+            onClick={() => {
+              if (speaking) { onStopListen(); setSpeaking(false); }
+              else onListen(tutorTurn.text, tutorTurn.turnId, () => setSpeaking(true), () => setSpeaking(false));
+            }}
           >
-            <Volume2Icon className="size-4" aria-hidden="true" />
+            {speaking ? <XIcon className="size-4" aria-hidden="true" /> : <Volume2Icon className="size-4" aria-hidden="true" />}
           </ActionButton>
           <ActionButton label="Rephrase" onClick={onRegenerate} disabled={regenerating}>
             <RotateCcwIcon className="size-4" aria-hidden="true" />
