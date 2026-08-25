@@ -269,7 +269,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-              className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-sage-mid/50 bg-sage-soft px-4 py-2 text-body-sm font-semibold text-sage-deep shadow-pop"
+              className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-sage-mid/50 bg-sage-soft px-4 py-2 text-body-sm font-semibold text-sage-deep"
             >
               <Check className="h-4 w-4" aria-hidden="true" />
               Settings saved
