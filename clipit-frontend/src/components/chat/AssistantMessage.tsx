@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CaseSensitiveIcon, LanguagesIcon, Loader2Icon, MessageSquarePlusIcon, RotateCcwIcon, Volume2Icon, XIcon } from 'lucide-react';
+import { ALargeSmallIcon, LanguagesIcon, Loader2Icon, MessageSquarePlusIcon, RotateCcwIcon, Volume2Icon, XIcon } from 'lucide-react';
 import type { ChatMessage, SavedWord } from '../../types/chat';
 import { ActionButton } from './MessageActions';
 import { TappableText } from './TappableText';
@@ -110,7 +110,7 @@ export function AssistantMessage({
               active={showRomanized}
               onClick={() => setShowRomanized((v) => !v)}
             >
-              <CaseSensitiveIcon className="size-4" aria-hidden="true" />
+              <ALargeSmallIcon className="size-4" aria-hidden="true" />
             </ActionButton>
           )}
 

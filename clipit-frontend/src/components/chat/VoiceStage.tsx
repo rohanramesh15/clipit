@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  CaseSensitiveIcon,
+  ALargeSmallIcon,
   LanguagesIcon,
   MessageSquarePlusIcon,
   RotateCcwIcon,
@@ -111,7 +111,7 @@ export function VoiceStage({
               active={showRomanized}
               onClick={() => setShowRomanized((v) => !v)}
             >
-              <CaseSensitiveIcon className="size-4" aria-hidden="true" />
+              <ALargeSmallIcon className="size-4" aria-hidden="true" />
             </ActionButton>
           )}
           <ActionButton
