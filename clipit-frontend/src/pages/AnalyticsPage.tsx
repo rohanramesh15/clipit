@@ -11,7 +11,7 @@ import { Button } from '../components/ui/button';
 
 function AnalyticsLoadingState() {
   return (
-    <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
+    <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8" role="status" aria-live="polite" aria-label="Loading your progress">
       <Skeleton className="h-8 w-32 rounded-lg" />
       <Skeleton className="mt-8 h-[25rem] w-full rounded-3xl" />
     </div>
@@ -20,7 +20,7 @@ function AnalyticsLoadingState() {
 
 function AnalyticsErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="mx-auto max-w-page px-5 pb-24 pt-8 text-center sm:px-8">
+    <div className="mx-auto max-w-page px-5 pb-16 pt-8 text-center sm:px-8">
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-16">
         <AlertCircle className="h-8 w-8 text-accent" aria-hidden="true" />
         <div>
@@ -129,7 +129,7 @@ export function AnalyticsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-page px-5 pb-24 pt-8 sm:px-8">
+    <div className="mx-auto max-w-page px-5 pb-16 pt-8 sm:px-8">
       <header className="max-w-2xl pb-8">
         <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
       </header>
