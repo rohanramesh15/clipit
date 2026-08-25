@@ -46,7 +46,7 @@ export function VoiceSettingDialog({ voices, selectedId, onSelect, getSampleUrl,
           variant="ghost"
           size="icon"
           aria-label="Close"
-          className="absolute right-4 top-4 h-8 w-8 text-muted"
+          className="absolute right-4 top-4 h-8 w-8 text-muted hover:bg-transparent hover:text-primary"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
