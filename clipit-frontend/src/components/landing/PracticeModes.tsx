@@ -20,8 +20,7 @@ export function PracticeModes() {
           Three ways to practice the words you clipped
         </h2>
         <p className="mt-4 max-w-2xl text-lead text-secondary">
-          No single method sticks for everyone. Review with cards, talk them out loud, or see them land
-          in a brand-new sentence.
+          Cards, conversation, or a new sentence: whatever helps it stick.
         </p>
 
         <motion.div

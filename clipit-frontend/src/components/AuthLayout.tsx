@@ -68,13 +68,13 @@ export function AuthLayout({ onBack, title, subtitle, switchPrompt, footerNote, 
 
             {switchPrompt && (
               <p className="mt-5 text-center text-body-sm text-secondary">
-                <span className="block">{switchPrompt.text}</span>
+                {switchPrompt.text}{' '}
                 <Button
                   type="button"
                   onClick={switchPrompt.onClick}
                   variant="ghost"
                   size="sm"
-                  className="mt-1 h-auto px-2 text-accent"
+                  className="h-auto p-0 text-accent underline-offset-2 hover:bg-transparent hover:text-accent hover:underline"
                 >
                   {switchPrompt.linkLabel}
                 </Button>

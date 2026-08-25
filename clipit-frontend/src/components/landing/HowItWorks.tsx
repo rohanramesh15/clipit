@@ -95,8 +95,7 @@ export function HowItWorks() {
             One loop, from watching to remembering
           </h2>
           <p className="mt-4 text-lead text-secondary">
-            You keep watching. ClipIt handles the part learners usually give up on: noticing new words
-            and coming back to them at the right moment.
+            ClipIt notices new words while you watch, then brings them back.
           </p>
         </div>
 
@@ -128,10 +127,10 @@ export function HowItWorks() {
 
                 {index < loopStages.length - 1 && (
                   <span
-                    className="pointer-events-none absolute left-1/2 top-full z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-app text-accent md:left-auto md:right-[-46px] md:top-1/2 md:translate-x-0 md:-translate-y-1/2"
+                    className="pointer-events-none absolute left-1/2 top-full z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-accent md:left-auto md:right-[-46px] md:top-1/2 md:translate-x-0 md:-translate-y-1/2"
                     aria-hidden="true"
                   >
-                    <ChevronRight className="h-4 w-4 rotate-90 md:rotate-0" strokeWidth={2.5} />
+                    <ChevronRight className="h-6 w-6 rotate-90 md:rotate-0" strokeWidth={2.5} />
                   </span>
                 )}
               </motion.li>

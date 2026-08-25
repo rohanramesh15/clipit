@@ -126,7 +126,7 @@ export function SessionHeader({
         {targets.length > 0 && (
           <div className="hidden items-center gap-3 md:col-start-2 md:flex">
             <div
-              className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-hover"
+              className="h-1.5 w-28 translate-y-px overflow-hidden rounded-full bg-surface-hover"
               role="progressbar"
               aria-valuenow={usedCount}
               aria-valuemin={0}

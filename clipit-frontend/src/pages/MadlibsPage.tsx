@@ -365,12 +365,12 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
               <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
                 <label className="relative w-full max-w-xs">
                   <span className="sr-only">Search videos</span>
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" aria-hidden="true" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
                   <input
                     value={query}
                     onChange={(e) => { setQuery(e.target.value); setVisible(PAGE_SIZE); }}
                     placeholder="Search a video"
-                    className="h-10 w-full rounded-xl border border-subtle bg-app pl-9 pr-3 text-body-sm text-primary placeholder:text-primary/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
+                    className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 transition-colors duration-150 ease-swift focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring focus-visible:ring-offset-2 focus-visible:ring-offset-app"
                   />
                 </label>
                 <DropdownMenu open={isSortOpen} onOpenChange={setIsSortOpen} className="shrink-0">

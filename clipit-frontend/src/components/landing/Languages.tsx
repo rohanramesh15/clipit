@@ -46,8 +46,7 @@ export function Languages() {
             Two languages available
           </h2>
           <p className="mt-3 text-lead text-secondary">
-            Clip from any video with subtitles in Korean or Ukrainian. Each language keeps its own deck,
-            so you can learn both at once.
+            Clip Korean or Ukrainian subtitles — each keeps its own deck.
           </p>
         </div>
 
@@ -57,7 +56,7 @@ export function Languages() {
             return (
               <li key={language.id} className="relative">
                 <span className="relative z-10 flex aspect-[3/2] w-full items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface">
-                  <span className="block h-3/5 w-3/5 overflow-hidden rounded-lg shadow-[0_3px_8px_-7px_rgba(56,35,35,0.18)]">
+                  <span className="block h-3/5 w-3/5 overflow-hidden rounded-lg border border-subtle shadow-[0_3px_8px_-7px_rgba(56,35,35,0.18)]">
                     <Flag />
                   </span>
                 </span>

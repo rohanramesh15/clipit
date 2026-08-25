@@ -213,6 +213,18 @@ button.nav-icon-button:active {
   border-color: #fcf6ed !important;
 }
 
+/* ── Search bar border ─────────────────────────────────────────────────────
+   Search inputs sit next to an outlined "secondary" button and should read
+   as one pair, so give them the same border tone the button gets from the
+   button-only rule above. (That rule targets `button` elements, so plain
+   `<input>` search fields need their own copy.) */
+.search-bar-border {
+  border-color: var(--border-medium);
+}
+.light .search-bar-border {
+  border-color: rgba(76, 35, 35, 0.18);
+}
+
 /* ── Neutral buttons ───────────────────────────────────────────────────────
    Secondary actions should read as intentionally lighter than the coral
    primary action. Replace the old gray fills with a white, outlined ghost
