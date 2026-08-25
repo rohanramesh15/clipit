@@ -15,7 +15,8 @@ import {
   Clock,
   Target,
   Trophy,
-  Puzzle
+  Puzzle,
+  RotateCw
 } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
@@ -218,7 +219,9 @@ function SampleFlashcard() {
         </div>
       </div>
 
-      {/* Flashcard */}
+      {/* Flashcard — matches the real Flashcards page card: surface/border/
+          shadow treatment, "New word" pill, and the show-definition/-prompt
+          toggle, so the sample sets accurate expectations. */}
       <div
         onClick={() => setIsFlipped(!isFlipped)}
         onKeyDown={(event) => {
@@ -230,7 +233,7 @@ function SampleFlashcard() {
         role="button"
         tabIndex={0}
         aria-label={isFlipped ? 'Show the Korean word' : 'Show the English definition'}
-        className="relative h-36 cursor-pointer rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+        className="relative h-44 cursor-pointer rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         style={{ perspective: '1000px' }}
       >
         <motion.div
@@ -242,19 +245,31 @@ function SampleFlashcard() {
         >
           {/* Front */}
           <div
-            className="absolute inset-0 w-full h-full bg-surface border border-white/10 rounded-2xl flex flex-col items-center justify-center shadow-xl"
+            className="absolute inset-0 flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm"
             style={{ backfaceVisibility: 'hidden' }}
           >
-            <p className="text-3xl font-bold text-primary mb-1">피자</p>
-            <p className="text-xs text-muted">tap to flip</p>
+            <span className="absolute left-5 top-5 rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
+              New word
+            </span>
+            <p className="font-heading text-3xl font-medium text-primary">피자</p>
+            <span className="absolute bottom-4 flex items-center justify-center gap-1.5 text-meta font-medium text-secondary">
+              <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Show definition
+            </span>
           </div>
           {/* Back */}
           <div
-            className="absolute inset-0 w-full h-full bg-surface-hover border border-accent/20 rounded-2xl flex flex-col items-center justify-center shadow-xl"
+            className="absolute inset-0 flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm"
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
-            <p className="text-xs text-muted uppercase tracking-wider mb-1">English</p>
-            <p className="text-2xl font-bold text-primary">pizza</p>
+            <span className="absolute left-5 top-5 truncate rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
+              피자
+            </span>
+            <p className="font-heading text-3xl text-primary">pizza</p>
+            <span className="absolute bottom-4 flex items-center justify-center gap-1.5 text-meta font-medium text-secondary">
+              <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Show prompt
+            </span>
           </div>
         </motion.div>
       </div>
@@ -299,7 +314,7 @@ const slides: Slide[] = [
   id: 0,
   eyebrow: '',
   headline: "Welcome to ClipIt",
-  secondaryBody: "Make the content you love the classroom.",
+  secondaryBody: "Learn a new language by watching Netflix & YouTube.",
   icon: Zap,
   iconBg: 'bg-accent/20',
   iconColor: 'text-accent',
