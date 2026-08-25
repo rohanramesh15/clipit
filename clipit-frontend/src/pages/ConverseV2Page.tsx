@@ -1564,7 +1564,7 @@ export function ConverseV2Page(
       />
 
       {messages.length > 0 && (
-        <div className="flex shrink-0 justify-center border-b border-subtle bg-app py-2">
+        <div className="flex shrink-0 justify-center bg-app py-2">
           <span className="flex items-center gap-1.5 text-meta font-medium text-muted">
             <MessageSquareText className="size-3.5" aria-hidden="true" />
             {messages.length} {messages.length === 1 ? 'message' : 'messages'}
