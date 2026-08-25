@@ -1368,7 +1368,7 @@ export function ConverseV2Page(
                       </ul>
                     ) : null}
                     <div className="min-w-0">
-                      <h2 id="resume-title" className="truncate font-heading text-lead text-primary">
+                      <h2 id="resume-title" className="truncate font-heading text-body font-semibold text-primary">
                         {recentSession.seed_label || 'Previous conversation'}
                       </h2>
                       <p className="mt-0.5 truncate text-body-sm text-secondary">
@@ -1417,7 +1417,7 @@ export function ConverseV2Page(
                     </ul>
                   )}
                   <div className="min-w-0">
-                    <h2 id="mixed-title" className="truncate font-heading text-lead text-primary">
+                    <h2 id="mixed-title" className="truncate font-heading text-body font-semibold text-primary">
                       Start chatting from mixed videos
                     </h2>
                   </div>
