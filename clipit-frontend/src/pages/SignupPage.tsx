@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Mail, Lock, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
@@ -28,6 +28,18 @@ export function SignupPage({ onNavigate, onBack, initialError }: SignupPageProps
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(initialError ?? '');
+
+  // Only the message carried in from a blocked Google redirect fades on its
+  // own — an error from submitting this form stays put until the learner
+  // acts on it.
+  useEffect(() => {
+    if (!initialError) return;
+    const timer = window.setTimeout(() => {
+      setError((current) => (current === initialError ? '' : current));
+    }, 6000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

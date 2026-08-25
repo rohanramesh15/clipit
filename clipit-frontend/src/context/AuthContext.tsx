@@ -119,13 +119,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activateLocalLearningData(authUserId);
       setToken(accessToken);
       setAuthError(null);
-      setIsLoading(false);
       // Supabase fires onAuthStateChange's INITIAL_SESSION event *and*
       // resolves getSession() on mount, so applySession runs twice back to
       // back for the same login. Read the ref without clearing it yet, so
       // both invocations see the same intent instead of the second one
       // losing the race and silently skipping enforcement.
       const intent = authIntentRef.current;
+      // A fresh Google redirect with an intent to verify can still get
+      // rejected below, so don't optimistically drop the loading state and
+      // flash the authenticated shell for a result that's about to get torn
+      // back down — hold isLoading until the verdict is in. Every other
+      // sign-in keeps the fast path: shell renders immediately, profile
+      // hydrates in the background.
+      if (!intent) setIsLoading(false);
       try {
         const me = await fetchMe(accessToken, authUserId, intent);
         if (active) {
@@ -147,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // it's safe to discard — a later, genuinely distinct auth event
         // (e.g. a token refresh) must not replay this same intent.
         authIntentRef.current = null;
+        if (intent && active) setIsLoading(false);
       }
     };
 

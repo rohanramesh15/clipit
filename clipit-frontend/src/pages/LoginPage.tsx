@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 declare function gtag(...args: unknown[]): void;
 import { Mail, Lock, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,18 @@ export function LoginPage({ onNavigate, onBack, initialError }: LoginPageProps) 
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(initialError ?? '');
+
+  // Only the message carried in from a blocked Google redirect fades on its
+  // own — an error from submitting this form stays put until the learner
+  // acts on it.
+  useEffect(() => {
+    if (!initialError) return;
+    const timer = window.setTimeout(() => {
+      setError((current) => (current === initialError ? '' : current));
+    }, 6000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
