@@ -325,34 +325,37 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         </div>
 
         {resumable && (
-          <section className="mt-8 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap" aria-labelledby="resume-madlib-title">
-            <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
-            <div className="min-w-0 flex-1">
-              <h2 id="resume-madlib-title" className="truncate font-heading text-body font-semibold text-dusk-deep">{resumable.title}</h2>
-              <p className="mt-1 text-body-sm text-dusk-ink">{resumable.answers.length} of {resumable.items.length} blanks filled</p>
-              <div className="mt-2 flex gap-1">
-                {resumable.items.map((resumeItem, i) => (
-                  <span key={resumeItem.id} className={`h-1.5 flex-1 rounded-full ${i < resumable.answers.length ? 'bg-accent' : 'bg-dusk-mid/40'}`} />
-                ))}
+          <section className="mt-8" aria-labelledby="continue-practicing-heading">
+            <h2 id="continue-practicing-heading" className="font-heading text-lead font-medium tracking-[-0.01em] text-primary">Continue practicing</h2>
+            <div className="mt-4 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap">
+              <VideoThumb video={{ video_id: resumable.videoId, title: resumable.title, tracked_at: 0 }} />
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate font-heading text-body font-semibold text-dusk-deep">{resumable.title}</h3>
+                <p className="mt-1 text-body-sm text-dusk-ink">{resumable.answers.length} of {resumable.items.length} blanks filled</p>
+                <div className="mt-2 flex gap-1">
+                  {resumable.items.map((resumeItem, i) => (
+                    <span key={resumeItem.id} className={`h-1.5 flex-1 rounded-full ${i < resumable.answers.length ? 'bg-accent' : 'bg-dusk-mid/40'}`} />
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-5">
-              <Button
-                type="button"
-                onClick={() => resumeDeck(resumable)}
-              >
-                <Play className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true" />
-                Resume
-              </Button>
-              <Button
-                type="button"
-                onClick={() => restartResumable(resumable)}
-                variant="ghost"
-                size="sm"
-              >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                Restart
-              </Button>
+              <div className="flex shrink-0 items-center gap-5">
+                <Button
+                  type="button"
+                  onClick={() => resumeDeck(resumable)}
+                >
+                  <Play className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true" />
+                  Resume
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => restartResumable(resumable)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  Restart
+                </Button>
+              </div>
             </div>
           </section>
         )}
