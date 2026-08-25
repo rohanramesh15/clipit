@@ -44,7 +44,7 @@ export function Languages() {
     <section className="bg-blush py-20 md:py-28" aria-labelledby="languages-title">
       <div className="mx-auto max-w-page px-5 sm:px-8">
         <div className="max-w-xl">
-          <h2 id="languages-title" className="font-heading text-section font-medium text-primary md:text-section-lg">
+          <h2 id="languages-title" className="font-heading text-section font-medium text-primary md:text-section-lg md:font-medium">
             Two languages available
           </h2>
           <p className="mt-3 text-lead text-secondary">

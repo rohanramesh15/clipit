@@ -30,7 +30,7 @@ export function Hero({ onGetStarted }: HeroProps) {
     >
       <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-14">
         <div className="lg:col-span-5">
-          <motion.h1 variants={heroItem} className="font-heading text-display font-medium text-primary md:text-display-lg">
+          <motion.h1 variants={heroItem} className="font-heading text-display font-medium text-primary md:text-display-lg md:font-medium">
             Clip it.
             <br />
             <span className="text-accent">Learn it.</span>
