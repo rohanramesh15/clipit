@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Avatar } from './Avatar';
+import { Skeleton } from './Skeleton';
 import { useHideOnScroll } from '../hooks/useHideOnScroll';
 import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from './ui/button';
@@ -140,7 +141,15 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
           <DropdownMenu open={isAccountOpen} onOpenChange={(open) => { setIsAccountOpen(open); if (open) setIsLangPickerOpen(false); }}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-10 gap-2 rounded-full p-1 pr-2">
-              <Avatar user={user} size={32} />
+                {user ? (
+                  <Avatar user={user} size={32} />
+                ) : (
+                  // The Supabase session resolves before the /auth/me profile
+                  // bridge does, so `user` is briefly null right after sign-in
+                  // (or on a slow backend wake-up) — match the page's other
+                  // loading regions instead of falling back to Avatar's "?".
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                )}
                 <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-150 ease-swift ${isAccountOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                 <span className="sr-only">Account menu</span>
               </Button>
