@@ -71,9 +71,9 @@ export function WordQueue({
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div>
           <h2 id="queue-heading" className="font-heading text-card-title font-medium text-primary">
-            Words from what you watched
+            Your practice words
           </h2>
-          <p className="mt-1 text-body-sm text-muted">Clipped by the extension.</p>
+          <p className="mt-1 text-body-sm text-muted">Selected from the videos you watched.</p>
         </div>
 
         {!isEmpty && (

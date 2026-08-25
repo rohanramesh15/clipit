@@ -93,9 +93,9 @@ async function readJson<T>(url: string, token: string, signal: AbortSignal, init
 export const queryKeys = {
   profile: (authUserId: string) => ['profile', authUserId] as const,
   history: (userId: number, language: string) => ['history', userId, language] as const,
-  // Versioned when Home's response contract changes so a stale persisted
-  // all-caption inventory cannot survive the useful-vocabulary filter.
-  homeQueue: (userId: number, language: string) => ['home-queue-v9', userId, language] as const,
+  // Versioned when Home's selection changes so a stale persisted caption
+  // inventory is never presented as the learner's practice queue.
+  homeQueue: (userId: number, language: string) => ['home-queue-v10', userId, language] as const,
   flashcardDashboard: (userId: number, language: string) => ['flashcard-dashboard', userId, language] as const,
   flashcardDeck: (userId: number, language: string, videoId: string) =>
     ['flashcard-deck', userId, language, videoId] as const,
@@ -202,9 +202,8 @@ export function homeQueueQueryOptions(userId: number, token: string, language: s
         token,
         signal,
       );
-      // This is an inventory of words captured from watched videos, not a
-      // practice deck.  A locally dismissed flashcard must not make a real
-      // caption word disappear from the inventory.
+      // The server returns only practice-ready candidates: priority-filtered
+      // words from each watched source plus cards the learner already saved.
       const cards = queue.cards || [];
       const cardByKey = new Map(cards.map((card) => [card.dictionary_form || card.target_word, card]));
       const now = Date.now();
