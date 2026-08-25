@@ -1,4 +1,4 @@
-import { KeyboardIcon, MicVocalIcon } from 'lucide-react';
+import { KeyboardIcon, MicIcon } from 'lucide-react';
 import { SpeechInput } from '../ai-elements/speech-input';
 import { Tooltip } from '../Tooltip';
 
@@ -47,7 +47,7 @@ export function VoiceControls({
             disabled={connecting || (disabled && !live)}
             aria-label={live ? 'Stop the mic' : 'Start speaking'}
             className="size-14 p-0"
-            idleIcon={<MicVocalIcon className="size-7" strokeWidth={2.5} aria-hidden="true" />}
+            idleIcon={<MicIcon className="size-6" strokeWidth={2.25} aria-hidden="true" />}
           />
         </Tooltip>
 
