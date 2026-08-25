@@ -59,22 +59,20 @@ export function SuggestionPanel({
           transition={{ duration: 0.2, ease: EASE }}
           className="overflow-hidden rounded-2xl border border-subtle bg-surface shadow-[0_8px_24px_rgba(75,45,43,0.05)]"
         >
-          <div className="flex items-center justify-between gap-3 border-b border-subtle bg-surface-hover px-4 py-2.5">
+          <div className="flex items-center justify-between gap-3 border-b border-subtle bg-surface px-4 py-2.5">
             <div>
               <p className="text-body-sm text-muted">Choose one to keep the conversation going.</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               {isLoading && <LoadingAnimation className="size-4 text-accent" label="Preparing suggestions" />}
-              <Tooltip label="Dismiss">
-                <button
-                  type="button"
-                  onClick={onDismiss}
-                  aria-label="Dismiss suggestions"
-                  className="grid size-8 place-items-center rounded-lg text-muted hover:bg-surface hover:text-primary"
-                >
-                  <XIcon className="size-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={onDismiss}
+                aria-label="Dismiss suggestions"
+                className="grid size-8 place-items-center rounded-lg text-muted hover:bg-surface-hover hover:text-primary"
+              >
+                <XIcon className="size-4" aria-hidden="true" />
+              </button>
             </div>
           </div>
 
