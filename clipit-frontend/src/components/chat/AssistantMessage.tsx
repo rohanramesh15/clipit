@@ -116,9 +116,9 @@ export function AssistantMessage({
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2, ease: EASE }}
-              className="overflow-hidden text-body-sm text-muted"
+              className="overflow-hidden text-lead leading-relaxed text-muted"
             >
-              <span className="mt-2 block border-l-2 border-subtle pl-3">
+              <span className="mt-1 block">
                 {translationLoading ? <LoadingAnimation className="size-5" label="Translating" /> : translation || 'Translation unavailable.'}
               </span>
             </motion.p>
