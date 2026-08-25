@@ -369,9 +369,24 @@ export const getHint = (sessionId: number, language: string = 'es', token?: stri
 export const howDoISay = (sessionId: number, english: string, language: string = 'es', token?: string | null) =>
   postJson<{ spanish: string; note_en: string }>(`/session/${sessionId}/how-do-i-say`, { english, language }, token);
 
+// Word/phrase glosses repeat constantly in a conversation (the same common
+// words come up over and over) — cache by (language, text) for the life of
+// the tab so re-tapping something already looked up is instant instead of
+// re-hitting the translation API every time.
+const translationCache = new Map<string, Promise<string>>();
+
 export const translate = async (text: string, language: string = 'es'): Promise<string> => {
-  const { translation } = await postJson<{ translation: string }>('/translate', { text, language });
-  return translation;
+  const key = `${language}:${text}`;
+  const cached = translationCache.get(key);
+  if (cached) return cached;
+  const promise = postJson<{ translation: string }>('/translate', { text, language })
+    .then(({ translation }) => translation)
+    .catch((error) => {
+      translationCache.delete(key);
+      throw error;
+    });
+  translationCache.set(key, promise);
+  return promise;
 };
 
 export const romanize = async (text: string, language: string = 'ko'): Promise<string> => {
