@@ -16,7 +16,7 @@ interface AssistantMessageProps {
   onSaveWord: (word: SavedWord) => void;
   onRegenerate: () => void;
   onSuggest: () => void;
-  onListen: (text: string, onStart: () => void, onEnd: () => void) => void;
+  onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
   romanized?: string;
   revealed: boolean;
   onRevealCorrection: () => void;
@@ -104,7 +104,7 @@ export function AssistantMessage({
           <ActionButton
             label="Listen"
             active={speaking}
-            onClick={() => onListen(message.text, () => setSpeaking(true), () => setSpeaking(false))}
+            onClick={() => onListen(message.text, message.turnId, () => setSpeaking(true), () => setSpeaking(false))}
           >
             {speaking ? (
               <span className="flex items-end gap-[2px]" aria-hidden="true">

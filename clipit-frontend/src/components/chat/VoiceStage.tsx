@@ -23,7 +23,7 @@ interface VoiceStageProps {
   onSaveWord: (word: SavedWord) => void;
   onRegenerate: () => void;
   onSuggest: () => void;
-  onListen: (text: string, onStart: () => void, onEnd: () => void) => void;
+  onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
   regenerating: boolean;
   romanized?: string;
   userTranslation?: string;
@@ -100,7 +100,7 @@ export function VoiceStage({
           <ActionButton
             label="Listen"
             active={speaking}
-            onClick={() => onListen(tutorTurn.text, () => setSpeaking(true), () => setSpeaking(false))}
+            onClick={() => onListen(tutorTurn.text, tutorTurn.turnId, () => setSpeaking(true), () => setSpeaking(false))}
           >
             <Volume2Icon className="size-4" aria-hidden="true" />
           </ActionButton>

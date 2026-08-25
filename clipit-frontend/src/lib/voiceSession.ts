@@ -23,7 +23,7 @@ export type VoiceEvent =
   | { type: 'user_transcript'; text: string }
   | { type: 'assistant_transcript'; text: string }
   | { type: 'interrupted' }
-  | { type: 'turn_complete' }
+  | { type: 'turn_complete'; userTurnId?: number; assistantTurnId?: number }
   | { type: 'mic_level'; level: number }     // 0..1 RMS
   | { type: 'speaker_level'; level: number } // 0..1 RMS
   | { type: 'speaking_changed'; speaking: boolean };
@@ -156,7 +156,7 @@ export class VoiceSession {
       case 'user_transcript':      return this.emit({ type: 'user_transcript', text: msg.text || '' });
       case 'assistant_transcript': return this.emit({ type: 'assistant_transcript', text: msg.text || '' });
       case 'interrupted':          return this.flushPlayback();
-      case 'turn_complete':        return this.emit({ type: 'turn_complete' });
+      case 'turn_complete':        return this.emit({ type: 'turn_complete', userTurnId: msg.user_turn_id ?? undefined, assistantTurnId: msg.assistant_turn_id ?? undefined });
       case 'error':                return this.emit({ type: 'error', message: msg.message || 'Unknown error' });
     }
   }

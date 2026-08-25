@@ -88,6 +88,17 @@ async function getJson<T>(path: string, token?: string | null): Promise<T> {
   return res.json();
 }
 
+/** Re-synthesized audio for a persisted assistant turn, in the same voice
+ * used for the live conversation — lets "Listen" match what was actually said. */
+export async function getTurnAudioUrl(token: string | null, turnId: number): Promise<string> {
+  const res = await fetch(`${BASE}/turn/${turnId}/audio`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) throw new Error(`turn audio failed: ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export const getProfile = () => getJson<{ profile: Profile | null }>('/profile');
 
 export const saveOnboarding = (req: Profile) =>

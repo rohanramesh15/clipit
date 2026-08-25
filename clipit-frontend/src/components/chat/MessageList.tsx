@@ -16,7 +16,7 @@ interface MessageListProps {
   onSaveWord: (word: SavedWord) => void;
   onRegenerate: () => void;
   onSuggest: () => void;
-  onListen: (text: string, onStart: () => void, onEnd: () => void) => void;
+  onListen: (text: string, turnId: number | undefined, onStart: () => void, onEnd: () => void) => void;
   romanized: Record<string, string>;
   userTranslations: Record<string, string>;
   revealedCorrections: Set<string>;

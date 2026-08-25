@@ -5,7 +5,7 @@ import {
   Film, Search, Shuffle, Play, ChevronDown, ExternalLink,
 } from 'lucide-react';
 import {
-  getProfile, createSession, sendTurn, romanize, translate,
+  getProfile, createSession, sendTurn, romanize, translate, getTurnAudioUrl,
   correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestReplies,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
@@ -365,22 +365,37 @@ export function ConverseV2Page(
     }
   }, [messages, language, sessionId, token]);
 
-  // Speak a message aloud in the target language (Web Speech). onStart/onEnd
-  // let the message that requested it reflect real speaking state instead of
-  // a canned timeout.
-  const speak = useCallback((text: string, onStart?: () => void, onEnd?: () => void) => {
-    try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR';
-      u.rate = 0.9;
-      if (onStart) u.onstart = onStart;
-      if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
-      window.speechSynthesis.speak(u);
-    } catch {
-      onEnd?.();
-    }
-  }, [language]);
+  // Speak a message aloud. When the turn has been persisted (turnId), replay
+  // it in the same Gemini voice used for the live conversation so "Listen"
+  // matches what was actually said, instead of a mismatched browser voice.
+  // Falls back to Web Speech when there's no turnId yet or the fetch fails.
+  const speak = useCallback((text: string, turnId?: number, onStart?: () => void, onEnd?: () => void) => {
+    window.speechSynthesis.cancel();
+    const speakWithBrowserVoice = () => {
+      try {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = language === 'uk' ? 'uk-UA' : language === 'en' ? 'en-US' : 'ko-KR';
+        u.rate = 0.9;
+        if (onStart) u.onstart = onStart;
+        if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
+        window.speechSynthesis.speak(u);
+      } catch {
+        onEnd?.();
+      }
+    };
+
+    if (turnId == null) { speakWithBrowserVoice(); return; }
+
+    getTurnAudioUrl(token, turnId)
+      .then((url) => {
+        const audio = new Audio(url);
+        audio.addEventListener('ended', () => { onEnd?.(); URL.revokeObjectURL(url); });
+        audio.addEventListener('error', () => { URL.revokeObjectURL(url); speakWithBrowserVoice(); });
+        onStart?.();
+        audio.play().catch(() => { URL.revokeObjectURL(url); speakWithBrowserVoice(); });
+      })
+      .catch(speakWithBrowserVoice);
+  }, [language, token]);
 
   // Another response — regenerate the latest AI reply.
   const handleAnotherResponse = useCallback(async () => {
@@ -455,7 +470,20 @@ export function ConverseV2Page(
           vAsstId.current = null;
         }
         return;
-      case 'turn_complete': vUserId.current = null; vAsstId.current = null; return;
+      case 'turn_complete': {
+        const uid = vUserId.current;
+        const aid = vAsstId.current;
+        if ((uid && e.userTurnId != null) || (aid && e.assistantTurnId != null)) {
+          setMessages((prev) => prev.map((msg) => {
+            if (uid && msg.id === uid && e.userTurnId != null) return { ...msg, turnId: e.userTurnId };
+            if (aid && msg.id === aid && e.assistantTurnId != null) return { ...msg, turnId: e.assistantTurnId };
+            return msg;
+          }));
+        }
+        vUserId.current = null;
+        vAsstId.current = null;
+        return;
+      }
       case 'error': speakingRef.current = false; setVoiceError(e.message); setVoiceStatus('off'); setStatus(''); return;
       case 'closed': vUserId.current = null; vAsstId.current = null; speakingRef.current = false; setVoiceStatus('off'); return;
     }
