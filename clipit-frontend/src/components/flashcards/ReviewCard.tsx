@@ -157,6 +157,7 @@ export function ReviewCard({
                 language={language}
                 label={`Hear ${card.target_word} pronounced`}
                 size="sm"
+                variant="plain"
               />
             </div>
           </div>

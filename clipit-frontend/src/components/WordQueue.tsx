@@ -141,12 +141,18 @@ export function WordQueue({
                 type="button"
                 className="group flex w-full items-center gap-5 px-6 py-4 text-left transition-colors duration-150 ease-swift hover:bg-surface-hover"
               >
-                <span className="min-w-0">
-                  <span className="block truncate text-lead font-semibold text-primary">{word.word}</span>
+                <span className="w-6 shrink-0 text-right text-meta tabular-nums text-muted">
+                  {currentPage * WORDS_PER_PAGE + index + 1}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="truncate text-lead font-semibold text-primary">{word.word}</span>
+                    <span className="truncate text-body-sm text-secondary">{word.meaning}</span>
+                  </span>
                   {word.romanization && <span className="block text-meta text-muted">{word.romanization}</span>}
                 </span>
 
-                <span className="hidden min-w-0 flex-1 truncate text-body text-secondary sm:block">{word.meaning}</span>
                 <span className="hidden min-w-0 max-w-[14rem] truncate text-body-sm text-muted lg:block">{word.video}</span>
 
                 <span className="ml-auto flex shrink-0 items-center gap-3">
