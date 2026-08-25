@@ -144,6 +144,37 @@ button.nav-icon-button:active {
   }
 }
 
+/* Progress card loading placeholder: one box, sized/positioned to exactly
+   match the real "Progress overview" card (it sits absolutely over that same
+   card, invisible-but-laid-out beneath it), with a shimmer sweep rather than
+   the app's usual quiet pulse. */
+.skeleton-shine {
+  border-radius: inherit;
+  background-image: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.05) 30%,
+    rgba(0, 0, 0, 0.13) 50%,
+    rgba(0, 0, 0, 0.05) 70%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shine-sweep 1.7s ease-in-out infinite;
+}
+
+@keyframes skeleton-shine-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shine {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

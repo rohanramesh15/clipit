@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ActivityHeatmap, type ActivityDay } from '../components/ActivityHeatmap';
-import { Skeleton } from '../components/Skeleton';
 import { getAnalyticsSummary } from '../services/fsrs';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -108,65 +107,61 @@ export function AnalyticsPage() {
         <h1 className="font-heading text-section font-medium text-primary">Progress</h1>
       </header>
 
-      <section aria-label="Progress overview" aria-busy={isLoading} className="overflow-hidden rounded-3xl border border-subtle bg-surface">
-        <div className="grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,1.1fr)] lg:items-center lg:gap-8">
-          <section aria-labelledby="streak-heading" className="min-w-0">
-            <div className="flex items-start gap-10 sm:gap-14">
-              <div>
-                <p id="streak-heading" className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Streak</p>
-                {isLoading ? (
-                  <Skeleton className="mt-2 h-10 w-24 rounded-lg" />
-                ) : (
+      <section aria-label="Progress overview" aria-busy={isLoading} className="relative overflow-hidden rounded-3xl border border-subtle bg-surface">
+        {/* Rendered at all times (even while loading, with placeholder zero
+            values) so its layout stays the real card — the shimmer below
+            just sits on top of it, guaranteeing it matches that card's exact
+            size, position, and shape rather than approximating it. */}
+        <div className={isLoading ? 'invisible' : undefined}>
+          <div className="grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,1.1fr)] lg:items-center lg:gap-8">
+            <section aria-labelledby="streak-heading" className="min-w-0">
+              <div className="flex items-start gap-10 sm:gap-14">
+                <div>
+                  <p id="streak-heading" className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Streak</p>
                   <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
                     {streak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
                   </p>
-                )}
-              </div>
-              <div>
-                <p className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Best run</p>
-                {isLoading ? (
-                  <Skeleton className="mt-2 h-10 w-24 rounded-lg" />
-                ) : (
+                </div>
+                <div>
+                  <p className="text-meta font-semibold uppercase tracking-[0.08em] text-accent">Best run</p>
                   <p className="mt-1.5 font-heading text-section-lg font-medium leading-none text-primary">
                     {longestStreak}<span className="ml-1 text-lead font-medium text-secondary">days</span>
                   </p>
-                )}
+                </div>
               </div>
-            </div>
 
-            <ul className="mt-4 grid max-w-sm grid-cols-7 gap-1.5" aria-label="Last seven days of practice">
-              {lastWeek.map((day, index) => (
-                <li key={day.date} className="flex flex-col items-center gap-1.5">
-                  <span className={`h-4 w-full rounded-md ${day.reviews > 0 ? 'bg-accent' : 'border border-subtle bg-app'}`} />
-                  <span className="text-meta text-muted">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+              <ul className="mt-4 grid max-w-sm grid-cols-7 gap-1.5" aria-label="Last seven days of practice">
+                {lastWeek.map((day, index) => (
+                  <li key={day.date} className="flex flex-col items-center gap-1.5">
+                    <span className={`h-4 w-full rounded-md ${day.reviews > 0 ? 'bg-accent' : 'border border-subtle bg-app'}`} />
+                    <span className="text-meta text-muted">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-          <dl className="grid grid-cols-1 divide-y divide-subtle border-y border-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:border-y-0 sm:border-l sm:divide-x">
-            <div className="py-2.5 sm:px-4 sm:py-0 first:sm:pl-4">
-              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{isLoading ? <Skeleton className="h-6 w-12 rounded-md" /> : wordsLearned.toLocaleString()}</dd>
-              <dt className="mt-1.5 text-body-sm text-secondary">Words learned</dt>
-            </div>
-            <div className="py-2.5 sm:px-4 sm:py-0">
-              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{isLoading ? <Skeleton className="h-6 w-12 rounded-md" /> : totalReviews.toLocaleString()}</dd>
-              <dt className="mt-1.5 text-body-sm text-secondary">Total reviews</dt>
-            </div>
-            <div className="py-2.5 sm:px-4 sm:py-0">
-              <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{isLoading ? <Skeleton className="h-6 w-12 rounded-md" /> : hoursWatchedLabel}</dd>
-              <dt className="mt-1.5 text-body-sm text-secondary">Hours watched</dt>
-            </div>
-          </dl>
-        </div>
+            <dl className="grid grid-cols-1 divide-y divide-subtle border-y border-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:border-y-0 sm:border-l sm:divide-x">
+              <div className="py-2.5 sm:px-4 sm:py-0 first:sm:pl-4">
+                <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{wordsLearned.toLocaleString()}</dd>
+                <dt className="mt-1.5 text-body-sm text-secondary">Words learned</dt>
+              </div>
+              <div className="py-2.5 sm:px-4 sm:py-0">
+                <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{totalReviews.toLocaleString()}</dd>
+                <dt className="mt-1.5 text-body-sm text-secondary">Total reviews</dt>
+              </div>
+              <div className="py-2.5 sm:px-4 sm:py-0">
+                <dd className="font-heading text-card-title leading-none tabular-nums text-primary">{hoursWatchedLabel}</dd>
+                <dt className="mt-1.5 text-body-sm text-secondary">Hours watched</dt>
+              </div>
+            </dl>
+          </div>
 
-        <div className="border-t border-subtle px-6 py-7 sm:px-8 sm:py-8">
-          {isLoading ? (
-            <Skeleton className="h-48 w-full rounded-2xl" />
-          ) : (
+          <div className="border-t border-subtle px-6 py-7 sm:px-8 sm:py-8">
             <ActivityHeatmap days={days} year={year} embedded />
-          )}
+          </div>
         </div>
+
+        {isLoading && <div className="skeleton-shine absolute inset-0" aria-hidden="true" />}
       </section>
     </div>
   );

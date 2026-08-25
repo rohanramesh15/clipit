@@ -76,19 +76,17 @@ export function WordQueue({
           <p className="mt-1 text-body-sm text-muted">Selected from the videos you watched.</p>
         </div>
 
-        {!isEmpty && (
-          <SingleSelectFilter
-            label="Filter words"
-            options={FILTERS.map((option) => ({
-              value: option.id,
-              label: option.label,
-              count: option.id === 'all' ? words.length : words.filter((word) => word.status === option.id).length,
-            }))}
-            value={filter}
-            onValueChange={selectFilter}
-            className="max-w-full overflow-x-auto"
-          />
-        )}
+        <SingleSelectFilter
+          label="Filter words"
+          options={FILTERS.map((option) => ({
+            value: option.id,
+            label: option.label,
+            count: option.id === 'all' ? words.length : words.filter((word) => word.status === option.id).length,
+          }))}
+          value={filter}
+          onValueChange={selectFilter}
+          className="max-w-full overflow-x-auto"
+        />
       </div>
 
       {isEmpty ? (
