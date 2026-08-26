@@ -50,7 +50,7 @@ export function Languages() {
         </div>
 
         <motion.ul
-          className="mt-10 grid gap-8 md:gap-10 md:grid-cols-2"
+          className="mt-14 grid gap-8 md:gap-10 md:grid-cols-2"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}

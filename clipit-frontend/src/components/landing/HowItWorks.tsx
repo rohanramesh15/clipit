@@ -19,7 +19,7 @@ export function HowItWorks() {
         </div>
 
         <motion.ol
-          className="mt-10 grid gap-6 md:grid-cols-3 md:gap-x-14"
+          className="mt-14 grid gap-6 md:grid-cols-3 md:gap-x-14"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}

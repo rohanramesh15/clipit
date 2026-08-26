@@ -20,7 +20,7 @@ export function PracticeModes() {
           Three ways to practice the words you clipped
         </h2>
         <motion.div
-          className="mt-10 grid items-stretch gap-6 md:grid-cols-3"
+          className="mt-14 grid items-stretch gap-6 md:grid-cols-3"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
