@@ -944,7 +944,8 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
 
   // ── Dashboard (deck selection) ─────────────────────────────────
   if (loadState === 'deck-select') {
-    const hasNoVideos = videos.length === 0;
+    const practiceVideos = videos.filter((video) => (wordCounts[video.video_id] ?? 0) > 0);
+    const hasNoVideos = !isLoadingDue && practiceVideos.length === 0;
     return (
       <motion.div
         initial={{ opacity: 0, x: 20 }}
@@ -966,16 +967,16 @@ export function FlashcardsPage({ onNavigate }: FlashcardsPageProps) {
           <>
             <div className="mt-8">
               <DueToday
-                videos={videos}
+                videos={practiceVideos}
                 dueCounts={dueCounts}
                 isLoadingDue={isLoadingDue}
-                onStartAll={() => loadAllVideos(videos)}
+                onStartAll={() => loadAllVideos(practiceVideos)}
               />
             </div>
 
             <div className="mt-14">
               <DeckBrowser
-                videos={videos}
+                videos={practiceVideos}
                 wordCounts={wordCounts}
                 dueCounts={dueCounts}
                 onStudyVideo={loadFlashcards}

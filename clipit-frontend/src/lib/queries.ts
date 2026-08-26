@@ -99,6 +99,7 @@ async function readJson<T>(url: string, token: string, signal: AbortSignal, init
 export const queryKeys = {
   profile: (authUserId: string) => ['profile', authUserId] as const,
   history: (userId: number, language: string) => ['history', userId, language] as const,
+  watchHistory: (userId: number, language: string) => ['watch-history', userId, language] as const,
   // Versioned when Home's selection changes so a stale persisted caption
   // inventory is never presented as the learner's practice queue.
   homeQueue: (userId: number, language: string) => ['home-queue-v11', userId, language] as const,
@@ -123,6 +124,22 @@ export function historyQueryOptions(userId: number, token: string, language: str
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<BackendVideo[]> => {
       const data = await readJson<{ videos?: BackendVideo[] }>(
         `${API_BASE_URL}/videos/history/filtered?lang=${language}`,
+        token,
+        signal,
+      );
+      if (!Array.isArray(data.videos)) throw new Error('Invalid history response');
+      return data.videos;
+    },
+  };
+}
+
+/** The complete watch record, including videos whose captions were unavailable. */
+export function watchHistoryQueryOptions(userId: number, token: string, language: string) {
+  return {
+    queryKey: queryKeys.watchHistory(userId, language),
+    queryFn: async ({ signal }: { signal: AbortSignal }): Promise<BackendVideo[]> => {
+      const data = await readJson<{ videos?: BackendVideo[] }>(
+        `${API_BASE_URL}/videos/history`,
         token,
         signal,
       );

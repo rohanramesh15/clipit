@@ -306,7 +306,9 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   );
 
   if (phase === 'deck') {
-    const filtered = (videos ?? []).filter((v) => v.title.toLowerCase().includes(query.trim().toLowerCase()));
+    const practiceVideos = (videos ?? []).filter((video) => (wordCounts[video.video_id] ?? 0) > 0);
+    const isCountingWords = (videos ?? []).some((video) => wordCounts[video.video_id] === undefined);
+    const filtered = practiceVideos.filter((v) => v.title.toLowerCase().includes(query.trim().toLowerCase()));
     const sorted = [...filtered].sort((a, b) =>
       sort === 'words' ? (wordCounts[b.video_id] ?? 0) - (wordCounts[a.video_id] ?? 0) : b.tracked_at - a.tracked_at,
     );
@@ -365,7 +367,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
             <h2 id="madlibs-library" className="font-heading text-card-title font-medium text-primary">Your videos</h2>
 
-            {videos !== null && videos.length > 0 && (
+            {practiceVideos.length > 0 && (
               <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
                 <ExpandableSearch
                   value={query}
@@ -399,7 +401,11 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
             <div className="pt-6" role="status" aria-live="polite" aria-label="Loading your videos">
               <Skeleton className="h-80 w-full rounded-2xl" />
             </div>
-          ) : videos.length === 0 ? (
+          ) : isCountingWords ? (
+            <div className="pt-6" role="status" aria-live="polite" aria-label="Finding words in your videos">
+              <Skeleton className="h-48 w-full rounded-2xl" />
+            </div>
+          ) : practiceVideos.length === 0 ? (
             <PracticeEmptyState mode="Mad Libs" />
           ) : shown.length === 0 ? (
             <p className="py-16 text-center text-body text-muted">No videos match &quot;{query}&quot;.</p>

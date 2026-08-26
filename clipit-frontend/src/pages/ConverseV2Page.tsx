@@ -1269,17 +1269,21 @@ export function ConverseV2Page(
   );
 
   const currentDeckSort = deckSorts.find((option) => option.value === deckSort) ?? deckSorts[0];
+  const practiceDeckVideos = useMemo(
+    () => (videos ?? []).filter((video) => (deckWords[video.video_id]?.length ?? 0) > 0),
+    [deckWords, videos],
+  );
   const matchingDecks = useMemo(() => {
     const needle = deckQuery.trim().toLowerCase();
-    return (videos ?? [])
+    return practiceDeckVideos
       .filter((video) => !needle || video.title.toLowerCase().includes(needle))
       .sort((a, b) => {
         if (deckSort === 'due') return (deckDueCounts[b.video_id] ?? 0) - (deckDueCounts[a.video_id] ?? 0);
         return b.tracked_at - a.tracked_at;
       });
-  }, [deckDueCounts, deckQuery, deckSort, videos]);
+  }, [deckDueCounts, deckQuery, deckSort, practiceDeckVideos]);
   const shownDecks = matchingDecks.slice(0, visibleDecks);
-  const mixedAllSources = mixedSources.length > 0 ? mixedSources : (videos ?? []);
+  const mixedAllSources = mixedSources.length > 0 ? mixedSources : practiceDeckVideos;
   const mixedPreviewVideos = mixedAllSources.slice(0, 2);
   const additionalMixedVideoCount = Math.max(0, mixedAllSources.length - mixedPreviewVideos.length);
   // Mixed sessions have no single seed video — show the videos their words

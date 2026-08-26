@@ -11,8 +11,7 @@ export interface TrackedVideo {
   thumbnail: string;
   /** Relative label, e.g. "2h ago". */
   trackedAt: string;
-  /** Subtitle track pair, e.g. "KO + EN". Null when no subtitles were found. */
-  subtitles: string | null;
+  subtitleStatus: 'tracked' | 'checking' | 'not-tracked';
   newWords: number;
   season?: number | null;
   episode?: number | null;
@@ -67,6 +66,12 @@ interface VideoHistoryItemProps {
 
 export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
   const episode = episodeLine(video);
+  const subtitleLabel = video.subtitleStatus === 'tracked'
+    ? 'Subtitles tracked'
+    : video.subtitleStatus === 'checking'
+      ? 'Checking subtitles'
+      : 'Subtitles not tracked';
+  const subtitleClass = video.subtitleStatus === 'not-tracked' ? 'text-error' : 'text-muted';
   return (
     <article className="group flex items-center gap-5 border-b border-subtle py-4">
       <a
@@ -88,7 +93,10 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
 
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-body font-semibold text-primary">{video.title}</h3>
-        {episode ? <p className="mt-0.5 truncate text-body-sm text-muted">{episode}</p> : <p className="mt-0.5 truncate text-body-sm text-muted">{PLATFORM_LABEL[video.platform]} · {video.trackedAt}{video.subtitles ? ' · Subtitles tracked' : ''}</p>}
+        {episode && <p className="mt-0.5 truncate text-body-sm text-muted">{episode}</p>}
+        <p className="mt-0.5 truncate text-body-sm text-muted">
+          {PLATFORM_LABEL[video.platform]} · {video.trackedAt} · <span className={subtitleClass}>{subtitleLabel}</span>
+        </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 ease-swift focus-within:opacity-100 group-hover:opacity-100">

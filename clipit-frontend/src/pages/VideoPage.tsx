@@ -10,7 +10,7 @@ import { Skeleton } from '../components/Skeleton';
 import { API_BASE_URL } from '../config';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { type BackendVideo, historyQueryOptions, queryKeys } from '../lib/queries';
+import { type BackendVideo, queryKeys, watchHistoryQueryOptions } from '../lib/queries';
 import { Button } from '../components/ui/button';
 
 const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
@@ -30,7 +30,11 @@ function formatTrackedAt(ts: number): string {
 function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
   const isNetflix = v.video_id.startsWith('netflix_');
   const hasSubs = language === 'uk' ? v.has_ukrainian : language === 'en' ? v.has_english : v.has_korean;
-  const langAbbr = language === 'uk' ? 'UK' : language === 'en' ? 'EN' : 'KO';
+  const subtitleStatus = hasSubs === true || hasSubs === 1
+    ? 'tracked'
+    : hasSubs === false || hasSubs === 0
+      ? 'not-tracked'
+      : 'checking';
   return {
     id: v.video_id,
     platform: isNetflix ? 'netflix' : 'youtube',
@@ -39,7 +43,7 @@ function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
       ? `${API_BASE_URL}/netflix/thumbnail/${v.video_id}`
       : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
     trackedAt: formatTrackedAt(v.tracked_at),
-    subtitles: hasSubs ? `${langAbbr} + EN` : null,
+    subtitleStatus,
     newWords: 0,
     season: v.season,
     episode: v.episode,
@@ -55,7 +59,7 @@ export function VideoPage() {
   const [pendingRemoval, setPendingRemoval] = useState<TrackedVideo | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const history = useQuery({
-    ...historyQueryOptions(user?.id ?? 0, token ?? '', language),
+    ...watchHistoryQueryOptions(user?.id ?? 0, token ?? '', language),
     enabled: Boolean(user && token),
     // Extension writes happen outside the web app's query cache. Keep this
     // lightweight list in sync while it is visible, and always verify it when
@@ -94,7 +98,7 @@ export function VideoPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
-        queryClient.setQueryData<BackendVideo[]>(queryKeys.history(user?.id ?? 0, language), (current = []) =>
+        queryClient.setQueryData<BackendVideo[]>(queryKeys.watchHistory(user?.id ?? 0, language), (current = []) =>
           current.filter((video) => video.video_id !== pendingRemoval.id),
         );
         queryClient.removeQueries({ queryKey: queryKeys.homeQueue(user?.id ?? 0, language) });
