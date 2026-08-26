@@ -8,8 +8,6 @@ import {
   BarChart3,
   Zap,
   CheckCircle2,
-  ArrowLeft,
-  ArrowRight,
   History,
   Sprout,
   Clock,
@@ -478,15 +476,23 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     return (
       <div className={`min-h-screen bg-app flex flex-col text-primary font-sans ${isDark ? '' : 'light'}`}>
         {/* Top bar */}
-        <div className="flex items-center justify-between px-6 md:px-10 pt-6 pb-2">
-          {/* Progress dots */}
-          <div className="flex items-center gap-2">
-            {quizQuestions.map((_, i) =>
-            <motion.div
-              key={i}
-              layout
-              className={`h-2 rounded-full transition-colors duration-300 ${i === quizStep ? 'bg-accent w-6' : i < quizStep ? 'bg-accent/40 w-2' : 'bg-white/10 w-2'}`} />
-            )}
+        <div className="flex items-center justify-end px-6 pb-2 pt-6 md:px-10">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-2 w-32 overflow-hidden rounded-full bg-surface-hover sm:w-48"
+              role="progressbar"
+              aria-valuenow={quizStep + 1}
+              aria-valuemin={1}
+              aria-valuemax={quizQuestions.length}
+              aria-label="Onboarding progress"
+            >
+              <motion.div
+                className="h-full rounded-full bg-accent"
+                animate={{ width: `${((quizStep + 1) / quizQuestions.length) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <span className="text-body-sm tabular-nums text-muted">{quizStep + 1} / {quizQuestions.length}</span>
           </div>
         </div>
 
@@ -501,9 +507,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               transition={{ duration: 0.3 }}
               className="w-full max-w-2xl text-center"
             >
-              <p className="text-body-sm text-secondary font-medium mb-4">
-                Step {quizStep + 1} of {quizQuestions.length}
-              </p>
               {'isExtensionStep' in currentQuestion && currentQuestion.isExtensionStep && (
                 <div className="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4">
                   <Puzzle className="w-8 h-8" />
@@ -597,41 +600,43 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         </div>
 
         {/* Navigation buttons */}
-        <div className="flex items-center justify-between px-6 pb-8">
+        <div className="flex h-20 items-center justify-between border-t border-white/5 px-6 md:px-10">
           <Button
+            type="button"
             onClick={goBack}
             variant="ghost"
-            className="font-medium"
+            className="text-sm font-medium"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <NavigationIcon direction="back" className="h-4 w-4" />
             Back
           </Button>
           {'isExtensionStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isExtensionStep ? (
             <Button
+              type="button"
               onClick={handleExtensionStepAdvance}
-              variant="ghost"
-              className="font-medium"
+              className="text-sm font-bold"
             >
-              Skip for now
+              Next
+              <NavigationIcon direction="forward" className="h-4 w-4" />
             </Button>
           ) : 'isFinalStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isFinalStep ? (
             <Button
+              type="button"
               onClick={onComplete}
-              size="lg"
-              className="font-bold"
+              className="text-sm font-bold"
             >
               Begin learning
-              <ArrowRight className="w-4 h-4" />
+              <NavigationIcon direction="forward" className="h-4 w-4" />
             </Button>
           ) : (
             <Button
+              type="button"
               onClick={handleNextStep}
               disabled={!quizAnswers[quizStep]}
-              size="lg"
-              className="font-bold"
+              className="text-sm font-bold"
             >
               {quizStep === quizQuestions.length - 1 ? "Finish" : "Next"}
-              <ArrowRight className="w-4 h-4" />
+              <NavigationIcon direction="forward" className="h-4 w-4" />
             </Button>
           )}
         </div>

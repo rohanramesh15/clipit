@@ -8,6 +8,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   MessageSquare,
+  CircleHelp,
   Puzzle,
   Menu,
   X,
@@ -39,7 +40,8 @@ const LANGUAGES = [
   { code: 'uk' as const, flag: '🇺🇦', name: 'Ukrainian' },
 ];
 
-const FEEDBACK_URL = 'https://forms.gle/5x6GJLDZKUTfJLTj9';
+const FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSe7k-1oNbX54Vuci_VCvgkmN2Y1inzWA3bm2SL1Xw47vXKwcA/viewform?usp=dialog';
+const QUESTIONS_EMAIL_URL = 'mailto:rohanramesh.dev@gmail.com?subject=ClipIt%20question';
 interface TopNavProps {
   activePage: Page;
   onNavigate: (page: Page) => void;
@@ -154,6 +156,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
               <DropdownMenuItem onSelect={() => onNavigate('settings')}><SettingsIcon className="h-4 w-4 text-muted" aria-hidden="true" />Settings</DropdownMenuItem>
               <DropdownMenuItem onSelect={openExtensionInstall}><Puzzle className="h-4 w-4 text-muted" aria-hidden="true" /><span className="flex-1 text-left">Get extension</span></DropdownMenuItem>
               <DropdownMenuItem asChild><a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer"><MessageSquare className="h-4 w-4 text-muted" aria-hidden="true" />Feedback</a></DropdownMenuItem>
+              <DropdownMenuItem asChild><a href={QUESTIONS_EMAIL_URL}><CircleHelp className="h-4 w-4 text-muted" aria-hidden="true" />Ask questions</a></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={logout} className="group hover:bg-error/10 hover:text-error"><LogOut className="h-4 w-4 text-muted transition-colors duration-150 ease-swift group-hover:text-error" aria-hidden="true" />Log out</DropdownMenuItem>
             </DropdownMenuContent>
