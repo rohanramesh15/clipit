@@ -21,7 +21,7 @@ import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
 import { useExtensionInstall } from '../components/ExtensionInstallModal';
 import { FlashcardVisual, ChatVisual, MadlibsVisual } from '../components/PracticeModeVisuals';
-import { NavigationIconButton } from '../components/NavigationIconButton';
+import { NavigationIcon } from '../components/NavigationIconButton';
 
 // YouTube Loop Player Component
 function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; startTime: number; endTime: number }) {
@@ -233,7 +233,6 @@ const slides: Slide[] = [
   eyebrow: '',
   headline: 'One last thing.',
   body: "Let's make it yours.",
-  secondaryBody: 'A few quick questions so ClipIt knows how to work for you.',
   icon: Zap,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
@@ -643,16 +642,23 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   return (
     <div className={`min-h-screen bg-app flex flex-col text-primary font-sans ${isDark ? '' : 'light'}`}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 md:px-10 pt-6 pb-2">
-        {/* Progress dots */}
-        <div className="flex items-center gap-2">
-          {slides.map((_, i) =>
-          <motion.div
-            key={i}
-            layout
-            className={`h-2 rounded-full transition-colors duration-300 ${i === current ? 'bg-accent w-6' : i < current ? 'bg-accent/40 w-2' : 'bg-white/10 w-2'}`} />
-
-          )}
+      <div className="flex items-center justify-end px-6 pb-2 pt-6 md:px-10">
+        <div className="flex items-center gap-3">
+          <div
+            className="h-2 w-32 overflow-hidden rounded-full bg-surface-hover sm:w-48"
+            role="progressbar"
+            aria-valuenow={current + 1}
+            aria-valuemin={1}
+            aria-valuemax={slides.length}
+            aria-label="Onboarding progress"
+          >
+            <motion.div
+              className="h-full rounded-full bg-accent"
+              animate={{ width: `${((current + 1) / slides.length) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+          <span className="text-body-sm tabular-nums text-muted">{current + 1} / {slides.length}</span>
         </div>
       </div>
 
@@ -795,21 +801,25 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
       {/* Bottom nav */}
       <div className="h-20 border-t border-white/5 flex items-center justify-between px-6 md:px-10">
-        {current === 0 ? (
-          <span className="h-10 w-10" aria-hidden="true" />
-        ) : (
-          <NavigationIconButton direction="back" label="Previous onboarding slide" onClick={goBack} />
-        )}
+        <Button
+          type="button"
+          onClick={goBack}
+          disabled={current === 0}
+          variant="ghost"
+          className={`text-sm font-medium ${current === 0 ? 'invisible' : ''}`}
+        >
+          <NavigationIcon direction="back" className="h-4 w-4" />
+          Back
+        </Button>
 
         <span className="text-sm text-muted">
           {current + 1} of {slides.length}
         </span>
 
-        <NavigationIconButton
-          direction="forward"
-          label={isLast ? 'Start onboarding setup' : 'Next onboarding slide'}
-          onClick={goNext}
-        />
+        <Button onClick={goNext} className="text-sm font-bold">
+          {isLast ? "Let's Go" : 'Next'}
+          <NavigationIcon direction="forward" className="h-4 w-4" />
+        </Button>
       </div>
     </div>);
 
