@@ -39,7 +39,7 @@ export const loopStages: LoopStage[] = [
   {
     step: '03',
     title: 'Practice & remember',
-    description: 'They become cards you review, speak, and play with until they stick.',
+    description: 'Practice each word in three ways: flash cards, AI conversations, or Mad Libs.',
   },
 ];
 

@@ -20,7 +20,7 @@ export function PracticeModes() {
           Three ways to practice the words you clipped
         </h2>
         <p className="mt-4 max-w-2xl text-lead text-secondary">
-          Review each word with flash cards, use it in an AI conversation, or complete a Mad Lib with it—whatever helps it stick.
+          Review each word with flash cards, use it in an AI conversation, or complete a Mad Lib with it, whatever helps it stick.
         </p>
 
         <motion.div
