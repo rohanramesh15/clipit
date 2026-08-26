@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FlashcardVisual, ChatVisual, MadlibsVisual } from './PracticeModeVisuals';
 import { NavigationIcon } from './NavigationIconButton';
+import { motionTiming } from '../lib/motion';
 
 export type ModeId = 'flashcards' | 'converse-v2' | 'madlibs';
 
@@ -45,6 +46,11 @@ const MODES: ModeDef[] = [
   },
 ];
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: motionTiming.base },
+};
+
 interface PracticeModesProps {
   onOpenMode: (id: ModeId) => void;
 }
@@ -56,15 +62,18 @@ export function PracticeModes({ onOpenMode }: PracticeModesProps) {
         Ways to practice
       </h2>
 
-      <div className="grid items-stretch gap-6 md:grid-cols-3">
-        {MODES.map((mode, index) => (
+      <motion.div
+        className="grid items-stretch gap-6 md:grid-cols-3"
+        initial="hidden"
+        animate="visible"
+        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+      >
+        {MODES.map((mode) => (
           <motion.button
             key={mode.id}
             type="button"
             onClick={() => onOpenMode(mode.id)}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.26, delay: 0.05 * index, ease: [0.23, 1, 0.32, 1] }}
+            variants={cardVariants}
             whileHover={{ y: -2 }}
             className={`group flex h-full flex-col rounded-2xl px-7 py-8 text-left transition-shadow duration-150 ease-swift hover:shadow-[0_8px_24px_rgba(76,35,35,0.08)] ${mode.surface}`}
           >
@@ -82,7 +91,7 @@ export function PracticeModes({ onOpenMode }: PracticeModesProps) {
             </div>
           </motion.button>
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }
