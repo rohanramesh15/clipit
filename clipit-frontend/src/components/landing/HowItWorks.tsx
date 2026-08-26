@@ -122,7 +122,7 @@ export function HowItWorks() {
                 </div>
 
                 <p className="mt-4 text-meta font-semibold tracking-wide text-accent">Step {stage.step}</p>
-                <h3 className="mt-1 font-heading text-card-title text-primary">{stage.title}</h3>
+                <h3 className="mt-1 font-heading text-card-title font-medium text-primary">{stage.title}</h3>
                 <p className="mt-2 text-body text-secondary">{stage.description}</p>
 
                 {index < loopStages.length - 1 && (
