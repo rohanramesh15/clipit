@@ -16,6 +16,7 @@ import { ConverseV2Page } from './pages/ConverseV2Page';
 import { PracticePage } from './pages/PracticePage';
 import { MadlibsPage } from './pages/MadlibsPage';
 import { PracticePageSkeleton } from './components/PracticePageSkeleton';
+import { ExtensionInstallProvider } from './components/ExtensionInstallModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
@@ -437,7 +438,9 @@ export function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <AppInner />
+        <ExtensionInstallProvider>
+          <AppInner />
+        </ExtensionInstallProvider>
       </LanguageProvider>
     </AuthProvider>
   );

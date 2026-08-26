@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, Info } from 'lucide-react';
-
-const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
+import { useExtensionInstall } from './ExtensionInstallModal';
 
 interface ExtensionInfoProps {
   languageName: string;
 }
 
 export function ExtensionInfo({ languageName }: ExtensionInfoProps) {
+  const { openExtensionInstall } = useExtensionInstall();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -85,15 +85,14 @@ export function ExtensionInfo({ languageName }: ExtensionInfoProps) {
             </ol>
 
             <div className="mt-5 border-t border-subtle p-4">
-              <a
-                href={EXTENSION_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={openExtensionInstall}
                 className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
               >
                 Get the extension
                 <ArrowUpRight className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-              </a>
+              </button>
             </div>
           </motion.div>
         )}

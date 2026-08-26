@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
+import { useExtensionInstall } from '../components/ExtensionInstallModal';
 
 // YouTube Loop Player Component
 function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; startTime: number; endTime: number }) {
@@ -527,6 +528,7 @@ const quizQuestions = [
 ];
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
+  const { openExtensionInstall } = useExtensionInstall();
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1);
   const [inQuiz, setInQuiz] = useState(false);
@@ -661,16 +663,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     ))}
                   </div>
                   <div className="flex justify-center mt-4">
-                    <a
-                      href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleExtensionStepAdvance}
+                    <button
+                      type="button"
+                      onClick={openExtensionInstall}
                       className="inline-flex items-center justify-center gap-2 bg-accent text-on-accent hover:bg-accent-hover font-bold px-8 py-4 rounded-xl transition-all text-base"
                     >
                       <Puzzle className="w-5 h-5" />
-                      Add to Chrome
-                    </a>
+                      Get the extension
+                    </button>
                   </div>
                 </div>
               ) : 'isFinalStep' in currentQuestion && currentQuestion.isFinalStep ? (

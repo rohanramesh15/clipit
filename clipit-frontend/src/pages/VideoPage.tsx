@@ -12,8 +12,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { type BackendVideo, queryKeys, watchHistoryQueryOptions } from '../lib/queries';
 import { Button } from '../components/ui/button';
-
-const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
+import { useExtensionInstall } from '../components/ExtensionInstallModal';
 
 type Filter = 'all' | Platform;
 
@@ -53,6 +52,7 @@ function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
 
 export function VideoPage() {
   const { language, languageName } = useLanguage();
+  const { openExtensionInstall } = useExtensionInstall();
   const { token, user } = useAuth();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
@@ -167,14 +167,13 @@ export function VideoPage() {
                   ? 'Get the extension, turn it on, then watch YouTube or Netflix to record videos here.'
                   : `Get the extension, turn it on, then watch ${filter === 'youtube' ? 'YouTube' : 'Netflix'} to record videos here.`}
               >
-                <a
-                  href={EXTENSION_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={openExtensionInstall}
                   className="rounded-xl bg-accent px-5 py-2.5 text-body-sm font-semibold text-on-accent transition-colors duration-150 ease-swift hover:bg-accent-hover"
                 >
                   Get the ClipIt extension
-                </a>
+                </button>
               </EmptyState>
             </div>
           )}

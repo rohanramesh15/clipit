@@ -1,4 +1,5 @@
 import { Film } from 'lucide-react';
+import { useExtensionInstall } from './ExtensionInstallModal';
 
 interface PracticeEmptyStateProps {
   mode: string;
@@ -9,6 +10,7 @@ interface PracticeEmptyStateProps {
  * keeps Flashcards, AI chat, and Mad Libs visually and behaviorally aligned.
  */
 export function PracticeEmptyState({ mode }: PracticeEmptyStateProps) {
+  const { openExtensionInstall } = useExtensionInstall();
   return (
     <section className="mt-10 flex flex-col items-center rounded-2xl bg-surface px-6 py-12 text-center" aria-label={`No videos available for ${mode}`}>
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-hover text-accent" aria-hidden="true">
@@ -19,14 +21,13 @@ export function PracticeEmptyState({ mode }: PracticeEmptyStateProps) {
         Install the ClipIt extension, then watch something on YouTube or Netflix. We&apos;ll use the words you hear in {mode}.
       </p>
 
-      <a
-        href="https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn"
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={openExtensionInstall}
         className="mt-6 inline-flex items-center rounded-xl bg-accent px-6 py-3 text-body-sm font-semibold text-on-accent hover:bg-accent-hover"
       >
         Get ClipIt extension
-      </a>
+      </button>
     </section>
   );
 }

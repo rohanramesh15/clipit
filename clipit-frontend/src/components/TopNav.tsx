@@ -9,7 +9,6 @@ import {
   LogOut,
   MessageSquare,
   Puzzle,
-  ExternalLink,
   Menu,
   X,
 } from 'lucide-react';
@@ -19,6 +18,7 @@ import { Avatar } from './Avatar';
 import { Skeleton } from './Skeleton';
 import { useHideOnScroll } from '../hooks/useHideOnScroll';
 import { BrandLogo } from './BrandLogo';
+import { useExtensionInstall } from './ExtensionInstallModal';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
@@ -40,8 +40,6 @@ const LANGUAGES = [
 ];
 
 const FEEDBACK_URL = 'https://forms.gle/5x6GJLDZKUTfJLTj9';
-const EXTENSION_URL = 'https://chromewebstore.google.com/detail/clipit/pcnnmkbacmcfldjgmaljkjdnfijkkokn';
-
 interface TopNavProps {
   activePage: Page;
   onNavigate: (page: Page) => void;
@@ -49,6 +47,7 @@ interface TopNavProps {
 
 export function TopNav({ activePage, onNavigate }: TopNavProps) {
   const { user, logout } = useAuth();
+  const { openExtensionInstall } = useExtensionInstall();
   const { language, setLanguage } = useLanguage();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -153,7 +152,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
                 <div className="min-w-0"><p className="truncate text-body-sm font-semibold text-primary">{displayName}</p><p className="truncate text-meta text-muted">{user?.email ?? ''}</p></div>
               </DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => onNavigate('settings')}><SettingsIcon className="h-4 w-4 text-muted" aria-hidden="true" />Settings</DropdownMenuItem>
-              <DropdownMenuItem asChild><a href={EXTENSION_URL} target="_blank" rel="noopener noreferrer"><Puzzle className="h-4 w-4 text-muted" aria-hidden="true" /><span className="flex-1 text-left">Get extension</span><ExternalLink className="h-3.5 w-3.5 text-muted" aria-hidden="true" /></a></DropdownMenuItem>
+              <DropdownMenuItem onSelect={openExtensionInstall}><Puzzle className="h-4 w-4 text-muted" aria-hidden="true" /><span className="flex-1 text-left">Get extension</span></DropdownMenuItem>
               <DropdownMenuItem asChild><a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer"><MessageSquare className="h-4 w-4 text-muted" aria-hidden="true" />Feedback</a></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={logout} className="group hover:bg-error/10 hover:text-error"><LogOut className="h-4 w-4 text-muted transition-colors duration-150 ease-swift group-hover:text-error" aria-hidden="true" />Log out</DropdownMenuItem>
