@@ -64,9 +64,8 @@
   --shadow-pop: 0 14px 36px rgba(76, 35, 35, 0.14);
 }
 html {
-  /* Stop the browser's own rubber-band bounce past the top/bottom of the
-     page — scrolling should hard-stop at the real content edges. */
-  overscroll-behavior-y: none;
+  /* Preserve the platform's natural top/bottom edge overscroll. */
+  overscroll-behavior-y: auto;
 }
 body {
   background-color: var(--bg-app);
@@ -75,7 +74,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
   transition: background-color var(--motion-base) var(--motion-ease), color var(--motion-base) var(--motion-ease);
 }
 

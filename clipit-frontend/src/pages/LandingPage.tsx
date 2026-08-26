@@ -28,19 +28,6 @@ const Logo = ({ size = 'text-5xl', img = 'w-16 h-16', stroke = '2px' }: { size?:
 export function LandingPage({ onNavigate }: LandingPageProps) {
   // Landing always renders in light mode (the default theme).
   useEffect(() => { localStorage.setItem('theme', 'light'); }, []);
-  // Let the landing page use the platform's natural edge overscroll while
-  // retaining the firmer scroll boundary used throughout the signed-in app.
-  useEffect(() => {
-    const previousHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
-    const previousBodyOverscroll = document.body.style.overscrollBehaviorY;
-    document.documentElement.style.overscrollBehaviorY = 'auto';
-    document.body.style.overscrollBehaviorY = 'auto';
-
-    return () => {
-      document.documentElement.style.overscrollBehaviorY = previousHtmlOverscroll;
-      document.body.style.overscrollBehaviorY = previousBodyOverscroll;
-    };
-  }, []);
   const isNavHidden = useHideOnScroll();
 
   return (
