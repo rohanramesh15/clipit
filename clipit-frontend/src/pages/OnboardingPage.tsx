@@ -511,7 +511,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               )}
 
-              <h2 className="text-card-title md:text-section font-heading text-primary mb-8">
+              <h2 className="text-card-title font-heading font-medium text-primary mb-8 md:text-section">
                 {currentQuestion.question}
               </h2>
 
@@ -685,7 +685,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </p>
 
             {/* Headline */}
-            <h1 className={`font-heading text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
+            <h1 className={`font-heading font-medium text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
               {slide.headline}
             </h1>
 
