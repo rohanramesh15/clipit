@@ -16,7 +16,6 @@ import {
   Target,
   Trophy,
   Puzzle,
-  RotateCw
 } from 'lucide-react';
 import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
@@ -116,164 +115,34 @@ declare global {
   }
 }
 
-// Sample Flashcard Component (mimics practice page layout)
-function SampleFlashcard() {
-  const [isFlipped, setIsFlipped] = useState(false);
-  const playerRef = useRef<YT.Player | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const loopIntervalRef = useRef<number | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const videoId = '-JRWVxMuiLo';
-  const startTime = 3256; // 54:16
-  const endTime = 3261; // ~5 seconds of clip
-
-  useEffect(() => {
-    const setupLooping = (player: YT.Player) => {
-      if (loopIntervalRef.current) {
-        clearInterval(loopIntervalRef.current);
-      }
-      loopIntervalRef.current = window.setInterval(() => {
-        try {
-          const currentTime = player.getCurrentTime();
-          if (currentTime >= endTime) {
-            player.seekTo(startTime, true);
-          }
-        } catch (e) {
-          // Player not ready
-        }
-      }, 200);
-    };
-
-    const initPlayer = () => {
-      if (containerRef.current && window.YT && window.YT.Player) {
-        playerRef.current = new window.YT.Player(containerRef.current, {
-          videoId,
-          width: '100%',
-          height: '100%',
-          playerVars: {
-            start: startTime,
-            autoplay: 0,
-            controls: 1,
-            modestbranding: 1,
-            rel: 0,
-            showinfo: 0,
-            fs: 0,
-            playsinline: 1,
-          },
-          events: {
-            onReady: () => {
-              if (playerRef.current) {
-                setupLooping(playerRef.current);
-              }
-            },
-            onStateChange: (event: YT.OnStateChangeEvent) => {
-              setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
-            },
-          },
-        });
-      }
-    };
-
-    if (window.YT && window.YT.Player) {
-      initPlayer();
-    }
-
-    return () => {
-      if (loopIntervalRef.current) {
-        clearInterval(loopIntervalRef.current);
-      }
-      playerRef.current?.destroy();
-    };
-  }, []);
-
-  const handlePlayClick = () => {
-    if (playerRef.current) {
-      if (isPlaying) {
-        playerRef.current.pauseVideo();
-      } else {
-        playerRef.current.seekTo(startTime, true);
-        playerRef.current.playVideo();
-      }
-    }
-  };
-
+// Compact previews show the three ways a captured word becomes practice.
+function SamplePracticeMethods() {
   return (
-    <div className="w-full max-w-sm mx-auto mt-6 mb-4 space-y-4">
-      {/* Video card */}
-      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black ring-1 ring-white/10">
-        <div ref={containerRef} className="absolute inset-0 [&>iframe]:w-full [&>iframe]:h-full" />
-        <button
-          type="button"
-          onClick={handlePlayClick}
-          aria-label={isPlaying ? 'Pause video example' : 'Play video example'}
-          aria-pressed={isPlaying}
-          className="absolute bottom-12 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/75 text-white transition-colors hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          {isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" fill="currentColor" /> : <Play className="ml-0.5 h-4 w-4" aria-hidden="true" fill="currentColor" />}
-        </button>
-        {/* Sentence context overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2 text-center">
-          <p className="text-meta text-[#fff] font-medium">
-            맛있는 <span className="text-accent font-bold">피자</span> 게살 <span className="text-accent font-bold">피자</span>
-          </p>
+    <div className="mx-auto mt-7 grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
+      <article className="rounded-2xl border border-subtle bg-surface p-4 shadow-sm">
+        <p className="flex items-center gap-2 text-body-sm font-semibold text-primary"><Layers className="h-4 w-4 text-accent" aria-hidden="true" />Flashcards</p>
+        <div className="mt-4 rounded-xl bg-sand-soft px-3 py-5 text-center">
+          <p className="font-heading text-3xl font-medium text-primary">피자</p>
+          <p className="mt-2 text-meta text-secondary">Tap to reveal the meaning</p>
         </div>
-      </div>
+      </article>
 
-      {/* Flashcard — matches the real Flashcards page card: surface/border/
-          shadow treatment, "New word" pill, and the show-definition/-prompt
-          toggle, so the sample sets accurate expectations. */}
-      <div
-        onClick={() => setIsFlipped(!isFlipped)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            setIsFlipped((flipped) => !flipped);
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={isFlipped ? 'Show the Korean word' : 'Show the English definition'}
-        className="relative h-44 cursor-pointer rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-        style={{ perspective: '1000px' }}
-      >
-        <motion.div
-          className="absolute inset-0 w-full h-full"
-          initial={false}
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.5, ease: 'easeInOut' }}
-          style={{ transformStyle: 'preserve-3d' }}
-        >
-          {/* Front */}
-          <div
-            className="absolute inset-0 flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm"
-            style={{ backfaceVisibility: 'hidden' }}
-          >
-            <span className="absolute left-5 top-5 rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
-              New word
-            </span>
-            <p className="font-heading text-3xl font-medium text-primary">피자</p>
-            <span className="absolute bottom-4 flex items-center justify-center gap-1.5 text-meta font-medium text-secondary">
-              <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
-              Show definition
-            </span>
-          </div>
-          {/* Back */}
-          <div
-            className="absolute inset-0 flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-subtle bg-surface p-5 shadow-sm"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-          >
-            <span className="absolute left-5 top-5 truncate rounded-full bg-accent-soft px-2.5 py-1 text-meta font-semibold text-accent">
-              피자
-            </span>
-            <p className="font-heading text-3xl text-primary">pizza</p>
-            <span className="absolute bottom-4 flex items-center justify-center gap-1.5 text-meta font-medium text-secondary">
-              <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
-              Show prompt
-            </span>
-          </div>
-        </motion.div>
-      </div>
+      <article className="rounded-2xl border border-subtle bg-surface p-4 shadow-sm">
+        <p className="flex items-center gap-2 text-body-sm font-semibold text-primary"><MessageCircle className="h-4 w-4 text-accent" aria-hidden="true" />AI chat</p>
+        <div className="mt-4 space-y-2 text-body-sm">
+          <p className="ml-auto w-fit rounded-xl rounded-br-sm bg-accent px-3 py-2 text-on-accent">피자가 좋아요.</p>
+          <p className="w-fit rounded-xl rounded-bl-sm bg-surface-hover px-3 py-2 text-primary">저도 좋아해요!</p>
+          <p className="text-meta text-secondary">Use new words in a real reply.</p>
+        </div>
+      </article>
+
+      <article className="rounded-2xl border border-subtle bg-surface p-4 shadow-sm">
+        <p className="flex items-center gap-2 text-body-sm font-semibold text-primary"><Puzzle className="h-4 w-4 text-accent" aria-hidden="true" />Mad Libs</p>
+        <div className="mt-4 rounded-xl bg-blush px-3 py-4">
+          <p className="text-body-sm text-primary">저는 <span className="rounded-md bg-accent px-1.5 py-0.5 font-semibold text-on-accent">피자</span>를 좋아해요.</p>
+          <p className="mt-3 text-meta text-secondary">Choose the word that completes the sentence.</p>
+        </div>
+      </article>
     </div>
   );
 }
@@ -307,7 +176,7 @@ interface Slide {
   };
   secondaryBody?: string;
   largeBody?: boolean;
-  showFlashcard?: boolean;
+  showPracticeMethods?: boolean;
   smallHeadline?: boolean;
 }
 const slides: Slide[] = [
@@ -343,15 +212,15 @@ const slides: Slide[] = [
 {
   id: 2,
   eyebrow: '',
-  headline: 'Spaced Repetition System',
-  body: 'Every card, right on time.',
-  secondaryBody: 'Show up. Flip the card. That\'s it.',
+  headline: 'Practice words your way',
+  body: 'Flashcards, AI chat, and Mad Libs turn words from your videos into practice.',
+  secondaryBody: 'Choose the way that helps each word stick.',
   icon: Layers,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
   hideIcon: true,
   largeBody: true,
-  showFlashcard: true
+  showPracticeMethods: true
 },
 {
   id: 3,
@@ -827,8 +696,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               </p>
             )}
 
-            {/* Sample Flashcard */}
-            {slide.showFlashcard && <SampleFlashcard />}
+            {/* Practice method previews */}
+            {slide.showPracticeMethods && <SamplePracticeMethods />}
 
             {/* Secondary Body */}
             {slide.secondaryBody && (

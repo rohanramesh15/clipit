@@ -63,6 +63,10 @@ function ExtensionInstallModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
             <h2 id="extension-install-title" className="mt-4 pr-10 font-heading text-card-title font-medium text-primary">Install the ClipIt extension</h2>
             <p id="extension-install-description" className="mt-2 text-body text-secondary">Download the extension, add its unzipped folder to Chrome, then watch normally.</p>
 
+            <div className="mt-5 rounded-xl border border-subtle bg-surface px-4 py-3 text-body-sm text-secondary">
+              <span className="font-semibold text-primary">Coming soon to the Chrome Web Store.</span> In the meantime, use the steps below to install the current version manually.
+            </div>
+
             <ol className="mt-6 space-y-4">
               {steps.map(([title, detail], index) => (
                 <li key={title} className="flex gap-3">
