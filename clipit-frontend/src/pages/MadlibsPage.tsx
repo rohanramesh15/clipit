@@ -85,13 +85,17 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   const streamRunRef = useRef(0);
 
   useEffect(() => {
-    if (phase !== 'deck') return;
-    setResumable(getMostRecentMadlibProgress(language));
-  }, [phase, language]);
+    if (phase !== 'deck' || !user) {
+      setResumable(null);
+      return;
+    }
+    setResumable(getMostRecentMadlibProgress(user.id, language));
+  }, [phase, language, user]);
 
   useEffect(() => {
-    if (phase !== 'playing' || !deck || items.length === 0 || answers.length === 0) return;
+    if (phase !== 'playing' || !user || !deck || items.length === 0 || answers.length === 0) return;
     saveMadlibProgress({
+      userId: user.id,
       videoId: deck.id,
       title: deck.title,
       language,
@@ -99,7 +103,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
       answers: answers.map((a) => ({ chosen: a.chosen, correct: a.correct })),
       updatedAt: Date.now(),
     });
-  }, [phase, deck, items, answers, language]);
+  }, [phase, user, deck, items, answers, language]);
 
   useEffect(() => {
     if (!user || !token) {
@@ -111,7 +115,15 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     const cached = queryClient.getQueryData<TrackedVideo[]>(historyKey);
     setVideos(cached ?? null);
     void queryClient.ensureQueryData(historyQueryOptions(user.id, token, language))
-      .then((nextVideos) => { if (alive) setVideos(nextVideos); })
+      .then((nextVideos) => {
+        if (!alive) return;
+        setVideos(nextVideos);
+        setResumable((current) => {
+          if (!current || nextVideos.some((video) => video.video_id === current.videoId)) return current;
+          clearMadlibProgress(user.id, language, current.videoId);
+          return null;
+        });
+      })
       .catch(() => { if (alive && !cached) setVideos([]); });
     return () => { alive = false; };
   }, [language, token, user]);
@@ -241,10 +253,11 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
   }, []);
 
   const restartResumable = useCallback((progress: MadlibProgress) => {
-    clearMadlibProgress(language, progress.videoId);
+    if (!user) return;
+    clearMadlibProgress(user.id, language, progress.videoId);
     setResumable(null);
     void startDeck({ video_id: progress.videoId, title: progress.title, tracked_at: Date.now() });
-  }, [language, startDeck]);
+  }, [language, startDeck, user]);
 
   const choose = useCallback((option: string) => {
     const item = items[index];
@@ -263,7 +276,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         setShowHint(false);
         return;
       }
-      if (deck) clearMadlibProgress(language, deck.id);
+      if (deck && user) clearMadlibProgress(user.id, language, deck.id);
       setPhase('done');
       return;
     }
@@ -271,13 +284,13 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
     setSelected(null);
     setRevealed(false);
     setShowHint(false);
-  }, [index, items.length, deck, isStreamingCards, language]);
+  }, [index, items.length, deck, isStreamingCards, language, user]);
 
   useEffect(() => {
     if (phase !== 'playing' || isStreamingCards || items.length === 0 || index < items.length) return;
-    if (deck) clearMadlibProgress(language, deck.id);
+    if (deck && user) clearMadlibProgress(user.id, language, deck.id);
     setPhase('done');
-  }, [deck, index, isStreamingCards, items.length, language, phase]);
+  }, [deck, index, isStreamingCards, items.length, language, phase, user]);
 
   // 1–4 pick an option before reveal, Enter advances once it's revealed.
   useEffect(() => {
@@ -327,7 +340,7 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
           <h1 className="font-heading text-section font-medium text-primary">Mad libs</h1>
         </div>
 
-        {resumable && (
+        {resumable && videos?.some((video) => video.video_id === resumable.videoId) && (
           <section className="mt-8" aria-labelledby="continue-practicing-heading">
             <h2 id="continue-practicing-heading" className="font-sans text-[0.9375rem] font-semibold uppercase tracking-[0.08em] text-secondary">Continue practicing</h2>
             <div className="mt-2 flex min-h-24 flex-wrap items-center gap-6 rounded-2xl bg-dusk-soft px-7 py-5 sm:flex-nowrap">
