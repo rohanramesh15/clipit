@@ -16,13 +16,10 @@ export function HowItWorks() {
           <h2 id="how-it-works-title" className="font-heading text-section font-medium text-primary md:text-section-lg md:font-medium">
             One loop, from watching to remembering
           </h2>
-          <p className="mt-4 text-lead text-secondary">
-            ClipIt captures words from the captions of videos you watch, then turns them into practice at the right time.
-          </p>
         </div>
 
         <motion.ol
-          className="mt-12 grid gap-6 md:grid-cols-3 md:gap-x-14"
+          className="mt-8 grid gap-6 md:grid-cols-3 md:gap-x-14"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}

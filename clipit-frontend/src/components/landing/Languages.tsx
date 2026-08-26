@@ -47,13 +47,10 @@ export function Languages() {
           <h2 id="languages-title" className="font-heading text-section font-medium text-primary md:text-section-lg md:font-medium">
             Two languages available
           </h2>
-          <p className="mt-3 text-lead text-secondary">
-            Clip Korean or Ukrainian subtitles, each with its own deck.
-          </p>
         </div>
 
         <motion.ul
-          className="mt-12 grid gap-8 md:gap-10 md:grid-cols-2"
+          className="mt-8 grid gap-8 md:gap-10 md:grid-cols-2"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}

@@ -19,12 +19,8 @@ export function PracticeModes() {
         >
           Three ways to practice the words you clipped
         </h2>
-        <p className="mt-4 max-w-2xl text-lead text-secondary">
-          Review each word with flash cards, use it in an AI conversation, or complete a Mad Lib with it, whatever helps it stick.
-        </p>
-
         <motion.div
-          className="mt-12 grid items-stretch gap-6 md:grid-cols-3"
+          className="mt-8 grid items-stretch gap-6 md:grid-cols-3"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
