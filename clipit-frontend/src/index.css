@@ -48,7 +48,7 @@
   --accent-ring: rgba(196, 98, 90, 0.35);
   /* Text scale — one hue family (deep red, ~hue 0°, anchored on #4c2323),
      tuned in lightness/saturation per role for a cohesive, legible read. */
-  --text-primary: #5b3030;   /* headings + key text — softened deep maroon */
+  --text-primary: #6a3b3b;   /* headings + key text — softened deep maroon */
   --text-secondary: #7a3b3b; /* body / descriptions — dusty red */
   --text-muted: #986a6a;     /* captions / hints — AA contrast on app background */
   --border-subtle: rgba(0, 0, 0, 0.06);
