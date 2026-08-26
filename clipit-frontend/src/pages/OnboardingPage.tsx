@@ -21,6 +21,7 @@ import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
 import { useExtensionInstall } from '../components/ExtensionInstallModal';
 import { FlashcardVisual, ChatVisual, MadlibsVisual } from '../components/PracticeModeVisuals';
+import { NavigationIconButton } from '../components/NavigationIconButton';
 
 // YouTube Loop Player Component
 function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; startTime: number; endTime: number }) {
@@ -142,7 +143,7 @@ function SamplePracticeMethods() {
   return (
     <div className="mx-auto mt-7 grid w-full max-w-3xl gap-4 text-left md:grid-cols-3">
       {methods.map((method) => (
-        <article key={method.label} className={`flex min-h-[17rem] flex-col rounded-2xl px-5 py-6 ${method.surface}`}>
+        <article key={method.label} className={`flex min-h-[13rem] flex-col rounded-2xl px-5 py-6 ${method.surface}`}>
           <div className="flex items-center gap-3">
             <h3 className={`font-heading text-card-title font-medium ${method.heading}`}>{method.label}</h3>
           </div>
@@ -516,7 +517,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               )}
 
-              <h2 className="text-card-title font-heading font-medium text-primary mb-8 md:text-section">
+              <h2 className="text-card-title font-heading font-normal text-primary mb-8 md:text-section">
                 {currentQuestion.question}
               </h2>
 
@@ -690,7 +691,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </p>
 
             {/* Headline */}
-            <h1 className={`font-heading font-medium text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
+            <h1 className={`font-heading font-normal text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
               {slide.headline}
             </h1>
 
@@ -794,28 +795,21 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
       {/* Bottom nav */}
       <div className="h-20 border-t border-white/5 flex items-center justify-between px-6 md:px-10">
-          <Button
-            type="button"
-            onClick={goBack}
-            disabled={current === 0}
-            variant="ghost"
-            className={`text-sm font-medium ${current === 0 ? 'invisible' : ''}`}>
-
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Button>
+        {current === 0 ? (
+          <span className="h-10 w-10" aria-hidden="true" />
+        ) : (
+          <NavigationIconButton direction="back" label="Previous onboarding slide" onClick={goBack} />
+        )}
 
         <span className="text-sm text-muted">
           {current + 1} of {slides.length}
         </span>
 
-        <Button
+        <NavigationIconButton
+          direction="forward"
+          label={isLast ? 'Start onboarding setup' : 'Next onboarding slide'}
           onClick={goNext}
-          className="text-sm font-bold">
-
-          {isLast ? "Let's Go" : 'Next'}
-          <ArrowRight className="w-4 h-4" />
-        </Button>
+        />
       </div>
     </div>);
 
