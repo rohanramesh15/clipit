@@ -1,90 +1,12 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, ChevronRight, Plus } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { loopStages } from '../../data/landing';
 import { motionTiming } from '../../lib/motion';
+import watchImage from '../../assets/watch.png';
+import captureImage from '../../assets/capture.png';
+import practiceImage from '../../assets/practice.png';
 
-function WatchVisual() {
-  return (
-    <div className="w-full overflow-hidden rounded-xl bg-ink">
-      <div className="flex items-center gap-1.5 px-3 py-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-        <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-        <div className="ml-1 h-2 flex-1 rounded-full bg-white/10" />
-      </div>
-      <div className="relative h-[124px] w-full" aria-hidden="true">
-        <div className="absolute inset-0 flex items-end">
-          <div className="h-3/5 w-2/5 bg-sand-mid/25" />
-          <div className="h-4/5 w-2/5 bg-accent/20" />
-          <div className="h-2/5 w-1/5 bg-sage-mid/25" />
-        </div>
-        <div className="absolute inset-x-0 bottom-0 bg-ink-deep/70 px-3 py-2.5">
-          <div className="h-1.5 w-3/4 rounded-full bg-white/35" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CaptureVisual() {
-  const rows = [
-    { word: '단어', gloss: 'word', saved: true },
-    { word: '배우다', gloss: 'to learn', saved: true },
-    { word: '새롭다', gloss: 'to be new', saved: false },
-  ];
-
-  return (
-    <div className="w-full rounded-xl bg-surface p-3">
-      <p className="mb-2.5 flex items-center gap-1.5 text-meta font-semibold text-accent">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-        ClipIt is listening
-      </p>
-      <ul className="space-y-2">
-        {rows.map((row) => (
-          <li
-            key={row.word}
-            className="flex items-center justify-between gap-3 rounded-lg bg-app px-2.5 py-2"
-          >
-            <span className="min-w-0">
-              <span className="text-body-sm font-semibold text-primary">{row.word}</span>
-              <span className="ml-2 truncate text-meta text-muted">{row.gloss}</span>
-            </span>
-            {row.saved ? (
-              <Check className="h-3.5 w-3.5 shrink-0 text-accent" strokeWidth={2.5} aria-hidden="true" />
-            ) : (
-              <Plus className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function PracticeVisual() {
-  return (
-    <div className="w-full rounded-xl bg-surface p-3">
-      <div className="rounded-lg bg-sand-soft px-3 py-6 text-center">
-        <p className="text-card-title leading-none text-primary">배우다</p>
-        <p className="mt-1.5 text-meta text-sand-ink">bae-u-da</p>
-      </div>
-      <div className="mt-2.5 flex gap-2">
-        {['Again', 'Good', 'Easy'].map((label, i) => (
-          <span
-            key={label}
-            className={`flex-1 whitespace-nowrap rounded-md py-1.5 text-center text-meta font-semibold ${
-              i === 1 ? 'bg-accent text-[#fff]' : 'bg-app text-secondary'
-            }`}
-          >
-            {label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const visuals = [WatchVisual, CaptureVisual, PracticeVisual];
+const visuals = [watchImage, captureImage, practiceImage];
 
 export function HowItWorks() {
   return (
@@ -95,7 +17,7 @@ export function HowItWorks() {
             One loop, from watching to remembering
           </h2>
           <p className="mt-4 text-lead text-secondary">
-            ClipIt notices new words while you watch, then brings them back.
+            ClipIt captures words from the captions of videos you watch, then turns them into practice at the right time.
           </p>
         </div>
 
@@ -107,7 +29,7 @@ export function HowItWorks() {
           variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
         >
           {loopStages.map((stage, index) => {
-            const Visual = visuals[index];
+            const visual = visuals[index];
             return (
               <motion.li
                 key={stage.step}
@@ -117,12 +39,11 @@ export function HowItWorks() {
                 }}
                 className="relative flex flex-col rounded-2xl bg-app p-5"
               >
-                <div className="flex h-44 items-center">
-                  <Visual />
+                <div className="h-44 overflow-hidden rounded-xl">
+                  <img src={visual} alt="" className="h-full w-full object-cover" />
                 </div>
 
-                <p className="mt-4 text-meta font-semibold tracking-wide text-accent">Step {stage.step}</p>
-                <h3 className="mt-1 font-heading text-card-title font-medium text-primary">{stage.title}</h3>
+                <h3 className="mt-4 font-heading text-card-title font-medium text-primary">{stage.title}</h3>
                 <p className="mt-2 text-body text-secondary">{stage.description}</p>
 
                 {index < loopStages.length - 1 && (

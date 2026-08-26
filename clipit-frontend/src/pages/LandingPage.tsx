@@ -28,6 +28,19 @@ const Logo = ({ size = 'text-5xl', img = 'w-16 h-16', stroke = '2px' }: { size?:
 export function LandingPage({ onNavigate }: LandingPageProps) {
   // Landing always renders in light mode (the default theme).
   useEffect(() => { localStorage.setItem('theme', 'light'); }, []);
+  // Let the landing page use the platform's natural edge overscroll while
+  // retaining the firmer scroll boundary used throughout the signed-in app.
+  useEffect(() => {
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+    const previousBodyOverscroll = document.body.style.overscrollBehaviorY;
+    document.documentElement.style.overscrollBehaviorY = 'auto';
+    document.body.style.overscrollBehaviorY = 'auto';
+
+    return () => {
+      document.documentElement.style.overscrollBehaviorY = previousHtmlOverscroll;
+      document.body.style.overscrollBehaviorY = previousBodyOverscroll;
+    };
+  }, []);
   const isNavHidden = useHideOnScroll();
 
   return (
@@ -39,14 +52,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         className="fixed inset-x-0 top-0 z-50 bg-app"
       >
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
-          <div className="brand-logo flex items-center" aria-label="ClipIt">
-            <img src={clipitLogo} alt="" className="-mt-2 h-12 w-12 shrink-0 object-contain" />
-            <span
-              className="-ml-1 text-4xl font-semibold leading-none tracking-tight"
-              style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: '2px #9E3B3B', paintOrder: 'stroke fill' }}
-            >
-              <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
-            </span>
+          <div className="brand-logo" aria-label="ClipIt">
+            <Logo size="text-3xl" img="w-10 h-10" stroke="1.5px" />
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
