@@ -16,9 +16,10 @@ export function PracticeEmptyState({ mode }: PracticeEmptyStateProps) {
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-hover text-accent" aria-hidden="true">
         <Film className="h-6 w-6" />
       </span>
-      <h2 className="mt-5 font-heading text-card-title text-primary">You haven&apos;t watched any videos yet</h2>
+      <h2 className="mt-5 font-heading text-card-title text-primary" style={{ fontWeight: 500 }}>You haven&apos;t watched any videos yet</h2>
       <p className="mt-2 max-w-sm text-body-sm text-secondary">
-        Install the ClipIt extension, then watch something on YouTube or Netflix. We&apos;ll use the words you hear in {mode}.
+        Install the ClipIt extension, then watch something on YouTube or Netflix.{' '}
+        <span className="whitespace-nowrap">We&apos;ll use the words you hear in {mode}.</span>
       </p>
 
       <button

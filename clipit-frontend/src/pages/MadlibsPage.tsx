@@ -377,10 +377,10 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
         )}
 
         <section className="mt-14" aria-labelledby="madlibs-library">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
-            <h2 id="madlibs-library" className="font-heading text-card-title font-medium text-primary">Your videos</h2>
+          {practiceVideos.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-b border-subtle pb-4">
+              <h2 id="madlibs-library" className="font-heading text-card-title font-medium text-primary">Your videos</h2>
 
-            {practiceVideos.length > 0 && (
               <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
                 <ExpandableSearch
                   value={query}
@@ -407,8 +407,8 @@ export function MadlibsPage({ onNavigate }: MadlibsPageProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {videos === null ? (
             <div className="pt-6" role="status" aria-live="polite" aria-label="Loading your videos">
