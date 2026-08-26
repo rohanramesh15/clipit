@@ -20,6 +20,8 @@ import {
 import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
 import { useExtensionInstall } from '../components/ExtensionInstallModal';
+import { FlashcardVisual, ChatVisual, MadlibsVisual } from '../components/PracticeModeVisuals';
+import { NavigationIcon } from '../components/NavigationIconButton';
 
 // YouTube Loop Player Component
 function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; startTime: number; endTime: number }) {
@@ -115,34 +117,49 @@ declare global {
   }
 }
 
-// Compact previews show the three ways a captured word becomes practice.
+// Compact, non-interactive versions of the real Practice page cards.
 function SamplePracticeMethods() {
+  const methods = [
+    {
+      label: 'Flash cards',
+      description: 'Spaced-repetition review, scheduled for the moment you’re about to forget.',
+      Visual: FlashcardVisual,
+      surface: 'bg-sand-soft',
+      heading: 'text-sand-deep',
+      body: 'text-sand-ink',
+    },
+    {
+      label: 'AI chat',
+      description: 'Talk with a tutor that weaves your due words into real conversation.',
+      Visual: ChatVisual,
+      surface: 'bg-sage-soft',
+      heading: 'text-sage-deep',
+      body: 'text-sage-ink',
+    },
+    {
+      label: 'Mad libs',
+      description: 'Drop your words back into the sentences from the videos you watched.',
+      Visual: MadlibsVisual,
+      surface: 'bg-dusk-soft',
+      heading: 'text-dusk-deep',
+      body: 'text-dusk-ink',
+    },
+  ];
+
   return (
-    <div className="mx-auto mt-7 grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
-      <article className="rounded-2xl border border-subtle bg-surface p-4 shadow-sm">
-        <p className="flex items-center gap-2 text-body-sm font-semibold text-primary"><Layers className="h-4 w-4 text-accent" aria-hidden="true" />Flashcards</p>
-        <div className="mt-4 rounded-xl bg-sand-soft px-3 py-5 text-center">
-          <p className="font-heading text-3xl font-medium text-primary">피자</p>
-          <p className="mt-2 text-meta text-secondary">Tap to reveal the meaning</p>
-        </div>
-      </article>
-
-      <article className="rounded-2xl border border-subtle bg-surface p-4 shadow-sm">
-        <p className="flex items-center gap-2 text-body-sm font-semibold text-primary"><MessageCircle className="h-4 w-4 text-accent" aria-hidden="true" />AI chat</p>
-        <div className="mt-4 space-y-2 text-body-sm">
-          <p className="ml-auto w-fit rounded-xl rounded-br-sm bg-accent px-3 py-2 text-on-accent">피자가 좋아요.</p>
-          <p className="w-fit rounded-xl rounded-bl-sm bg-surface-hover px-3 py-2 text-primary">저도 좋아해요!</p>
-          <p className="text-meta text-secondary">Use new words in a real reply.</p>
-        </div>
-      </article>
-
-      <article className="rounded-2xl border border-subtle bg-surface p-4 shadow-sm">
-        <p className="flex items-center gap-2 text-body-sm font-semibold text-primary"><Puzzle className="h-4 w-4 text-accent" aria-hidden="true" />Mad Libs</p>
-        <div className="mt-4 rounded-xl bg-blush px-3 py-4">
-          <p className="text-body-sm text-primary">저는 <span className="rounded-md bg-accent px-1.5 py-0.5 font-semibold text-on-accent">피자</span>를 좋아해요.</p>
-          <p className="mt-3 text-meta text-secondary">Choose the word that completes the sentence.</p>
-        </div>
-      </article>
+    <div className="mx-auto mt-7 grid w-full max-w-4xl gap-4 text-left md:grid-cols-3">
+      {methods.map((method) => (
+        <article key={method.label} className={`flex min-h-[17rem] flex-col rounded-2xl px-5 py-6 ${method.surface}`}>
+          <div className="flex items-center gap-3">
+            <h3 className={`font-heading text-card-title font-medium ${method.heading}`}>{method.label}</h3>
+            <span className={`ml-auto inline-flex shrink-0 items-center rounded-xl p-2 ${method.heading}`} aria-hidden="true">
+              <NavigationIcon direction="forward" />
+            </span>
+          </div>
+          <p className={`mt-3 min-h-[4.75rem] text-body-sm ${method.body}`}>{method.description}</p>
+          <div className="mt-auto pt-3"><method.Visual /></div>
+        </article>
+      ))}
     </div>
   );
 }
@@ -212,9 +229,8 @@ const slides: Slide[] = [
 {
   id: 2,
   eyebrow: '',
-  headline: 'Practice words your way',
+  headline: 'Choose the way that helps each word stick.',
   body: 'Flashcards, AI chat, and Mad Libs turn words from your videos into practice.',
-  secondaryBody: 'Choose the way that helps each word stick.',
   icon: Layers,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
