@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import clipitLogo from '../assets/clipitlogo.png';
 import { Hero } from '../components/landing/Hero';
 import { HowItWorks } from '../components/landing/HowItWorks';
 import { PracticeModes } from '../components/landing/PracticeModes';
@@ -8,22 +7,11 @@ import { Languages } from '../components/landing/Languages';
 import { ClosingCTA } from '../components/landing/ClosingCTA';
 import { useHideOnScroll } from '../hooks/useHideOnScroll';
 import { Button } from '../components/ui/button';
+import { BrandLogo } from '../components/BrandLogo';
 
 interface LandingPageProps {
   onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
 }
-
-const Logo = ({ size = 'text-5xl', img = 'w-16 h-16', stroke = '2px' }: { size?: string; img?: string; stroke?: string }) => (
-  <div className="flex items-center">
-    <img src={clipitLogo} alt="ClipIt" className={`${img} object-contain shrink-0 -mt-2`} />
-    <span
-      className={`${size} tracking-tight`}
-      style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: `${stroke} var(--logo-stroke)`, paintOrder: 'stroke fill' }}
-    >
-      <span className="text-logo-fill">lip</span><span className="text-cream">It</span>
-    </span>
-  </div>
-);
 
 export function LandingPage({ onNavigate }: LandingPageProps) {
   // Landing always renders in light mode (the default theme).
@@ -40,7 +28,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       >
         <div className="mx-auto flex h-[72px] max-w-page items-center justify-between px-5 sm:px-8">
           <div className="brand-logo" aria-label="ClipIt">
-            <Logo size="text-3xl" img="w-10 h-10" stroke="1.5px" />
+            <BrandLogo />
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -75,7 +63,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           <div className="h-px bg-cream/20" />
         </div>
         <div className="mx-auto flex max-w-page flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
-          <Logo size="text-3xl" img="w-10 h-10" stroke="1.5px" />
+          <div aria-label="ClipIt"><BrandLogo /></div>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
             <nav aria-label="Footer">
               <Button

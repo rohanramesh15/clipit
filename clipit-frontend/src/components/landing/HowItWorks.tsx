@@ -39,7 +39,7 @@ export function HowItWorks() {
                 }}
                 className="relative flex flex-col rounded-2xl bg-app p-5"
               >
-                <div className="h-44 overflow-hidden rounded-xl">
+                <div className="h-44 overflow-hidden rounded-xl border border-subtle">
                   <img src={visual} alt="" className="h-full w-full object-cover" />
                 </div>
 

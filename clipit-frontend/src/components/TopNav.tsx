@@ -18,7 +18,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Avatar } from './Avatar';
 import { Skeleton } from './Skeleton';
 import { useHideOnScroll } from '../hooks/useHideOnScroll';
-import clipitLogo from '../assets/clipitlogo.png';
+import { BrandLogo } from './BrandLogo';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
@@ -79,13 +79,7 @@ export function TopNav({ activePage, onNavigate }: TopNavProps) {
           variant="ghost"
           className="brand-logo h-auto shrink-0 gap-0 px-0 hover:bg-transparent"
         >
-          <img src={clipitLogo} alt="" className="-mt-2 h-12 w-12 shrink-0 object-contain" />
-          <span
-            className="-ml-1 text-4xl leading-none tracking-tight"
-            style={{ fontFamily: "'Love Ya Like A Sister', cursive", WebkitTextStroke: '2px #9E3B3B', paintOrder: 'stroke fill' }}
-          >
-            <span style={{ color: '#EA7B7B' }}>lip</span><span style={{ color: '#FFEAD3' }}>It</span>
-          </span>
+          <BrandLogo />
           <span className="sr-only">Go to practice home</span>
         </Button>
 
