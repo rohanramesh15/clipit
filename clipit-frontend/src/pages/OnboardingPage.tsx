@@ -21,7 +21,6 @@ import clipitLogo from '../assets/clipitlogo.png';
 import { Button } from '../components/ui/button';
 import { useExtensionInstall } from '../components/ExtensionInstallModal';
 import { FlashcardVisual, ChatVisual, MadlibsVisual } from '../components/PracticeModeVisuals';
-import { NavigationIcon } from '../components/NavigationIconButton';
 
 // YouTube Loop Player Component
 function YouTubeLoopPlayer({ videoId, startTime, endTime }: { videoId: string; startTime: number; endTime: number }) {
@@ -122,42 +121,32 @@ function SamplePracticeMethods() {
   const methods = [
     {
       label: 'Flash cards',
-      description: 'Spaced-repetition review, scheduled for the moment you’re about to forget.',
       Visual: FlashcardVisual,
       surface: 'bg-sand-soft',
       heading: 'text-sand-deep',
-      body: 'text-sand-ink',
     },
     {
       label: 'AI chat',
-      description: 'Talk with a tutor that weaves your due words into real conversation.',
       Visual: ChatVisual,
       surface: 'bg-sage-soft',
       heading: 'text-sage-deep',
-      body: 'text-sage-ink',
     },
     {
       label: 'Mad libs',
-      description: 'Drop your words back into the sentences from the videos you watched.',
       Visual: MadlibsVisual,
       surface: 'bg-dusk-soft',
       heading: 'text-dusk-deep',
-      body: 'text-dusk-ink',
     },
   ];
 
   return (
-    <div className="mx-auto mt-7 grid w-full max-w-4xl gap-4 text-left md:grid-cols-3">
+    <div className="mx-auto mt-7 grid w-full max-w-3xl gap-4 text-left md:grid-cols-3">
       {methods.map((method) => (
         <article key={method.label} className={`flex min-h-[17rem] flex-col rounded-2xl px-5 py-6 ${method.surface}`}>
           <div className="flex items-center gap-3">
             <h3 className={`font-heading text-card-title font-medium ${method.heading}`}>{method.label}</h3>
-            <span className={`ml-auto inline-flex shrink-0 items-center rounded-xl p-2 ${method.heading}`} aria-hidden="true">
-              <NavigationIcon direction="forward" />
-            </span>
           </div>
-          <p className={`mt-3 min-h-[4.75rem] text-body-sm ${method.body}`}>{method.description}</p>
-          <div className="mt-auto pt-3"><method.Visual /></div>
+          <div className="mt-auto origin-bottom scale-90 pt-3"><method.Visual /></div>
         </article>
       ))}
     </div>
@@ -229,7 +218,7 @@ const slides: Slide[] = [
 {
   id: 2,
   eyebrow: '',
-  headline: 'Choose the way that helps each word stick.',
+  headline: 'Choose the way that helps each word stick',
   body: 'Flashcards, AI chat, and Mad Libs turn words from your videos into practice.',
   icon: Layers,
   iconBg: 'bg-transparent',
@@ -681,7 +670,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               stiffness: 320,
               damping: 32
             }}
-            className="w-full max-w-2xl text-center">
+            className={`w-full text-center ${slide.showPracticeMethods ? 'max-w-3xl' : 'max-w-2xl'}`}>
 
             {/* Icon */}
             {slide.useClipLogo ? (
