@@ -123,7 +123,7 @@ async def get_home_queue(
     from app.api.routes.vocabulary import _extract_vocabulary
     from app.api.routes.user_vocab import get_user_priority_mode, get_user_vocabulary_words
 
-    all_watched_videos = get_user_videos(db, current_user.id)
+    all_watched_videos = get_user_filtered_videos(db, current_user.id, lang)
     source_video_count = len(all_watched_videos)
     language_status_key = {
         "ko": "has_korean",
@@ -259,12 +259,13 @@ async def track_video(
 
 @router.get("/history")
 async def get_history(
+    lang: str = "ko",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Return all videos tracked by the current user."""
-    videos = get_user_videos(db, current_user.id)
-    return {"total": len(videos), "videos": videos}
+    """Return only videos with persisted captions in the selected language."""
+    videos = get_user_filtered_videos(db, current_user.id, lang)
+    return {"total": len(videos), "lang": lang, "videos": videos}
 
 
 @router.get("/history/filtered")
@@ -276,12 +277,8 @@ async def get_filtered_history(
     """
     Return the current user's videos that have subtitles in the target language.
 
-    Availability is recorded when the extension tracks a video.  Older videos
-    may have an unknown (NULL) status and are intentionally included by
-    ``get_user_filtered_videos``.  Do not probe YouTube here: a history read is
-    also made while navigating to Home, and synchronously checking every
-    unknown video can block the single API worker long enough to stall the
-    whole app.
+    This is the same persisted-caption list used by Home and practice pickers.
+    Do not probe YouTube here: caption capture belongs in the extension.
     """
     videos = get_user_filtered_videos(db, current_user.id, lang)
     return {"total": len(videos), "lang": lang, "videos": videos}
@@ -336,6 +333,8 @@ async def update_watch_time(
     if req.seconds <= 0:
         raise HTTPException(status_code=400, detail="seconds must be positive")
     total = add_watch_time(db, current_user.id, req.video_id, req.seconds)
+    if total is None:
+        raise HTTPException(status_code=404, detail="Video has not passed caption eligibility")
     return {"status": "ok", "video_id": req.video_id, "total_seconds": total}
 
 

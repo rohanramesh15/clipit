@@ -133,13 +133,13 @@ export function historyQueryOptions(userId: number, token: string, language: str
   };
 }
 
-/** The complete watch record, including videos whose captions were unavailable. */
+/** The current user's persisted target-caption videos. */
 export function watchHistoryQueryOptions(userId: number, token: string, language: string) {
   return {
     queryKey: queryKeys.watchHistory(userId, language),
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<BackendVideo[]> => {
       const data = await readJson<{ videos?: BackendVideo[] }>(
-        `${API_BASE_URL}/videos/history`,
+        `${API_BASE_URL}/videos/history?lang=${encodeURIComponent(language)}`,
         token,
         signal,
       );

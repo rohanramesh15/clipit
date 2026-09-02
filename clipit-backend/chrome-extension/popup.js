@@ -1,5 +1,5 @@
 const API = 'https://project-deadbird-backend.fly.dev/api';
-const APP_URL = 'https://www.joinclipit.com';
+const APP_URL = 'https://www.joinclipit.com/history';
 const root = document.getElementById('root');
 let lastFocusedElement = null;
 

@@ -116,11 +116,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ─── YouTube auto-tracking via tab URL change ────────────────────────────────
-// The URL changes before YouTube reliably renders the title. Keep a bounded
-// fallback so a broken/blocked content script cannot prevent tracking, but let
-// the content script's rendered heading be the normal source of truth.
+// The URL changes before YouTube reliably renders the title. A video is only
+// persisted after its target-language captions arrive, so this only coordinates
+// title/caption capture; it must never create a watch record by itself.
 const recentlyTracked = new Map(); // videoId → timestamp
 const pendingVideoTracks = new Map(); // videoId → fallback timeout ID
+const pendingYouTubeVideos = new Map(); // videoId → { title, lang }
+const pendingNetflixVideos = new Map(); // videoId → { title, audioLang, episodeInfo }
 const TITLE_FALLBACK_DELAY_MS = 15000;
 const CLIPIT_APP_URL_PATTERNS = [
   'https://clipit-sable.vercel.app/*',
@@ -164,7 +166,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!videoId) return;
 
   // Skip if we tracked this video recently or are already waiting for its
-  // content script. This still allows a reload to be recorded after 5 seconds.
+  // content script. This still allows a reload to be re-checked after 5 seconds.
   const lastTime = recentlyTracked.get(videoId);
   if ((lastTime && Date.now() - lastTime < 5000) || pendingVideoTracks.has(videoId)) return;
 
@@ -174,9 +176,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const fallbackTimeout = setTimeout(async () => {
     if (!pendingVideoTracks.has(videoId)) return;
     pendingVideoTracks.delete(videoId);
-    recentlyTracked.set(videoId, Date.now());
-    console.warn(`[ClipIt] Timed out waiting for title: ${videoId}; tracking with fallback`);
-    await trackAndPrefetch(videoId, 'Unknown', await getPreferredLanguage());
+    console.warn(`[ClipIt] Timed out waiting for title: ${videoId}; skipping until captions are captured`);
   }, TITLE_FALLBACK_DELAY_MS);
   pendingVideoTracks.set(videoId, fallbackTimeout);
 });
@@ -428,8 +428,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     const lastTime = recentlyTracked.get(msg.videoId);
     if (lastTime && Date.now() - lastTime < 5000) {
-      // A fallback may have already recorded the video. Backfill its title
-      // without creating another watch record.
       console.log(`[ClipIt] Video ${msg.videoId} already tracked recently, skipping`);
       if (msg.title && msg.title !== 'Unknown') {
         updateTrackedVideoTitle(msg.videoId, msg.title)
@@ -439,10 +437,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .then(() => ({ success: true, is_new: false }))
         .then(() => sendResponse({ success: true, is_new: false }));
     } else {
-      recentlyTracked.set(msg.videoId, Date.now());
-      getActiveTrackingLanguage(msg.lang)
-        .then(lang => trackAndPrefetch(msg.videoId, msg.title, lang))
-        .then(sendResponse);
+      getActiveTrackingLanguage(msg.lang).then((lang) => {
+        pendingYouTubeVideos.set(msg.videoId, { title: msg.title, lang });
+        sendResponse({ success: true, pending_captions: true });
+      });
     }
     return true;
   }
@@ -454,7 +452,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'TRACK_NETFLIX') {
     currentNetflixVideoId = msg.videoId;
     netflixSubtitles[msg.videoId] = netflixSubtitles[msg.videoId] || {};
-    trackNetflix(msg.videoId, msg.title, msg.audioLang, msg.episodeInfo).then(sendResponse);
+    pendingNetflixVideos.set(msg.videoId, {
+      title: msg.title,
+      audioLang: msg.audioLang,
+      episodeInfo: msg.episodeInfo,
+    });
+    sendResponse({ success: true, pending_captions: true });
     return true;
   }
   // Update Netflix title (when we get a better title later)
@@ -527,16 +530,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // YouTube subtitles from content script (client-side fetch)
   if (msg.type === 'YOUTUBE_SUBTITLES') {
     console.log(`[ClipIt] YOUTUBE_SUBTITLES received: ${msg.videoId} (lang: ${msg.subtitles?.targetLanguage || 'ko'}, target: ${(msg.subtitles?.korean || msg.subtitles?.ukrainian || []).length}, en: ${msg.subtitles?.english?.length || 0})`);
-    processYouTubeSubtitles(msg.videoId, msg.subtitles).then(sendResponse);
+    processYouTubeSubtitles(msg.videoId, msg.subtitles, msg.title).then(sendResponse);
     return true;
   }
   if (msg.type === 'YOUTUBE_SUBTITLES_UNAVAILABLE') {
-    getActiveTrackingLanguage(msg.lang)
-      .then(async (lang) => {
-        await updateStatus(msg.videoId, lang, false);
-        return { success: true };
-      })
-      .then(sendResponse);
+    pendingYouTubeVideos.delete(msg.videoId);
+    sendResponse({ success: true, skipped: 'target captions unavailable' });
     return true;
   }
 });
@@ -655,34 +654,36 @@ function parseTimeToSeconds(timeStr) {
   return parseFloat(normalized);
 }
 
-async function trackNetflix(videoId, title, audioLang, episodeInfo) {
+async function trackEligibleVideo(videoId, title, lang = 'ko', extra = {}) {
+  const token = await getAuthToken();
+  if (!token) {
+    console.warn('[ClipIt] No auth token — open the ClipIt app and log in first.');
+    return { success: false, reason: 'no_token' };
+  }
+
   try {
-    const token = await getAuthToken();
-    // Track the video with platform indicator
     const res = await fetch(`${API}/videos/track`, {
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify({
-        video_id: `netflix_${videoId}`,
-        title: title,
-        platform: 'netflix',
-        audio_lang: audioLang,
-        season: episodeInfo?.season || null,
-        episode: episodeInfo?.episode || null,
-        episode_title: episodeInfo?.episodeTitle || null,
+        video_id: videoId,
+        title,
+        ...extra,
       }),
     });
-    const data = await res.json();
-
-    // Use shared updateStatus helper for language marking
-    if (audioLang === 'ko' || audioLang === 'uk') {
-      await updateStatus(`netflix_${videoId}`, audioLang, true);
-      console.log(`[ClipIt] Marked video as having ${audioLang} (audio detected)`);
+    if (!res.ok) {
+      console.error('[ClipIt] Eligible video tracking failed:', res.status);
+      return { success: false, reason: res.status };
+    }
+    if (!res.ok) {
+      console.error('[ClipIt] Netflix subtitle upload failed:', res.status);
+      return { success: false };
     }
 
+    const data = await res.json();
     return { success: true, is_new: data.is_new };
   } catch (e) {
-    console.error('[ClipIt] Error tracking Netflix:', e);
+    console.error('[ClipIt] Error tracking eligible video:', e);
     return { success: false };
   }
 }
@@ -712,6 +713,16 @@ async function updateNetflixAudioLanguage(videoId, audioLang) {
 async function processNetflixSubtitles(videoId, subtitles, lang) {
   // Subtitles are already merged by content script
   const netflixVideoId = `netflix_${videoId}`;
+  if (!subtitles?.length) return { success: false, reason: 'target captions unavailable' };
+
+  const candidate = pendingNetflixVideos.get(videoId) || {};
+  const tracked = await trackEligibleVideo(netflixVideoId, candidate.title || 'Netflix Video', lang, {
+    season: candidate.episodeInfo?.season || null,
+    episode: candidate.episodeInfo?.episode || null,
+    episode_title: candidate.episodeInfo?.episodeTitle || null,
+  });
+  if (!tracked.success) return tracked;
+
   try {
     const res = await fetch(`${API}/netflix/subtitles`, {
       method: 'POST',
@@ -734,19 +745,29 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
 
     // Run vocab pipeline
     runVocabPipeline(netflixVideoId, lang);
+    pendingNetflixVideos.delete(videoId);
+    void notifyAppVideoTracked(netflixVideoId, lang);
+    return { success: true, is_new: tracked.is_new };
   } catch (e) {
     console.error('[ClipIt] Error sending Netflix subtitles:', e);
+    return { success: false };
   }
 }
 
 // ─── YouTube subtitle processing (from content script) ───────────────────────
 
-async function processYouTubeSubtitles(videoId, subtitles) {
+async function processYouTubeSubtitles(videoId, subtitles, title) {
   console.log(`[ClipIt] Processing YouTube subtitles for ${videoId}`);
   const targetLanguage = await getActiveTrackingLanguage(subtitles.targetLanguage);
   const config = getLanguageConfig(targetLanguage);
   const targetSubtitles = getSubtitleListForLanguage(subtitles, targetLanguage);
-  const uploadFlags = buildSubtitleUploadFlags(targetLanguage, targetSubtitles.length > 0);
+  if (!targetSubtitles.length) return { success: false, reason: 'target captions unavailable' };
+
+  const candidate = pendingYouTubeVideos.get(videoId) || {};
+  const tracked = await trackEligibleVideo(videoId, title || candidate.title || 'Unknown', targetLanguage);
+  if (!tracked.success) return tracked;
+
+  const uploadFlags = buildSubtitleUploadFlags(targetLanguage, true);
   try {
     const res = await fetch(`${API}/youtube/subtitles`, {
       method: 'POST',
@@ -764,54 +785,18 @@ async function processYouTubeSubtitles(videoId, subtitles) {
       console.log(`[ClipIt] YouTube subtitles saved: ${videoId} (${config.statusBodyKey}: ${uploadFlags[config.statusBodyKey] || false})`);
 
       // Now run vocab pipeline for the app-selected language only.
-      if (targetSubtitles.length > 0) {
-        runVocabPipeline(videoId, targetLanguage, true);
-      }
+      runVocabPipeline(videoId, targetLanguage, true);
+      pendingYouTubeVideos.delete(videoId);
+      recentlyTracked.set(videoId, Date.now());
+      void notifyAppVideoTracked(videoId, targetLanguage);
 
-      return { success: true };
+      return { success: true, is_new: tracked.is_new };
     } else {
       console.error('[ClipIt] Failed to save YouTube subtitles:', res.status);
       return { success: false };
     }
   } catch (e) {
     console.error('[ClipIt] Error processing YouTube subtitles:', e);
-    return { success: false };
-  }
-}
-
-async function trackAndPrefetch(videoId, title, lang = 'ko') {
-  const token = await getAuthToken();
-  if (!token) {
-    console.warn('[ClipIt] No auth token — open the ClipIt app and log in first.');
-    return { success: false, reason: 'no_token' };
-  }
-
-  try {
-    // 1. Track the video
-    const res = await fetch(`${API}/videos/track`, {
-      method: 'POST',
-      headers: authHeaders(token),
-      body: JSON.stringify({ video_id: videoId, title }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error('[ClipIt] Track failed:', res.status, err.detail || '');
-      return { success: false, reason: res.status };
-    }
-
-    const data = await res.json();
-    console.log(`[ClipIt] Tracked: ${videoId} — ${title} (new: ${data.is_new})`);
-    void notifyAppVideoTracked(videoId, lang);
-
-    // The page content script reads YouTube's real signed caption-track URL.
-    // Starting a second generic timedtext request here loses auto-caption
-    // parameters such as `kind=asr` and can incorrectly mark a valid track
-    // unavailable before the page extractor finishes.
-
-    return { success: true, is_new: data.is_new };
-  } catch (e) {
-    console.error('[ClipIt] trackAndPrefetch error:', e);
     return { success: false };
   }
 }

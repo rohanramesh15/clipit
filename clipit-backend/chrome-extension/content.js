@@ -100,6 +100,7 @@ window.addEventListener('message', (event) => {
         chrome.runtime.sendMessage({
           type: 'YOUTUBE_SUBTITLES',
           videoId,
+          title: getTitle(),
           subtitles: {
             targetLanguage: interceptedSubtitles.lang,
             [targetKey]: interceptedSubtitles.target,
@@ -847,6 +848,15 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
   interceptedSubtitles.lang = targetLang;
   subtitlesSentForVideo = null; // Allow sending for new video
 
+  // Ask the page-context interceptor for YouTube's already-resolved signed
+  // caption URLs. Auto-generated tracks can load before this document-idle
+  // content script begins observing network requests.
+  window.postMessage({
+    type: 'CLIPIT_FETCH_PAGE_CAPTIONS',
+    videoId,
+    targetLanguage: targetLang,
+  }, '*');
+
   // Method 1: Wait for player to be ready, then trigger caption loading
   console.log('[ClipIt] Waiting for player to be ready...');
 
@@ -880,6 +890,7 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
       chrome.runtime.sendMessage({
         type: 'YOUTUBE_SUBTITLES',
         videoId,
+        title: getTitle(),
         subtitles
       }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
       console.log(`[ClipIt] Sent subtitles to background for ${videoId}`);

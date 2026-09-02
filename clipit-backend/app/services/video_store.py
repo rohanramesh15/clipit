@@ -352,9 +352,11 @@ def get_user_videos(db: Session, user_id: int) -> list[dict]:
 
 def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> list[dict]:
     """
-    Return a user's videos that have or might have subtitles in the target language.
-    Shows videos where the language status is True or NULL (unchecked/processing).
-    Only excludes videos explicitly marked as False (definitely no subtitles).
+    Return a user's videos with persisted target-language captions.
+
+    A watch record alone is not enough for practice. Require both the positive
+    language flag and its durable subtitle payload so incomplete watches never
+    appear in History or any practice picker.
     """
     watches = db.query(UserVideoWatch).filter(UserVideoWatch.user_id == user_id).all()
     if not watches:
@@ -362,13 +364,21 @@ def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> lis
     video_ids = [w.video_id for w in watches]
     watch_times = {w.video_id: w.watched_at for w in watches}
     query = db.query(TrackedVideo).filter(TrackedVideo.video_id.in_(video_ids))
-    # Filter to show videos with language = True OR NULL (not False)
     if lang == "uk":
-        query = query.filter((TrackedVideo.has_ukrainian == True) | (TrackedVideo.has_ukrainian == None))
+        query = query.filter(
+            TrackedVideo.has_ukrainian == True,
+            TrackedVideo.subtitles_uk.isnot(None),
+        )
     elif lang == "en":
-        query = query.filter((TrackedVideo.has_english == True) | (TrackedVideo.has_english == None))
+        query = query.filter(
+            TrackedVideo.has_english == True,
+            TrackedVideo.subtitles.isnot(None),
+        )
     else:
-        query = query.filter((TrackedVideo.has_korean == True) | (TrackedVideo.has_korean == None))
+        query = query.filter(
+            TrackedVideo.has_korean == True,
+            TrackedVideo.subtitles.isnot(None),
+        )
     rows = query.all()
     return [
         {
@@ -496,8 +506,8 @@ def delete_user_video(db: Session, user_id: int, video_id: str) -> bool:
     return deleted > 0
 
 
-def add_watch_time(db: Session, user_id: int, video_id: str, seconds: int) -> int:
-    """Add seconds to the user's accumulated watch time for a video. Returns total."""
+def add_watch_time(db: Session, user_id: int, video_id: str, seconds: int) -> int | None:
+    """Add watch time only after a video has passed caption eligibility."""
     watch = db.query(UserVideoWatch).filter(
         UserVideoWatch.user_id == user_id,
         UserVideoWatch.video_id == video_id,
@@ -506,33 +516,7 @@ def add_watch_time(db: Session, user_id: int, video_id: str, seconds: int) -> in
         watch.watch_time_seconds = (watch.watch_time_seconds or 0) + seconds
         db.commit()
         return watch.watch_time_seconds
-    # If no watch record exists, create one with current time
-    watch = UserVideoWatch(
-        user_id=user_id,
-        video_id=video_id,
-        watched_at=time.time(),
-        watch_time_seconds=seconds,
-    )
-    db.add(watch)
-
-    # Also ensure TrackedVideo exists (in case initial tracking failed)
-    tracked = db.query(TrackedVideo).filter(TrackedVideo.video_id == video_id).first()
-    if not tracked:
-        # Determine URL format based on video_id prefix
-        if video_id.startswith('netflix_'):
-            url = f"https://www.netflix.com/watch/{video_id.replace('netflix_', '')}"
-        else:
-            url = f"https://www.youtube.com/watch?v={video_id}"
-        tracked = TrackedVideo(
-            video_id=video_id,
-            title="Unknown",
-            youtube_url=url,
-            tracked_at=time.time(),
-        )
-        db.add(tracked)
-
-    db.commit()
-    return seconds
+    return None
 
 
 def get_video_by_id(video_id: str) -> dict | None:

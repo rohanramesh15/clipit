@@ -8,6 +8,56 @@
   // Store captured subtitles by URL to avoid duplicates
   const capturedUrls = new Set();
 
+  function captureTimedtext(lang, videoId, url, content) {
+    const uniqueKey = `${videoId}_${lang}`;
+    if (capturedUrls.has(uniqueKey)) {
+      console.log('[ClipIt Interceptor] Already captured:', uniqueKey);
+      return;
+    }
+    if (!content || content.length <= 10) {
+      console.log('[ClipIt Interceptor] Empty or very short response for', lang);
+      return;
+    }
+
+    capturedUrls.add(uniqueKey);
+    console.log('[ClipIt Interceptor] Captured timedtext:', lang, 'length:', content.length);
+    window.postMessage({
+      type: 'CLIPIT_TIMEDTEXT_CAPTURED',
+      lang,
+      content,
+      url,
+    }, '*');
+  }
+
+  function getPlayerResponse() {
+    if (window.ytInitialPlayerResponse) return window.ytInitialPlayerResponse;
+
+    const rawResponse = window.ytplayer?.config?.args?.player_response;
+    if (typeof rawResponse === 'string') {
+      try {
+        return JSON.parse(rawResponse);
+      } catch (error) {
+        console.warn('[ClipIt Interceptor] Could not parse player response:', error);
+      }
+    }
+    return rawResponse || null;
+  }
+
+  async function fetchSignedTrack(track, videoId, originalFetch) {
+    if (!track?.baseUrl || !track?.languageCode) return false;
+    try {
+      const url = new URL(track.baseUrl);
+      url.searchParams.set('fmt', 'json3');
+      const response = await originalFetch(url.toString(), { credentials: 'include' });
+      const content = await response.text();
+      captureTimedtext(track.languageCode, videoId, url.toString(), content);
+      return content.length > 10;
+    } catch (error) {
+      console.warn('[ClipIt Interceptor] Signed caption fetch failed for', track.languageCode, error);
+      return false;
+    }
+  }
+
   // Intercept fetch
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
@@ -109,6 +159,36 @@
     });
     return originalXHRSend.apply(this, args);
   };
+
+  // YouTube often loads auto-generated captions before a document-idle content
+  // script can install the interceptor above. The content script requests this
+  // fallback after identifying a video; it runs in page context so it can read
+  // YouTube's signed caption URLs and use the viewer's session cookies.
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || event.data?.type !== 'CLIPIT_FETCH_PAGE_CAPTIONS') return;
+
+    const { videoId, targetLanguage } = event.data;
+    const captionTracks = getPlayerResponse()
+      ?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+    const targetTrack = captionTracks.find((track) =>
+      track.languageCode === targetLanguage || track.languageCode?.startsWith(`${targetLanguage}-`),
+    );
+    const englishTrack = captionTracks.find((track) =>
+      track.languageCode === 'en' || track.languageCode?.startsWith('en-'),
+    );
+
+    if (!targetTrack) {
+      console.log('[ClipIt Interceptor] No signed target caption track for', targetLanguage);
+      return;
+    }
+
+    void Promise.all([
+      fetchSignedTrack(targetTrack, videoId, originalFetch),
+      englishTrack && englishTrack.languageCode !== targetTrack.languageCode
+        ? fetchSignedTrack(englishTrack, videoId, originalFetch)
+        : Promise.resolve(false),
+    ]);
+  });
 
   console.log('[ClipIt Interceptor] YouTube timedtext interceptor installed (fetch + XHR)');
 })();

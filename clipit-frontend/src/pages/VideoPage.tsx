@@ -85,6 +85,17 @@ export function VideoPage() {
   );
   const visible = filter === 'all' ? videos : videos.filter((video) => video.platform === filter);
 
+  async function loadSubtitleWords(video: TrackedVideo): Promise<string[]> {
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetch(
+      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&include_all=true`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) throw new Error('Could not load subtitle words');
+    const data = await response.json() as { vocabulary?: { word?: string }[] };
+    return [...new Set((data.vocabulary || []).map((item) => item.word?.trim()).filter((word): word is string => Boolean(word)))];
+  }
+
   async function handleRemove() {
     if (!pendingRemoval) return;
     setIsRemoving(true);
@@ -190,7 +201,7 @@ export function VideoPage() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.24, delay: Math.min(0.04 * index, 0.24), ease: [0.23, 1, 0.32, 1] }}
                   >
-                    <VideoHistoryItem video={video} onRemove={setPendingRemoval} />
+                    <VideoHistoryItem video={video} onRemove={setPendingRemoval} loadSubtitleWords={loadSubtitleWords} />
                   </motion.li>
                 ))}
               </AnimatePresence>

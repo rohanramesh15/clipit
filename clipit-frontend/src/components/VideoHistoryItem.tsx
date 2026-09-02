@@ -62,18 +62,39 @@ function Thumbnail({ video }: { video: TrackedVideo }) {
 interface VideoHistoryItemProps {
   video: TrackedVideo;
   onRemove: (video: TrackedVideo) => void;
+  loadSubtitleWords: (video: TrackedVideo) => Promise<string[]>;
 }
 
-export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
+export function VideoHistoryItem({ video, onRemove, loadSubtitleWords }: VideoHistoryItemProps) {
   const episode = episodeLine(video);
+  const [isWordsOpen, setIsWordsOpen] = useState(false);
+  const [words, setWords] = useState<string[] | null>(null);
+  const [wordsError, setWordsError] = useState(false);
   const subtitleLabel = video.subtitleStatus === 'tracked'
-    ? 'Subtitles tracked'
+    ? 'Subtitle words tracked'
     : video.subtitleStatus === 'checking'
       ? 'Checking subtitles'
       : 'Subtitles not tracked';
   const subtitleClass = video.subtitleStatus === 'not-tracked' ? 'text-error' : 'text-muted';
+
+  async function toggleWords() {
+    if (isWordsOpen) {
+      setIsWordsOpen(false);
+      return;
+    }
+    setIsWordsOpen(true);
+    if (words) return;
+    try {
+      setWordsError(false);
+      setWords(await loadSubtitleWords(video));
+    } catch {
+      setWordsError(true);
+    }
+  }
+
   return (
-    <article className="group flex items-center gap-5 border-b border-subtle py-4">
+    <article className="group border-b border-subtle py-4">
+      <div className="flex items-center gap-5">
       <a
         href={watchUrl(video)}
         target="_blank"
@@ -95,7 +116,16 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
         <h3 className="truncate text-body font-semibold text-primary">{video.title}</h3>
         {episode && <p className="mt-0.5 truncate text-body-sm text-muted">{episode}</p>}
         <p className="mt-0.5 truncate text-body-sm text-muted">
-          {PLATFORM_LABEL[video.platform]} · {video.trackedAt} · <span className={subtitleClass}>{subtitleLabel}</span>
+          {PLATFORM_LABEL[video.platform]} · {video.trackedAt} · {video.subtitleStatus === 'tracked' ? (
+            <button
+              type="button"
+              onClick={toggleWords}
+              aria-expanded={isWordsOpen}
+              className="text-accent underline decoration-accent/40 underline-offset-2 transition-colors hover:text-accent-hover"
+            >
+              {subtitleLabel}
+            </button>
+          ) : <span className={subtitleClass}>{subtitleLabel}</span>}
         </p>
       </div>
 
@@ -122,6 +152,22 @@ export function VideoHistoryItem({ video, onRemove }: VideoHistoryItemProps) {
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
       </div>
+      </div>
+      {isWordsOpen && (
+        <div className="ml-[7.25rem] mt-3 rounded-xl border border-subtle bg-surface px-4 py-3 sm:ml-[8.5rem]">
+          {wordsError ? (
+            <p className="text-body-sm text-error">Couldn’t load subtitle words. Try again.</p>
+          ) : words === null ? (
+            <p className="text-body-sm text-secondary">Loading subtitle words…</p>
+          ) : words.length ? (
+            <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto pr-1" aria-label={`Words tracked from ${video.title}`}>
+              {words.map((word) => <span key={word} className="rounded-md bg-app px-2 py-1 text-body-sm text-primary">{word}</span>)}
+            </div>
+          ) : (
+            <p className="text-body-sm text-secondary">No subtitle words found for this video.</p>
+          )}
+        </div>
+      )}
     </article>
   );
 }
