@@ -98,6 +98,12 @@ def process_transcript_chunk(chunk_id: int) -> None:
         chunk.words = words
         chunk.status = "complete"
         job.words = _append_words(job.words, words)
+        # SessionLocal is autoflush=False, so the chunk.status write above is
+        # only visible to a query once flushed — without this, the count
+        # below always misses the current chunk's own completion. Harmless
+        # for every chunk but the last one, where it permanently undercounts
+        # processed_chunks by one and _finish_if_ready never fires again.
+        db.flush()
         job.processed_chunks = db.query(TranscriptIngestionChunk).filter(
             TranscriptIngestionChunk.job_id == job.id,
             TranscriptIngestionChunk.status == "complete",
