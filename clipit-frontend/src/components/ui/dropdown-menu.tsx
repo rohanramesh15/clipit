@@ -1,8 +1,10 @@
 /** Use for a compact menu of related actions; use filters for selecting data. */
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
+import { motionTiming } from '@/lib/motion';
 import { Button } from './button';
 
 type FocusTarget = 'first' | 'last';
@@ -107,7 +109,10 @@ export const DropdownMenuTrigger = React.forwardRef<HTMLElement, DropdownMenuTri
 });
 DropdownMenuTrigger.displayName = 'DropdownMenuTrigger';
 
-export interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
+// Omit the handful of event props whose DOM signature conflicts with
+// framer-motion's own (animation/drag events), since this spreads onto a
+// motion.div below.
+export interface DropdownMenuContentProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd'> {
   align?: 'start' | 'end';
   /** Which side of the trigger the menu opens toward. Use 'top' when the
    * trigger sits near the bottom of the viewport (e.g. a bottom toolbar) so
@@ -122,32 +127,50 @@ export const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenu
     if (typeof forwardedRef === 'function') forwardedRef(node);
     else if (forwardedRef) (forwardedRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   };
-  if (!open) return null;
-  return <div {...props} ref={setRefs} id={contentId} role="menu" onKeyDown={(event) => {
-    onKeyDown?.(event);
-    if (event.defaultPrevented) return;
-    const items = menuItems(contentRef.current);
-    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const direction = event.key === 'ArrowDown' ? 1 : -1;
-      items[(currentIndex + direction + items.length) % items.length]?.focus();
-    } else if (event.key === 'Home' || event.key === 'End') {
-      event.preventDefault();
-      focusItem(event.key === 'Home' ? 'first' : 'last');
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    } else if (event.key === 'Tab') {
-      setOpen(false);
-    }
-  }} className={cn(
-    'absolute z-50 min-w-48 space-y-1 rounded-xl border border-subtle bg-app p-2.5 shadow-pop',
-    side === 'top' ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right',
-    align === 'start' ? 'left-0' : 'right-0',
-    className,
-  )}>{children}</div>;
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          {...props}
+          ref={setRefs}
+          id={contentId}
+          role="menu"
+          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.98 }}
+          transition={motionTiming.base}
+          onKeyDown={(event) => {
+            onKeyDown?.(event);
+            if (event.defaultPrevented) return;
+            const items = menuItems(contentRef.current);
+            const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              const direction = event.key === 'ArrowDown' ? 1 : -1;
+              items[(currentIndex + direction + items.length) % items.length]?.focus();
+            } else if (event.key === 'Home' || event.key === 'End') {
+              event.preventDefault();
+              focusItem(event.key === 'Home' ? 'first' : 'last');
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              setOpen(false);
+              triggerRef.current?.focus();
+            } else if (event.key === 'Tab') {
+              setOpen(false);
+            }
+          }}
+          className={cn(
+            'absolute z-50 min-w-48 space-y-1 rounded-xl border border-subtle bg-app p-2.5 shadow-pop',
+            side === 'top' ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right',
+            align === 'start' ? 'left-0' : 'right-0',
+            className,
+          )}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 });
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 

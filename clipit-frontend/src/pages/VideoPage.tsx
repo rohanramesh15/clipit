@@ -16,14 +16,23 @@ import { useExtensionInstall } from '../components/ExtensionInstallModal';
 
 type Filter = 'all' | Platform;
 
+const MINUTE = 60;
+const HOUR = 3600;
+const DAY = 86400;
+const WEEK = 7 * DAY;
+const MONTH = 30 * DAY;
+const YEAR = 365 * DAY;
+
 function formatTrackedAt(ts: number): string {
   const now = Date.now() / 1000;
   const diff = now - ts;
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 172800) return 'Yesterday';
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < MINUTE) return 'Just now';
+  if (diff < HOUR) return `${Math.floor(diff / MINUTE)}m ago`;
+  if (diff < DAY) return `${Math.floor(diff / HOUR)}h ago`;
+  if (diff < WEEK) return `${Math.floor(diff / DAY)}d ago`;
+  if (diff < 4 * WEEK) return `${Math.max(1, Math.floor(diff / WEEK))}w ago`;
+  if (diff < YEAR) return `${Math.max(1, Math.floor(diff / MONTH))}mo ago`;
+  return `${Math.max(1, Math.floor(diff / YEAR))}y ago`;
 }
 
 function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
