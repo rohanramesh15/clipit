@@ -164,21 +164,28 @@
   // script can install the interceptor above. The content script requests this
   // fallback after identifying a video; it runs in page context so it can read
   // YouTube's signed caption URLs and use the viewer's session cookies.
-  window.addEventListener('message', (event) => {
-    if (event.source !== window || event.data?.type !== 'CLIPIT_FETCH_PAGE_CAPTIONS') return;
-
-    const { videoId, targetLanguage } = event.data;
-    const captionTracks = getPlayerResponse()
-      ?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-    const targetTrack = captionTracks.find((track) =>
-      track.languageCode === targetLanguage || track.languageCode?.startsWith(`${targetLanguage}-`),
-    );
-    const englishTrack = captionTracks.find((track) =>
-      track.languageCode === 'en' || track.languageCode?.startsWith('en-'),
-    );
+  async function fetchRequestedCaptionTracks(videoId, targetLanguage) {
+    // The content script normally asks roughly one second after navigation,
+    // but auto-generated tracks often arrive after the player shell. Keep
+    // checking in page context, where YouTube's signed URLs are available.
+    const deadline = Date.now() + 15000;
+    let targetTrack = null;
+    let englishTrack = null;
+    while (Date.now() < deadline) {
+      const captionTracks = getPlayerResponse()
+        ?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+      targetTrack = captionTracks.find((track) =>
+        track.languageCode === targetLanguage || track.languageCode?.startsWith(`${targetLanguage}-`),
+      );
+      englishTrack = captionTracks.find((track) =>
+        track.languageCode === 'en' || track.languageCode?.startsWith('en-'),
+      );
+      if (targetTrack) break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
 
     if (!targetTrack) {
-      console.log('[ClipIt Interceptor] No signed target caption track for', targetLanguage);
+      console.log('[ClipIt Interceptor] No signed target caption track after waiting for', targetLanguage);
       return;
     }
 
@@ -188,6 +195,13 @@
         ? fetchSignedTrack(englishTrack, videoId, originalFetch)
         : Promise.resolve(false),
     ]);
+  }
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || event.data?.type !== 'CLIPIT_FETCH_PAGE_CAPTIONS') return;
+
+    const { videoId, targetLanguage } = event.data;
+    void fetchRequestedCaptionTracks(videoId, targetLanguage);
   });
 
   console.log('[ClipIt Interceptor] YouTube timedtext interceptor installed (fetch + XHR)');
