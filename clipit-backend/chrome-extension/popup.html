@@ -170,6 +170,30 @@
     /* ─── Video list ──────────────────────────── */
     .video-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 
+    /* ─── Current YouTube processing ──────────────── */
+    .youtube-processing {
+      margin: 12px 12px 0;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(var(--accent-rgb), 0.07);
+      border: 1px solid rgba(var(--accent-rgb), 0.2);
+    }
+    .youtube-processing.complete { background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.24); }
+    .youtube-processing.error, .youtube-processing.no-captions { background: rgba(239, 68, 68, 0.06); border-color: rgba(239, 68, 68, 0.18); }
+    .processing-row { display: flex; align-items: flex-start; gap: 9px; }
+    .processing-icon { width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); font-size: 12px; background: rgba(var(--accent-rgb), 0.13); }
+    .youtube-processing.complete .processing-icon { color: #16803c; background: rgba(34, 197, 94, 0.15); }
+    .youtube-processing.error .processing-icon, .youtube-processing.no-captions .processing-icon { color: #c23c3c; background: rgba(239, 68, 68, 0.12); }
+    .processing-copy { min-width: 0; flex: 1; }
+    .processing-title { font-size: 12px; font-weight: 700; color: var(--text-primary); line-height: 1.35; }
+    .processing-subtitle { font-size: 11px; color: var(--text-secondary); line-height: 1.45; margin-top: 2px; }
+    .processing-bar { height: 5px; overflow: hidden; background: rgba(var(--accent-rgb), 0.15); border-radius: 999px; margin-top: 9px; }
+    .processing-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.2s ease; }
+    .youtube-processing.complete .processing-bar > span { background: #22a653; }
+    .processing-words { margin-top: 7px; font-size: 10px; font-weight: 600; color: var(--text-muted); }
+    .processing-refresh { margin-top: 9px; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; font-size: 11px; font-weight: 700; }
+    .processing-refresh:hover { color: var(--accent-hover); }
+
     .video-card {
       display: flex; align-items: center; gap: 10px;
       background: var(--bg-surface); border: 1px solid var(--border-subtle);

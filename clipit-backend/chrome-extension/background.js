@@ -127,6 +127,7 @@ const recentlyTracked = new Map(); // videoId → timestamp
 const pendingVideoTracks = new Map(); // videoId → fallback timeout ID
 const pendingYouTubeVideos = new Map(); // videoId → { title, lang }
 const pendingYouTubeCaptions = new Map(); // videoId → subtitle payload awaiting a rendered title
+const youtubeProcessingStatus = new Map(); // videoId → current extension-side capture/upload state
 const pendingNetflixVideos = new Map(); // videoId → { title, audioLang, episodeInfo }
 const TITLE_FALLBACK_DELAY_MS = 15000;
 const TRANSCRIPT_BATCH_SIZE = 40;
@@ -139,6 +140,22 @@ const CLIPIT_APP_URL_PATTERNS = [
   'http://localhost:5173/*',
   'http://localhost:5176/*',
 ];
+
+function setYouTubeProcessingStatus(videoId, phase, details = {}) {
+  if (!videoId) return;
+  const status = { videoId, phase, updatedAt: Date.now(), ...details };
+  youtubeProcessingStatus.set(videoId, status);
+  // The service worker can be suspended while a popup is open. Session storage
+  // preserves the last useful message without leaking it across browser restarts.
+  chrome.storage.session.set({ [`youtube_processing_${videoId}`]: status }).catch(() => {});
+}
+
+async function getYouTubeProcessingStatus(videoId) {
+  if (youtubeProcessingStatus.has(videoId)) return youtubeProcessingStatus.get(videoId);
+  const key = `youtube_processing_${videoId}`;
+  const stored = await chrome.storage.session.get(key);
+  return stored[key] || { videoId, phase: 'checking_captions' };
+}
 
 async function updateTrackedVideoTitle(videoId, title) {
   const token = await getAuthToken();
@@ -179,6 +196,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Don't use tab.title — it is often the previous video's title during SPA
   // navigation. The content script will send the rendered heading instead.
   console.log(`[ClipIt] YouTube tab navigation: ${videoId} — waiting for rendered title`);
+  setYouTubeProcessingStatus(videoId, 'checking_captions');
   const fallbackTimeout = setTimeout(async () => {
     if (!pendingVideoTracks.has(videoId)) return;
     pendingVideoTracks.delete(videoId);
@@ -424,6 +442,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   // YouTube tracking (from content script — also checks dedup)
+  if (msg.type === 'YOUTUBE_PROCESSING_STATE') {
+    setYouTubeProcessingStatus(msg.videoId, msg.phase || 'checking_captions', {
+      title: hasUsableTitle(msg.title) ? msg.title : undefined,
+    });
+    sendResponse({ success: true });
+    return;
+  }
+  if (msg.type === 'GET_YOUTUBE_PROCESSING_STATUS') {
+    getYouTubeProcessingStatus(msg.videoId).then(sendResponse);
+    return true;
+  }
   if (msg.type === 'TRACK_VIDEO') {
     console.log(`[ClipIt] TRACK_VIDEO received: ${msg.videoId} — ${msg.title}`);
     const pendingFallback = pendingVideoTracks.get(msg.videoId);
@@ -449,6 +478,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (pendingCaptions) {
           processYouTubeSubtitles(msg.videoId, pendingCaptions, msg.title).then(sendResponse);
         } else {
+          setYouTubeProcessingStatus(msg.videoId, 'waiting_for_captions', { title: msg.title });
           sendResponse({ success: true, pending_captions: true });
         }
       });
@@ -546,6 +576,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'YOUTUBE_SUBTITLES_UNAVAILABLE') {
     pendingYouTubeVideos.delete(msg.videoId);
+    setYouTubeProcessingStatus(msg.videoId, 'no_captions');
     sendResponse({ success: true, skipped: 'target captions unavailable' });
     return true;
   }
@@ -726,8 +757,15 @@ function subtitleBatches(targetSubtitles, englishSubtitles, targetLanguage) {
 
 async function uploadTranscriptBatches(videoId, targetLanguage, targetSubtitles, englishSubtitles) {
   const token = await getAuthToken();
-  if (!token) return { success: false, reason: 'no_token' };
+  if (!token) {
+    setYouTubeProcessingStatus(videoId, 'not_signed_in');
+    return { success: false, reason: 'no_token' };
+  }
   const batches = subtitleBatches(targetSubtitles, englishSubtitles, targetLanguage);
+  setYouTubeProcessingStatus(videoId, 'uploading', {
+    totalBatches: batches.length,
+    uploadedBatches: 0,
+  });
   for (let index = 0; index < batches.length; index += 1) {
     const batch = batches[index];
     const response = await fetch(`${API}/youtube/subtitles/batches`, {
@@ -745,8 +783,17 @@ async function uploadTranscriptBatches(videoId, targetLanguage, targetSubtitles,
     });
     if (!response.ok) {
       console.error(`[ClipIt] Transcript batch ${index + 1}/${batches.length} failed:`, response.status);
+      setYouTubeProcessingStatus(videoId, 'error', {
+        totalBatches: batches.length,
+        uploadedBatches: index,
+        error: `Upload failed (${response.status})`,
+      });
       return { success: false, reason: response.status };
     }
+    setYouTubeProcessingStatus(videoId, 'uploading', {
+      totalBatches: batches.length,
+      uploadedBatches: index + 1,
+    });
     // Surface the title, thumbnail, and live transcript progress as soon as
     // the first eligible batch is durably queued; do not wait for a long
     // video's final batch to finish uploading.
@@ -754,6 +801,10 @@ async function uploadTranscriptBatches(videoId, targetLanguage, targetSubtitles,
       void notifyAppVideoTracked(videoId, targetLanguage);
     }
   }
+  setYouTubeProcessingStatus(videoId, 'processing', {
+    totalBatches: batches.length,
+    uploadedBatches: batches.length,
+  });
   return { success: true, totalBatches: batches.length };
 }
 
@@ -828,9 +879,12 @@ async function processNetflixSubtitles(videoId, subtitles, lang) {
 async function processYouTubeSubtitles(videoId, subtitles, title) {
   console.log(`[ClipIt] Processing YouTube subtitles for ${videoId}`);
   const targetLanguage = await getActiveTrackingLanguage(subtitles.targetLanguage);
-  const config = getLanguageConfig(targetLanguage);
   const targetSubtitles = getSubtitleListForLanguage(subtitles, targetLanguage);
-  if (!targetSubtitles.length) return { success: false, reason: 'target captions unavailable' };
+  if (!targetSubtitles.length) {
+    setYouTubeProcessingStatus(videoId, 'no_captions');
+    return { success: false, reason: 'target captions unavailable' };
+  }
+  setYouTubeProcessingStatus(videoId, 'captions_found', { captionCount: targetSubtitles.length });
 
   const candidate = pendingYouTubeVideos.get(videoId) || {};
   const resolvedTitle = hasUsableTitle(title)
@@ -842,14 +896,21 @@ async function processYouTubeSubtitles(videoId, subtitles, title) {
     // Captions can be ready before YouTube renders a heading. Preserve them in
     // the worker, but never create an "Unknown" history record.
     pendingYouTubeCaptions.set(videoId, subtitles);
+    setYouTubeProcessingStatus(videoId, 'waiting_for_title', { captionCount: targetSubtitles.length });
     console.log(`[ClipIt] Captions captured for ${videoId}; waiting for rendered title`);
     return { success: true, pending_title: true };
   }
 
+  setYouTubeProcessingStatus(videoId, 'saving_video', { title: resolvedTitle, captionCount: targetSubtitles.length });
   const tracked = await trackEligibleVideo(videoId, resolvedTitle, targetLanguage, {
     thumbnail_url: youtubeThumbnailUrl(videoId),
   });
-  if (!tracked.success) return tracked;
+  if (!tracked.success) {
+    setYouTubeProcessingStatus(videoId, tracked.reason === 'no_token' ? 'not_signed_in' : 'error', {
+      error: tracked.reason ? `Could not save video (${tracked.reason})` : 'Could not save video',
+    });
+    return tracked;
+  }
 
   try {
     const upload = await uploadTranscriptBatches(
@@ -871,6 +932,7 @@ async function processYouTubeSubtitles(videoId, subtitles, title) {
     return upload;
   } catch (e) {
     console.error('[ClipIt] Error queuing YouTube transcript batches:', e);
+    setYouTubeProcessingStatus(videoId, 'error', { error: 'Could not queue transcript' });
     return { success: false };
   }
 }

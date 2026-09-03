@@ -313,6 +313,16 @@ function sendTrack(videoId) {
   // Reset watch time when switching videos
   resetWatchTimeTracking();
 
+  // Give the popup an immediate, truthful state while YouTube is still
+  // resolving the title and its signed caption tracks.
+  try {
+    chrome.runtime.sendMessage({
+      type: 'YOUTUBE_PROCESSING_STATE',
+      videoId,
+      phase: 'checking_captions',
+    }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+  } catch (_) {}
+
   // Capture captions independently of title rendering. YouTube may expose its
   // caption tracks before the heading is available; the background worker will
   // retain a valid payload until it receives the real title.
@@ -897,6 +907,14 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
   interceptedSubtitles.en = null;
   interceptedSubtitles.lang = targetLang;
   subtitlesSentForVideo = null; // Allow sending for new video
+
+  try {
+    chrome.runtime.sendMessage({
+      type: 'YOUTUBE_PROCESSING_STATE',
+      videoId,
+      phase: 'checking_captions',
+    }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+  } catch (_) {}
 
   // Ask the page-context interceptor for YouTube's already-resolved signed
   // caption URLs. Auto-generated tracks can load before this document-idle
