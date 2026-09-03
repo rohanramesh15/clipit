@@ -22,6 +22,47 @@ function getNetflixVideoElement() {
   return document.querySelector('video');
 }
 
+// ─── Re-track on account switch ─────────────────────────────────────────────
+// Decode just enough of a Supabase JWT to compare accounts — no signature
+// verification, since this is only used to detect a sign-in/sign-out, not to
+// authorize anything (every actual API call re-verifies the token itself).
+function decodeJwtUserId(token) {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(atob(padded)).sub || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// The currently-signed-in account, so a token change can be told apart from
+// an account *switch* (routine hourly token refreshes update this value too,
+// but decode to the same user id).
+let currentUserId = null;
+chrome.storage.local.get('deadbird_token').then(result => {
+  if (result.deadbird_token) currentUserId = decodeJwtUserId(result.deadbird_token);
+}).catch(() => {});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes.deadbird_token) return;
+  const newToken = changes.deadbird_token.newValue;
+  const newUserId = newToken ? decodeJwtUserId(newToken) : null;
+  if (newUserId && newUserId !== currentUserId) {
+    console.log('[ClipIt] Different account signed in — re-tracking the video already playing here');
+    currentUserId = newUserId;
+    // The video itself hasn't changed, so the usual videoId !== lastTrackedId
+    // gate would never fire again on its own — force it so this account
+    // gets its own capture of whatever's currently on screen.
+    lastTrackedId = null;
+    trackIfNewVideo();
+  } else if (newUserId) {
+    currentUserId = newUserId;
+  }
+});
+
 let netflixWatchTimeRetryCount = 0;
 const MAX_NETFLIX_WATCH_TIME_RETRIES = 10;
 
@@ -716,16 +757,19 @@ function startKeywordTimestampPolling(videoId) {
 
 let lastHref = location.href;
 
+function trackIfNewVideo() {
+  const videoId = getVideoId();
+  if (videoId && videoId !== lastTrackedId) {
+    lastTrackedId = videoId;
+    sendTrack(videoId);
+  }
+}
+
 function checkNavigation() {
   try {
     if (location.href === lastHref) return;
     lastHref = location.href;
-
-    const videoId = getVideoId();
-    if (videoId && videoId !== lastTrackedId) {
-      lastTrackedId = videoId;
-      sendTrack(videoId);
-    }
+    trackIfNewVideo();
   } catch (e) {}
 }
 
