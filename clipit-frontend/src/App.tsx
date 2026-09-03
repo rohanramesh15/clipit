@@ -18,6 +18,7 @@ import { MadlibsPage } from './pages/MadlibsPage';
 import { PracticePageSkeleton } from './components/PracticePageSkeleton';
 import { ExtensionInstallProvider } from './components/ExtensionInstallModal';
 import { AnimatePresence, motion } from 'framer-motion';
+import { motionTiming } from './lib/motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
@@ -371,67 +372,72 @@ function AppInner() {
     return <AppLoadingState />;
   }
 
-  // Render top-level views
+  // Render top-level views. Kept as a value (not an early return) so every
+  // one of them — including the main app shell — shares the single fade
+  // wrapper below instead of hard-cutting between landing/login/signup/
+  // onboarding/app with no transition at all.
+  let topLevelView: React.ReactNode;
   if (appView === 'landing') {
-    return <LandingPage onNavigate={navigateToView} />;
-  }
-  if (appView === 'login') {
-    return <LoginPage onBack={goBackFromAuth} onNavigate={navigateToView} initialError={authErrorMessage ?? undefined} />;
-  }
-  if (appView === 'signup') {
-    return <SignupPage onBack={goBackFromAuth} onNavigate={navigateToView} initialError={authErrorMessage ?? undefined} />;
-  }
-  if (appView === 'onboarding') {
-    return <OnboardingPage onComplete={() => { navigateToPage('practice'); setAppView('app'); }} />;
-  }
-  if (appView === 'forgot-password') {
-    return <ForgotPasswordPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
-  }
-  if (appView === 'reset-password') {
-    return <ResetPasswordPage onNavigate={setAppView} />;
-  }
-  if (appView === 'privacy') {
-    return <PrivacyPage onNavigate={setAppView} />;
+    topLevelView = <LandingPage onNavigate={navigateToView} />;
+  } else if (appView === 'login') {
+    topLevelView = <LoginPage onBack={goBackFromAuth} onNavigate={navigateToView} initialError={authErrorMessage ?? undefined} />;
+  } else if (appView === 'signup') {
+    topLevelView = <SignupPage onBack={goBackFromAuth} onNavigate={navigateToView} initialError={authErrorMessage ?? undefined} />;
+  } else if (appView === 'onboarding') {
+    topLevelView = <OnboardingPage onComplete={() => { navigateToPage('practice'); setAppView('app'); }} />;
+  } else if (appView === 'forgot-password') {
+    topLevelView = <ForgotPasswordPage onBack={goBackFromAuth} onNavigate={navigateToView} />;
+  } else if (appView === 'reset-password') {
+    topLevelView = <ResetPasswordPage onNavigate={setAppView} />;
+  } else if (appView === 'privacy') {
+    topLevelView = <PrivacyPage onNavigate={setAppView} />;
+  } else {
+    // Main App View
+    topLevelView = (
+      <HelpProvider>
+        <ReviewSessionProvider>
+          <div className="min-h-screen w-full bg-app font-sans text-primary selection:bg-accent selection:text-app">
+            <a
+              href="#main-content"
+              className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-primary px-4 py-2 font-medium text-app focus:not-sr-only"
+            >
+              Skip to main content
+            </a>
+            {!chatImmersive && <TopNav activePage={activePage} onNavigate={navigateToPage} />}
+
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className={`overflow-x-clip focus:outline-none ${chatImmersive ? '' : 'p-4 md:p-8'}`}
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                <motion.div
+                  key={activePage}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: 'easeInOut'
+                  }}>
+
+                  {renderPage()}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          </div>
+        </ReviewSessionProvider>
+      </HelpProvider>
+    );
   }
 
-  // Main App View
   return (
-    <HelpProvider>
-      <ReviewSessionProvider>
-        <div className="min-h-screen w-full bg-app font-sans text-primary selection:bg-accent selection:text-app">
-          <a
-            href="#main-content"
-            className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-primary px-4 py-2 font-medium text-app focus:not-sr-only"
-          >
-            Skip to main content
-          </a>
-          {!chatImmersive && <TopNav activePage={activePage} onNavigate={navigateToPage} />}
-
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className={`overflow-x-clip focus:outline-none ${chatImmersive ? '' : 'p-4 md:p-8'}`}
-          >
-            <AnimatePresence initial={false} mode="popLayout">
-              <motion.div
-                key={activePage}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{
-                  duration: 0.3,
-                  ease: 'easeInOut'
-                }}>
-
-                {renderPage()}
-              </motion.div>
-            </AnimatePresence>
-          </main>
-        </div>
-      </ReviewSessionProvider>
-    </HelpProvider>
+    <AnimatePresence mode="wait">
+      <motion.div key={appView} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={motionTiming.page}>
+        {topLevelView}
+      </motion.div>
+    </AnimatePresence>
   );
-
 }
 
 export function App() {
