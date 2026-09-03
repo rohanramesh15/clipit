@@ -943,6 +943,17 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
     targetLanguage: targetLang,
   }, '*');
 
+  // Resolve the real caption track for this language once. Auto-generated
+  // ("ASR") tracks never appear in the player API's own tracklist — YouTube
+  // only exposes them through its Subtitles/CC menu — so triggerCaptionLoading
+  // needs this track's exact label to find and click the matching menu item.
+  const playerResponse = await getPlayerResponse(videoId);
+  const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+  const targetTrack = captionTracks.find(t => t.languageCode === targetLang || t.languageCode?.startsWith(`${targetLang}-`));
+  if (!targetTrack) {
+    console.log('[ClipIt] No', targetLang, 'caption track on this video at all');
+  }
+
   // Method 1: Wait for player to be ready, then trigger caption loading
   console.log('[ClipIt] Waiting for player to be ready...');
 
@@ -950,16 +961,23 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
   for (let attempt = 0; attempt < 5; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    if (await triggerCaptionLoading(targetLang)) {
+    if (await triggerCaptionLoading(targetTrack)) {
       console.log('[ClipIt] Caption loading triggered on attempt', attempt + 1);
       break;
     }
     console.log('[ClipIt] Player not ready, attempt', attempt + 1, 'of 5');
   }
 
-  // Wait for interceptor to capture subtitles (YouTube takes a moment to load them)
+  // Wait for interceptor to capture subtitles. Selecting an auto-generated
+  // track through YouTube's real menu can take ~10s to come back (YouTube
+  // generates it fresh rather than serving something cached), so poll for
+  // it instead of a single short fixed sleep.
   console.log('[ClipIt] Waiting for interceptor to capture subtitles...');
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  const captureDeadline = Date.now() + 15000;
+  while (Date.now() < captureDeadline) {
+    if (interceptedSubtitles.target && interceptedSubtitles.target.length > 0) break;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
 
   // Check if interceptor captured any subtitles
   if (interceptedSubtitles.target && interceptedSubtitles.target.length > 0) {
@@ -992,69 +1010,88 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
   }
 }
 
-async function triggerCaptionLoading(targetLang = preferredLanguage) {
-  // Method 1: Try player API if available - switch through tracks to force fetches
+function getTrackDisplayName(track) {
+  if (!track) return null;
+  if (track.name?.simpleText) return track.name.simpleText.trim();
+  if (Array.isArray(track.name?.runs)) return track.name.runs.map(r => r.text || '').join('').trim();
+  return null;
+}
+
+// Selects targetTrack in YouTube's real player so its genuine caption fetch
+// fires (which the page-context interceptor then captures). targetTrack is
+// the caption track object for the learning language, resolved beforehand
+// from the actual player response — not just a language code — because
+// auto-generated tracks need their exact on-screen label to be found below.
+async function triggerCaptionLoading(targetTrack) {
+  if (!targetTrack) return false;
+
   const player = document.getElementById('movie_player');
-  if (player && typeof player.getOption === 'function') {
+  if (!player) return false;
+
+  // Fast path: manually authored tracks show up in the player API's own
+  // tracklist, so they can be selected directly without touching the menu.
+  // Auto-generated ("ASR") tracks never appear here — YouTube only exposes
+  // those through the real Subtitles/CC menu — so this intentionally does
+  // NOT fall back to whatever else is in the tracklist (e.g. English) when
+  // the target isn't in it; that previously reported false success while
+  // silently leaving the wrong language selected.
+  if (typeof player.getOption === 'function') {
     try {
-      const tracklist = player.getOption('captions', 'tracklist');
-      console.log('[ClipIt] Available caption tracks via API:', tracklist?.map(t => t.languageCode) || 'none');
-
-      if (tracklist && tracklist.length > 0) {
-        // Find target-language and English tracks
-        const targetTrack = tracklist.find(t => t.languageCode === targetLang || t.languageCode?.startsWith(`${targetLang}-`));
-        const enTrack = tracklist.find(t => t.languageCode === 'en' || t.languageCode?.startsWith('en'));
-
-        // Load target-language track first (this triggers a fetch)
-        if (targetTrack) {
-          console.log('[ClipIt] Triggering target caption track via API');
-          player.setOption('captions', 'track', targetTrack);
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        // Then load English track (this triggers another fetch)
-        if (enTrack) {
-          console.log('[ClipIt] Triggering English caption track via API');
-          player.setOption('captions', 'track', enTrack);
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        // Switch back to target-language captions if available
-        if (targetTrack) {
-          player.setOption('captions', 'track', targetTrack);
-        }
-
-        if (targetTrack || enTrack) {
-          return true;
-        }
+      const tracklist = player.getOption('captions', 'tracklist') || [];
+      const apiTrack = tracklist.find(t =>
+        t.languageCode === targetTrack.languageCode || t.vss_id === targetTrack.vssId
+      );
+      if (apiTrack) {
+        console.log('[ClipIt] Selecting target caption track via player API');
+        player.setOption('captions', 'track', apiTrack);
+        return true;
       }
     } catch (e) {
-      console.log('[ClipIt] Player API error:', e.message);
+      console.log('[ClipIt] Player API caption error:', e.message);
     }
   }
 
-  // Method 2: Try clicking the CC button directly
-  const ccButton = document.querySelector('.ytp-subtitles-button');
-  if (ccButton) {
-    const isPressed = ccButton.getAttribute('aria-pressed') === 'true';
-    console.log('[ClipIt] Found CC button, currently pressed:', isPressed);
+  // Drive the real Subtitles/CC menu and pick the option whose label matches
+  // this track's own display name (sourced from the player response, so it
+  // lines up with the menu regardless of UI language).
+  const targetName = getTrackDisplayName(targetTrack);
+  if (!targetName) return false;
 
-    if (!isPressed) {
-      console.log('[ClipIt] Clicking CC button to enable captions...');
-      ccButton.click();
-      return true;
-    } else {
-      // Captions already enabled - we need to force YouTube to make a fresh request
-      // Do a longer toggle to ensure the request happens
-      console.log('[ClipIt] Captions already enabled, toggling off...');
-      ccButton.click();
-      await new Promise(resolve => setTimeout(resolve, 300));
-      console.log('[ClipIt] Toggling captions back on...');
-      ccButton.click();
-      return true;
-    }
+  const settingsButton = document.querySelector('.ytp-settings-button');
+  if (!settingsButton) return false;
+
+  const findMenuItem = (predicate) =>
+    Array.from(document.querySelectorAll('.ytp-menuitem')).find(predicate);
+
+  if (!document.querySelector('.ytp-settings-menu')) {
+    settingsButton.click();
+    await new Promise(resolve => setTimeout(resolve, 250));
   }
 
-  console.log('[ClipIt] No caption trigger method available yet');
-  return false;
+  const ccMenuItem = findMenuItem(el =>
+    el.getAttribute('role') === 'menuitem' && el.textContent.includes('Subtitles/CC')
+  );
+  if (!ccMenuItem) {
+    console.log('[ClipIt] Subtitles/CC menu item not found yet');
+    settingsButton.click(); // close whatever we opened
+    return false;
+  }
+
+  console.log('[ClipIt] Opening Subtitles/CC menu to select', targetName);
+  ccMenuItem.click();
+  await new Promise(resolve => setTimeout(resolve, 250));
+
+  const langMenuItem = findMenuItem(el =>
+    el.getAttribute('role') === 'menuitemradio' && el.textContent.trim() === targetName
+  );
+  if (!langMenuItem) {
+    console.log('[ClipIt] Could not find menu item for', targetName);
+    settingsButton.click(); // close the menu
+    return false;
+  }
+
+  console.log('[ClipIt] Selecting', targetName, 'from Subtitles/CC menu');
+  langMenuItem.click();
+  settingsButton.click(); // menu returns to the root panel on selection; close it
+  return true;
 }
