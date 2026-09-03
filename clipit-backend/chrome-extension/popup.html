@@ -182,6 +182,12 @@
     .youtube-processing.error, .youtube-processing.no-captions { background: rgba(239, 68, 68, 0.06); border-color: rgba(239, 68, 68, 0.18); }
     .processing-row { display: flex; align-items: flex-start; gap: 9px; }
     .processing-icon { width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); font-size: 12px; background: rgba(var(--accent-rgb), 0.13); }
+    .processing-icon.is-active { background: #f8e5e6; color: var(--accent); }
+    .processing-dots { display: flex; align-items: center; gap: 2px; height: 100%; }
+    .processing-dots i { display: block; width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: processing-dot 1s ease-in-out infinite; }
+    .processing-dots i:nth-child(2) { animation-delay: 0.14s; }
+    .processing-dots i:nth-child(3) { animation-delay: 0.28s; }
+    @keyframes processing-dot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-3px); opacity: 1; } }
     .youtube-processing.complete .processing-icon { color: #16803c; background: rgba(34, 197, 94, 0.15); }
     .youtube-processing.error .processing-icon, .youtube-processing.no-captions .processing-icon { color: #c23c3c; background: rgba(239, 68, 68, 0.12); }
     .processing-copy { min-width: 0; flex: 1; }

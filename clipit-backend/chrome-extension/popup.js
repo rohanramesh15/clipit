@@ -589,6 +589,7 @@ function youtubeProcessingPanel() {
   if (!state.isYouTubeTab || !status) return '';
 
   const phase = status.phase || 'checking_captions';
+  const isActive = ['checking_captions', 'waiting_for_captions', 'saving_video', 'uploading', 'processing'].includes(phase);
   const total = Number(status.total_batches ?? status.totalBatches ?? 0);
   const uploaded = Number(status.uploadedBatches ?? 0);
   const processed = Number(status.processed_batches ?? 0);
@@ -629,7 +630,7 @@ function youtubeProcessingPanel() {
   const refresh = isError ? '<button class="processing-refresh" data-action="refresh-processing">Refresh status</button>' : '';
   return `
     <section class="youtube-processing ${esc(phase)}" aria-live="polite" aria-label="Current YouTube video processing status">
-      <div class="processing-row"><span class="processing-icon" aria-hidden="true">${icon}</span><div class="processing-copy"><p class="processing-title">${esc(title)}</p><p class="processing-subtitle">${esc(subtitle)}</p></div></div>
+      <div class="processing-row"><span class="processing-icon${isActive ? ' is-active' : ''}" aria-hidden="true">${isActive ? '<span class="processing-dots"><i></i><i></i><i></i></span>' : icon}</span><div class="processing-copy"><p class="processing-title">${esc(title)}</p><p class="processing-subtitle">${esc(subtitle)}</p></div></div>
       ${progress !== null ? `<div class="processing-bar" aria-label="${percent}% complete"><span style="width:${percent}%"></span></div>` : ''}
       ${phase === 'processing' && wordCount ? `<p class="processing-words">${wordCount} words found so far · more may be coming</p>` : ''}
       ${refresh}
