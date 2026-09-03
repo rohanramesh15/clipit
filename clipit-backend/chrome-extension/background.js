@@ -623,7 +623,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'YOUTUBE_SUBTITLES_UNAVAILABLE') {
     pendingYouTubeVideos.delete(msg.videoId);
-    setYouTubeProcessingStatus(msg.videoId, 'no_captions');
+    // This can arrive after a separate, faster capture attempt already
+    // succeeded (e.g. two overlapping capture paths in the content script) —
+    // don't let a stale failure clobber a status that already moved past
+    // caption-checking, mirroring the deadline guard in
+    // setYouTubeProcessingStatus above.
+    const current = youtubeProcessingStatus.get(msg.videoId);
+    if (!current || current.phase === 'checking_captions' || current.phase === 'waiting_for_captions') {
+      setYouTubeProcessingStatus(msg.videoId, 'no_captions');
+    }
     sendResponse({ success: true, skipped: 'target captions unavailable' });
     return true;
   }

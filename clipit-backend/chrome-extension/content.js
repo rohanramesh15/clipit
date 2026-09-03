@@ -943,6 +943,20 @@ function parseSubtitleXML(xmlText) {
 
 // Send subtitles to background script after tracking
 async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage) {
+  // The passive interceptor listener above can already have captured (and
+  // possibly already sent — its own send is debounced 500ms after capture)
+  // target-language subtitles for this video by the time this delayed call
+  // runs (e.g. YouTube auto-loads a previously-selected caption language on
+  // page load). Don't reset that state and redrive the CC menu in that case:
+  // it would wipe out a completed or pending capture — re-selecting an
+  // already-active track often triggers no new network request for the
+  // interceptor to catch, and its own capturedUrls dedup would drop a repeat
+  // fetch anyway, leaving nothing to recapture.
+  if (interceptedSubtitles.lang === targetLang && interceptedSubtitles.target?.length > 0) {
+    console.log('[ClipIt] Subtitles already captured for', videoId, 'via passive interception, skipping active capture');
+    return;
+  }
+
   // Reset intercepted subtitles for this video
   interceptedSubtitles.target = null;
   interceptedSubtitles.en = null;
@@ -1086,7 +1100,12 @@ async function triggerCaptionLoading(targetTrack) {
   const findMenuItem = (predicate) =>
     Array.from(document.querySelectorAll('.ytp-menuitem')).find(predicate);
 
-  if (!document.querySelector('.ytp-settings-menu')) {
+  // YouTube keeps `.ytp-settings-menu` in the DOM at all times (empty and
+  // `display: none` when closed), so checking for its mere presence never
+  // detects "closed" and this open-click was being skipped on the very
+  // first attempt. Check actual visibility instead.
+  const settingsMenu = document.querySelector('.ytp-settings-menu');
+  if (!settingsMenu?.offsetParent) {
     settingsButton.click();
     await new Promise(resolve => setTimeout(resolve, 250));
   }
