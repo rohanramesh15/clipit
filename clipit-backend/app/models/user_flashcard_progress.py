@@ -7,6 +7,7 @@ class UserFlashcardProgress(BaseModel):
     __tablename__ = "user_flashcard_progress"
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    mined_word_id = Column(Integer, ForeignKey("user_mined_words.id", ondelete="SET NULL"), nullable=True, index=True)  # link to the mined-word source of truth, when this card came from a watched video
     word = Column(String, nullable=False)
     lemma = Column(String, nullable=True, index=True)  # Canonical dictionary form; backfilled lazily per-language
     language = Column(String, nullable=False)  # 'ko', 'uk', 'sr', 'bg', 'es'

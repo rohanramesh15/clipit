@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.transcript_ingestion import TranscriptIngestionChunk, TranscriptIngestionJob
 from app.services.korean_tokenizer import extract_korean_words_from_subtitles
+from app.services.mining_service import record_mined_words_from_transcript
 from app.services.subtitle_service import save_subtitles_from_extension
 from app.services.ukrainian_tokenizer import extract_ukrainian_words_from_subtitles
 from app.services.vocab_service import filter_vocabulary
@@ -78,6 +79,17 @@ def _finish_if_ready(db: Session, job: TranscriptIngestionJob) -> None:
     )
     if not persisted:
         raise RuntimeError("final transcript persistence failed")
+
+    # Populate the mined-word source of truth from the complete transcript
+    # (not the chunk-level job.words accumulator above, which is
+    # chunk-boundary-limited and only meant for the live progress counter).
+    # Best-effort: Home/Flashcards/Mad Libs/History all read from this, but
+    # a failure here shouldn't block the transcript itself from completing.
+    try:
+        record_mined_words_from_transcript(db, job.user_id, job.video_id, job.language, full_transcript)
+    except Exception as error:
+        print(f"[transcript-ingestion] mined-word recording failed for job {job.id}: {error}")
+
     job.status = "complete"
 
 

@@ -11,7 +11,7 @@ from app.services.korean_tokenizer import extract_korean_words_from_subtitles
 from app.services.ukrainian_tokenizer import extract_ukrainian_words_from_subtitles
 from app.services.english_tokenizer import extract_english_words_from_subtitles
 from app.services.vocab_service import load_frequency_map, filter_vocabulary, filter_by_priority_mode, get_vocab_stats
-from app.services.mining_service import apply_mining_limits, record_mined_words, get_mining_stats
+from app.services.mining_service import apply_mining_limits, record_mined_words, get_mining_stats, get_user_mined_words
 from app.api.routes.netflix import load_cached_netflix_subtitles
 from app.api.routes.user_vocab import get_user_vocabulary_words, get_user_priority_mode
 from app.services.card_upgrade_service import auto_upgrade_tts_cards
@@ -123,7 +123,16 @@ async def _extract_vocabulary(
             "priority_mode": None
         }
 
-    words = extract_fn(subtitle_data["subtitles"])
+    # Prefer the mined-word source of truth over re-tokenizing the raw
+    # transcript on every request — it's populated once, automatically, when
+    # this video's transcript finishes ingesting. Falls back to live
+    # tokenization for anything not yet in it (not-yet-ingested videos,
+    # unauthenticated requests, Netflix — which doesn't go through the
+    # ingestion pipeline this table is populated from), and for include_all,
+    # which deliberately wants every raw caption word, not the pre-filtered
+    # mined subset.
+    mined_words = get_user_mined_words(db, current_user.id, lang, video_id=video_id) if current_user and not include_all else []
+    words = [item['word'] for item in mined_words] if mined_words else extract_fn(subtitle_data["subtitles"])
     mining_info = None
 
     # The Home word inventory deliberately exposes every distinct word captured

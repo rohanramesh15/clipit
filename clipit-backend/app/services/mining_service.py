@@ -8,12 +8,14 @@ Implements mining limits for Netflix/YouTube playback:
 - Exclude words already mined in previous watches
 """
 
+from datetime import datetime
 from typing import List, Dict, Optional, Set
 from collections import Counter
 from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.models.user_mined_word import UserMinedWord
+from app.models.user_mined_word_source import UserMinedWordSource
 
 
 # Mining configuration
@@ -56,11 +58,16 @@ def get_previously_mined_words(
     db: Session
 ) -> Set[str]:
     """Get words already mined from this video in previous sessions."""
-    mined = db.query(UserMinedWord.word).filter(
-        UserMinedWord.user_id == user_id,
-        UserMinedWord.video_id == video_id,
-        UserMinedWord.language == language
-    ).all()
+    mined = (
+        db.query(UserMinedWord.word)
+        .join(UserMinedWordSource, UserMinedWordSource.mined_word_id == UserMinedWord.id)
+        .filter(
+            UserMinedWord.user_id == user_id,
+            UserMinedWord.language == language,
+            UserMinedWordSource.video_id == video_id,
+        )
+        .all()
+    )
     return {w[0] for w in mined}
 
 
@@ -221,6 +228,71 @@ def apply_mining_limits(
     }
 
 
+def _upsert_mined_word(
+    db: Session,
+    user_id: int,
+    video_id: str,
+    word: str,
+    language: str,
+    *,
+    lemma: Optional[str] = None,
+    rank: Optional[int] = None,
+    video_occurrence_count: int = 1,
+    timestamp: Optional[float] = None,
+) -> bool:
+    """Upsert one word's identity row plus its per-video source row — the
+    single write path into the mined-word source of truth. Returns True if
+    this created a brand-new identity row (word never seen before by this
+    user), False if it only updated an existing one."""
+    mined = db.query(UserMinedWord).filter(
+        UserMinedWord.user_id == user_id,
+        UserMinedWord.word == word,
+        UserMinedWord.language == language,
+    ).first()
+
+    is_new = mined is None
+    if mined is None:
+        mined = UserMinedWord(
+            user_id=user_id,
+            word=word,
+            language=language,
+            lemma=lemma,
+            rank=rank,
+            occurrence_count=0,
+            first_seen_at=datetime.utcnow(),
+        )
+        db.add(mined)
+        db.flush()
+    else:
+        if lemma and not mined.lemma:
+            mined.lemma = lemma
+        if rank is not None and mined.rank is None:
+            mined.rank = rank
+
+    source = db.query(UserMinedWordSource).filter(
+        UserMinedWordSource.mined_word_id == mined.id,
+        UserMinedWordSource.video_id == video_id,
+    ).first()
+    if source is None:
+        source = UserMinedWordSource(
+            mined_word_id=mined.id,
+            video_id=video_id,
+            timestamp=timestamp,
+            occurrence_count=video_occurrence_count,
+        )
+        db.add(source)
+        mined.occurrence_count += video_occurrence_count
+    else:
+        # Re-processing the same video (e.g. re-ingested) replaces rather
+        # than double-counts this source's contribution to the total.
+        mined.occurrence_count += video_occurrence_count - source.occurrence_count
+        source.occurrence_count = video_occurrence_count
+        if timestamp is not None:
+            source.timestamp = timestamp
+
+    return is_new
+
+
 def record_mined_words(
     user_id: int,
     video_id: str,
@@ -229,40 +301,129 @@ def record_mined_words(
     db: Session
 ) -> int:
     """
-    Record words that were mined from a video.
-    Call this when user actually creates flashcards from mined words.
+    Record words that were mined from a video (e.g. when the user creates
+    flashcards from mined words). Upserts into the user_mined_words /
+    user_mined_word_sources source of truth.
 
-    Returns: Number of new words recorded
+    Returns: Number of new words recorded (never seen by this user before)
     """
     new_count = 0
     for word_data in words:
-        word = word_data.get('word') or word_data
-        if isinstance(word_data, dict):
-            timestamp = word_data.get('mined_timestamp')
-        else:
-            timestamp = None
-
-        # Check if already exists
-        existing = db.query(UserMinedWord).filter(
-            UserMinedWord.user_id == user_id,
-            UserMinedWord.video_id == video_id,
-            UserMinedWord.word == word,
-            UserMinedWord.language == language
-        ).first()
-
-        if not existing:
-            mined = UserMinedWord(
-                user_id=user_id,
-                video_id=video_id,
-                word=word,
-                language=language,
-                timestamp=timestamp
-            )
-            db.add(mined)
+        word = word_data.get('word') if isinstance(word_data, dict) else word_data
+        timestamp = word_data.get('mined_timestamp') if isinstance(word_data, dict) else None
+        if _upsert_mined_word(db, user_id, video_id, word, language, timestamp=timestamp):
             new_count += 1
 
     db.commit()
     return new_count
+
+
+def record_mined_words_from_transcript(
+    db: Session,
+    user_id: int,
+    video_id: str,
+    language: str,
+    subtitles: List[Dict],
+) -> int:
+    """
+    Called once, automatically, when a video's transcript finishes ingesting
+    (see transcript_ingestion_service._finish_if_ready). Extracts and filters
+    vocabulary from the complete transcript and writes it into the
+    mined-word source of truth that Home/Flashcards/Mad Libs/History read
+    from — this is what actually populates it; record_mined_words above is
+    only ever reached by a currently-dead endpoint.
+
+    Returns: Number of distinct words recorded for this video.
+    """
+    from app.services.korean_tokenizer import extract_korean_words_from_subtitles
+    from app.services.ukrainian_tokenizer import extract_ukrainian_words_from_subtitles
+    from app.services.vocab_service import filter_vocabulary
+    # Lazy import: avoids the vocabulary router importing this module while
+    # FastAPI constructs its router tree (same reason transcript_ingestion_
+    # service does this for the same function).
+    from app.api.routes.vocabulary import get_frequency_map
+
+    language_key = "ukrainian" if language == "uk" else "korean"
+    extract_fn = extract_ukrainian_words_from_subtitles if language == "uk" else extract_korean_words_from_subtitles
+
+    words = extract_fn(subtitles)
+    if not words:
+        return 0
+
+    frequency_map = get_frequency_map(language)
+    filtered = filter_vocabulary(words, frequency_map, language=language)
+    if not filtered:
+        return 0
+
+    word_list = [item['word'] for item in filtered]
+    occurrences = count_word_occurrences(subtitles, word_list, language_key)
+
+    count = 0
+    for item in filtered:
+        word = item['word']
+        timestamps = get_word_timestamps(subtitles, word, language_key)
+        _upsert_mined_word(
+            db,
+            user_id,
+            video_id,
+            word,
+            language,
+            rank=item.get('rank'),
+            video_occurrence_count=occurrences.get(word, 1),
+            timestamp=timestamps[0] if timestamps else None,
+        )
+        count += 1
+
+    db.commit()
+    return count
+
+
+def get_user_mined_words(
+    db: Session,
+    user_id: int,
+    language: str,
+    video_id: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> List[Dict]:
+    """
+    Read from the mined-word source of truth — the replacement for
+    re-tokenizing tracked_videos.subtitles on every request. Returns one
+    dict per word (shaped like the old live-extraction output: word, rank,
+    occurrence_count, ...) with the video it's associated with — the most
+    recently-updated source when video_id isn't given, since a word can come
+    from more than one watched video.
+    """
+    query = (
+        db.query(UserMinedWord, UserMinedWordSource)
+        .join(UserMinedWordSource, UserMinedWordSource.mined_word_id == UserMinedWord.id)
+        .filter(UserMinedWord.user_id == user_id, UserMinedWord.language == language)
+    )
+    if video_id:
+        query = query.filter(UserMinedWordSource.video_id == video_id)
+
+    by_word: Dict[str, Dict] = {}
+    for mined, source in query.all():
+        existing = by_word.get(mined.word)
+        if existing is not None and existing['_source_updated_at'] >= source.updated_at:
+            continue
+        by_word[mined.word] = {
+            'word': mined.word,
+            'lemma': mined.lemma,
+            'rank': mined.rank,
+            'language': mined.language,
+            'occurrence_count': source.occurrence_count if video_id else mined.occurrence_count,
+            'video_id': source.video_id,
+            'mined_timestamp': source.timestamp,
+            '_source_updated_at': source.updated_at,
+        }
+
+    results = list(by_word.values())
+    for item in results:
+        item.pop('_source_updated_at', None)
+    results.sort(key=lambda x: (x['rank'] is None, x['rank'] or 0))
+    if limit:
+        results = results[:limit]
+    return results
 
 
 def get_mining_stats(
@@ -272,11 +433,16 @@ def get_mining_stats(
     db: Session
 ) -> Dict:
     """Get mining statistics for a user/video combination."""
-    mined_count = db.query(UserMinedWord).filter(
-        UserMinedWord.user_id == user_id,
-        UserMinedWord.video_id == video_id,
-        UserMinedWord.language == language
-    ).count()
+    mined_count = (
+        db.query(UserMinedWordSource)
+        .join(UserMinedWord, UserMinedWord.id == UserMinedWordSource.mined_word_id)
+        .filter(
+            UserMinedWord.user_id == user_id,
+            UserMinedWord.language == language,
+            UserMinedWordSource.video_id == video_id,
+        )
+        .count()
+    )
 
     return {
         'video_id': video_id,

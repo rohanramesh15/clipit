@@ -10,6 +10,7 @@ from .user_vocabulary_list import UserVocabularyList
 from .user_vocabulary_word import UserVocabularyWord
 from .user_vocabulary_settings import UserVocabularySettings
 from .user_mined_word import UserMinedWord
+from .user_mined_word_source import UserMinedWordSource
 from .subtitle_embedding import SubtitleEmbedding
 from .chat import ChatSession, ChatTurn, ChatSavedWord
 from .chat_memory import ChatMemoryFact
@@ -33,6 +34,7 @@ __all__ = [
     "UserVocabularyWord",
     "UserVocabularySettings",
     "UserMinedWord",
+    "UserMinedWordSource",
     "SubtitleEmbedding",
     "ChatSession",
     "ChatTurn",
