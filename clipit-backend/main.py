@@ -20,6 +20,7 @@ from app.models.community_group import CommunityGroup  # noqa: F401
 from app.models.community_membership import CommunityMembership  # noqa: F401
 from app.models.community_vocab_list import CommunityVocabList  # noqa: F401
 from app.models.community_vocab_word import CommunityVocabWord  # noqa: F401
+from app.models.transcript_ingestion import TranscriptIngestionJob, TranscriptIngestionChunk  # noqa: F401
 from app.api.routes import health
 from app.api.routes.auth import router as auth_router
 from app.api.routes.videos import router as videos_router
@@ -36,9 +37,11 @@ from app.api.routes.chat import router as chat_router
 from app.api.routes.chat_voice import router as chat_voice_router
 from app.api.routes.converse_v2 import router as converse_v2_router
 from app.api.routes.community import router as community_router
+from app.services.transcript_ingestion_service import start_transcript_worker
 
 
 Base.metadata.create_all(bind=engine)
+start_transcript_worker()
 
 # SQLite migration: add new columns if they don't exist yet
 if settings.DATABASE_URL.startswith("sqlite"):

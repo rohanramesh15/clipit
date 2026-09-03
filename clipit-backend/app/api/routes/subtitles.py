@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query, Body
+import json
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.services.subtitle_service import (
@@ -7,6 +12,12 @@ from app.services.subtitle_service import (
     save_subtitles_from_extension,
 )
 from app.api.routes.netflix import load_cached_netflix_subtitles
+from app.api.deps import get_current_user
+from app.core.database import SessionLocal, get_db
+from app.models.transcript_ingestion import TranscriptIngestionChunk, TranscriptIngestionJob
+from app.models.user import User
+from app.models.user_video_watch import UserVideoWatch
+from app.services.transcript_ingestion_service import enqueue_transcript_chunk
 
 router = APIRouter()
 
@@ -22,6 +33,131 @@ class YouTubeSubtitlesRequest(BaseModel):
     korean: List[SubtitleEntry] = Field(default_factory=list)
     ukrainian: List[SubtitleEntry] = Field(default_factory=list)
     english: List[SubtitleEntry] = Field(default_factory=list)
+
+
+class YouTubeSubtitleBatchRequest(YouTubeSubtitlesRequest):
+    language: str = Field(pattern="^(ko|uk)$")
+    batch_index: int = Field(ge=0)
+    total_batches: int = Field(ge=1, le=500)
+
+
+def _progress_payload(job: TranscriptIngestionJob) -> dict:
+    return {
+        "video_id": job.video_id,
+        "language": job.language,
+        "status": job.status,
+        "total_batches": job.total_chunks,
+        "received_batches": job.received_chunks,
+        "processed_batches": job.processed_chunks,
+        "words": job.words or [],
+        "error": job.error,
+    }
+
+
+@router.post("/youtube/subtitles/batches")
+async def receive_youtube_subtitle_batch(
+    req: YouTubeSubtitleBatchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Persist one caption batch and hand it to the low-latency worker."""
+    target = req.ukrainian if req.language == "uk" else req.korean
+    if not target:
+        raise HTTPException(status_code=400, detail="target-language caption batch is required")
+    if req.batch_index >= req.total_batches:
+        raise HTTPException(status_code=400, detail="batch_index must be lower than total_batches")
+    watched = db.query(UserVideoWatch.id).filter(
+        UserVideoWatch.user_id == current_user.id,
+        UserVideoWatch.video_id == req.video_id,
+    ).first()
+    if watched is None:
+        raise HTTPException(status_code=409, detail="Track video metadata before uploading transcript batches")
+
+    job = db.query(TranscriptIngestionJob).filter(
+        TranscriptIngestionJob.user_id == current_user.id,
+        TranscriptIngestionJob.video_id == req.video_id,
+        TranscriptIngestionJob.language == req.language,
+    ).first()
+    if job is None:
+        job = TranscriptIngestionJob(
+            user_id=current_user.id,
+            video_id=req.video_id,
+            language=req.language,
+            status="receiving",
+            total_chunks=req.total_batches,
+            received_chunks=0,
+            processed_chunks=0,
+            words=[],
+        )
+        db.add(job)
+        db.flush()
+    elif job.total_chunks != req.total_batches:
+        raise HTTPException(status_code=409, detail="Transcript batch count does not match the active upload")
+
+    existing = db.query(TranscriptIngestionChunk).filter(
+        TranscriptIngestionChunk.job_id == job.id,
+        TranscriptIngestionChunk.chunk_index == req.batch_index,
+    ).first()
+    if existing is not None:
+        return {"success": True, "duplicate": True, "progress": _progress_payload(job)}
+
+    merged = merge_client_subtitles(target, req.english, req.language)
+    chunk = TranscriptIngestionChunk(
+        job_id=job.id,
+        chunk_index=req.batch_index,
+        subtitles=merged,
+        status="queued",
+        words=[],
+    )
+    db.add(chunk)
+    db.flush()
+    job.received_chunks += 1
+    job.status = "processing"
+    db.commit()
+    db.refresh(job)
+    enqueue_transcript_chunk(chunk.id)
+    return {"success": True, "progress": _progress_payload(job)}
+
+
+@router.get("/youtube/subtitles/{video_id}/progress")
+async def stream_youtube_transcript_progress(
+    video_id: str,
+    lang: str = Query("ko", pattern="^(ko|uk)$"),
+    current_user: User = Depends(get_current_user),
+):
+    """Stream word batches as the durable worker completes them."""
+    def event_stream():
+        last_version: tuple | None = None
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            stream_db = SessionLocal()
+            try:
+                job = stream_db.query(TranscriptIngestionJob).filter(
+                    TranscriptIngestionJob.user_id == current_user.id,
+                    TranscriptIngestionJob.video_id == video_id,
+                    TranscriptIngestionJob.language == lang,
+                ).first()
+                if job is None:
+                    yield "event: error\ndata: {\"detail\": \"Transcript job not found\"}\n\n"
+                    return
+                payload = _progress_payload(job)
+                version = (job.status, job.received_chunks, job.processed_chunks, len(job.words or []), job.error)
+                if version != last_version:
+                    yield f"event: progress\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                    last_version = version
+                if job.status in {"complete", "failed"}:
+                    yield f"event: {job.status}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                    return
+            finally:
+                stream_db.close()
+            time.sleep(0.25)
+        yield "event: timeout\ndata: {}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/youtube/subtitles")

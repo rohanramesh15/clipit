@@ -57,6 +57,10 @@ function buildSubtitleUploadFlags(lang, hasTargetLanguage) {
   return flags;
 }
 
+function hasUsableTitle(title) {
+  return typeof title === 'string' && title.trim() !== '' && title !== 'Unknown';
+}
+
 async function getAuthToken() {
   const result = await chrome.storage.local.get('deadbird_token');
   return result.deadbird_token || null;
@@ -122,8 +126,10 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 const recentlyTracked = new Map(); // videoId → timestamp
 const pendingVideoTracks = new Map(); // videoId → fallback timeout ID
 const pendingYouTubeVideos = new Map(); // videoId → { title, lang }
+const pendingYouTubeCaptions = new Map(); // videoId → subtitle payload awaiting a rendered title
 const pendingNetflixVideos = new Map(); // videoId → { title, audioLang, episodeInfo }
 const TITLE_FALLBACK_DELAY_MS = 15000;
+const TRANSCRIPT_BATCH_SIZE = 40;
 const CLIPIT_APP_URL_PATTERNS = [
   'https://clipit-sable.vercel.app/*',
   'https://joinclipit.com/*',
@@ -439,7 +445,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     } else {
       getActiveTrackingLanguage(msg.lang).then((lang) => {
         pendingYouTubeVideos.set(msg.videoId, { title: msg.title, lang });
-        sendResponse({ success: true, pending_captions: true });
+        const pendingCaptions = pendingYouTubeCaptions.get(msg.videoId);
+        if (pendingCaptions) {
+          processYouTubeSubtitles(msg.videoId, pendingCaptions, msg.title).then(sendResponse);
+        } else {
+          sendResponse({ success: true, pending_captions: true });
+        }
       });
     }
     return true;
@@ -655,6 +666,11 @@ function parseTimeToSeconds(timeStr) {
 }
 
 async function trackEligibleVideo(videoId, title, lang = 'ko', extra = {}) {
+  if (!hasUsableTitle(title)) {
+    console.warn(`[ClipIt] Refusing to track ${videoId} without a rendered title`);
+    return { success: false, reason: 'title unavailable' };
+  }
+
   const token = await getAuthToken();
   if (!token) {
     console.warn('[ClipIt] No auth token — open the ClipIt app and log in first.');
@@ -686,6 +702,59 @@ async function trackEligibleVideo(videoId, title, lang = 'ko', extra = {}) {
     console.error('[ClipIt] Error tracking eligible video:', e);
     return { success: false };
   }
+}
+
+function youtubeThumbnailUrl(videoId) {
+  return `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`;
+}
+
+function subtitleBatches(targetSubtitles, englishSubtitles, targetLanguage) {
+  const batches = [];
+  for (let index = 0; index < targetSubtitles.length; index += TRANSCRIPT_BATCH_SIZE) {
+    const target = targetSubtitles.slice(index, index + TRANSCRIPT_BATCH_SIZE);
+    const start = target[0]?.start ?? 0;
+    const end = Math.max(...target.map((entry) => entry.start + (entry.duration || 0)));
+    // Include only the English cues that can pair with this target chunk. A
+    // small overlap preserves translations at the batch boundary.
+    const english = englishSubtitles.filter((entry) =>
+      entry.start <= end + 5 && entry.start + (entry.duration || 0) >= start - 5,
+    );
+    batches.push({ targetLanguage, target, english });
+  }
+  return batches;
+}
+
+async function uploadTranscriptBatches(videoId, targetLanguage, targetSubtitles, englishSubtitles) {
+  const token = await getAuthToken();
+  if (!token) return { success: false, reason: 'no_token' };
+  const batches = subtitleBatches(targetSubtitles, englishSubtitles, targetLanguage);
+  for (let index = 0; index < batches.length; index += 1) {
+    const batch = batches[index];
+    const response = await fetch(`${API}/youtube/subtitles/batches`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        video_id: videoId,
+        language: targetLanguage,
+        batch_index: index,
+        total_batches: batches.length,
+        korean: targetLanguage === 'ko' ? batch.target : [],
+        ukrainian: targetLanguage === 'uk' ? batch.target : [],
+        english: batch.english,
+      }),
+    });
+    if (!response.ok) {
+      console.error(`[ClipIt] Transcript batch ${index + 1}/${batches.length} failed:`, response.status);
+      return { success: false, reason: response.status };
+    }
+    // Surface the title, thumbnail, and live transcript progress as soon as
+    // the first eligible batch is durably queued; do not wait for a long
+    // video's final batch to finish uploading.
+    if (index === 0) {
+      void notifyAppVideoTracked(videoId, targetLanguage);
+    }
+  }
+  return { success: true, totalBatches: batches.length };
 }
 
 async function updateNetflixTitle(videoId, title) {
@@ -764,39 +833,44 @@ async function processYouTubeSubtitles(videoId, subtitles, title) {
   if (!targetSubtitles.length) return { success: false, reason: 'target captions unavailable' };
 
   const candidate = pendingYouTubeVideos.get(videoId) || {};
-  const tracked = await trackEligibleVideo(videoId, title || candidate.title || 'Unknown', targetLanguage);
+  const resolvedTitle = hasUsableTitle(title)
+    ? title
+    : hasUsableTitle(candidate.title)
+      ? candidate.title
+      : null;
+  if (!resolvedTitle) {
+    // Captions can be ready before YouTube renders a heading. Preserve them in
+    // the worker, but never create an "Unknown" history record.
+    pendingYouTubeCaptions.set(videoId, subtitles);
+    console.log(`[ClipIt] Captions captured for ${videoId}; waiting for rendered title`);
+    return { success: true, pending_title: true };
+  }
+
+  const tracked = await trackEligibleVideo(videoId, resolvedTitle, targetLanguage, {
+    thumbnail_url: youtubeThumbnailUrl(videoId),
+  });
   if (!tracked.success) return tracked;
 
-  const uploadFlags = buildSubtitleUploadFlags(targetLanguage, true);
   try {
-    const res = await fetch(`${API}/youtube/subtitles`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        video_id: videoId,
-        korean: targetLanguage === 'ko' ? targetSubtitles : [],
-        ukrainian: targetLanguage === 'uk' ? targetSubtitles : [],
-        english: subtitles.english || [],
-      }),
-    });
+    const upload = await uploadTranscriptBatches(
+      videoId,
+      targetLanguage,
+      targetSubtitles,
+      subtitles.english || [],
+    );
 
-    if (res.ok) {
-      const data = await res.json();
-      console.log(`[ClipIt] YouTube subtitles saved: ${videoId} (${config.statusBodyKey}: ${uploadFlags[config.statusBodyKey] || false})`);
-
-      // Now run vocab pipeline for the app-selected language only.
-      runVocabPipeline(videoId, targetLanguage, true);
+    if (upload.success) {
+      console.log(`[ClipIt] Queued ${upload.totalBatches} transcript batches for ${videoId}`);
       pendingYouTubeVideos.delete(videoId);
+      pendingYouTubeCaptions.delete(videoId);
       recentlyTracked.set(videoId, Date.now());
       void notifyAppVideoTracked(videoId, targetLanguage);
 
-      return { success: true, is_new: tracked.is_new };
-    } else {
-      console.error('[ClipIt] Failed to save YouTube subtitles:', res.status);
-      return { success: false };
+      return { success: true, is_new: tracked.is_new, total_batches: upload.totalBatches };
     }
+    return upload;
   } catch (e) {
-    console.error('[ClipIt] Error processing YouTube subtitles:', e);
+    console.error('[ClipIt] Error queuing YouTube transcript batches:', e);
     return { success: false };
   }
 }

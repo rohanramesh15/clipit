@@ -4,7 +4,7 @@ import { Download, Puzzle, X } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { Button } from './ui/button';
 
-const EXTENSION_DOWNLOAD_URL = '/downloads/clipit-extension-1.5.6.zip';
+const EXTENSION_DOWNLOAD_URL = '/downloads/clipit-extension-1.5.9.zip';
 
 interface ExtensionInstallContextValue {
   openExtensionInstall: () => void;

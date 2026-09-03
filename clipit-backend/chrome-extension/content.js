@@ -95,6 +95,7 @@ function isTargetSubtitleLang(lang, targetLang = preferredLanguage) {
 const interceptedSubtitles = { target: null, en: null, lang: 'ko' };
 let subtitlesSentForVideo = null; // Track which video we've already sent subtitles for
 let subtitleSendTimeout = null;
+let subtitleCaptureStartedForVideo = null;
 
 // Listen for intercepted timedtext data
 window.addEventListener('message', (event) => {
@@ -312,6 +313,18 @@ function sendTrack(videoId) {
   // Reset watch time when switching videos
   resetWatchTimeTracking();
 
+  // Capture captions independently of title rendering. YouTube may expose its
+  // caption tracks before the heading is available; the background worker will
+  // retain a valid payload until it receives the real title.
+  if (subtitleCaptureStartedForVideo !== videoId) {
+    subtitleCaptureStartedForVideo = videoId;
+    setTimeout(() => {
+      if (getVideoId() === videoId) {
+        void sendSubtitlesToBackground(videoId, preferredLanguage);
+      }
+    }, 1000);
+  }
+
   // YouTube can take several seconds to replace its generic page title and
   // render the watch-page heading. Only send a title once it is meaningful;
   // the background worker has its own bounded fallback for exceptional cases.
@@ -340,8 +353,6 @@ function sendTrack(videoId) {
         // Start tracking watch time for this video
         setTimeout(startWatchTimeTracking, 1000);
 
-        // Fetch and send subtitles client-side (bypasses YouTube IP blocking on cloud servers)
-        setTimeout(() => sendSubtitlesToBackground(videoId, preferredLanguage), 2000);
       } else if (attempts >= MAX_TITLE_ATTEMPTS) {
         clearInterval(interval);
         console.warn(`[ClipIt] No usable YouTube title after ${MAX_TITLE_ATTEMPTS} attempts: ${videoId}`);

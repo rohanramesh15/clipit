@@ -24,7 +24,7 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { HelpProvider } from './context/HelpContext';
 import { ReviewSessionProvider } from './context/ReviewSessionContext';
 import { queryClient } from './lib/queryClient';
-import { historyQueryOptions, homeQueueQueryOptions, progressSummaryQueryOptions, queryKeys } from './lib/queries';
+import { historyQueryOptions, homeQueueQueryOptions, progressSummaryQueryOptions, queryKeys, watchHistoryQueryOptions } from './lib/queries';
 type Page =
 'video' |
 'practice' |
@@ -328,10 +328,10 @@ function AppInner() {
       const { lang } = (event as CustomEvent<{ lang?: string }>).detail || {};
       if (lang && lang !== language) return;
 
-      void queryClient.fetchQuery({
-        ...historyQueryOptions(user.id, token, language),
-        staleTime: 0,
-      }).then(() => {
+      void Promise.all([
+        queryClient.fetchQuery({ ...historyQueryOptions(user.id, token, language), staleTime: 0 }),
+        queryClient.fetchQuery({ ...watchHistoryQueryOptions(user.id, token, language), staleTime: 0 }),
+      ]).then(() => {
         queryClient.invalidateQueries({ queryKey: queryKeys.homeQueue(user.id, language) });
         queryClient.invalidateQueries({ queryKey: queryKeys.flashcardDashboard(user.id, language) });
         queryClient.invalidateQueries({ queryKey: queryKeys.watchTime(user.id, language) });

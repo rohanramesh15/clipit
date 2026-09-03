@@ -10,6 +10,7 @@ class TrackedVideo(BaseModel):
     video_id = Column(String, unique=True, index=True, nullable=False)
     title = Column(String, default="Unknown")
     youtube_url = Column(String)
+    thumbnail_url = Column(String, nullable=True)
     subtitles = Column(JSON, nullable=True)      # Korean subtitle list, stored as JSON
     subtitles_uk = Column(JSON, nullable=True)   # Ukrainian subtitle list, stored as JSON
     tracked_at = Column(Float, default=time.time, nullable=False)

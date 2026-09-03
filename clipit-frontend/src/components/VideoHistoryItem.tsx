@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExternalLink, Trash2, Play } from 'lucide-react';
 import { Button } from './ui/button';
+import { API_BASE_URL } from '../config';
 
 export type Platform = 'youtube' | 'netflix';
 
@@ -11,11 +12,20 @@ export interface TrackedVideo {
   thumbnail: string;
   /** Relative label, e.g. "2h ago". */
   trackedAt: string;
-  subtitleStatus: 'tracked' | 'checking' | 'not-tracked';
+  subtitleStatus: 'tracked' | 'processing' | 'checking' | 'not-tracked';
   newWords: number;
   season?: number | null;
   episode?: number | null;
   episodeTitle?: string | null;
+  transcriptProgress?: TranscriptProgress;
+}
+
+interface TranscriptProgress {
+  status: 'receiving' | 'processing' | 'complete' | 'failed';
+  receivedBatches: number;
+  processedBatches: number;
+  totalBatches: number;
+  words: { word: string; rank?: number; language?: string }[];
 }
 
 const PLATFORM_LABEL: Record<Platform, string> = {
@@ -63,18 +73,84 @@ interface VideoHistoryItemProps {
   video: TrackedVideo;
   onRemove: (video: TrackedVideo) => void;
   loadSubtitleWords: (video: TrackedVideo) => Promise<string[]>;
+  token: string | null;
+  language: 'ko' | 'uk' | 'en';
+  onTranscriptComplete: () => void;
 }
 
-export function VideoHistoryItem({ video, onRemove, loadSubtitleWords }: VideoHistoryItemProps) {
+export function VideoHistoryItem({ video, onRemove, loadSubtitleWords, token, language, onTranscriptComplete }: VideoHistoryItemProps) {
   const episode = episodeLine(video);
   const [isWordsOpen, setIsWordsOpen] = useState(false);
   const [words, setWords] = useState<string[] | null>(null);
   const [wordsError, setWordsError] = useState(false);
+  const [progress, setProgress] = useState<TranscriptProgress | undefined>(video.transcriptProgress);
+  const isProcessing = video.subtitleStatus === 'processing';
+
+  useEffect(() => {
+    setProgress(video.transcriptProgress);
+  }, [video.transcriptProgress]);
+
+  useEffect(() => {
+    if (!isProcessing || !token || language === 'en') return;
+    const controller = new AbortController();
+
+    async function streamProgress() {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/youtube/subtitles/${encodeURIComponent(video.id)}/progress?lang=${encodeURIComponent(language)}`,
+          { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal },
+        );
+        if (!response.ok || !response.body) return;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (!controller.signal.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let separator = buffer.indexOf('\n\n');
+          while (separator >= 0) {
+            const frame = buffer.slice(0, separator);
+            buffer = buffer.slice(separator + 2);
+            separator = buffer.indexOf('\n\n');
+            const event = frame.match(/^event: (.+)$/m)?.[1];
+            const data = frame.match(/^data: (.+)$/m)?.[1];
+            if (!data || event === 'error' || event === 'timeout') continue;
+            const next = JSON.parse(data) as {
+              status: TranscriptProgress['status'];
+              received_batches: number;
+              processed_batches: number;
+              total_batches: number;
+              words: TranscriptProgress['words'];
+            };
+            setProgress({
+              status: next.status,
+              receivedBatches: next.received_batches,
+              processedBatches: next.processed_batches,
+              totalBatches: next.total_batches,
+              words: next.words || [],
+            });
+            if (event === 'complete') onTranscriptComplete();
+          }
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          // History polling still supplies the durable job state after a transient stream failure.
+        }
+      }
+    }
+
+    void streamProgress();
+    return () => controller.abort();
+  }, [isProcessing, language, onTranscriptComplete, token, video.id]);
+
   const subtitleLabel = video.subtitleStatus === 'tracked'
     ? 'Subtitle words tracked'
+    : video.subtitleStatus === 'processing'
+      ? `Processing transcript · ${progress?.processedBatches ?? 0}/${progress?.totalBatches ?? 0} batches`
     : video.subtitleStatus === 'checking'
       ? 'Checking subtitles'
-      : 'Subtitles not tracked';
+      : 'Captions not captured';
   const subtitleClass = video.subtitleStatus === 'not-tracked' ? 'text-error' : 'text-muted';
 
   async function toggleWords() {
@@ -166,6 +242,19 @@ export function VideoHistoryItem({ video, onRemove, loadSubtitleWords }: VideoHi
           ) : (
             <p className="text-body-sm text-secondary">No subtitle words found for this video.</p>
           )}
+        </div>
+      )}
+      {isProcessing && (
+        <div className="ml-[7.25rem] mt-3 rounded-xl border border-subtle bg-app px-4 py-3 sm:ml-[8.5rem]" aria-live="polite">
+          <p className="text-body-sm font-medium text-primary">Words found so far</p>
+          <p className="mt-0.5 text-body-sm text-secondary">
+            {progress?.receivedBatches ?? 0} of {progress?.totalBatches ?? 0} transcript batches received; more words will appear as processing finishes.
+          </p>
+          {progress?.words?.length ? (
+            <div className="mt-3 flex max-h-32 flex-wrap gap-2 overflow-y-auto pr-1">
+              {progress.words.map((item) => <span key={item.word} className="rounded-md bg-surface px-2 py-1 text-body-sm text-primary">{item.word}</span>)}
+            </div>
+          ) : <p className="mt-3 text-body-sm text-muted">Finding vocabulary in the first batch…</p>}
         </div>
       )}
     </article>

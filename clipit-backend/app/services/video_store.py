@@ -9,7 +9,14 @@ def _db():
     return SessionLocal()
 
 
-def add_video(video_id: str, title: str, season: int = None, episode: int = None, episode_title: str = None) -> bool:
+def add_video(
+    video_id: str,
+    title: str,
+    season: int = None,
+    episode: int = None,
+    episode_title: str = None,
+    thumbnail_url: str = None,
+) -> bool:
     """Insert video if not already tracked. Returns True if newly added."""
     db = _db()
     try:
@@ -22,12 +29,15 @@ def add_video(video_id: str, title: str, season: int = None, episode: int = None
                 existing.episode = episode
             if episode_title and not existing.episode_title:
                 existing.episode_title = episode_title
+            if thumbnail_url and not existing.thumbnail_url:
+                existing.thumbnail_url = thumbnail_url
             db.commit()
             return False
         video = TrackedVideo(
             video_id=video_id,
             title=title,
             youtube_url=f"https://www.youtube.com/watch?v={video_id}",
+            thumbnail_url=thumbnail_url,
             tracked_at=time.time(),
             season=season,
             episode=episode,
@@ -49,6 +59,7 @@ def get_all_videos() -> list[dict]:
                 "video_id": r.video_id,
                 "title": r.title,
                 "youtube_url": r.youtube_url,
+                "thumbnail_url": r.thumbnail_url,
                 "tracked_at": r.tracked_at,
                 "has_korean": r.has_korean,
                 "has_ukrainian": r.has_ukrainian,
@@ -338,6 +349,7 @@ def get_user_videos(db: Session, user_id: int) -> list[dict]:
             "video_id": r.video_id,
             "title": r.title,
             "youtube_url": r.youtube_url,
+            "thumbnail_url": r.thumbnail_url,
             "tracked_at": watch_times.get(r.video_id, r.tracked_at),
             "has_korean": r.has_korean,
             "has_ukrainian": r.has_ukrainian,
@@ -385,6 +397,7 @@ def get_user_filtered_videos(db: Session, user_id: int, lang: str = "ko") -> lis
             "video_id": r.video_id,
             "title": r.title,
             "youtube_url": r.youtube_url,
+            "thumbnail_url": r.thumbnail_url,
             "tracked_at": watch_times.get(r.video_id, r.tracked_at),
             "has_korean": r.has_korean,
             "has_ukrainian": r.has_ukrainian,

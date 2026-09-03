@@ -6,6 +6,7 @@ import { fetchWithTimeout } from './network';
 export interface BackendVideo {
   video_id: string;
   title: string;
+  thumbnail_url?: string | null;
   tracked_at: number;
   has_korean: number | boolean | null;
   has_ukrainian: number | boolean | null;
@@ -13,6 +14,11 @@ export interface BackendVideo {
   season?: number | null;
   episode?: number | null;
   episode_title?: string | null;
+  transcript_status?: 'receiving' | 'processing' | 'complete' | 'failed';
+  transcript_received_batches?: number;
+  transcript_processed_batches?: number;
+  transcript_total_batches?: number;
+  transcript_words?: { word: string; rank?: number; language?: string }[];
 }
 
 export interface CachedMadlibDeck<Card> {

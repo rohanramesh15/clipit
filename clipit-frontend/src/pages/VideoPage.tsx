@@ -38,24 +38,29 @@ function formatTrackedAt(ts: number): string {
 function mapVideo(v: BackendVideo, language: 'ko' | 'uk' | 'en'): TrackedVideo {
   const isNetflix = v.video_id.startsWith('netflix_');
   const hasSubs = language === 'uk' ? v.has_ukrainian : language === 'en' ? v.has_english : v.has_korean;
-  const subtitleStatus = hasSubs === true || hasSubs === 1
-    ? 'tracked'
-    : hasSubs === false || hasSubs === 0
-      ? 'not-tracked'
-      : 'checking';
+  const subtitleStatus = v.transcript_status === 'receiving' || v.transcript_status === 'processing'
+    ? 'processing'
+    : hasSubs === true || hasSubs === 1 ? 'tracked' : 'not-tracked';
   return {
     id: v.video_id,
     platform: isNetflix ? 'netflix' : 'youtube',
     title: v.title,
-    thumbnail: isNetflix
+    thumbnail: v.thumbnail_url || (isNetflix
       ? `${API_BASE_URL}/netflix/thumbnail/${v.video_id}`
-      : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
+      : `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`),
     trackedAt: formatTrackedAt(v.tracked_at),
     subtitleStatus,
     newWords: 0,
     season: v.season,
     episode: v.episode,
     episodeTitle: v.episode_title,
+    transcriptProgress: v.transcript_status ? {
+      status: v.transcript_status,
+      receivedBatches: v.transcript_received_batches ?? 0,
+      processedBatches: v.transcript_processed_batches ?? 0,
+      totalBatches: v.transcript_total_batches ?? 0,
+      words: v.transcript_words ?? [],
+    } : undefined,
   };
 }
 
@@ -210,7 +215,14 @@ export function VideoPage() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.24, delay: Math.min(0.04 * index, 0.24), ease: [0.23, 1, 0.32, 1] }}
                   >
-                    <VideoHistoryItem video={video} onRemove={setPendingRemoval} loadSubtitleWords={loadSubtitleWords} />
+                    <VideoHistoryItem
+                      video={video}
+                      onRemove={setPendingRemoval}
+                      loadSubtitleWords={loadSubtitleWords}
+                      token={token}
+                      language={language}
+                      onTranscriptComplete={() => void history.refetch()}
+                    />
                   </motion.li>
                 ))}
               </AnimatePresence>

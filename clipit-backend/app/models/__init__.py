@@ -19,6 +19,7 @@ from .community_group import CommunityGroup
 from .community_membership import CommunityMembership
 from .community_vocab_list import CommunityVocabList
 from .community_vocab_word import CommunityVocabWord
+from .transcript_ingestion import TranscriptIngestionJob, TranscriptIngestionChunk
 
 __all__ = [
     "BaseModel",
@@ -46,4 +47,6 @@ __all__ = [
     "CommunityMembership",
     "CommunityVocabList",
     "CommunityVocabWord",
+    "TranscriptIngestionJob",
+    "TranscriptIngestionChunk",
 ]

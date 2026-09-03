@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
+from app.models.video import TrackedVideo
+from app.models.user_video_watch import UserVideoWatch
+from app.models.transcript_ingestion import TranscriptIngestionJob
 from app.models.user_flashcard_progress import UserFlashcardProgress
 from app.services.video_store import (
     add_video, get_all_videos, get_filtered_videos,
@@ -80,6 +83,7 @@ async def _fill_queue_translations(cards: list[dict], language: str) -> None:
 class TrackVideoRequest(BaseModel):
     video_id: str
     title: str = "Unknown"
+    thumbnail_url: str | None = None
     caption_languages: list[str] = []
     watched_at: float | None = None   # Unix timestamp; defaults to now if omitted
     season: int | None = None
@@ -233,7 +237,14 @@ async def track_video(
         raise HTTPException(status_code=400, detail="video_id is required")
 
     # Update global subtitle-availability flags
-    is_new = add_video(req.video_id, req.title, req.season, req.episode, req.episode_title)
+    is_new = add_video(
+        req.video_id,
+        req.title,
+        req.season,
+        req.episode,
+        req.episode_title,
+        req.thumbnail_url,
+    )
     # add_video() never updates the title on an existing record (only
     # season/episode). The extension often tracks a video twice — once
     # immediately with the "Unknown" placeholder, then again once the
@@ -263,8 +274,43 @@ async def get_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Return only videos with persisted captions in the selected language."""
+    """Return ready videos plus transcript jobs currently producing words."""
     videos = get_user_filtered_videos(db, current_user.id, lang)
+    ready_ids = {video["video_id"] for video in videos}
+    active_jobs = db.query(TranscriptIngestionJob).filter(
+        TranscriptIngestionJob.user_id == current_user.id,
+        TranscriptIngestionJob.language == lang,
+        TranscriptIngestionJob.status.in_(("receiving", "processing")),
+    ).all()
+    for job in active_jobs:
+        if job.video_id in ready_ids:
+            continue
+        video = db.query(TrackedVideo).filter(TrackedVideo.video_id == job.video_id).first()
+        watch = db.query(UserVideoWatch).filter(
+            UserVideoWatch.user_id == current_user.id,
+            UserVideoWatch.video_id == job.video_id,
+        ).first()
+        if video is None or watch is None:
+            continue
+        videos.append({
+            "video_id": video.video_id,
+            "title": video.title,
+            "youtube_url": video.youtube_url,
+            "thumbnail_url": video.thumbnail_url,
+            "tracked_at": watch.watched_at,
+            "has_korean": video.has_korean,
+            "has_ukrainian": video.has_ukrainian,
+            "has_english": video.has_english,
+            "season": video.season,
+            "episode": video.episode,
+            "episode_title": video.episode_title,
+            "transcript_status": job.status,
+            "transcript_received_batches": job.received_chunks,
+            "transcript_processed_batches": job.processed_chunks,
+            "transcript_total_batches": job.total_chunks,
+            "transcript_words": job.words or [],
+        })
+    videos.sort(key=lambda video: video["tracked_at"], reverse=True)
     return {"total": len(videos), "lang": lang, "videos": videos}
 
 
