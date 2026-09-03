@@ -70,7 +70,7 @@ async function fetchVideos() {
 
     const { deadbird_token: token } = await chrome.storage.local.get('deadbird_token');
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    await refreshYouTubeProcessing(state.currentYouTubeId, token);
+    await refreshYouTubeProcessing(state.currentYouTubeId, tab?.id, token);
     const res = await fetch(`${API}/videos/history/filtered?lang=${state.lang}`, {
       signal: AbortSignal.timeout(3000),
       headers,
@@ -90,10 +90,10 @@ async function fetchVideos() {
   render();
 }
 
-async function refreshYouTubeProcessing(videoId, token) {
+async function refreshYouTubeProcessing(videoId, tabId, token) {
   if (!videoId) { state.youtubeProcessing = null; return; }
   try {
-    const local = await chrome.runtime.sendMessage({ type: 'GET_YOUTUBE_PROCESSING_STATUS', videoId });
+    const local = await chrome.runtime.sendMessage({ type: 'GET_YOUTUBE_PROCESSING_STATUS', videoId, tabId });
     state.youtubeProcessing = local || { videoId, phase: 'checking_captions' };
   } catch {
     state.youtubeProcessing = { videoId, phase: 'checking_captions' };
@@ -619,6 +619,8 @@ function youtubeProcessingPanel() {
     title = 'Transcript complete'; subtitle = wordCount ? `${wordCount} useful words found and ready in ClipIt.` : 'Transcript saved and ready in ClipIt.'; icon = '✓'; progress = 1;
   } else if (phase === 'no_captions') {
     title = `No ${LANG_NAMES[state.lang] || 'target-language'} captions found`; subtitle = 'ClipIt only saves a video when captions are available in your learning language.'; icon = '!';
+  } else if (phase === 'capture_unavailable') {
+    title = "Couldn't detect captions"; subtitle = 'Reload this YouTube page and try again. ClipIt could not read its caption track.'; icon = '!';
   } else if (phase === 'not_signed_in') {
     title = 'Sign in to process this video'; subtitle = 'Open ClipIt and sign in; the extension will use your session automatically.'; icon = '!';
   } else if (phase === 'error') {
@@ -626,7 +628,7 @@ function youtubeProcessingPanel() {
   }
 
   const percent = progress === null ? 0 : Math.max(0, Math.min(100, Math.round(progress * 100)));
-  const isError = phase === 'error' || phase === 'no_captions' || phase === 'not_signed_in';
+  const isError = phase === 'error' || phase === 'no_captions' || phase === 'not_signed_in' || phase === 'capture_unavailable';
   const refresh = isError ? '<button class="processing-refresh" data-action="refresh-processing">Refresh status</button>' : '';
   return `
     <section class="youtube-processing ${esc(phase)}" aria-live="polite" aria-label="Current YouTube video processing status">

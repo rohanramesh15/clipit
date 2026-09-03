@@ -99,7 +99,21 @@ let subtitleCaptureStartedForVideo = null;
 
 // Listen for intercepted timedtext data
 window.addEventListener('message', (event) => {
-  if (event.source !== window || event.data?.type !== 'CLIPIT_TIMEDTEXT_CAPTURED') return;
+  if (event.source !== window) return;
+  if (event.data?.type === 'CLIPIT_TIMEDTEXT_UNAVAILABLE') {
+    const videoId = new URLSearchParams(location.search).get('v');
+    if (videoId && event.data.videoId === videoId) {
+      try {
+        chrome.runtime.sendMessage({
+          type: 'YOUTUBE_SUBTITLES_UNAVAILABLE',
+          videoId,
+          lang: event.data.targetLanguage || preferredLanguage,
+        }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+      } catch (_) {}
+    }
+    return;
+  }
+  if (event.data?.type !== 'CLIPIT_TIMEDTEXT_CAPTURED') return;
 
   const { lang, content, url } = event.data;
   console.log('[ClipIt] Received intercepted timedtext:', lang, 'length:', content?.length);
@@ -466,6 +480,10 @@ function setSubtitlesHidden(hide) {
 
 // Listen for hide subtitles toggle from popup
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'CLIPIT_CAPTURE_PING') {
+    sendResponse({ active: true });
+    return;
+  }
   if (msg.type === 'SET_HIDE_SUBTITLES') {
     setSubtitlesHidden(msg.hide);
     sendResponse({ success: true });

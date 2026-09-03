@@ -128,8 +128,10 @@ const pendingVideoTracks = new Map(); // videoId → fallback timeout ID
 const pendingYouTubeVideos = new Map(); // videoId → { title, lang }
 const pendingYouTubeCaptions = new Map(); // videoId → subtitle payload awaiting a rendered title
 const youtubeProcessingStatus = new Map(); // videoId → current extension-side capture/upload state
+const youtubeCaptionDeadlines = new Map(); // videoId → timeout while browser-side capture starts
 const pendingNetflixVideos = new Map(); // videoId → { title, audioLang, episodeInfo }
 const TITLE_FALLBACK_DELAY_MS = 15000;
+const CAPTION_CAPTURE_DEADLINE_MS = 20000;
 const TRANSCRIPT_BATCH_SIZE = 40;
 const CLIPIT_APP_URL_PATTERNS = [
   'https://clipit-sable.vercel.app/*',
@@ -148,13 +150,47 @@ function setYouTubeProcessingStatus(videoId, phase, details = {}) {
   // The service worker can be suspended while a popup is open. Session storage
   // preserves the last useful message without leaking it across browser restarts.
   chrome.storage.session.set({ [`youtube_processing_${videoId}`]: status }).catch(() => {});
+
+  const existingDeadline = youtubeCaptionDeadlines.get(videoId);
+  if (existingDeadline) {
+    clearTimeout(existingDeadline);
+    youtubeCaptionDeadlines.delete(videoId);
+  }
+  if (phase === 'checking_captions' || phase === 'waiting_for_captions') {
+    const deadline = setTimeout(() => {
+      const current = youtubeProcessingStatus.get(videoId);
+      if (current?.phase === 'checking_captions' || current?.phase === 'waiting_for_captions') {
+        setYouTubeProcessingStatus(videoId, 'capture_unavailable');
+      }
+    }, CAPTION_CAPTURE_DEADLINE_MS);
+    youtubeCaptionDeadlines.set(videoId, deadline);
+  }
 }
 
 async function getYouTubeProcessingStatus(videoId) {
   if (youtubeProcessingStatus.has(videoId)) return youtubeProcessingStatus.get(videoId);
   const key = `youtube_processing_${videoId}`;
   const stored = await chrome.storage.session.get(key);
-  return stored[key] || { videoId, phase: 'checking_captions' };
+  if (stored[key]) return stored[key];
+  setYouTubeProcessingStatus(videoId, 'checking_captions');
+  return youtubeProcessingStatus.get(videoId);
+}
+
+async function ensureYouTubeContentScript(tabId) {
+  if (!tabId) return;
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'CLIPIT_CAPTURE_PING' });
+    if (response?.active) return;
+  } catch (_) {
+    // A tab open during an extension update has no declarative content script
+    // until its next navigation. Inject it now instead of leaving the popup in
+    // a state that can never progress.
+  }
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+  } catch (error) {
+    console.warn('[ClipIt] Could not inject YouTube capture script:', error);
+  }
 }
 
 async function updateTrackedVideoTitle(videoId, title) {
@@ -450,7 +486,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
   if (msg.type === 'GET_YOUTUBE_PROCESSING_STATUS') {
-    getYouTubeProcessingStatus(msg.videoId).then(sendResponse);
+    getYouTubeProcessingStatus(msg.videoId).then(async (status) => {
+      if (status.phase === 'checking_captions' || status.phase === 'waiting_for_captions') {
+        await ensureYouTubeContentScript(msg.tabId);
+      }
+      sendResponse(status);
+    });
     return true;
   }
   if (msg.type === 'TRACK_VIDEO') {

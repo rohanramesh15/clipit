@@ -186,6 +186,11 @@
 
     if (!targetTrack) {
       console.log('[ClipIt Interceptor] No signed target caption track after waiting for', targetLanguage);
+      window.postMessage({
+        type: 'CLIPIT_TIMEDTEXT_UNAVAILABLE',
+        videoId,
+        targetLanguage,
+      }, '*');
       return;
     }
 
