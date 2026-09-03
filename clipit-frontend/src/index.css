@@ -66,6 +66,8 @@
 html {
   /* Preserve the platform's natural top/bottom edge overscroll. */
   overscroll-behavior-y: auto;
+  /* Keep centered content from shifting when a page gains or loses a scrollbar. */
+  scrollbar-gutter: stable;
 }
 body {
   background-color: var(--bg-app);

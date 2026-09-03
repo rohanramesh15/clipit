@@ -215,14 +215,14 @@ export function VideoPage() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.24, delay: Math.min(0.04 * index, 0.24), ease: [0.23, 1, 0.32, 1] }}
                   >
-                    <VideoHistoryItem
-                      video={video}
-                      onRemove={setPendingRemoval}
-                      loadSubtitleWords={loadSubtitleWords}
-                      token={token}
-                      language={language}
-                      onTranscriptComplete={() => void history.refetch()}
-                    />
+                  <VideoHistoryItem
+                    video={video}
+                    onRemove={setPendingRemoval}
+                    loadSubtitleWords={loadSubtitleWords}
+                    token={token}
+                    language={language}
+                    onTranscriptComplete={() => void history.refetch()}
+                  />
                   </motion.li>
                 ))}
               </AnimatePresence>

@@ -37,7 +37,13 @@ export function HowItWorks() {
                 className="relative flex flex-col rounded-2xl bg-app p-5"
               >
                 <div className="h-44 overflow-hidden rounded-xl border border-subtle">
-                  <img src={visual} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={visual}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover"
+                  />
                 </div>
 
                 <h3 className="mt-4 font-heading text-card-title font-medium text-primary">{stage.title}</h3>
