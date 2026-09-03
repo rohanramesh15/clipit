@@ -342,10 +342,33 @@ function sendTrack(videoId) {
   // retain a valid payload until it receives the real title.
   if (subtitleCaptureStartedForVideo !== videoId) {
     subtitleCaptureStartedForVideo = videoId;
-    setTimeout(() => {
-      if (getVideoId() === videoId) {
-        void sendSubtitlesToBackground(videoId, preferredLanguage);
+    setTimeout(async () => {
+      if (getVideoId() !== videoId) return;
+
+      // Rewatching a video already fully processed for this account
+      // shouldn't re-drive YouTube's caption menu or re-upload its
+      // transcript — check once before paying for either.
+      try {
+        const status = await chrome.runtime.sendMessage({
+          type: 'CHECK_TRANSCRIPT_STATUS',
+          videoId,
+          lang: preferredLanguage,
+        });
+        if (status?.alreadyComplete) {
+          console.log('[ClipIt] Transcript already complete for', videoId, '— skipping re-capture');
+          chrome.runtime.sendMessage({
+            type: 'YOUTUBE_PROCESSING_STATE',
+            videoId,
+            phase: 'complete',
+          }, () => { try { void chrome.runtime.lastError; } catch (_) {} });
+          return;
+        }
+      } catch (_) {
+        // Status check failed (e.g. extension just reloaded) — fall through
+        // and let the normal, duplicate-tolerant upload path handle it.
       }
+
+      void sendSubtitlesToBackground(videoId, preferredLanguage);
     }, 1000);
   }
 

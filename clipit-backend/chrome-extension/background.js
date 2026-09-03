@@ -530,6 +530,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getCachedVocab(msg.videoId, msg.lang || 'ko').then(sendResponse);
     return true;
   }
+  if (msg.type === 'CHECK_TRANSCRIPT_STATUS') {
+    getActiveTrackingLanguage(msg.lang).then((lang) =>
+      isTranscriptAlreadyComplete(msg.videoId, lang)
+    ).then((alreadyComplete) => sendResponse({ alreadyComplete }));
+    return true;
+  }
   // Netflix tracking
   if (msg.type === 'TRACK_NETFLIX') {
     currentNetflixVideoId = msg.videoId;
@@ -735,6 +741,27 @@ function parseTimeToSeconds(timeStr) {
     return parseInt(m) * 60 + parseFloat(s);
   }
   return parseFloat(normalized);
+}
+
+// Lets the extension skip re-fetching and re-uploading captions for a video
+// it has already fully processed for this user+language — rewatching an
+// already-tracked video shouldn't re-run the caption-menu-driven capture or
+// re-upload transcript batches.
+async function isTranscriptAlreadyComplete(videoId, lang) {
+  try {
+    const token = await getAuthToken();
+    if (!token) return false;
+    const res = await fetch(
+      `${API}/youtube/subtitles/${encodeURIComponent(videoId)}/status?lang=${encodeURIComponent(lang)}`,
+      { headers: authHeaders(token) },
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.status === 'complete';
+  } catch (e) {
+    console.warn('[ClipIt] Could not check transcript status, proceeding as usual:', e.message);
+    return false;
+  }
 }
 
 async function trackEligibleVideo(videoId, title, lang = 'ko', extra = {}) {

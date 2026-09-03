@@ -119,6 +119,25 @@ async def receive_youtube_subtitle_batch(
     return {"success": True, "progress": _progress_payload(job)}
 
 
+@router.get("/youtube/subtitles/{video_id}/status")
+async def get_youtube_transcript_status(
+    video_id: str,
+    lang: str = Query("ko", pattern="^(ko|uk)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """One-shot check so the extension can skip re-fetching and re-uploading
+    captions for a video it has already fully processed for this user."""
+    job = db.query(TranscriptIngestionJob).filter(
+        TranscriptIngestionJob.user_id == current_user.id,
+        TranscriptIngestionJob.video_id == video_id,
+        TranscriptIngestionJob.language == lang,
+    ).first()
+    if job is None:
+        return {"status": "not_found"}
+    return _progress_payload(job)
+
+
 @router.get("/youtube/subtitles/{video_id}/progress")
 async def stream_youtube_transcript_progress(
     video_id: str,
