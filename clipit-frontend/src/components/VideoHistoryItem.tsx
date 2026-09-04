@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Trash2, Play, ChevronUp } from 'lucide-react';
 import { Button } from './ui/button';
 import { API_BASE_URL } from '../config';
@@ -94,6 +94,7 @@ export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleW
   const [progress, setProgress] = useState<TranscriptProgress | undefined>(video.transcriptProgress);
   const isProcessing = video.subtitleStatus === 'processing';
   const isTracked = video.subtitleStatus === 'tracked';
+  const wordsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setProgress(video.transcriptProgress);
@@ -112,6 +113,24 @@ export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleW
     // not on every parent re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video.id, isTracked]);
+
+  useEffect(() => {
+    if (!isWordsOpen) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (wordsMenuRef.current && !wordsMenuRef.current.contains(event.target as Node)) {
+        setIsWordsOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsWordsOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isWordsOpen]);
 
   useEffect(() => {
     if (!isProcessing || !token || language === 'en') return;
@@ -212,8 +231,13 @@ export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleW
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-body font-semibold text-primary">{video.title}</h3>
         {episode && <p className="mt-0.5 truncate text-body-sm text-muted">{episode}</p>}
+        <div className="relative" ref={wordsMenuRef}>
         <p className="mt-0.5 truncate text-body-sm text-muted">
-          {PLATFORM_LABEL[video.platform]} · {video.trackedAt} · {isTracked ? (
+          {PLATFORM_LABEL[video.platform]}
+          <span className="mx-2" aria-hidden="true">·</span>
+          {video.trackedAt}
+          <span className="mx-2" aria-hidden="true">·</span>
+          {isTracked ? (
             wordCountError ? (
               <span className="text-muted">Words tracked</span>
             ) : wordCount === null ? (
@@ -242,6 +266,27 @@ export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleW
             )
           ) : <span className={subtitleClass}>{subtitleLabel}</span>}
         </p>
+        {isWordsOpen && (
+          <div className="absolute left-0 top-full z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-subtle bg-surface px-4 py-3 shadow-pop">
+            {wordsError ? (
+              <p className="text-body-sm text-error">Couldn’t load subtitle words. Try again.</p>
+            ) : words === null ? (
+              <p className="text-body-sm text-secondary">Loading subtitle words…</p>
+            ) : words.length ? (
+              <ul className="flex max-h-56 flex-col divide-y divide-subtle overflow-y-auto pr-1" aria-label={`Words tracked from ${video.title}`}>
+                {words.map((item) => (
+                  <li key={item.word} className="flex items-baseline justify-between gap-4 py-1.5 text-body-sm">
+                    <span className="font-medium text-primary">{item.word}</span>
+                    <span className="truncate text-secondary">{item.english || '—'}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-body-sm text-secondary">No subtitle words found for this video.</p>
+            )}
+          </div>
+        )}
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 ease-swift focus-within:opacity-100 group-hover:opacity-100">
@@ -268,26 +313,6 @@ export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleW
             </Button>
       </div>
       </div>
-      {isWordsOpen && (
-        <div className="ml-[7.25rem] mt-3 rounded-xl border border-subtle bg-surface px-4 py-3 sm:ml-[8.5rem]">
-          {wordsError ? (
-            <p className="text-body-sm text-error">Couldn’t load subtitle words. Try again.</p>
-          ) : words === null ? (
-            <p className="text-body-sm text-secondary">Loading subtitle words…</p>
-          ) : words.length ? (
-            <ul className="flex max-h-56 flex-col divide-y divide-subtle overflow-y-auto pr-1" aria-label={`Words tracked from ${video.title}`}>
-              {words.map((item) => (
-                <li key={item.word} className="flex items-baseline justify-between gap-4 py-1.5 text-body-sm">
-                  <span className="font-medium text-primary">{item.word}</span>
-                  <span className="truncate text-secondary">{item.english || '—'}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-body-sm text-secondary">No subtitle words found for this video.</p>
-          )}
-        </div>
-      )}
       {isProcessing && (
         <div className="ml-[7.25rem] mt-3 rounded-xl border border-subtle bg-app px-4 py-3 sm:ml-[8.5rem]" aria-live="polite">
           <p className="text-body-sm font-medium text-primary">Words found so far</p>
