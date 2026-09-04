@@ -92,6 +92,12 @@ async function fetchVideos() {
 
 async function refreshYouTubeProcessing(videoId, tabId, token) {
   if (!videoId) { state.youtubeProcessing = null; return; }
+  // Once this video's transcript is confirmed complete, keep showing that
+  // success state for the rest of the popup session. Without this, a later
+  // capture race (e.g. a recapture retrigger) or an in-between poll can flip
+  // the display back to "processing" even though nothing further needs the
+  // user's attention.
+  if (state.youtubeProcessing?.videoId === videoId && state.youtubeProcessing?.phase === 'complete') return;
   try {
     const local = await chrome.runtime.sendMessage({ type: 'GET_YOUTUBE_PROCESSING_STATUS', videoId, tabId });
     state.youtubeProcessing = local || { videoId, phase: 'checking_captions' };
