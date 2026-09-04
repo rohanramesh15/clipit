@@ -135,7 +135,14 @@ export function ConverseV2Page(
   const [isRestoringSession, setIsRestoringSession] = useState(() => requestedSessionId.current !== null);
 
   const [phase, setPhase] = useState<Phase>('deck');
-  useEffect(() => { onImmersiveChange?.(phase === 'chat'); }, [phase, onImmersiveChange]);
+  useEffect(() => {
+    onImmersiveChange?.(phase === 'chat');
+    // If this page unmounts while phase is still 'chat' (e.g. the exit
+    // transition overlaps the next page's mount), nothing else would ever
+    // flip immersive back off — the app shell's top nav would stay hidden
+    // on whatever page comes next. Always clear it on the way out.
+    return () => onImmersiveChange?.(false);
+  }, [phase, onImmersiveChange]);
   const [profile, setProfile] = useState<Profile | null>(null);
 
   // deck picker
