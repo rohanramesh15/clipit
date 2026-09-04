@@ -23,6 +23,12 @@ const WEEK = 7 * DAY;
 const MONTH = 30 * DAY;
 const YEAR = 365 * DAY;
 
+// Mined vocabulary only — the same filtered "worth learning" set used by
+// practice/flashcards, not every raw caption token. Capped to the top 10 by
+// rank so the Watch History row stays a curated shortlist rather than the
+// full (sometimes hundreds-long) mined set for the video.
+const TRACKED_WORDS_LIMIT = 10;
+
 function formatTrackedAt(ts: number): string {
   const now = Date.now() / 1000;
   const diff = now - ts;
@@ -99,12 +105,10 @@ export function VideoPage() {
   );
   const visible = filter === 'all' ? videos : videos.filter((video) => video.platform === filter);
 
-  // Mined vocabulary only — the same filtered "worth learning" set used by
-  // practice/flashcards, not every raw caption token.
   const loadWordCount = useCallback(async (video: TrackedVideo): Promise<number> => {
     if (!token) throw new Error('Not authenticated');
     const response = await fetch(
-      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&limit=1000`,
+      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&limit=${TRACKED_WORDS_LIMIT}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!response.ok) throw new Error('Could not load word count');
@@ -115,7 +119,7 @@ export function VideoPage() {
   const loadSubtitleWords = useCallback(async (video: TrackedVideo): Promise<SubtitleWord[]> => {
     if (!token) throw new Error('Not authenticated');
     const response = await fetch(
-      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&limit=1000&include_translations=true`,
+      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&limit=${TRACKED_WORDS_LIMIT}&include_translations=true`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!response.ok) throw new Error('Could not load subtitle words');

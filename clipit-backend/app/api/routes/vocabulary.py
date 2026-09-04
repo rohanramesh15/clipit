@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
@@ -190,7 +191,13 @@ async def _extract_vocabulary(
         user_definitions = load_user_definitions()
         for item in limited:
             item['english'] = saved_translation(item['word'], lang, definitions, user_definitions)
-        await fill_translations(limited, lang, key='english', word_key='word')
+        try:
+            # A live DeepL lookup should never be able to hang this request —
+            # words past the deadline simply keep whatever cached translation
+            # (possibly none) they already had.
+            await asyncio.wait_for(fill_translations(limited, lang, key='english', word_key='word'), timeout=15)
+        except asyncio.TimeoutError:
+            pass
 
     stats = get_vocab_stats(limited)
 
