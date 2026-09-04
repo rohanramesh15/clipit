@@ -12,7 +12,7 @@ from .user_vocabulary_settings import UserVocabularySettings
 from .user_mined_word import UserMinedWord
 from .user_mined_word_source import UserMinedWordSource
 from .subtitle_embedding import SubtitleEmbedding
-from .chat import ChatSession, ChatTurn, ChatSavedWord
+from .chat import ChatSession, ChatTurn, ChatSavedWord, ChatWordAttempt
 from .chat_memory import ChatMemoryFact
 from .user_language_profile import UserLanguageProfile
 from .converse_v2 import CV2Profile, CV2Session, CV2Turn, CV2Feedback
@@ -39,6 +39,7 @@ __all__ = [
     "ChatSession",
     "ChatTurn",
     "ChatSavedWord",
+    "ChatWordAttempt",
     "ChatMemoryFact",
     "UserLanguageProfile",
     "CV2Profile",

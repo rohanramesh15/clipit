@@ -4,8 +4,56 @@ import { buildWsUrl } from '../lib/voiceSession';
 
 const BASE = `${API_BASE_URL}/converse2`;
 
-export const voiceWsUrl = (sessionId: number, language: string = 'es', voice?: string) =>
-  buildWsUrl('/converse2/voice/ws', { session_id: sessionId, language, ...(voice ? { voice } : {}) });
+// Voice runs on the production chat_voice.py relay (authenticated,
+// ChatSession-backed), not converse2's own sandboxed /voice/ws — see
+// createChatVoiceSession below for the session this URL's session_id refers to.
+export const voiceWsUrl = (sessionId: number, token: string, voice?: string) =>
+  buildWsUrl('/chat/voice/ws', { session_id: sessionId, token, ...(voice ? { voice } : {}) });
+
+export interface ChatSessionResult {
+  session_id: number;
+  level: string;
+  seed_type: string;
+  seed_label: string | null;
+  seed_video_id: string | null;
+  mode: string;
+  reason: string | null;
+  english_support: string | null;
+  started_at: string;
+}
+
+/** Create the ChatSession voice mode talks to. Separate from converse2's own
+ * text-chat session (a different backend/model entirely) — level is left
+ * unset so the backend derives it from the learner's actual FSRS data
+ * instead of converse2's onboarding self-assessment, which uses a different
+ * beginner/intermediate/advanced scale than chat_voice.py's CEFR levels. */
+export async function createChatVoiceSession(
+  params: {
+    language: string;
+    seed_label?: string | null;
+    seed_video_id?: string | null;
+    mode?: string | null;
+    reason?: string | null;
+    english_support?: string | null;
+  },
+  token: string,
+): Promise<ChatSessionResult> {
+  const res = await fetch(`${API_BASE_URL}/chat/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      seed_type: params.seed_video_id ? 'video' : 'free',
+      seed_video_id: params.seed_video_id || undefined,
+      seed_label: params.seed_label || undefined,
+      mode: params.mode || 'free',
+      language: params.language,
+      reason: params.reason || undefined,
+      english_support: params.english_support || undefined,
+    }),
+  });
+  if (!res.ok) throw new Error('Could not start voice session');
+  return res.json();
+}
 
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 // Known reasons; a custom "Something else" reason is also allowed as free text.

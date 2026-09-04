@@ -61,9 +61,8 @@ from app.services.proficiency_service import (
 from app.services.lemmatizer import lemmatize_word, filter_content_lemmas, lemmatize
 
 
-# Languages where the conversation feature is enabled. Korean/Ukrainian users
-# still see the "coming soon" message until those are added.
-SUPPORTED_CHAT_LANGUAGES = {"es", "en"}
+# Languages where the conversation feature is enabled.
+SUPPORTED_CHAT_LANGUAGES = {"es", "en", "ko", "uk"}
 
 
 def _supported_lang(lang: Optional[str]) -> str:
@@ -81,7 +80,9 @@ class SessionCreate(BaseModel):
     seed_label: Optional[str] = None      # display label that was tapped
     level: Optional[str] = None           # 'A1' | 'A2' | 'B1' override
     mode: Optional[str] = "free"          # 'free' | 'debate' | 'interview' | 'roleplay' | 'shadowing'
-    language: Optional[str] = "es"        # 'es' | 'en' — target language for the chat
+    language: Optional[str] = "es"        # 'es' | 'en' | 'ko' | 'uk' — target language for the chat
+    reason: Optional[str] = None          # 'travel' | 'work' | 'family' | 'partner' | 'show' | 'general'
+    english_support: Optional[str] = None  # 'lots' | 'some' | 'minimal'
 
 
 class TurnRequest(BaseModel):
@@ -170,6 +171,8 @@ def create_session(
         seed_label=body.seed_label,
         mode=(body.mode or "free").lower(),
         level_used=level,
+        reason=body.reason,
+        english_support=body.english_support,
         started_at=datetime.utcnow(),
     )
     db.add(session)
@@ -183,6 +186,8 @@ def create_session(
         "seed_label": session.seed_label,
         "seed_video_id": session.seed_video_id,
         "mode": session.mode,
+        "reason": session.reason,
+        "english_support": session.english_support,
         "started_at": session.started_at.isoformat() + "Z",
     }
 

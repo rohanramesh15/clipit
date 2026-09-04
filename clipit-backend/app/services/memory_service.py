@@ -13,6 +13,7 @@ When a new chat turn starts:
 """
 
 import json
+from datetime import datetime
 from typing import List, Optional
 
 from google import genai
@@ -26,6 +27,18 @@ from app.services.embedding_service import embed_texts, embed_query
 
 
 _FACT_MODEL = "gemini-2.5-flash"
+
+# Cosine similarity bands used by remember_fact() to decide whether a new
+# fact is the same as an existing one, a plausible update/contradiction of
+# it, or genuinely new. These are a cheap heuristic, not true contradiction
+# detection (which would need an LLM judgment call on every save) — good
+# enough to avoid obvious duplicate spam and stale claims, not perfect.
+_DUP_SIMILARITY_THRESHOLD = 0.92
+_RELATED_SIMILARITY_THRESHOLD = 0.80
+# A first-time "difficulty" claim is capped below this until independently
+# reconfirmed, per "require repeated evidence before storing a permanent
+# learning weakness".
+_UNCONFIRMED_DIFFICULTY_CONFIDENCE_CAP = 0.4
 
 
 def extract_facts(transcript: str, profile_summary: str) -> List[str]:
@@ -148,6 +161,8 @@ def retrieve_facts(
                (1 - (embedding <=> CAST(:qvec AS vector))) AS similarity
         FROM chat_memory_fact
         WHERE user_id = :user_id AND language = :language
+          AND superseded_by_id IS NULL
+          AND (expires_at IS NULL OR expires_at > :now)
         ORDER BY embedding <=> CAST(:qvec AS vector)
         LIMIT :top_k
     """)
@@ -155,7 +170,99 @@ def retrieve_facts(
         "qvec": str(qvec),
         "user_id": user_id,
         "language": language,
+        "now": datetime.utcnow(),
         "top_k": top_k,
     }).mappings().all()
 
     return [r["fact"] for r in rows if float(r["similarity"] or 0.0) >= min_similarity]
+
+
+def remember_fact(
+    db: Session,
+    user_id: int,
+    language: str,
+    fact: str,
+    *,
+    category: Optional[str] = None,
+    confidence: float = 0.6,
+    importance: float = 0.5,
+    expires_at: Optional[datetime] = None,
+    source_session_id: Optional[int] = None,
+) -> Optional[ChatMemoryFact]:
+    """
+    Store one durable fact, deduplicating against the user's existing active
+    (non-superseded, non-expired) facts first:
+      - Near-duplicate of an existing fact → bump its last_confirmed_at/
+        confidence instead of inserting a new row.
+      - Plausible update/contradiction of an existing fact → insert the new
+        fact and mark the old one superseded by it.
+      - Otherwise → plain insert.
+
+    Returns the stored/updated row, or None if the fact was empty or
+    embedding failed.
+    """
+    fact = fact.strip()
+    if not fact:
+        return None
+    try:
+        vec = embed_query(fact)
+    except Exception as e:
+        print(f"[memory] embed failed: {e}")
+        return None
+    if not vec:
+        return None
+
+    now = datetime.utcnow()
+
+    nearest = db.execute(text("""
+        SELECT id, confidence,
+               (1 - (embedding <=> CAST(:qvec AS vector))) AS similarity
+        FROM chat_memory_fact
+        WHERE user_id = :user_id AND language = :language
+          AND superseded_by_id IS NULL
+          AND (expires_at IS NULL OR expires_at > :now)
+        ORDER BY embedding <=> CAST(:qvec AS vector)
+        LIMIT 1
+    """), {"qvec": str(vec), "user_id": user_id, "language": language, "now": now}).mappings().first()
+
+    similarity = float(nearest["similarity"] or 0.0) if nearest else 0.0
+
+    if nearest and similarity >= _DUP_SIMILARITY_THRESHOLD:
+        existing = db.query(ChatMemoryFact).filter(ChatMemoryFact.id == nearest["id"]).first()
+        if existing:
+            existing.last_confirmed_at = now
+            existing.confidence = min(1.0, max(existing.confidence, confidence) + 0.1)
+            if category and not existing.category:
+                existing.category = category
+            db.commit()
+            return existing
+
+    stored_confidence = confidence
+    if category == "difficulty" and not (nearest and similarity >= _RELATED_SIMILARITY_THRESHOLD):
+        # Only the *first* mention of a difficulty is capped — a related/
+        # contradicting prior mention below counts as reconfirmation.
+        stored_confidence = min(confidence, _UNCONFIRMED_DIFFICULTY_CONFIDENCE_CAP)
+
+    row = ChatMemoryFact(
+        user_id=user_id,
+        language=language,
+        fact=fact,
+        category=category,
+        confidence=stored_confidence,
+        importance=importance,
+        last_confirmed_at=now,
+        expires_at=expires_at,
+        source_session_id=source_session_id,
+        embedding=vec,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    if nearest and _RELATED_SIMILARITY_THRESHOLD <= similarity < _DUP_SIMILARITY_THRESHOLD:
+        old = db.query(ChatMemoryFact).filter(ChatMemoryFact.id == nearest["id"]).first()
+        if old:
+            old.superseded_by_id = row.id
+            db.commit()
+
+    return row

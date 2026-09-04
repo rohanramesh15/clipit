@@ -26,7 +26,12 @@ export type VoiceEvent =
   | { type: 'turn_complete'; userTurnId?: number; assistantTurnId?: number }
   | { type: 'mic_level'; level: number }     // 0..1 RMS
   | { type: 'speaker_level'; level: number } // 0..1 RMS
-  | { type: 'speaking_changed'; speaking: boolean };
+  | { type: 'speaking_changed'; speaking: boolean }
+  | { type: 'word_targeted'; word: string }
+  | { type: 'word_practiced'; word: string; result: 'forgot' | 'struggled' | 'recalled' | 'mastered' }
+  | { type: 'difficulty_changed'; level: string }
+  | { type: 'memory_saved'; category?: string }
+  | { type: 'session_summary'; summary: Record<string, unknown> };
 
 type Handler = (e: VoiceEvent) => void;
 
@@ -46,6 +51,7 @@ export class VoiceSession {
   private speakerLevelTimer: number | null = null;
   private lastMicFrameAt = 0;
   private micWatchdog: number | null = null;
+  private activeSources = new Set<AudioBufferSourceNode>();
 
   on(h: Handler) {
     this.listeners.push(h);
@@ -196,6 +202,10 @@ export class VoiceSession {
       clearTimeout(this.speakerLevelTimer);
       this.speakerLevelTimer = null;
     }
+    for (const src of this.activeSources) {
+      try { src.stop(); } catch {}
+    }
+    this.activeSources.clear();
     this.ws = null;
   }
 
@@ -208,6 +218,11 @@ export class VoiceSession {
       case 'assistant_transcript': return this.emit({ type: 'assistant_transcript', text: msg.text || '' });
       case 'interrupted':          return this.flushPlayback();
       case 'turn_complete':        return this.emit({ type: 'turn_complete', userTurnId: msg.user_turn_id ?? undefined, assistantTurnId: msg.assistant_turn_id ?? undefined });
+      case 'word_targeted':        return this.emit({ type: 'word_targeted', word: msg.word || '' });
+      case 'word_practiced':       return this.emit({ type: 'word_practiced', word: msg.word || '', result: msg.result });
+      case 'difficulty_changed':   return this.emit({ type: 'difficulty_changed', level: msg.level || '' });
+      case 'memory_saved':         return this.emit({ type: 'memory_saved', category: msg.category ?? undefined });
+      case 'session_summary':      return this.emit({ type: 'session_summary', summary: msg.summary || {} });
       case 'error':                return this.emit({ type: 'error', message: msg.message || 'Unknown error' });
     }
   }
@@ -233,6 +248,8 @@ export class VoiceSession {
     const src = ctx.createBufferSource();
     src.buffer = audioBuf;
     src.connect(ctx.destination);
+    this.activeSources.add(src);
+    src.onended = () => { this.activeSources.delete(src); };
 
     const startAt = Math.max(this.playCursor, ctx.currentTime + 0.02);
     src.start(startAt);
@@ -253,8 +270,17 @@ export class VoiceSession {
     }, msUntilDone);
   }
 
-  /** Barge-in: drop any unscheduled audio so the user can interrupt cleanly. */
+  /** Barge-in: stop whatever is already playing and drop anything queued,
+   *  so the user can interrupt cleanly instead of hearing the tutor finish
+   *  its sentence over them. Resetting playCursor alone (the previous
+   *  behavior) only stopped *future* chunks from being scheduled — any
+   *  AudioBufferSourceNode already started via src.start() keeps playing to
+   *  the end regardless, so it has to be stopped explicitly here too. */
   private flushPlayback() {
+    for (const src of this.activeSources) {
+      try { src.stop(); } catch {}
+    }
+    this.activeSources.clear();
     if (this.outputCtx) {
       this.playCursor = this.outputCtx.currentTime;
     }

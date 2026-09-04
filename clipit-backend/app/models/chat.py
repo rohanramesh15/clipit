@@ -14,12 +14,16 @@ class ChatSession(BaseModel):
     seed_label = Column(String(255), nullable=True)  # Display label that started the conversation
     mode = Column(String(20), nullable=False, default="free")  # 'free' | 'debate' | 'interview' | 'roleplay' | 'shadowing'
     level_used = Column(String(8), nullable=True)  # e.g. 'A1', 'A2', 'B1'
+    reason = Column(String(20), nullable=True)  # 'travel' | 'work' | 'family' | 'partner' | 'show' | 'general'
+    english_support = Column(String(10), nullable=True)  # 'lots' | 'some' | 'minimal'
     started_at = Column(DateTime, nullable=False)
     ended_at = Column(DateTime, nullable=True)
     summary_json = Column(JSON, nullable=True)
+    session_state_json = Column(JSON, nullable=True)  # {topic, difficulty, target_words, struggling_words, pending_feedback}
 
     turns = relationship("ChatTurn", back_populates="session", cascade="all, delete-orphan")
     saved_words = relationship("ChatSavedWord", back_populates="session", cascade="all, delete-orphan")
+    word_attempts = relationship("ChatWordAttempt", back_populates="session", cascade="all, delete-orphan")
 
 
 class ChatTurn(BaseModel):
@@ -57,3 +61,21 @@ class ChatSavedWord(BaseModel):
     fsrs_card_id = Column(Integer, nullable=True)  # FK to user_flashcard_progress.id if linked
 
     session = relationship("ChatSession", back_populates="saved_words")
+
+
+class ChatWordAttempt(BaseModel):
+    """One `record_word_attempt` tool call — raw evidence, not yet folded into
+    FSRS. Aggregated into FSRS updates by complete_practice_session()."""
+    __tablename__ = "chat_word_attempt"
+
+    session_id = Column(Integer, ForeignKey("chat_session.id", ondelete="CASCADE"), nullable=False, index=True)
+    word = Column(String, nullable=False)
+    result = Column(String(16), nullable=False)  # 'forgot' | 'struggled' | 'recalled' | 'mastered'
+    learner_sentence = Column(Text, nullable=True)
+    evidence = Column(Text, nullable=True)
+
+    session = relationship("ChatSession", back_populates="word_attempts")
+
+    __table_args__ = (
+        Index('ix_chat_word_attempt_session', 'session_id'),
+    )
