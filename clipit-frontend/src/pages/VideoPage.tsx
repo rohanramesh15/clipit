@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../components/EmptyState';
 import { SegmentedFilter } from '../components/SegmentedFilter';
-import { VideoHistoryItem, type TrackedVideo, type Platform } from '../components/VideoHistoryItem';
+import { VideoHistoryItem, type TrackedVideo, type Platform, type SubtitleWord } from '../components/VideoHistoryItem';
 import { RemoveVideoDialog } from '../components/RemoveVideoDialog';
 import { Skeleton } from '../components/Skeleton';
 import { API_BASE_URL } from '../config';
@@ -99,16 +99,37 @@ export function VideoPage() {
   );
   const visible = filter === 'all' ? videos : videos.filter((video) => video.platform === filter);
 
-  async function loadSubtitleWords(video: TrackedVideo): Promise<string[]> {
+  // Mined vocabulary only — the same filtered "worth learning" set used by
+  // practice/flashcards, not every raw caption token.
+  const loadWordCount = useCallback(async (video: TrackedVideo): Promise<number> => {
     if (!token) throw new Error('Not authenticated');
     const response = await fetch(
-      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&include_all=true`,
+      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&limit=1000`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) throw new Error('Could not load word count');
+    const data = await response.json() as { total_words?: number };
+    return data.total_words ?? 0;
+  }, [token, language]);
+
+  const loadSubtitleWords = useCallback(async (video: TrackedVideo): Promise<SubtitleWord[]> => {
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetch(
+      `${API_BASE_URL}/vocabulary/${encodeURIComponent(video.id)}?lang=${encodeURIComponent(language)}&limit=1000&include_translations=true`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!response.ok) throw new Error('Could not load subtitle words');
-    const data = await response.json() as { vocabulary?: { word?: string }[] };
-    return [...new Set((data.vocabulary || []).map((item) => item.word?.trim()).filter((word): word is string => Boolean(word)))];
-  }
+    const data = await response.json() as { vocabulary?: { word?: string; english?: string | null }[] };
+    const seen = new Set<string>();
+    const words: SubtitleWord[] = [];
+    for (const item of data.vocabulary || []) {
+      const word = item.word?.trim();
+      if (!word || seen.has(word)) continue;
+      seen.add(word);
+      words.push({ word, english: item.english?.trim() || null });
+    }
+    return words;
+  }, [token, language]);
 
   async function handleRemove() {
     if (!pendingRemoval) return;
@@ -218,6 +239,7 @@ export function VideoPage() {
                   <VideoHistoryItem
                     video={video}
                     onRemove={setPendingRemoval}
+                    loadWordCount={loadWordCount}
                     loadSubtitleWords={loadSubtitleWords}
                     token={token}
                     language={language}

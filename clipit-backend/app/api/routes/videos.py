@@ -1,4 +1,3 @@
-import asyncio
 import time
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -20,6 +19,9 @@ from app.services.video_store import (
     add_user_watch, get_user_videos, get_user_filtered_videos,
     delete_user_video, add_watch_time,
 )
+from app.services.translation_lookup import usable_translation as _usable_translation
+from app.services.translation_lookup import saved_translation as _saved_translation
+from app.services.translation_lookup import fill_translations
 
 router = APIRouter()
 
@@ -29,55 +31,12 @@ router = APIRouter()
 HOME_QUEUE_WORDS_PER_VIDEO = 20
 HOME_QUEUE_TRANSLATION_CONCURRENCY = 4
 
-_UNUSABLE_TRANSLATIONS = {
-    "#",
-    "definition available in practice",
-    "definition not available",
-    "translation unavailable",
-}
-
-
-def _usable_translation(value: object) -> str | None:
-    """Return a display-ready English translation, rejecting old placeholders."""
-    if not isinstance(value, str):
-        return None
-    cleaned = value.strip()
-    if not cleaned or cleaned.lower() in _UNUSABLE_TRANSLATIONS:
-        return None
-    return cleaned
-
-
-def _saved_translation(word: str, language: str, definitions: dict, user_definitions: dict) -> str | None:
-    return _usable_translation(
-        user_definitions.get(f"{language}:{word}")
-        or definitions.get(word)
-    )
-
 
 async def _fill_queue_translations(cards: list[dict], language: str) -> None:
-    """Fill the Home queue's missing English translations with bounded, cached lookups.
-
-    The translation service persists successful word lookups in its local cache,
-    so a word normally pays this cost once. Bounded concurrency keeps a first
-    visit responsive and avoids bursting past the translation provider limit.
-    """
-    from app.services.deepl_service import translate
-
-    source_language = {"ko": "KO", "uk": "UK", "en": "EN"}.get(language, "KO")
-    semaphore = asyncio.Semaphore(HOME_QUEUE_TRANSLATION_CONCURRENCY)
-
-    async def fill(card: dict) -> None:
-        if _usable_translation(card.get("english")):
-            return
-        word = (card.get("dictionary_form") or card.get("target_word") or "").strip()
-        if not word:
-            card["english"] = "Translation unavailable"
-            return
-        async with semaphore:
-            translated = await asyncio.to_thread(translate, word, source_lang=source_language)
-        card["english"] = _usable_translation(translated) or "Translation unavailable"
-
-    await asyncio.gather(*(fill(card) for card in cards))
+    """Fill the Home queue's missing English translations with bounded, cached lookups."""
+    await fill_translations(
+        cards, language, key="english", word_key="dictionary_form", concurrency=HOME_QUEUE_TRANSLATION_CONCURRENCY,
+    )
 
 
 class TrackVideoRequest(BaseModel):

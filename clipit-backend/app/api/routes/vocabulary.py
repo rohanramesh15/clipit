@@ -48,6 +48,7 @@ async def get_vocabulary(
     include_all: bool = Query(False, description="Return every distinct target-language caption word without priority filtering"),
     apply_limits: bool = Query(False, description="Apply mining limits (cap cards per duration, enforce gaps)"),
     duration_seconds: Optional[float] = Query(None, description="Video duration in seconds (required when apply_limits=True)"),
+    include_translations: bool = Query(False, description="Attach a cached/looked-up English translation to each word"),
     upgrade_cards: bool = True,
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
@@ -66,6 +67,7 @@ async def get_vocabulary(
     """
     return await _extract_vocabulary(
         video_id, limit, lang, include_all, apply_limits, duration_seconds, upgrade_cards, db, current_user,
+        include_translations=include_translations,
     )
 
 
@@ -84,6 +86,7 @@ async def _extract_vocabulary(
     # user-scoped (not video-scoped) queries once per video.
     priority_mode: Optional[str] = None,
     user_vocab: Optional[list] = None,
+    include_translations: bool = False,
 ):
     # Handle Netflix videos
     if video_id.startswith('netflix_'):
@@ -178,6 +181,16 @@ async def _extract_vocabulary(
             }
         else:
             limited = filtered[:limit]
+
+    if include_translations and limited:
+        from app.api.routes.flashcards import load_definitions, load_user_definitions
+        from app.services.translation_lookup import saved_translation, fill_translations
+
+        definitions = load_definitions()
+        user_definitions = load_user_definitions()
+        for item in limited:
+            item['english'] = saved_translation(item['word'], lang, definitions, user_definitions)
+        await fill_translations(limited, lang, key='english', word_key='word')
 
     stats = get_vocab_stats(limited)
 

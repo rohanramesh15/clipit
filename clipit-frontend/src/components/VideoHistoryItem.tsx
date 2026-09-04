@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Trash2, Play } from 'lucide-react';
+import { ExternalLink, Trash2, Play, ChevronUp } from 'lucide-react';
 import { Button } from './ui/button';
 import { API_BASE_URL } from '../config';
+
+export interface SubtitleWord {
+  word: string;
+  english: string | null;
+}
 
 export type Platform = 'youtube' | 'netflix';
 
@@ -72,23 +77,41 @@ function Thumbnail({ video }: { video: TrackedVideo }) {
 interface VideoHistoryItemProps {
   video: TrackedVideo;
   onRemove: (video: TrackedVideo) => void;
-  loadSubtitleWords: (video: TrackedVideo) => Promise<string[]>;
+  loadWordCount: (video: TrackedVideo) => Promise<number>;
+  loadSubtitleWords: (video: TrackedVideo) => Promise<SubtitleWord[]>;
   token: string | null;
   language: 'ko' | 'uk' | 'en';
   onTranscriptComplete: () => void;
 }
 
-export function VideoHistoryItem({ video, onRemove, loadSubtitleWords, token, language, onTranscriptComplete }: VideoHistoryItemProps) {
+export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleWords, token, language, onTranscriptComplete }: VideoHistoryItemProps) {
   const episode = episodeLine(video);
   const [isWordsOpen, setIsWordsOpen] = useState(false);
-  const [words, setWords] = useState<string[] | null>(null);
+  const [words, setWords] = useState<SubtitleWord[] | null>(null);
   const [wordsError, setWordsError] = useState(false);
+  const [wordCount, setWordCount] = useState<number | null>(null);
+  const [wordCountError, setWordCountError] = useState(false);
   const [progress, setProgress] = useState<TranscriptProgress | undefined>(video.transcriptProgress);
   const isProcessing = video.subtitleStatus === 'processing';
+  const isTracked = video.subtitleStatus === 'tracked';
 
   useEffect(() => {
     setProgress(video.transcriptProgress);
   }, [video.transcriptProgress]);
+
+  useEffect(() => {
+    if (!isTracked) return;
+    let cancelled = false;
+    setWordCount(null);
+    setWordCountError(false);
+    loadWordCount(video)
+      .then((count) => { if (!cancelled) setWordCount(count); })
+      .catch(() => { if (!cancelled) setWordCountError(true); });
+    return () => { cancelled = true; };
+    // Re-fetch only when the underlying video or its tracked status changes,
+    // not on every parent re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video.id, isTracked]);
 
   useEffect(() => {
     if (!isProcessing || !token || language === 'en') return;
@@ -144,10 +167,8 @@ export function VideoHistoryItem({ video, onRemove, loadSubtitleWords, token, la
     return () => controller.abort();
   }, [isProcessing, language, onTranscriptComplete, token, video.id]);
 
-  const subtitleLabel = video.subtitleStatus === 'tracked'
-    ? 'Subtitle words tracked'
-    : video.subtitleStatus === 'processing'
-      ? `Processing transcript · ${progress?.processedBatches ?? 0}/${progress?.totalBatches ?? 0} batches`
+  const subtitleLabel = video.subtitleStatus === 'processing'
+    ? `Processing transcript · ${progress?.processedBatches ?? 0}/${progress?.totalBatches ?? 0} batches`
     : video.subtitleStatus === 'checking'
       ? 'Checking subtitles'
       : 'Captions not captured';
@@ -192,15 +213,33 @@ export function VideoHistoryItem({ video, onRemove, loadSubtitleWords, token, la
         <h3 className="truncate text-body font-semibold text-primary">{video.title}</h3>
         {episode && <p className="mt-0.5 truncate text-body-sm text-muted">{episode}</p>}
         <p className="mt-0.5 truncate text-body-sm text-muted">
-          {PLATFORM_LABEL[video.platform]} · {video.trackedAt} · {video.subtitleStatus === 'tracked' ? (
-            <button
-              type="button"
-              onClick={toggleWords}
-              aria-expanded={isWordsOpen}
-              className="text-accent underline decoration-accent/40 underline-offset-2 transition-colors hover:text-accent-hover"
-            >
-              {subtitleLabel}
-            </button>
+          {PLATFORM_LABEL[video.platform]} · {video.trackedAt} · {isTracked ? (
+            wordCountError ? (
+              <span className="text-muted">Words tracked</span>
+            ) : wordCount === null ? (
+              <span className="inline-flex items-center gap-1.5 text-muted">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+                <span>Counting words…</span>
+              </span>
+            ) : wordCount === 0 ? (
+              <span className="text-muted">No words tracked yet</span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <span className="text-primary">{wordCount} word{wordCount === 1 ? '' : 's'} tracked</span>
+                <button
+                  type="button"
+                  onClick={toggleWords}
+                  aria-expanded={isWordsOpen}
+                  aria-label={isWordsOpen ? 'Hide tracked words' : 'Show tracked words'}
+                  className="rounded p-0.5 text-accent transition-colors hover:text-accent-hover"
+                >
+                  <ChevronUp
+                    className={`h-3.5 w-3.5 transition-transform duration-150 ease-swift ${isWordsOpen ? '' : 'rotate-180'}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              </span>
+            )
           ) : <span className={subtitleClass}>{subtitleLabel}</span>}
         </p>
       </div>
@@ -236,9 +275,14 @@ export function VideoHistoryItem({ video, onRemove, loadSubtitleWords, token, la
           ) : words === null ? (
             <p className="text-body-sm text-secondary">Loading subtitle words…</p>
           ) : words.length ? (
-            <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto pr-1" aria-label={`Words tracked from ${video.title}`}>
-              {words.map((word) => <span key={word} className="rounded-md bg-app px-2 py-1 text-body-sm text-primary">{word}</span>)}
-            </div>
+            <ul className="flex max-h-56 flex-col divide-y divide-subtle overflow-y-auto pr-1" aria-label={`Words tracked from ${video.title}`}>
+              {words.map((item) => (
+                <li key={item.word} className="flex items-baseline justify-between gap-4 py-1.5 text-body-sm">
+                  <span className="font-medium text-primary">{item.word}</span>
+                  <span className="truncate text-secondary">{item.english || '—'}</span>
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="text-body-sm text-secondary">No subtitle words found for this video.</p>
           )}
