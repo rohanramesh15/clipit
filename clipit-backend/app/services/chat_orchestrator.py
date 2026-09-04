@@ -99,12 +99,54 @@ _LANG_PROMPT_HEADER = {
         "You are a friendly English conversation partner helping someone practice.\n"
         "Speak in natural, conversational English — keep replies easy to follow."
     ),
+    "ko": (
+        "You are a friendly Korean conversation partner helping someone practice.\n"
+        "Speak in natural, conversational Korean — never in English."
+    ),
+    "uk": (
+        "You are a friendly Ukrainian conversation partner helping someone practice.\n"
+        "Speak in natural, conversational Ukrainian — never in English."
+    ),
 }
 
 _LANG_REGISTER_HINT = {
     "es": "- Use the warm, casual `tú` register unless the scenario demands `usted`.",
     "en": "- Use casual register unless the scenario calls for formal speech.",
+    "ko": "- Use the warm, casual 해요체 register unless the scenario calls for formal 합쇼체.",
+    "uk": "- Use the warm, casual ти register unless the scenario demands the formal ви.",
 }
+
+# Why the learner is studying this language — steers topic choice. Optional;
+# only used when a session was created with a `reason` (ported from the cv2
+# onboarding flow's REASON_LABELS).
+_REASON_LABELS = {
+    "travel": "traveling abroad",
+    "work": "using the language at work",
+    "family": "talking with family members",
+    "partner": "communicating with their partner",
+    "show": "understanding shows and music they love",
+    "general": "general interest in learning the language",
+}
+
+# How much English scaffolding the learner wants (ported from cv2's
+# SUPPORT_GUIDANCE). {lang} is filled with the target-language display name.
+_SUPPORT_GUIDANCE = {
+    "lots": (
+        "The learner wants a lot of English support. Keep your {lang} short and "
+        "simple. It is fine to drop a short English gloss in parentheses after a "
+        "genuinely hard word, but never translate your whole message."
+    ),
+    "some": (
+        "The learner wants some English support. Converse almost entirely in "
+        "{lang}. Use English only sparingly, for a brief clarification."
+    ),
+    "minimal": (
+        "The learner wants minimal English. Stay in {lang} end to end unless "
+        "they explicitly ask for English."
+    ),
+}
+
+_LANG_DISPLAY_NAME = {"es": "Spanish", "en": "English", "ko": "Korean", "uk": "Ukrainian"}
 
 
 def build_system_instruction(
@@ -116,6 +158,9 @@ def build_system_instruction(
     memory_facts: Optional[List[str]] = None,
     adaptation_hint: Optional[str] = None,
     mode: Optional[str] = None,
+    reason: Optional[str] = None,
+    english_support: Optional[str] = None,
+    voice: bool = False,
 ) -> str:
     """
     Build the system prompt for Gemini. Encodes language, level, vocab lock,
@@ -153,6 +198,16 @@ def build_system_instruction(
     if mode_prompt:
         parts.append("")
         parts.append(mode_prompt)
+
+    if reason and reason in _REASON_LABELS:
+        parts.append("")
+        parts.append(f"Why the learner is studying this language: {_REASON_LABELS[reason]}. "
+                      "Lean the topics toward this whenever it is natural.")
+
+    if english_support and english_support in _SUPPORT_GUIDANCE:
+        lang_name = _LANG_DISPLAY_NAME.get(language, language)
+        parts.append("")
+        parts.append(_SUPPORT_GUIDANCE[english_support].format(lang=lang_name))
 
     if seed_label:
         parts.append("")
@@ -192,6 +247,24 @@ def build_system_instruction(
         parts.append("")
         parts.append("Learner is actively learning these (good candidates to use):")
         parts.append(", ".join(learning_sample))
+
+    if voice:
+        parts.append("")
+        parts.append("Tool use (you have practice-word and memory tools available):")
+        parts.append("- Never reveal that you are calling a tool, or narrate what a tool returned "
+                      "verbatim — weave its result into natural conversation.")
+        parts.append("- Create natural opportunities for the learner to use target words rather than "
+                      "quizzing them directly.")
+        parts.append("- Introduce at most 1-2 unfamiliar words per response.")
+        parts.append("- Only record a word attempt when the learner's response gives clear evidence "
+                      "of recall or difficulty — not on every mention of a target word.")
+        parts.append("- If several turns in a row feel too easy or too hard for the learner, adjust "
+                      "difficulty (and say so via the session-state tool) rather than pushing through.")
+        parts.append("- Save corrections for the end of the session unless the learner asks to be "
+                      "corrected immediately.")
+        parts.append("- If you recall something about this learner, reference it naturally in "
+                      "conversation — never recite it as a list, and never claim to remember something "
+                      "that wasn't actually retrieved for you.")
 
     return "\n".join(parts)
 
@@ -260,6 +333,8 @@ def stream_turn(
     memory_facts: Optional[List[str]] = None,
     adaptation_hint: Optional[str] = None,
     mode: Optional[str] = None,
+    reason: Optional[str] = None,
+    english_support: Optional[str] = None,
     usage_out: Optional[dict] = None,
 ) -> Iterator[str]:
     """
@@ -291,6 +366,8 @@ def stream_turn(
         memory_facts=memory_facts,
         adaptation_hint=adaptation_hint,
         mode=mode,
+        reason=reason,
+        english_support=english_support,
     )
 
     yield from stream_chat(

@@ -71,11 +71,12 @@ def _backfill_lemmas_for_user(db: Session, user_id: int, language: str) -> int:
     Lemmatize and persist the lemma column for any cards belonging to this user
     in this language that don't have a lemma yet. Idempotent.
 
-    Supports Spanish ('es') and English ('en').
+    Spanish ('es') and English ('en') get a true lemma via spaCy. Korean
+    ('ko') and Ukrainian ('uk') have no spaCy-backed lemmatizer here, so they
+    fall back to the lowercased surface form — coarser, but sufficient for
+    known/learning set membership, and keeps this function from silently
+    leaving those languages' cards permanently un-backfilled.
     """
-    if language not in ("es", "en"):
-        return 0
-
     cards = (
         db.query(UserFlashcardProgress)
         .filter(
@@ -89,10 +90,13 @@ def _backfill_lemmas_for_user(db: Session, user_id: int, language: str) -> int:
         return 0
 
     for card in cards:
-        try:
-            card.lemma = lemmatize_word(card.word, language)
-        except Exception:
-            card.lemma = (card.word or "").lower().strip()
+        if language in ("es", "en"):
+            try:
+                card.lemma = lemmatize_word(card.word, language)
+                continue
+            except Exception:
+                pass
+        card.lemma = (card.word or "").lower().strip()
 
     db.commit()
     return len(cards)

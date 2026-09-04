@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   getProfile, createSession, streamOpening, sendTurnStream, romanize, getTurnAudioUrl,
-  correctionFeedback, voiceWsUrl, coachEnglish, regenerateTurn, suggestRepliesStream,
+  correctionFeedback, voiceWsUrl, createChatVoiceSession, coachEnglish, regenerateTurn, suggestRepliesStream,
   getRecentSession, getMixedSources, resumeSession, setSessionTargetWords,
   type Profile, type DueWord,
   type RecentSession, type MixedSourceVideo, type ResumeTurn,
@@ -249,6 +249,11 @@ export function ConverseV2Page(
   // voice
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('off');
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // Structured events from the agentic voice tutor's tools. Tracked so a
+  // future UI pass can surface them; not yet wired into visible chrome.
+  const [voiceTargetWords, setVoiceTargetWords] = useState<string[]>([]);
+  const [voiceDifficulty, setVoiceDifficulty] = useState<string | null>(null);
+  const [voiceSessionSummary, setVoiceSessionSummary] = useState<Record<string, unknown> | null>(null);
 
   // AI voice picker — same localStorage key Settings uses, so a choice made
   // in either place applies everywhere. Voices are fetched lazily, only once
@@ -280,6 +285,9 @@ export function ConverseV2Page(
   }, []);
   const speakingRef = useRef(false);
   const voiceRef = useRef<VoiceSession | null>(null);
+  // The chat_voice.py ChatSession backing voice mode, cached per converse2
+  // sessionId so repeated start/stop within one conversation reuses it.
+  const voiceChatSessionRef = useRef<{ cv2SessionId: number; chatSessionId: number } | null>(null);
   const vUserId = useRef<string | null>(null);
   const vAsstId = useRef<string | null>(null);
   // Tracks which session is currently on screen, so a target-word lookup
@@ -854,24 +862,54 @@ export function ConverseV2Page(
         vAsstId.current = null;
         return;
       }
+      case 'word_targeted':
+        return setVoiceTargetWords((prev) => (prev.includes(e.word) ? prev : [...prev, e.word]));
+      case 'word_practiced':
+        // Once practiced this session, it's no longer an upcoming target.
+        return setVoiceTargetWords((prev) => prev.filter((w) => w !== e.word));
+      case 'difficulty_changed': return setVoiceDifficulty(e.level);
+      case 'memory_saved': return;
+      case 'session_summary': return setVoiceSessionSummary(e.summary);
       case 'error': speakingRef.current = false; setVoiceError(e.message); setVoiceStatus('off'); setStatus(''); return;
-      case 'closed': vUserId.current = null; vAsstId.current = null; speakingRef.current = false; setVoiceStatus('off'); return;
+      case 'closed':
+        vUserId.current = null; vAsstId.current = null; speakingRef.current = false; setVoiceStatus('off');
+        setVoiceTargetWords([]); setVoiceDifficulty(null);
+        return;
     }
   }, [appendVoiceChunk]);
 
   const startVoice = useCallback(async () => {
-    if (!sessionId || voiceStatus !== 'off') return;
+    if (!sessionId || voiceStatus !== 'off' || !token) return;
     setVoiceError(null);
-    const vs = new VoiceSession();
-    vs.on(handleVoiceEvent);
-    voiceRef.current = vs;
+    setVoiceStatus('connecting'); // guards against a double-click firing this twice while the session-create request is in flight
     try {
-      await vs.start(voiceWsUrl(sessionId, language, aiVoiceId));
+      // Voice runs on chat_voice.py's ChatSession, a different session than
+      // converse2's own text-chat sessionId — reuse the one already created
+      // for this conversation instead of creating a new one on every start.
+      let chatSessionId = voiceChatSessionRef.current?.cv2SessionId === sessionId
+        ? voiceChatSessionRef.current.chatSessionId
+        : null;
+      if (chatSessionId == null) {
+        const result = await createChatVoiceSession({
+          language,
+          seed_label: deck?.title,
+          seed_video_id: deck && deck.id !== 'mixed' ? deck.id : null,
+          reason: profile?.reason,
+          english_support: profile?.english_support,
+        }, token);
+        chatSessionId = result.session_id;
+        voiceChatSessionRef.current = { cv2SessionId: sessionId, chatSessionId };
+      }
+
+      const vs = new VoiceSession();
+      vs.on(handleVoiceEvent);
+      voiceRef.current = vs;
+      await vs.start(voiceWsUrl(chatSessionId, token, aiVoiceId));
     } catch (e: any) {
       setVoiceError(e?.message || 'Could not start voice');
       setVoiceStatus('off');
     }
-  }, [sessionId, voiceStatus, handleVoiceEvent, language, aiVoiceId]);
+  }, [sessionId, voiceStatus, handleVoiceEvent, language, aiVoiceId, token, deck, profile]);
 
   const stopVoice = useCallback(() => {
     voiceRef.current?.stop();
@@ -1689,6 +1727,21 @@ export function ConverseV2Page(
                   onClose={() => setTyping(false)}
                 />
               ) : (
+                <>
+                {voiceStatus !== 'off' && (voiceTargetWords.length > 0 || voiceDifficulty) && (
+                  <div className="mx-auto flex max-w-sm flex-wrap items-center justify-center gap-1.5" aria-live="polite">
+                    {voiceTargetWords.map((word) => (
+                      <span key={word} className="rounded-full bg-accent-soft px-2.5 py-1 text-meta font-medium text-accent">
+                        {word}
+                      </span>
+                    ))}
+                    {voiceDifficulty && (
+                      <span className="rounded-full bg-surface-hover px-2.5 py-1 text-meta font-medium text-secondary">
+                        {voiceDifficulty}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <VoiceControls
                   live={voiceStatus !== 'off'}
                   connecting={voiceStatus === 'connecting'}
@@ -1700,6 +1753,14 @@ export function ConverseV2Page(
                   onType={() => { if (voiceStatus !== 'off') stopVoice(); setTyping(true); }}
                   onChangeVoice={() => setVoiceSettingOpen(true)}
                 />
+                </>
+              )}
+
+              {/* The tutor already says this summary aloud as its closing turn —
+                  this just gives screen-reader users the same text-based
+                  confirmation sighted users get from hearing it spoken. */}
+              {voiceSessionSummary && typeof voiceSessionSummary.summary === 'string' && (
+                <p className="sr-only" role="status">{voiceSessionSummary.summary}</p>
               )}
 
               {!transcriptOpen && (voiceError || chatError) && (
