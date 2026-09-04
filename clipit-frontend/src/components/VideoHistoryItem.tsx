@@ -273,9 +273,9 @@ export function VideoHistoryItem({ video, onRemove, loadWordCount, loadSubtitleW
             ) : words === null ? (
               <p className="text-body-sm text-secondary">Loading subtitle words…</p>
             ) : words.length ? (
-              <ul className="flex max-h-56 flex-col divide-y divide-subtle overflow-y-auto pr-1" aria-label={`Words tracked from ${video.title}`}>
+              <ul className="scroll-thin fade-bottom flex max-h-56 flex-col divide-y divide-subtle overflow-y-auto pr-2" aria-label={`Words tracked from ${video.title}`}>
                 {words.map((item) => (
-                  <li key={item.word} className="flex items-baseline justify-between gap-4 py-1.5 text-body-sm">
+                  <li key={item.word} className="flex items-baseline justify-between gap-4 py-2 text-body-sm">
                     <span className="font-medium text-primary">{item.word}</span>
                     <span className="truncate text-secondary">{item.english || '—'}</span>
                   </li>

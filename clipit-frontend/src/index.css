@@ -314,3 +314,30 @@ button.border-medium:not(:disabled):hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* Slim scrollbar for compact inline lists (e.g. the tracked-words popover).
+   Standard scrollbar-width/-color covers Firefox, which ignores the
+   ::-webkit-scrollbar rules above. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 5px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 999px;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Hints that a list has more content below without a hard cutoff. */
+.fade-bottom {
+  mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
+}
