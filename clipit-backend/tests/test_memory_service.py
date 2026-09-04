@@ -62,6 +62,7 @@ def pg_db():
 
 @pytest.fixture()
 def pg_user(pg_db):
+    from app.models.chat_memory import ChatMemoryFact
     from app.models.user import User
     import uuid
 
@@ -70,6 +71,9 @@ def pg_user(pg_db):
     pg_db.commit()
     pg_db.refresh(user)
     yield user
+    # Facts reference this user via FK — clear them first or the user
+    # delete below violates chat_memory_fact_user_id_fkey.
+    pg_db.query(ChatMemoryFact).filter_by(user_id=user.id).delete()
     pg_db.query(User).filter_by(id=user.id).delete()
     pg_db.commit()
 
