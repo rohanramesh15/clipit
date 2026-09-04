@@ -131,7 +131,12 @@ const youtubeProcessingStatus = new Map(); // videoId → current extension-side
 const youtubeCaptionDeadlines = new Map(); // videoId → timeout while browser-side capture starts
 const pendingNetflixVideos = new Map(); // videoId → { title, audioLang, episodeInfo }
 const TITLE_FALLBACK_DELAY_MS = 15000;
-const CAPTION_CAPTURE_DEADLINE_MS = 20000;
+// content.js's own caption-menu retry loop can now take up to ~15s before it
+// even triggers a fetch (YouTube's settings-menu module hydrates on its own
+// schedule), plus more time for the interceptor to catch the result — keep
+// this comfortably longer so a still-in-progress capture isn't flagged as
+// stuck mid-flight.
+const CAPTION_CAPTURE_DEADLINE_MS = 35000;
 const TRANSCRIPT_BATCH_SIZE = 40;
 const CLIPIT_APP_URL_PATTERNS = [
   'https://clipit-sable.vercel.app/*',

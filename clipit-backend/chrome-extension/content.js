@@ -994,15 +994,19 @@ async function sendSubtitlesToBackground(videoId, targetLang = preferredLanguage
   // Method 1: Wait for player to be ready, then trigger caption loading
   console.log('[ClipIt] Waiting for player to be ready...');
 
-  // Try multiple times to trigger caption loading (player takes time to initialize)
-  for (let attempt = 0; attempt < 5; attempt++) {
+  // Try multiple times to trigger caption loading. YouTube's settings-menu
+  // module hydrates on its own schedule — observed anywhere from ~1s to
+  // over 30s after the video starts playing — so a short retry budget here
+  // flakes on slower page loads even though the track is genuinely present.
+  const MAX_CAPTION_ATTEMPTS = 15;
+  for (let attempt = 0; attempt < MAX_CAPTION_ATTEMPTS; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     if (await triggerCaptionLoading(targetTrack)) {
       console.log('[ClipIt] Caption loading triggered on attempt', attempt + 1);
       break;
     }
-    console.log('[ClipIt] Player not ready, attempt', attempt + 1, 'of 5');
+    console.log('[ClipIt] Player not ready, attempt', attempt + 1, 'of', MAX_CAPTION_ATTEMPTS);
   }
 
   // Wait for interceptor to capture subtitles. Selecting an auto-generated
