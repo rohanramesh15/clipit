@@ -42,7 +42,7 @@ export function DueToday({ videos, dueCounts, isLoadingDue, onStartAll }: DueTod
     );
   }
 
-  const preview = withDue.slice(0, 5);
+  const preview = withDue.slice(0, 2);
   const hidden = withDue.length - preview.length;
 
   return (
