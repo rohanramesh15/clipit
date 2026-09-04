@@ -9,6 +9,11 @@ interface ExpandableSearchProps {
   label?: string;
 }
 
+// A single continuous shape morphs between the two states (rather than
+// swapping a button for an input), so the icon slides into place and the
+// input text fades in as the bar widens instead of hard cross-fading.
+const EXPAND_TRANSITION = { duration: 0.28, ease: [0.23, 1, 0.32, 1] } as const;
+
 /** A compact search trigger that expands toward the left, beside its sibling controls. */
 export function ExpandableSearch({
   value,
@@ -39,37 +44,29 @@ export function ExpandableSearch({
   return (
     <div ref={rootRef} className="flex min-w-10 flex-1 justify-end">
       <motion.div
-        className="max-w-full overflow-hidden"
+        className="relative h-10 max-w-full overflow-hidden rounded-xl border border-subtle bg-app"
         animate={{ width: isOpen ? 336 : 40 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 24, mass: 0.7 }}
+        transition={EXPAND_TRANSITION}
       >
-        {isOpen ? (
-          <label className="relative block w-full">
-            <span className="sr-only">{label}</span>
-            <SearchIcon
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-              aria-hidden="true"
-            />
-            <input
-              ref={inputRef}
-              value={value}
-              onChange={(event) => onChange(event.target.value)}
-              onFocus={() => setExpanded(true)}
-              placeholder={placeholder}
-              className="h-10 w-full rounded-xl border search-bar-border bg-app pl-9 pr-3 text-body-sm text-muted placeholder:text-muted/70 outline-none focus-visible:!outline-none"
-            />
-          </label>
-        ) : (
-          <button
-            type="button"
-            aria-label={label}
-            aria-expanded={false}
-            onClick={() => setExpanded(true)}
-            className="grid h-10 w-10 place-items-center rounded-xl border border-subtle bg-app text-muted"
-          >
-            <SearchIcon className="h-5 w-5" aria-hidden="true" />
-          </button>
-        )}
+        <motion.span
+          className="pointer-events-none absolute top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center text-muted"
+          animate={{ left: isOpen ? 14 : 20, x: isOpen ? '0%' : '-50%' }}
+          transition={EXPAND_TRANSITION}
+        >
+          <SearchIcon className="h-4 w-4" aria-hidden="true" />
+        </motion.span>
+        <label className="block h-full w-full cursor-pointer">
+          <span className="sr-only">{label}</span>
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onFocus={() => setExpanded(true)}
+            placeholder={placeholder}
+            className="h-full w-full bg-transparent pl-9 pr-3 text-body-sm text-muted outline-none transition-opacity duration-200 ease-out placeholder:text-muted/70 focus-visible:!outline-none"
+            style={{ opacity: isOpen ? 1 : 0 }}
+          />
+        </label>
       </motion.div>
     </div>
   );
