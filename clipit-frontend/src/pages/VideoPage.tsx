@@ -29,6 +29,10 @@ const YEAR = 365 * DAY;
 // full (sometimes hundreds-long) mined set for the video.
 const TRACKED_WORDS_LIMIT = 10;
 
+function capitalizeFirst(text: string): string {
+  return text.length ? text[0].toUpperCase() + text.slice(1) : text;
+}
+
 function formatTrackedAt(ts: number): string {
   const now = Date.now() / 1000;
   const diff = now - ts;
@@ -130,7 +134,8 @@ export function VideoPage() {
       const word = item.word?.trim();
       if (!word || seen.has(word)) continue;
       seen.add(word);
-      words.push({ word, english: item.english?.trim() || null });
+      const english = item.english?.trim();
+      words.push({ word, english: english ? capitalizeFirst(english) : null });
     }
     return words;
   }, [token, language]);
