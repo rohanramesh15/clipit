@@ -186,6 +186,7 @@ interface Slide {
   smallHeadline?: boolean;
   headlineAsBody?: boolean;
   bodyAsHeadline?: boolean;
+  looseHeadlineGap?: boolean;
 }
 const slides: Slide[] = [
 {
@@ -206,6 +207,7 @@ const slides: Slide[] = [
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
   hideIcon: true,
+  looseHeadlineGap: true,
   video: {
     videoId: 'NiTsduRreug',
     startTime: 291,
@@ -242,7 +244,7 @@ const slides: Slide[] = [
 {
   id: 4,
   eyebrow: '',
-  headline: 'One last thing',
+  headline: 'One last thing.',
   body: "Let's make it yours!",
   icon: Zap,
   iconBg: 'bg-transparent',
@@ -402,7 +404,7 @@ const quizQuestions = [
   {
     question: "How tracking works",
     isTrackingInfoStep: true,
-    body: "Stay signed in to ClipIt, then watch anything on YouTube or Netflix — the extension tracks new words from that video automatically.",
+    body: "Stay signed in to ClipIt, then watch anything on YouTube or Netflix. The extension tracks new words from that video automatically.",
     note: "Only videos with subtitles in your target language are tracked, auto-generated included. Learning Korean? Any video with Korean subtitles works.",
     options: []
   },
@@ -417,7 +419,10 @@ const quizQuestions = [
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { openExtensionInstall } = useExtensionInstall();
   const [current, setCurrent] = useState(0);
-  const [direction, setDirection] = useState(1);
+  // Negative so the very first slide's mount animation enters from the left,
+  // distinct from the rightward-entry convention used once you're actually
+  // navigating forward (goNext sets this back to 1).
+  const [direction, setDirection] = useState(-1);
   const [inQuiz, setInQuiz] = useState(false);
   const [quizStep, setQuizStep] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
@@ -562,7 +567,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   <p className="text-lead text-secondary max-w-md mx-auto">
                     {currentQuestion.body}
                   </p>
-                  <div className="rounded-xl border border-white/10 bg-surface px-4 py-3 text-sm text-secondary max-w-md mx-auto text-left">
+                  <div className="rounded-xl border border-white/10 bg-surface px-4 py-3 text-sm text-secondary max-w-md mx-auto text-center">
                     {'note' in currentQuestion && currentQuestion.note}
                   </div>
                 </div>
@@ -676,6 +681,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           >
             <motion.div
               className="h-full rounded-full bg-accent"
+              initial={{ width: 0 }}
               animate={{ width: `${((current + 1) / slides.length) * 100}%` }}
               transition={{ duration: 0.3 }}
             />
@@ -719,7 +725,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </p>
 
             {/* Headline */}
-            <h1 className={slide.headlineAsBody ? 'font-sans text-body text-secondary mb-2 leading-relaxed' : `font-heading font-normal text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
+            <h1 className={slide.headlineAsBody ? 'font-sans text-body text-secondary mb-2 leading-relaxed' : `font-heading font-normal text-primary leading-tight ${slide.looseHeadlineGap ? 'mb-8' : 'mb-5'} ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
               {slide.headline}
             </h1>
 
