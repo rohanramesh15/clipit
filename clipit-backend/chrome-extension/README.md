@@ -100,7 +100,7 @@ The extension gracefully handles various error scenarios:
 
 The extension is configured to work with:
 
-- **Backend API**: https://project-deadbird-backend.fly.dev/api
+- **Backend API**: https://project-deadbird-backend-supabase.fly.dev/api
 - **Frontend App**: https://www.joinclipit.com
 - **Development**: Also supports localhost URLs for development
 
