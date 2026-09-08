@@ -224,7 +224,8 @@ const slides: Slide[] = [
   icon: Puzzle,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
-  hideIcon: true
+  hideIcon: true,
+  plainBody: true
 },
 {
   id: 3,
