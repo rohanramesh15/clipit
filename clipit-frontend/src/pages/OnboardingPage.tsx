@@ -840,10 +840,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           Back
         </Button>
 
-        <span className="text-sm text-muted">
-          {current + 1} of {slides.length}
-        </span>
-
         <Button onClick={goNext} className="text-sm font-bold">
           {isLast ? "Let's Go" : 'Next'}
           <NavigationIcon direction="forward" className="h-4 w-4" />
