@@ -251,7 +251,8 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 <Button
                   type="button"
                   onClick={() => setIsConfirmingDelete(true)}
-                  variant="destructive"
+                  variant="ghost"
+                  className="text-error hover:bg-error/10 hover:text-error"
                 >
                   Delete account
                 </Button>

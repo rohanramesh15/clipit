@@ -10,7 +10,7 @@ import { FormError } from '../components/auth/FormError';
 import { Button } from '../components/ui/button';
 
 interface SignupPageProps {
-  onNavigate: (view: 'landing' | 'login' | 'onboarding') => void;
+  onNavigate: (view: 'landing' | 'login' | 'onboarding' | 'privacy') => void;
   onBack: () => void;
   initialError?: string;
 }
@@ -78,9 +78,13 @@ export function SignupPage({ onNavigate, onBack, initialError }: SignupPageProps
         footerNote={
           <p className="text-meta text-muted">
             By signing up, you agree to our{' '}
-            <a href="#privacy" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
+            <button
+              type="button"
+              onClick={() => onNavigate('privacy')}
+              className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary"
+            >
               Privacy Policy
-            </a>
+            </button>
             .
           </p>
         }
@@ -111,9 +115,13 @@ export function SignupPage({ onNavigate, onBack, initialError }: SignupPageProps
       footerNote={
         <p className="text-meta text-muted">
           By signing up, you agree to our{' '}
-          <a href="#privacy" className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary">
+          <button
+            type="button"
+            onClick={() => onNavigate('privacy')}
+            className="font-medium text-secondary underline underline-offset-2 transition-colors duration-150 ease-swift hover:text-primary"
+          >
             Privacy Policy
-          </a>
+          </button>
           .
         </p>
       }
