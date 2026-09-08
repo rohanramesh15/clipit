@@ -220,7 +220,7 @@ const slides: Slide[] = [
   id: 2,
   eyebrow: '',
   headline: 'Watch YouTube & Netflix as usual',
-  body: "ClipIt's extension quietly tracks every word worth remembering while you watch.",
+  body: "ClipIt's extension tracks every word worth remembering while you watch.",
   icon: Puzzle,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
@@ -540,7 +540,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               )}
 
-              <h2 className="text-card-title font-heading font-normal text-primary mb-8 md:text-section">
+              <h2 className={`text-card-title font-heading font-normal text-primary md:text-section ${'isFinalStep' in currentQuestion && currentQuestion.isFinalStep ? 'mb-5' : 'mb-8'}`}>
                 {currentQuestion.question}
               </h2>
 
