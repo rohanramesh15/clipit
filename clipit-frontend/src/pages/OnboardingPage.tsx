@@ -184,6 +184,8 @@ interface Slide {
   plainBody?: boolean;
   showPracticeMethods?: boolean;
   smallHeadline?: boolean;
+  headlineAsBody?: boolean;
+  bodyAsHeadline?: boolean;
 }
 const slides: Slide[] = [
 {
@@ -245,8 +247,8 @@ const slides: Slide[] = [
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
   hideIcon: true,
-  plainBody: true,
-  smallHeadline: true
+  headlineAsBody: true,
+  bodyAsHeadline: true
 }];
 
 const features = [
@@ -394,11 +396,13 @@ const quizQuestions = [
   {
     question: "Install the ClipIt Extension",
     isExtensionStep: true,
-    cards: [
-      { label: "Browse normally", description: "Watch content on YouTube or Netflix", icon: Play },
-      { label: "Vocab captured", description: "Extension detects new words", icon: Zap },
-      { label: "Cards created", description: "Flashcards appear automatically", icon: Layers }
-    ],
+    options: []
+  },
+  {
+    question: "How tracking works",
+    isTrackingInfoStep: true,
+    body: "Stay signed in to ClipIt, then watch anything on YouTube or Netflix — the extension tracks new words from that video automatically.",
+    note: "Only videos with subtitles in your target language are tracked, auto-generated included. Learning Korean? Any video with Korean subtitles works.",
     options: []
   },
   {
@@ -523,6 +527,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               )}
 
+              {'isTrackingInfoStep' in currentQuestion && currentQuestion.isTrackingInfoStep && (
+                <div className="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4">
+                  <Zap className="w-8 h-8" />
+                </div>
+              )}
+
               {'isFinalStep' in currentQuestion && currentQuestion.isFinalStep && (
                 <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="w-9 h-9" />
@@ -535,20 +545,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
               {'isExtensionStep' in currentQuestion && currentQuestion.isExtensionStep ? (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {'cards' in currentQuestion && currentQuestion.cards?.map((card, i) => (
-                      <div
-                        key={i}
-                        className="bg-surface border border-white/10 rounded-2xl p-5 text-center"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center mx-auto mb-3">
-                          <card.icon className="w-6 h-6" />
-                        </div>
-                        <p className="font-semibold text-primary mb-1">{card.label}</p>
-                        <p className="text-sm text-secondary">{card.description}</p>
-                      </div>
-                    ))}
-                  </div>
                   <div className="flex justify-center mt-4">
                     <button
                       type="button"
@@ -558,6 +554,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       <Puzzle className="w-5 h-5" />
                       Get the extension
                     </button>
+                  </div>
+                </div>
+              ) : 'isTrackingInfoStep' in currentQuestion && currentQuestion.isTrackingInfoStep ? (
+                <div className="space-y-4">
+                  <p className="text-lead text-secondary max-w-md mx-auto">
+                    {currentQuestion.body}
+                  </p>
+                  <div className="rounded-xl border border-white/10 bg-surface px-4 py-3 text-sm text-secondary max-w-md mx-auto text-left">
+                    {'note' in currentQuestion && currentQuestion.note}
                   </div>
                 </div>
               ) : 'isFinalStep' in currentQuestion && currentQuestion.isFinalStep ? (
@@ -620,7 +625,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             <NavigationIcon direction="back" className="h-4 w-4" />
             Back
           </Button>
-          {'isExtensionStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isExtensionStep ? (
+          {('isExtensionStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isExtensionStep) ||
+          ('isTrackingInfoStep' in quizQuestions[quizStep] && quizQuestions[quizStep].isTrackingInfoStep) ? (
             <Button
               type="button"
               onClick={handleExtensionStepAdvance}
@@ -712,13 +718,13 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </p>
 
             {/* Headline */}
-            <h1 className={`font-heading font-normal text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
+            <h1 className={slide.headlineAsBody ? 'font-sans text-body text-secondary mb-2 leading-relaxed' : `font-heading font-normal text-primary mb-5 leading-tight ${slide.smallHeadline ? 'text-card-title md:text-section' : 'text-section md:text-section-lg'}`}>
               {slide.headline}
             </h1>
 
             {/* Body */}
             {slide.body && (
-              <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.plainBody ? 'text-body text-secondary' : slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
+              <p className={slide.bodyAsHeadline ? 'font-heading font-normal text-primary mb-5 leading-tight text-section md:text-section-lg' : `leading-relaxed max-w-xl mx-auto mb-6 ${slide.plainBody ? 'text-body text-secondary' : slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
                 {slide.body}
               </p>
             )}
