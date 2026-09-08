@@ -181,6 +181,7 @@ interface Slide {
   };
   secondaryBody?: string;
   largeBody?: boolean;
+  plainBody?: boolean;
   showPracticeMethods?: boolean;
   smallHeadline?: boolean;
 }
@@ -188,7 +189,7 @@ const slides: Slide[] = [
 {
   id: 0,
   eyebrow: '',
-  headline: "Welcome to ClipIt",
+  headline: "Welcome to ClipIt!",
   secondaryBody: "Learn a new language by watching Netflix & YouTube.",
   icon: Zap,
   iconBg: 'bg-accent/20',
@@ -199,7 +200,6 @@ const slides: Slide[] = [
   id: 1,
   eyebrow: '',
   headline: 'The Science Behind ClipIt',
-  body: 'Just watch what you love.',
   icon: Play,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
@@ -217,25 +217,35 @@ const slides: Slide[] = [
 {
   id: 2,
   eyebrow: '',
-  headline: 'Choose the way that helps each word stick',
-  body: 'Flashcards, AI chat, and Mad Libs turn words from your videos into practice.',
-  icon: Layers,
+  headline: 'Watch YouTube & Netflix as usual',
+  body: "ClipIt's extension quietly tracks every word worth remembering while you watch.",
+  icon: Puzzle,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
-  hideIcon: true,
-  largeBody: true,
-  showPracticeMethods: true
+  hideIcon: true
 },
 {
   id: 3,
   eyebrow: '',
-  headline: 'One last thing.',
-  body: "Let's make it yours.",
+  headline: 'Choose the way that helps each word stick',
+  body: 'Flashcards, AI chat, and Mad Libs turn YouTube and Netflix words into practice.',
+  icon: Layers,
+  iconBg: 'bg-transparent',
+  iconColor: 'text-transparent',
+  hideIcon: true,
+  plainBody: true,
+  showPracticeMethods: true
+},
+{
+  id: 4,
+  eyebrow: '',
+  headline: 'One last thing',
+  body: "Let's make it yours!",
   icon: Zap,
   iconBg: 'bg-transparent',
   iconColor: 'text-transparent',
   hideIcon: true,
-  largeBody: true,
+  plainBody: true,
   smallHeadline: true
 }];
 
@@ -708,7 +718,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
             {/* Body */}
             {slide.body && (
-              <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
+              <p className={`leading-relaxed max-w-xl mx-auto mb-6 ${slide.plainBody ? 'text-body text-secondary' : slide.video || slide.largeBody ? (slide.smallHeadline ? 'text-section md:text-section-lg text-primary' : 'text-card-title text-primary') : 'text-lead text-secondary'}`}>
                 {slide.body}
               </p>
             )}
